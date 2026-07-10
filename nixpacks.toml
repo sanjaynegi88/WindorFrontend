@@ -1,0 +1,14 @@
+[phases.setup]
+nixPkgs = ["nodejs_18"]
+
+[phases.install]
+cmds = [
+  "npm ci",
+  "npm install --force --cpu=x64 --os=linux lightningcss-linux-x64-gnu @tailwindcss/oxide-linux-x64-gnu"
+]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm run start"
