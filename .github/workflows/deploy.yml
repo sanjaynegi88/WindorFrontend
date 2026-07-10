@@ -1,0 +1,34 @@
+name: Deploy Frontend to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+
+          script: |
+            set -e
+
+            cd /home/ubuntu/WindorFrontend
+
+            echo "Pulling latest code..."
+            git pull origin main
+
+            echo "Building and starting containers..."
+            docker compose up -d --build
+
+            echo "Cleaning unused Docker images..."
+            docker image prune -f
+
+            echo "✅ Frontend deployment completed successfully."
