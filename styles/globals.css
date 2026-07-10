@@ -1,0 +1,210 @@
+/* Tailwind Core */
+@import 'tailwindcss';
+
+@import 'tw-animate-css';
+
+/* Disable automatic dark mode — only apply dark: classes when .dark is explicitly set */
+@variant dark (&:where(.dark, .dark *));
+
+
+/** Colors - https://tailwindcss.com/docs/colors **/
+:root {
+  --background: #f8fafc;
+  --foreground: #1e293b;
+  --card: #ffffff;
+  --card-foreground: #1e293b;
+  --popover: #ffffff;
+  --popover-foreground: #1e293b;
+  --primary: #1CA7A6;
+  --primary-foreground: #ffffff;
+  --secondary: #1e293b;
+  --secondary-new: #212B45;
+  --secondary-foreground: #ffffff;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #f1f5f9;
+  --accent-foreground: #1e293b;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #1CA7A6;
+  --radius: 0.75rem;
+}
+
+/** Theme Setup **/
+@theme inline {
+  /** Base Colors **/
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+   --color-secondary-new: var(--secondary-new);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  /** Base Styles **/
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  /** Font Families **/
+  --font-inter: var(--font-inter);
+  --font-asap: var(--font-asap);
+
+  /** Animations **/
+  --animate-marquee: marquee var(--duration) infinite linear;
+  --animate-marquee-vertical: marquee-vertical var(--duration) linear infinite;
+
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(calc(-100% - var(--gap)));
+    }
+  }
+  @keyframes marquee-vertical {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(calc(-100% - var(--gap)));
+    }
+  }
+}
+
+/** Global Styles **/
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  *:focus-visible {
+    @apply outline-ring rounded-xs shadow-none outline-2 outline-offset-3 transition-none!;
+  }
+
+  /* Prevent horizontal overflow — on html only, NOT body.
+   * Setting overflow-x: hidden on body disables scrollbar-gutter: stable
+   * in Chrome, which is the mechanism that prevents layout shift. */
+  html {
+    @apply overflow-x-hidden;
+  }
+
+  /* Ensure proper mobile viewport */
+  @media (max-width: 1024px) {
+    body {
+      @apply text-sm;
+    }
+  }
+}
+
+@layer base {
+
+  body {
+    scrollbar-width: none !important; /* Firefox - force override */
+  }
+  body::-webkit-scrollbar {
+    width: 0px !important; /* Chrome/Safari — overlay, no layout space - force override */
+  }
+
+  body[data-scroll-locked] {
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  *:not(body)::-webkit-scrollbar {
+    width: 5px;
+  }
+  *:not(body)::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *:not(body)::-webkit-scrollbar-thumb {
+    background: var(--input);
+    border-radius: 5px;
+  }
+  *:not(body) {
+    scrollbar-width: thin;
+    scrollbar-color: var(--input) transparent;
+  }
+
+  .container, [class*="container"] {
+ 
+    box-sizing: border-box;
+  }
+
+
+  [data-radix-popper-content-wrapper] {
+    position: fixed !important;
+  }
+}
+
+/** Smooth scroll **/
+html {
+  scroll-behavior: smooth;
+}
+
+/** Custom Containers **/
+@utility container {
+  @apply mx-auto max-w-none px-4 lg:px-5;
+
+  @media (width >= --theme(--breakpoint-xl)) {
+    @apply max-w-(--breakpoint-xl);
+  }
+}
+
+@utility container-fluid {
+  @apply mx-auto w-full px-4 lg:px-5;
+}
+
+/** Custom Font Sizes **/
+@theme {
+  --text-2sm: 0.8125rem;
+  --text-2sm--line-height: calc(1.075 / 0.8125);
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: calc(0.825 / 0.6875);
+}
+
+/* Store Inventory Layout */
+@import './demos/demo1.css';
+
+/* Card Title */
+[data-slot=card-title] {
+  @apply font-medium;
+}
+
+@keyframes pulse-progress {
+  0% {
+    width: 0%;
+  }
+  20% {
+    width: 35%;
+  }
+  50% {
+    width: 70%;
+  }
+  80% {
+    width: 90%;
+  }
+  100% {
+    width: 95%;
+  }
+}
+
+.animate-pulse-progress {
+  animation: pulse-progress 20s cubic-bezier(0.1, 0.8, 0.1, 1) forwards;
+}
