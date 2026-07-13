@@ -1,4 +1,5 @@
 import { ChevronLeft } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { ImageTab, PropertyImage } from "./types";
 
@@ -48,11 +49,14 @@ export const ProjectImagesView = ({
               key={i}
               className="space-y-[8px] md:space-y-[12px] group cursor-pointer"
             >
-              <div className="overflow-hidden rounded-[8px] shadow-[0px_4px_14px_rgba(31,42,68,0.2)] border-2 border-[rgba(255,255,255,0.93)] transition-transform duration-300 group-hover:scale-[1.01]">
-                <img
+              <div className="relative overflow-hidden rounded-[8px] shadow-[0px_4px_14px_rgba(31,42,68,0.2)] border-2 border-[rgba(255,255,255,0.93)] transition-transform duration-300 group-hover:scale-[1.01] w-full h-[100px] sm:h-[136px] md:h-[156px]">
+                <Image
                   src={img.src}
                   alt={img.caption}
-                  className="w-full md:w-[410px] h-[100px] sm:h-[136px] md:h-[156px] object-cover"
+                  fill
+                  sizes="(max-width: 768px) 50vw, 410px"
+                  unoptimized
+                  className="object-cover"
                 />
               </div>
               <p className="text-center text-[12px] md:text-[16px] font-semibold text-[#708090] leading-[18px] uppercase font-asap">

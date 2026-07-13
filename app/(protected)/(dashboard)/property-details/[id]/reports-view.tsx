@@ -50,10 +50,28 @@ export const ReportsView = ({
   const { user, role } = useUser();
   const totalProjectsCount = (componentsData?.projects ?? []).length;
   const contractorProjectsCount = (componentsData?.projects ?? []).filter(
-    (p: any) => p.created_by_type === "CONTRACTOR" || p.added_by === "CONTRACTOR"
+    (p: any) => {
+      const ownerId = p.property?.property_owner_id || p.property_owner_id || p.property?.property_owner?.id || componentsData?.property_owner_id || componentsData?.property_owner?.id;
+      const ownerEmail = p.property?.property_owner_email || p.property_owner_email || p.property?.property_owner?.email || componentsData?.property_owner_email || componentsData?.property_owner?.email || propertyOwnerEmail;
+      const isOwner =
+        p.created_by_type === 'PROPERTY_OWNER' ||
+        p.added_by === 'PROPERTY_OWNER' ||
+        (p.created_by && ownerId && p.created_by === ownerId) ||
+        (p.created_by_email && ownerEmail && p.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
+      return !isOwner;
+    }
   ).length;
   const homeownerProjectsCount = (componentsData?.projects ?? []).filter(
-    (p: any) => p.created_by_type === "PROPERTY_OWNER" || p.added_by === "PROPERTY_OWNER"
+    (p: any) => {
+      const ownerId = p.property?.property_owner_id || p.property_owner_id || p.property?.property_owner?.id || componentsData?.property_owner_id || componentsData?.property_owner?.id;
+      const ownerEmail = p.property?.property_owner_email || p.property_owner_email || p.property?.property_owner?.email || componentsData?.property_owner_email || componentsData?.property_owner?.email || propertyOwnerEmail;
+      const isOwner =
+        p.created_by_type === 'PROPERTY_OWNER' ||
+        p.added_by === 'PROPERTY_OWNER' ||
+        (p.created_by && ownerId && p.created_by === ownerId) ||
+        (p.created_by_email && ownerEmail && p.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
+      return isOwner;
+    }
   ).length;
   const isOwnerOfProperty = role === "property_owner" && !!propertyOwnerEmail && user?.email?.toLowerCase() === propertyOwnerEmail?.toLowerCase();
   const isAdmin = role === "admin";
@@ -154,9 +172,19 @@ export const ReportsView = ({
   useEffect(() => {
     if (showContractorProjectsDialog) {
       setLoadingContractor(true);
-      getprojectListingOfProperty(propertyId, undefined, "CONTRACTOR")
+      getprojectListingOfProperty(propertyId)
         .then((res) => {
-          const projects = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+          const allProjects = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+          const projects = allProjects.filter((p: any) => {
+            const ownerId = p.property?.property_owner_id || p.property_owner_id || p.property?.property_owner?.id || componentsData?.property_owner_id || componentsData?.property_owner?.id;
+            const ownerEmail = p.property?.property_owner_email || p.property_owner_email || p.property?.property_owner?.email || componentsData?.property_owner_email || componentsData?.property_owner?.email || propertyOwnerEmail;
+            const isOwner =
+              p.created_by_type === 'PROPERTY_OWNER' ||
+              p.added_by === 'PROPERTY_OWNER' ||
+              (p.created_by && ownerId && p.created_by === ownerId) ||
+              (p.created_by_email && ownerEmail && p.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
+            return !isOwner;
+          });
           setContractorProjects(projects);
         })
         .catch((err) => {
@@ -165,14 +193,24 @@ export const ReportsView = ({
         })
         .finally(() => setLoadingContractor(false));
     }
-  }, [showContractorProjectsDialog, propertyId]);
+  }, [showContractorProjectsDialog, propertyId, componentsData, propertyOwnerEmail]);
 
   useEffect(() => {
     if (showHomeOwnerProjectsDialog) {
       setLoadingHomeowner(true);
-      getprojectListingOfProperty(propertyId, undefined, "PROPERTY_OWNER")
+      getprojectListingOfProperty(propertyId)
         .then((res) => {
-          const projects = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+          const allProjects = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+          const projects = allProjects.filter((p: any) => {
+            const ownerId = p.property?.property_owner_id || p.property_owner_id || p.property?.property_owner?.id || componentsData?.property_owner_id || componentsData?.property_owner?.id;
+            const ownerEmail = p.property?.property_owner_email || p.property_owner_email || p.property?.property_owner?.email || componentsData?.property_owner_email || componentsData?.property_owner?.email || propertyOwnerEmail;
+            const isOwner =
+              p.created_by_type === 'PROPERTY_OWNER' ||
+              p.added_by === 'PROPERTY_OWNER' ||
+              (p.created_by && ownerId && p.created_by === ownerId) ||
+              (p.created_by_email && ownerEmail && p.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
+            return isOwner;
+          });
           setHomeownerProjects(projects);
         })
         .catch((err) => {
@@ -181,7 +219,7 @@ export const ReportsView = ({
         })
         .finally(() => setLoadingHomeowner(false));
     }
-  }, [showHomeOwnerProjectsDialog, propertyId]);
+  }, [showHomeOwnerProjectsDialog, propertyId, componentsData, propertyOwnerEmail]);
 
   useEffect(() => {
     setPurchased(isPurchased);

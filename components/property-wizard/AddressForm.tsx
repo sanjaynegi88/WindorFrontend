@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { ChevronLeft, Eye } from 'lucide-react';
+import { ChevronLeft, Eye, MapPin } from 'lucide-react';
 import {
     Select,
     SelectContent,
@@ -18,6 +18,7 @@ import { ZipSelect } from '@/components/city-zip-selector';
 import { useUser } from '../providers/user-provider';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { getCities } from '@/lib/actions';
+import { MapDialog } from './MapDialog';
 
 export interface AddressData {
     address: string;
@@ -84,6 +85,7 @@ export function AddressForm({
     const [citySearch, setCitySearch] = useState('');
     const [fetchedCities, setFetchedCities] = useState<CityOption[]>([]);
     const [loadingCities, setLoadingCities] = useState(false);
+    const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
 
     useEffect(() => {
         let active = true;
@@ -291,23 +293,46 @@ export function AddressForm({
                     onChange={(e) => onChange({ ...data, zip: e.target.value })}
                 />
 
-                {/* Property Owner */}
+                {/* Property Owner & Coordinates (Admin Only) */}
                 {user?.role === "admin" && (
-                    <Select
-                        value={data.property_owner_id || ''}
-                        onValueChange={(val) => onChange({ ...data, property_owner_id: val })}
-                    >
-                        <SelectTrigger className={triggerClass}>
-                            <SelectValue placeholder="Property Owner" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl">
-                            {propertyOwners.map((owner) => (
-                                <SelectItem key={owner.id} value={owner.id}>
-                                    {owner.email}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <div className="space-y-[15px] md:space-y-[20px] p-5 border border-dashed border-[rgba(28,167,166,0.3)] rounded-[10px] bg-slate-50/50">
+                        <div>
+                            <label className="text-[12px] md:text-[14px] font-bold text-[#708090] uppercase tracking-widest px-1 mb-1 block">
+                                Property Owner
+                            </label>
+                            <Select
+                                value={data.property_owner_id || ''}
+                                onValueChange={(val) => onChange({ ...data, property_owner_id: val })}
+                            >
+                                <SelectTrigger className={triggerClass}>
+                                    <SelectValue placeholder="Property Owner" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl">
+                                    {propertyOwners.map((owner) => (
+                                        <SelectItem key={owner.id} value={owner.id}>
+                                            {owner.email}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <Button
+                                type="button"
+                                onClick={() => setIsMapPopupOpen(true)}
+                                className="h-[46px] md:h-[55px] border border-[#1CA7A6] bg-white text-[#1CA7A6] hover:bg-[#1CA7A6]/5 font-bold rounded-[6px] md:rounded-[10px] text-[14px] md:text-[18px] flex items-center justify-center gap-2 shadow-none font-asap px-6"
+                            >
+                                <MapPin className="size-[16px] md:size-[22px]" />
+                                Locate / Move Pin on Map
+                            </Button>
+                            {data.latitude !== undefined && data.longitude !== undefined && (
+                                <span className="text-[12px] md:text-[14px] font-mono text-[#708090] bg-white px-4 py-2 rounded-[6px] border border-slate-200/60 shadow-sm">
+                                    Pin Coordinates: {data.latitude.toFixed(6)}, {data.longitude.toFixed(6)}
+                                </span>
+                            )}
+                        </div>
+                    </div>
                 )}
             </div>
 
@@ -366,6 +391,18 @@ export function AddressForm({
                     Back
                 </button>
             </div>
+
+            {user?.role === "admin" && (
+                <MapDialog
+                    isOpen={isMapPopupOpen}
+                    onClose={() => setIsMapPopupOpen(false)}
+                    latitude={data.latitude}
+                    longitude={data.longitude}
+                    addressString={data.address ? `${data.address}, ${data.city || ''}, ${data.state || ''} ${data.zip || ''}` : undefined}
+                    onSave={(lat, lng) => onChange({ ...data, latitude: lat, longitude: lng })}
+                />
+            )}
         </div>
     );
 }
+

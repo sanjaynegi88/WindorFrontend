@@ -41,7 +41,23 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { ReportPriceFormDialog } from './report-price-form-dialog';
 import { formatDate } from '@/lib/helpers';
-import { toPascalCase } from '@/lib/utils';
+
+const formatReportPriceKey = (key: string) => {
+  switch (key) {
+    case 'report_price':
+      return 'Report Price (Contractor Projects)';
+    case 'add_user_price':
+      return 'Contractor Additional User Price (Monthly)';
+    case 'add_user_price_annual':
+      return 'Contractor Additional User Price (Annual)';
+    case 'individual_project_price':
+      return 'Individual Project Report Price';
+    case 'full_report_price':
+      return 'Full Report Price (Owner, Contractor Projects)';
+    default:
+      return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+};
 
 export default function ReportPriceListPage({ refreshTrigger, onSuccess }: { refreshTrigger: number, onSuccess: () => void }) {
   const [pagination, setPagination] = useState<PaginationState>({
@@ -171,7 +187,7 @@ export default function ReportPriceListPage({ refreshTrigger, onSuccess }: { ref
             <div className="flex items-center">
               <div className="flex flex-col">
                 <span className="font-semibold text-foreground text-sm leading-tight">
-                  {toPascalCase(row.original.key)}
+                  {formatReportPriceKey(row.original.key)}
                 </span>
               </div>
             </div>

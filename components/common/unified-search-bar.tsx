@@ -21,6 +21,7 @@ interface UnifiedSearchBarProps {
     onSearchTriggered?: () => void;
     showSearchButton?: boolean;
     className?: string;
+    isMapView?: boolean;
 }
 
 export function UnifiedSearchBar({
@@ -28,12 +29,14 @@ export function UnifiedSearchBar({
     onChange,
     onSearchTriggered,
     showSearchButton = false,
-    className
+    className,
+    isMapView = false
 }: UnifiedSearchBarProps) {
     const [search, setSearch] = useState('');
     const { user } = useUser();
     const role = user?.role?.toLowerCase() || "";
     const isContractor = role === "contractor";
+    const isCityInspector = role === "city_inspector";
     const [searchBy, setSearchBy] = useState<SearchScope>('all');
     const [state, setState] = useState('all');
     const [city, setCity] = useState('all');
@@ -90,6 +93,13 @@ export function UnifiedSearchBar({
         }
     }, [isContractor]);
 
+    useEffect(() => {
+        if (isCityInspector || isMapView) {
+            setState('all');
+            setCity('all');
+        }
+    }, [isCityInspector, isMapView]);
+
     const getPlaceholder = () => {
         if (isContractor) return "Search Property";
 
@@ -108,31 +118,33 @@ export function UnifiedSearchBar({
     return (
         <div className={`space-y-[10px] md:space-y-[30px] w-full ${className}`}>
             {/* Dropdowns Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-[10px] md:gap-[19.8px]">
-                <Select value={state} onValueChange={setState}>
-                    <SelectTrigger className="h-[39px] md:h-[65px] rounded-[10px] border-[rgba(28,167,166,0.25)] bg-white text-[#708090] font-medium px-4 md:px-6 focus:ring-[#22a699]/20 text-[13px] md:text-[20px] font-asap">
-                        <SelectValue placeholder="Select State" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                        <SelectItem value="all">Select State</SelectItem>
-                        {states.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>{s.state_name || s.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+            {!isCityInspector && !isMapView && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-[10px] md:gap-[19.8px]">
+                    <Select value={state} onValueChange={setState}>
+                        <SelectTrigger className="h-[39px] md:h-[65px] rounded-[10px] border-[rgba(28,167,166,0.25)] bg-white text-[#708090] font-medium px-4 md:px-6 focus:ring-[#22a699]/20 text-[13px] md:text-[20px] font-asap">
+                            <SelectValue placeholder="Select State" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                            <SelectItem value="all">Select State</SelectItem>
+                            {states.map((s) => (
+                                <SelectItem key={s.id} value={s.id}>{s.state_name || s.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
 
-                <Select value={city} onValueChange={setCity}>
-                    <SelectTrigger className="h-[39px] md:h-[65px] rounded-[10px] border-[rgba(28,167,166,0.25)] bg-white text-[#708090] font-medium px-4 md:px-6 focus:ring-[#22a699]/20 text-[13px] md:text-[20px] font-asap">
-                        <SelectValue placeholder="City" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                        <SelectItem value="all">City</SelectItem>
-                        {cities.map((c: any) => (
-                            <SelectItem key={c.id} value={c.id}>{c.city_name || c.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
+                    <Select value={city} onValueChange={setCity}>
+                        <SelectTrigger className="h-[39px] md:h-[65px] rounded-[10px] border-[rgba(28,167,166,0.25)] bg-white text-[#708090] font-medium px-4 md:px-6 focus:ring-[#22a699]/20 text-[13px] md:text-[20px] font-asap">
+                            <SelectValue placeholder="City" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                            <SelectItem value="all">City</SelectItem>
+                            {cities.map((c: any) => (
+                                <SelectItem key={c.id} value={c.id}>{c.city_name || c.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
 
             {/* Search Input Row with Search By */}
 

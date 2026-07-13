@@ -12,6 +12,7 @@ import { type CredentialResponse } from "@/hooks/use-google-login";
 import { registerUser, googleLogin, getRoles } from "@/lib/actions";
 import { Navbar1, Footer1 } from "@/components/layouts/global";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
+import Image from "next/image";
 import { RoleSelectionPage } from "@/components/register/role-selection-page";
 
 // ── Schema ────────────────────────────────────────────────────────────────────
@@ -149,7 +150,7 @@ export default function Register1Page() {
       <Navbar1 />
       <section className="relative flex-1 flex items-start py-[60px] overflow-hidden w-full min-h-[calc(100vh-100px)]">
         <div className="absolute inset-0 z-0">
-          <img src="/assets/login/new-login-bg.png" alt="" className="w-full h-full object-cover object-center" />
+          <Image src="/assets/login/new-login-bg.png" alt="" fill sizes="100vw" priority className="w-full h-full object-cover object-center" />
         </div>
         <div className="max-w-[1450px] mx-auto w-[90%] relative z-10 flex justify-center lg:justify-end">
           <div className="w-full max-w-[520px] bg-[#339FD0] border-[3px] border-white rounded-[16px] p-8 md:p-[40px_44px_36px_44px] text-white shadow-[0_20px_50px_rgba(15,42,68,0.18)]">
@@ -267,7 +268,7 @@ export default function Register1Page() {
 
                 <div className="flex justify-center gap-4">
                   <a href="#" aria-label="Continue with Apple" className="inline-flex items-center justify-center w-[42px] h-[42px] rounded-full bg-black hover:-translate-y-0.5 transition-all shadow-md">
-                    <img src="/assets/apple-logo.png" alt="Apple" className="w-[22px] h-[22px] object-contain" />
+                    <Image src="/assets/apple-logo.png" alt="Apple" width={22} height={22} className="w-[22px] h-[22px] object-contain" />
                   </a>
                   <div className="relative w-[42px] h-[42px] rounded-full overflow-hidden shadow-md bg-white cursor-pointer flex items-center justify-center">
                     <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">

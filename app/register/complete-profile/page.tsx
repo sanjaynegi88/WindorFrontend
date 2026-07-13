@@ -7,6 +7,7 @@ import { Navbar } from "@/components/layouts/global/Navbar";
 import { Footer } from "@/components/layouts/global/Footer";
 import { BrandedLayout } from "@/app/(auth)/layout/branded-layout";
 
+import Image from "next/image";
 import { postAddtionalUserForm } from "@/lib/actions";
 import { Step2PropertyForm, Step2PropertyValues } from "./step2-property-form";
 import { Step2ContractorForm, Step2ContractorValues } from "./step2-contractor-form";
@@ -52,7 +53,7 @@ function CompleteProfileContent() {
           {/* Logo */}
           <div className="flex justify-center mb-[76px]">
             <div className="w-[168px] h-[159px] bg-white shadow-[0px_4px_14px_rgba(31,42,68,0.3)] rounded-[20px] flex items-center justify-center shrink-0">
-              <img src="/assets/logo.png" alt="Windor Logo" className="h-[118px] w-[136px] object-contain" />
+              <Image src="/assets/logo.png" alt="Windor Logo" width={136} height={118} priority className="h-[118px] w-[136px] object-contain" />
             </div>
           </div>
 

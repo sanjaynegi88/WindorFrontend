@@ -106,9 +106,12 @@ export function Navbar1() {
         {/* Logo */}
         <div className="flex items-center">
           <Link href="/">
-            <img
+            <Image
               src="/assets/logo-1.png"
               alt="Windor Logo"
+              width={150}
+              height={54}
+              priority
               className="h-[46px] md:h-[54px] w-auto object-contain block"
             />
           </Link>
@@ -119,7 +122,7 @@ export function Navbar1() {
           {/* Navigation Menu */}
           <nav
             className={`${mobileOpen ? "block" : "hidden"
-              } xl:block absolute xl:relative top-full xl:top-auto left-0 right-0 xl:left-auto xl:right-auto bg-white xl:bg-transparent border-t xl:border-t-0 border-gray-100 xl:border-0 shadow-lg xl:shadow-none max-h-[calc(100vh-80px)] xl:max-h-none overflow-y-auto xl:overflow-visible z-[999] xl:z-auto mr-4`}
+              } xl:block absolute xl:relative top-full xl:top-auto left-0 right-0 xl:left-auto xl:right-auto bg-white xl:bg-transparent border-t xl:border-t-0 border-gray-100 xl:border-0 shadow-lg xl:shadow-none max-h-[calc(100vh-80px)] xl:max-h-none overflow-y-auto xl:overflow-visible z-999 xl:z-auto mr-4`}
           >
             <ul className="flex flex-col xl:flex-row gap-0 xl:gap-[18px] xl:flex-wrap p-0 xl:p-0 m-0 list-none">
               {navItems.map((link) => (

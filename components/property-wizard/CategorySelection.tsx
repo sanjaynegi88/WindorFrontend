@@ -190,11 +190,14 @@ export function CategorySelection({
             required_permit: false,
             isOwnerProjectType: true
           }));
-          const compTypes: ComponentType[] = (compRes?.data?.report_types || []).map((t: any) => ({
-            ...t,
-            required_permit: true,
-            isOwnerProjectType: false
-          }));
+          const compTypes: ComponentType[] = (compRes?.data?.report_types || []).map((t: any) => {
+            const nameLower = (t?.name || "").toLowerCase();
+            return {
+              ...t,
+              required_permit: (nameLower === "doors" || nameLower === "garage_doors") ? false : true,
+              isOwnerProjectType: false
+            };
+          });
 
           const merged = [...ownerTypes, ...compTypes];
           const uniqueNames = new Set<string>();
@@ -212,11 +215,14 @@ export function CategorySelection({
 
           const response = await fetchProjectTypes();
           const rawTypes = response?.data?.report_types || [];
-          types = rawTypes.map((t: any) => ({
-            ...t,
-            required_permit: !isPropertyOwner,
-            isOwnerProjectType: isPropertyOwner
-          }));
+          types = rawTypes.map((t: any) => {
+            const nameLower = (t?.name || "").toLowerCase();
+            return {
+              ...t,
+              required_permit: (nameLower === "doors" || nameLower === "garage_doors") ? false : !isPropertyOwner,
+              isOwnerProjectType: isPropertyOwner
+            };
+          });
         }
 
         setComponentTypes(types);

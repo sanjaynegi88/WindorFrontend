@@ -6,7 +6,7 @@ import { Content } from '@/components/layouts/crm/components/content'
 import { Button } from '@/components/ui/button'
 import React from 'react'
 import { UnifiedSearchBar } from "@/components/common/unified-search-bar";
-import { FileText, Loader2 } from "lucide-react";
+import { FileText, List, Loader2, Map } from "lucide-react";
 import { generateMultipleReports, checkoutReports } from "@/lib/actions";
 import { useUser } from "@/components/providers/user-provider";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -14,12 +14,14 @@ import { toast } from "sonner";
 import type { SearchScope } from "@/components/common/unified-search-bar";
 import { PdfGenerationLoader } from "@/components/common/pdf-generation-loader";
 import MapView from "../../(dashboard)/dashboard/map-view";
-import { downloadPdfFromUrl } from "@/lib/utils";
+import { cn, downloadPdfFromUrl } from "@/lib/utils";
 
 export default function PropertyPage() {
     const { user } = useUser();
     const [showResults, setShowResults] = useState(false);
-    const [viewMode] = useState<"list" | "map">("list");
+    const [viewMode, setViewMode] = useState<"list" | "map">("list");
+    const [mapFocus, setMapFocus] = useState<{ lat: number; lng: number } | null>(null);
+    const [mapFocusId, setMapFocusId] = useState<string | null>(null);
     const [isGeneratingTop10, setIsGeneratingTop10] = useState(false);
 
     const [filters, setFilters] = useState({
@@ -139,10 +141,55 @@ export default function PropertyPage() {
                             </Button>
                         )}
                     </div>
+                    <div className="flex gap-3">
+                        <Button
+                            onClick={() => setViewMode("list")}
+                            className={cn(
+                                "px-4 py-2 rounded-lg text-sm font-medium h-auto transition-all",
+                                viewMode === "list"
+                                    ? "bg-[#1F2A44] text-white shadow-sm"
+                                    : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                            )}
+                        >
+                            <List className="size-4 mr-2" />
+                            List View
+                        </Button>
+                        <Button
+                            onClick={() => setViewMode("map")}
+                            className={cn(
+                                "px-4 py-2 rounded-lg text-sm font-medium h-auto transition-all",
+                                viewMode === "map"
+                                    ? "bg-[#1F2A44] text-white shadow-sm"
+                                    : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                            )}
+                        >
+                            <Map className="size-4 mr-2" />
+                            Map View
+                        </Button>
+                    </div>
                     {viewMode === "list" && (
-                        <PropertyGrid searchParams={searchParams} showActionButtons={true} showDetail={true} />
+                        <PropertyGrid
+                            searchParams={searchParams}
+                            showActionButtons={true}
+                            showDetail={true}
+                            onOpenInMap={(lat, lng, id) => {
+                                setMapFocus({ lat, lng });
+                                setMapFocusId(id);
+                                setViewMode("map");
+                            }}
+                        />
                     )}
-                    {viewMode === "map" && <MapView searchParams={searchParams} />}
+                    {viewMode === "map" && (
+                        <MapView
+                            searchParams={searchParams}
+                            focusCenter={mapFocus || undefined}
+                            focusId={mapFocusId || undefined}
+                            onFocusCleared={() => {
+                                setMapFocus(null);
+                                setMapFocusId(null);
+                            }}
+                        />
+                    )}
                 </div>
             </div>
 

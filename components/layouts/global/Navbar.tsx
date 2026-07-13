@@ -213,10 +213,13 @@ export function Navbar() {
         <div className="flex items-center">
           <Link href="/" className="flex items-center">
             <div className="relative h-[85px] w-[93px]">
-              <img
+              <Image
                 src="/assets/logo.png"
                 alt="Windor Logo"
-                className="h-full w-full object-contain"
+                fill
+                sizes="93px"
+                priority
+                className="object-contain"
               />
             </div>
           </Link>

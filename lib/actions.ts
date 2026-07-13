@@ -747,6 +747,7 @@ export async function getPropertyById(id: any) {
 }
 
 export type PropertyFilters = {
+    id?: string;
     search?: string;
     brandName?: string;
     style?: string;
@@ -766,6 +767,7 @@ export type PropertyFilters = {
 
 function buildPropertyFilterParams(filters: PropertyFilters): URLSearchParams {
     const params = new URLSearchParams();
+    if (filters.id) params.append('id', filters.id);
     if (filters.search) params.append('search', filters.search);
     if (filters.brandName) params.append('brandName', filters.brandName);
     if (filters.style) params.append('style', filters.style);
@@ -799,6 +801,34 @@ export async function getPropertyListAll(filters?: PropertyFilters) {
     });
     if (response.type === 'error') {
         throw new Error(normalizeMsg(response.messages, 'Failed to get property list'));
+    }
+    return response.data;
+}
+
+export async function getPropertyLocations(
+    minLat: number,
+    maxLat: number,
+    minLng: number,
+    maxLng: number,
+    zoomLevel?: number,
+    filters?: PropertyFilters
+) {
+    let url = `/api/properties/location?minLat=${minLat}&maxLat=${maxLat}&minLng=${minLng}&maxLng=${maxLng}`;
+    if (zoomLevel !== undefined) {
+        url += `&zoomLevel=${zoomLevel}`;
+    }
+    if (filters) {
+        const query = buildPropertyFilterParams(filters).toString();
+        if (query) {
+            url += `&${query}`;
+        }
+    }
+    const response = await fetchApi({
+        url,
+        method: 'GET',
+    });
+    if (response.type === 'error') {
+        throw new Error(normalizeMsg(response.messages, 'Failed to get property locations'));
     }
     return response.data;
 }
@@ -1710,10 +1740,12 @@ export async function getPropertyTypeOption() {
     return response.data;
 }
 
-export async function getPropertyTypeOptions(page: number = 1, limit: number = 10, search?: string) {
-    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+export async function getPropertyTypeOptions(page?: number, limit?: number, search?: string) {
+    const params = new URLSearchParams();
+    if (page !== undefined) params.append('page', String(page));
+    if (limit !== undefined) params.append('limit', String(limit));
     if (search) params.append('search', search);
-    let url = `/api/property-types?${params.toString()}`;
+    let url = `/api/property-types${params.toString() ? `?${params.toString()}` : ''}`;
     const response = await fetchApi({
         url,
         method: 'GET'
@@ -1802,11 +1834,12 @@ export async function deleteServiceProvided(id: string) {
     return { success: true, data: response.data };
 }
 
-export async function getServiceProvided(page: number = 1, limit: number = 10, search?: string) {
-    let url = `/api/services-provided?page=${page}&limit=${limit}`
-    if (search) {
-        url += `&search=${search}`;
-    }
+export async function getServiceProvided(page?: number, limit?: number, search?: string) {
+    const params = new URLSearchParams();
+    if (page !== undefined) params.append('page', String(page));
+    if (limit !== undefined) params.append('limit', String(limit));
+    if (search) params.append('search', search);
+    let url = `/api/services-provided${params.toString() ? `?${params.toString()}` : ''}`;
     const response = await fetchApi({
         url,
         method: 'GET'
@@ -1856,10 +1889,16 @@ export async function deleteRoles(id: string) {
     return { success: true, data: response.data };
 }
 
-export async function getRoles(search?: string) {
-    let url = `/api/roles`
-    if (search) {
-        url += `?search=${search}`;
+export async function getRoles(page?: number, limit?: number, search?: string) {
+    const params = new URLSearchParams();
+    if (page !== undefined) params.append('page', String(page));
+    if (limit !== undefined) params.append('limit', String(limit));
+    if (search) params.append('search', search);
+
+    let url = `/api/roles`;
+    const queryString = params.toString();
+    if (queryString) {
+        url += `?${queryString}`;
     }
     const response = await fetchApi({
         url,
@@ -1870,6 +1909,7 @@ export async function getRoles(search?: string) {
     }
     return response.data;
 }
+
 
 export async function createImageCategory(body: any) {
     let url = '/api/admin/component-image-categories'
@@ -2016,6 +2056,30 @@ export async function postPropertyOwnerInstallations(id: any, body: any): Promis
     }
     return { success: true, data: response.data };
 }
+
+export async function uploadOwnerProjectImage(installationId: string, file: File): Promise<ActionResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetchApi({
+        url: `/api/owner-project/${installationId}/upload`,
+        method: 'POST',
+        data: formData,
+    });
+
+    if (response.type === 'error') {
+        const message =
+            typeof response.messages === 'string'
+                ? response.messages
+                : Array.isArray(response.messages)
+                    ? response.messages.join(', ')
+                    : 'Failed to upload image';
+        return { success: false, message };
+    }
+
+    return { success: true, data: response.data };
+}
+
 
 export async function verifyInstallation(permitId: string, payload: any, projectId?: string) {
     let url = projectId ? `/api/owner-project/${projectId}/verify` : `/api/permit/${permitId}/verify`;
@@ -2353,4 +2417,15 @@ export async function getImportJobStatus(jobId: string): Promise<ActionResult> {
         return { success: false, message: normalizeMsg(response.messages, 'Failed to fetch job status') };
     }
     return { success: true, data: response.data?.data || response.data };
+}
+
+export async function getPermitsForProperty(propertyId: string) {
+    const response = await fetchApi({
+        url: `/api/permit?id=${propertyId}`,
+        method: 'GET',
+    });
+    if (response.type === 'error') {
+        throw new Error(normalizeMsg(response.messages, 'Failed to get permits'));
+    }
+    return response.data;
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, FileText, PlusIcon, MapPin } from "lucide-react";
+import Image from "next/image";
+import { Loader2, FileText, PlusIcon, MapPin, Map } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { downloadPdfFromUrl, getErrorMessage } from "@/lib/utils";
 import { useAwsImage } from "@/hooks/use-aws-image";
@@ -52,6 +53,7 @@ export default function ComponentDetail({
   const [showReports, setShowReports] = useState(false);
   const [activeImageTab, setActiveImageTab] = useState<ImageTab>("ROOFING");
   const allProjects: any[] = componentData?.projects ?? [];
+  const hasReport = componentData?.has_report || allProjects.length > 0;
   const installations: Installation[] = allProjects
     .map((p: any) => p.components)
     .filter(Boolean);
@@ -64,6 +66,12 @@ export default function ComponentDetail({
   console.log('purchased', purchased)
   console.log('isPurchased', isPurchased)
   console.log("api data", componentData)
+
+  const [heroImageSrc, setHeroImageSrc] = useState(heroImageUrl);
+
+  useEffect(() => {
+    setHeroImageSrc(heroImageUrl);
+  }, [heroImageUrl]);
 
   useEffect(() => {
     setPurchased(isPurchased);
@@ -257,25 +265,39 @@ export default function ComponentDetail({
 
         <div className="w-full max-w-[1170px] min-h-[500px] md:min-h-[1061px] rounded-[20px] shadow-[0px_4px_34px_rgba(31,42,68,0.1)] bg-white overflow-hidden">
           <div className="w-full h-[213px] md:h-[418px] relative overflow-hidden">
-            <img
-              src={property.heroImage}
+            <Image
+              src={heroImageSrc || "/assets/prop_placeholder.png"}
               alt={property.address}
+              fill
+              sizes="(max-width: 768px) 100vw, 1170px"
+              priority
               className="w-full h-full object-cover"
-              onError={(e) => {
-                e.currentTarget.src = "/assets/prop_placeholder.png";
+              onError={() => {
+                setHeroImageSrc("/assets/prop_placeholder.png");
               }}
             />
-            {componentData?.street_view_link && (
-              <a
-                href={componentData.street_view_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="absolute bottom-9 left-1/2 -translate-x-1/2 flex items-center gap-2 h-10 px-6 rounded-full bg-white hover:bg-gray-100 text-[#1F2A44] font-bold text-[12px] md:text-[14px] uppercase tracking-widest transition-all shadow-lg border border-gray-200/50 hover:scale-105 z-10"
-              >
-                <MapPin className="size-4 text-[#1CA7A6]" />
-                Property Street View
-              </a>
-            )}
+            <div className="absolute bottom-9 left-1/2 -translate-x-1/2 flex items-center gap-3.5 z-10 flex-wrap justify-center w-full max-w-[90%]">
+              {componentData?.street_view_link && (
+                <a
+                  href={componentData.street_view_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 h-10 px-6 rounded-full bg-white hover:bg-gray-100 text-[#1F2A44] font-bold text-[12px] md:text-[14px] uppercase tracking-widest transition-all shadow-lg border border-gray-200/50 hover:scale-105"
+                >
+                  <MapPin className="size-4 text-[#1CA7A6]" />
+                  Property Street View
+                </a>
+              )}
+              {hasReport && componentData?.latitude && componentData?.longitude && (
+                <Link
+                  href={`/dashboard?view=map&lat=${componentData.latitude}&lng=${componentData.longitude}&id=${componentId}`}
+                  className="flex items-center gap-2 h-10 px-6 rounded-full bg-white hover:bg-gray-100 text-[#1F2A44] font-bold text-[12px] md:text-[14px] uppercase tracking-widest transition-all shadow-lg border border-gray-200/50 hover:scale-105"
+                >
+                  <Map className="size-4 text-[#1CA7A6]" />
+                  Open in Map
+                </Link>
+              )}
+            </div>
           </div>
           <div className="pt-6 md:pt-[43px]">
             {showImages ? (

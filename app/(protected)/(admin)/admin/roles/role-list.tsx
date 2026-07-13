@@ -80,13 +80,12 @@ export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTr
   const [isDeleting, setIsDeleting] = useState(false);
 
 
-  const fetchData = async (page: number = 1, limit: number = 10) => {
+  const fetchData = async (page: number = 1, limit: number = 10, search?: string) => {
     setLoading(true);
     try {
-      const response = await getRoles();
+      const response = await getRoles(page, limit, search);
       if (response && response.data) {
-        const filtered = response.data.filter((r: any) => r.role_name.toLowerCase() !== 'admin');
-        setData(filtered);
+        setData(response.data);
         if (response.pagination) {
           setTotalRecords(response.pagination.total);
           setTotalPages(response.pagination.totalPages);
@@ -102,10 +101,7 @@ export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTr
     }
   };
 
-  useEffect(() => {
-    fetchData(pagination.pageIndex + 1, pagination.pageSize);
-  }, [refreshTrigger, pagination.pageIndex, pagination.pageSize]);
-
+  // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
@@ -113,10 +109,14 @@ export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTr
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Reset to page 0 when search changes
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-    fetchData(1, pagination.pageSize);
   }, [debouncedSearch]);
+
+  useEffect(() => {
+    fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
+  }, [refreshTrigger, pagination.pageIndex, pagination.pageSize, debouncedSearch]);
 
   const handleDelete = (id: string) => {
     setDeleteId(id);
@@ -132,7 +132,7 @@ export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTr
         return;
       }
       toast.success('Role deleted successfully');
-      fetchData(pagination.pageIndex + 1, pagination.pageSize);
+      fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
     } catch (error: any) {
       toast.error(error.message || 'Failed to delete Role');
     } finally {
@@ -265,6 +265,7 @@ export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTr
                 <DropdownMenuItem
                   className="text-destructive cursor-pointer"
                   onClick={() => handleDelete(row.original.id)}
+                  disabled={row.original.role_name.toLowerCase() === 'admin'}
                 >
                   <Trash2 className="size-3.5 mr-2" />
                   Delete Role
@@ -357,7 +358,7 @@ export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTr
           setEditingPropertyType(null);
         }}
         state={editingPropertyType}
-        onSuccess={() => fetchData(pagination.pageIndex + 1, pagination.pageSize)}
+        onSuccess={() => fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch)}
       />
 
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>

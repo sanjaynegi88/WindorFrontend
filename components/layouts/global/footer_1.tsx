@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Mail } from "lucide-react";
+import Image from "next/image";
 
 export function Footer1() {
   return (
@@ -28,7 +29,7 @@ export function Footer1() {
           </div>
 
           <div className="text-[15px] flex items-center gap-2.5 uppercase underline text-white font-medium">
-                <img src="/assets/ic_round-email_2_blue.png" alt="Instagram" />
+                <Image src="/assets/ic_round-email_2_blue.png" alt="Email" width={24} height={24} />
             <a href="mailto:  " className="hover:text-[#339FD0] transition-colors">
               INFO@WINDORLLC.COM
             </a>
@@ -42,10 +43,12 @@ export function Footer1() {
           <div className="flex flex-col">
             <h2 className="logo mb-2">
               <Link href="/">
-                <img
+                <Image
                   src="/assets/logo.png"
                   alt="Windor Logo"
-                  className="w-auto object-contain brightness-0 invert block"
+                  width={136}
+                  height={118}
+                  className="w-auto h-auto object-contain brightness-0 invert block"
                 />
               </Link>
             </h2>
@@ -108,10 +111,10 @@ export function Footer1() {
 
             <div className="flex gap-2.5 mt-0 social">
               <a href="#" aria-label="Facebook" className="inline-block">
-                <img src="/assets/entypo-social_facebook-with-circle-blue.png" alt="Facebook" />
+                <Image src="/assets/entypo-social_facebook-with-circle-blue.png" alt="Facebook" width={30} height={30} />
               </a>
               <a href="#" aria-label="Instagram" className="inline-block">
-                <img src="/assets/mage_instagram-circle-blue.png" alt="Instagram" />
+                <Image src="/assets/mage_instagram-circle-blue.png" alt="Instagram" width={30} height={30} />
               </a>
             </div>
           </div>

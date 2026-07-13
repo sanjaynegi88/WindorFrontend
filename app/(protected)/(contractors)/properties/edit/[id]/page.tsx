@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import { toast } from 'sonner';
 import { MobileHeader } from '@/components/layouts/global';
 import { InstallationForm } from '@/components/property-wizard/InstallationForm';
@@ -29,6 +30,7 @@ import { CategoryImageUpload } from '@/components/property-wizard/CategoryImageU
 import { PropertyAddressPhotos } from '@/components/property-wizard/PropertyAddressPhotos';
 import { type StateOption, type CityOption } from '@/lib/location-utils';
 import { useUser } from '@/components/providers/user-provider';
+import { toPascalCase } from '@/lib/utils';
 
 type InstallationType = 'roofing' | 'siding' | 'window_door' | string;
 type EditStep = 'SELECT' | 'EDIT_ADDRESS' | 'EDIT_PROJECT' | 'EDIT_INSTALLATION' | 'SUCCESS' | 'IMAGE_UPLOAD' | 'EDIT_PHOTOS';
@@ -57,13 +59,6 @@ interface Component {
     // manufacturer?: string;
 }
 
-function normalizeType(raw: string): InstallationType {
-    const t = raw.toLowerCase();
-    if (t === 'window_door' || t === 'window' || t === 'door') return 'window_door';
-    if (t === 'siding') return 'siding';
-    if (t === 'roofing') return 'roofing';
-    return t;
-}
 
 function getTypeLabel(type: InstallationType) {
     if (type === 'window_door') return 'Window & Door';
@@ -177,10 +172,14 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                     const matchedProj = prop?.projects?.find((p: any) => String(p.id ?? p.project_id ?? p._id) === searchProjectId);
                     setSelectedProject(matchedProj || { id: searchProjectId });
                     if (matchedProj) {
+                        const ownerId = prop?.property_owner_id || prop?.property_owner?.id || matchedProj.property?.property_owner_id || matchedProj.property_owner_id || matchedProj.property?.property_owner?.id;
+                        const ownerEmail = prop?.property_owner_email || prop?.property_owner?.email || matchedProj.property?.property_owner_email || matchedProj.property_owner_email || matchedProj.property?.property_owner?.email;
                         const isOwner =
                             matchedProj.project_type === 'WINDOWS AND DOORS' ||
                             matchedProj.added_by === 'PROPERTY_OWNER' ||
-                            (!matchedProj.contractor_id && !matchedProj.contractor);
+                            matchedProj.created_by_type === 'PROPERTY_OWNER' ||
+                            (matchedProj.created_by && ownerId && matchedProj.created_by === ownerId) ||
+                            (matchedProj.created_by_email && ownerEmail && matchedProj.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
                         setIsOwnerProjectType(isOwner);
                     }
                     setSelectedComponent(null);
@@ -246,10 +245,14 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                             isLoadedFromNewApi: true
                         };
                         setSelectedProject(mappedProj);
+                        const ownerId = property?.property_owner_id || property?.property_owner?.id || rawProj.property?.property_owner_id || rawProj.property_owner_id || rawProj.property?.property_owner?.id;
+                        const ownerEmail = property?.property_owner_email || property?.property_owner?.email || rawProj.property?.property_owner_email || rawProj.property_owner_email || rawProj.property?.property_owner?.email;
                         const isOwner =
                             rawProj.project_type === 'WINDOWS AND DOORS' ||
                             rawProj.added_by === 'PROPERTY_OWNER' ||
-                            (!rawProj.contractor_id && !rawProj.contractor);
+                            rawProj.created_by_type === 'PROPERTY_OWNER' ||
+                            (rawProj.created_by && ownerId && rawProj.created_by === ownerId) ||
+                            (rawProj.created_by_email && ownerEmail && rawProj.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
                         setIsOwnerProjectType(isOwner);
                     }
                 } catch (err: any) {
@@ -374,7 +377,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
         files: { contractorFiles: File[]; ownerFiles: File[]; categoryFiles?: Record<string, File> }
     ) => {
         if (!selectedComponent) return;
-        const type = normalizeType(selectedComponent.component_type);
+        const type = toPascalCase(selectedComponent.component_type);
         setSaving(true);
         try {
             const isCustomBrand = typeof values.brand === 'string' && values.brand.startsWith('__custom__:');
@@ -586,9 +589,12 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
             {/* Hero */}
             {step === 'EDIT_ADDRESS' ? (
                 <div className="relative w-full overflow-hidden h-103 md:h-[1080px]">
-                    <img
+                    <Image
                         src="/assets/add-property/new-address.png"
                         alt="Hero"
+                        fill
+                        sizes="100vw"
+                        priority
                         className="absolute inset-0 w-full h-[250px] md:h-full object-cover md:top-[-70px]"
                     />
                     <div className="absolute inset-0 h-full" />
@@ -653,10 +659,14 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                                                         type="button"
                                                         onClick={() => {
                                                             setSelectedProject(project);
+                                                            const ownerId = property?.property_owner_id || property?.property_owner?.id || project.property?.property_owner_id || project.property_owner_id || project.property?.property_owner?.id;
+                                                            const ownerEmail = property?.property_owner_email || property?.property_owner?.email || project.property?.property_owner_email || project.property_owner_email || project.property?.property_owner?.email;
                                                             const isOwner =
                                                                 project.project_type === 'WINDOWS AND DOORS' ||
                                                                 project.added_by === 'PROPERTY_OWNER' ||
-                                                                (!project.contractor_id && !project.contractor);
+                                                                project.created_by_type === 'PROPERTY_OWNER' ||
+                                                                (project.created_by && ownerId && project.created_by === ownerId) ||
+                                                                (project.created_by_email && ownerEmail && project.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
                                                             setIsOwnerProjectType(isOwner);
                                                             setSelectedComponent(null);
                                                             setNewInstallationType(null);
@@ -673,7 +683,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                                                                 <span className="text-[11px] md:text-[13px] text-[#708090] font-medium">
                                                                     {project.project_type}
                                                                     {project.components
-                                                                        ? ` · ${getTypeLabel(normalizeType(project.components.component_type))}`
+                                                                        ? ` · ${getTypeLabel(toPascalCase(project.components.component_type))}`
                                                                         : ' · No installation yet'}
                                                                 </span>
                                                             </div>
@@ -771,7 +781,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                             <CategorySelection
                                 address={property?.address || ''}
                                 propertyId={propertyId}
-                                initialProjectType={selectedProject ? normalizeType(selectedProject.project_type || '') : undefined}
+                                initialProjectType={selectedProject ? toPascalCase(selectedProject.project_type || '') : undefined}
                                 disableProjectType={!!selectedProject}
                                 isEditMode={!!selectedProject}
                                 projectId={selectedProject?.id}
@@ -831,12 +841,13 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                         {/* ── EDIT INSTALLATION (existing component) ── */}
                         {!loadingProperty && step === 'EDIT_INSTALLATION' && selectedComponent && (
                             <InstallationForm
-                                type={normalizeType(selectedComponent.component_type)}
+                                type={selectedProject.project_type}
                                 tempPropertyId={propertyId}
                                 address={property?.address || ''}
                                 propertyName={property?.property_name || addressData.property_name}
                                 initialValues={componentToFormValues(selectedComponent)}
                                 isSubmitting={saving}
+                                isOwnerProjectType={isOwnerProjectType}
                                 onSave={handleInstallationSave}
                                 onBack={() => {
                                     if (role !== 'admin') {

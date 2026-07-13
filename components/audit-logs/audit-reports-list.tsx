@@ -24,7 +24,7 @@ import {
   Info
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, toPascalCase } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -234,7 +234,7 @@ export default function AuditReportsList() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 w-full sm:w-auto">
+        {/* <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 w-full sm:w-auto">
           <Button
             variant={selectedType === 'ALL' ? 'primary' : 'outline'}
             size="sm"
@@ -267,7 +267,7 @@ export default function AuditReportsList() {
           >
             Orphaned
           </Button>
-        </div>
+        </div> */}
       </div>
 
       {/* Reports Timeline */}
@@ -324,11 +324,9 @@ export default function AuditReportsList() {
                                 <span className="text-sm text-slate-500">
                                   by {getDisplayName(report.user)}
                                 </span>
-                                {report.user && (report.user.role || report.user.roleEntity?.role_name) && (
-                                  <Badge variant="outline" className="text-[10px] uppercase tracking-wider py-0 px-2 h-5 rounded-md text-primary border-primary/30 bg-primary/5 dark:text-primary dark:border-primary/30 dark:bg-primary/5">
-                                    {(report.user.role || report.user.roleEntity?.role_name || '').replace(/_/g, ' ')}
-                                  </Badge>
-                                )}
+                                <Badge variant="outline" className="text-[10px] py-0.5 px-2 uppercase text-primary border-primary/30 bg-primary/5">
+                                  {toPascalCase(report.user_type as string) || 'N/A'}
+                                </Badge>
                               </div>
                               <span className="text-[11px] font-medium text-slate-400 whitespace-nowrap">
                                 {formatDistanceToNow(new Date(report.date_generated || report.created_at), { addSuffix: true })}
@@ -406,13 +404,9 @@ export default function AuditReportsList() {
                                       </div>
                                       <div className="flex justify-between items-center">
                                         <span className="text-xs text-muted-foreground">Role:</span>
-                                        {(report.user?.role || report.user?.roleEntity?.role_name) ? (
-                                          <Badge variant="outline" className="text-[10px] py-0.5 px-2 uppercase text-primary border-primary/30 bg-primary/5">
-                                            {(report.user.role || report.user.roleEntity?.role_name || '').replace(/_/g, ' ')}
-                                          </Badge>
-                                        ) : (
-                                          <span className="text-xs font-medium text-slate-500">N/A</span>
-                                        )}
+                                        <Badge variant="outline" className="text-[10px] py-0.5 px-2 uppercase text-primary border-primary/30 bg-primary/5">
+                                          {toPascalCase(report.user_type as string) || 'N/A'}
+                                        </Badge>
                                       </div>
                                     </div>
                                   </div>

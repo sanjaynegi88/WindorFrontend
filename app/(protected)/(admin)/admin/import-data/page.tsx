@@ -93,7 +93,6 @@ export default function ImportPage() {
         fetchJobs();
     }, []);
 
-    // Polling effect: only poll if active/waiting jobs exist, and tab is visible
     useEffect(() => {
         const hasActiveJobs = jobs.some(
             job => job.status === 'active' || job.status === 'waiting'
@@ -105,20 +104,19 @@ export default function ImportPage() {
 
         const startPolling = () => {
             intervalId = setInterval(() => {
-                if (document.hidden) return; // Pause polling if tab is inactive
+                if (document.hidden) return;
                 fetchJobs();
-            }, 3000); // Poll every 3 seconds
+            }, 3000);
         };
 
         startPolling();
 
-        // Handle tab visibility change
         const handleVisibilityChange = () => {
             if (document.hidden) {
                 clearInterval(intervalId);
             } else {
                 clearInterval(intervalId);
-                fetchJobs(); // Fetch immediately when tab gets active
+                fetchJobs();
                 startPolling();
             }
         };
@@ -131,7 +129,6 @@ export default function ImportPage() {
         };
     }, [jobs]);
 
-    // File validation and assignment
     const handleFileChange = (file: File | null) => {
         if (!file) {
             setSelectedFile(null);
@@ -151,10 +148,9 @@ export default function ImportPage() {
         }
 
         setSelectedFile(file);
-        setSuccessMessage(null); // Clear previous results
+        setSuccessMessage(null);
     };
 
-    // Drag-and-drop handlers
     const handleDrag = (e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -186,7 +182,6 @@ export default function ImportPage() {
         }
     };
 
-    // Submit import
     const handleImportSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedFile) {
@@ -216,7 +211,7 @@ export default function ImportPage() {
                 const apiMessage = data?.message || (res as any).message || 'Property import job queued successfully.';
                 setSuccessMessage(apiMessage);
                 toast.success(apiMessage, { duration: 6000 });
-                fetchJobs(); // Proactively refresh the list to display the new job
+                fetchJobs();
             } else {
                 toast.error(res.message || 'Failed to import properties file.');
             }
@@ -229,13 +224,11 @@ export default function ImportPage() {
         }
     };
 
-    // Generate CSV template dynamically
     const downloadTemplate = () => {
         if (!fields) return;
 
         const headers = [...fields.required_fields, ...fields.optional_fields];
 
-        // Add sample row with mock values
         const sampleRow = headers.map(header => {
             switch (header) {
                 case 'address': return '123 Main Street';
@@ -250,9 +243,9 @@ export default function ImportPage() {
                 case 'parcel_id': return 'PARCEL987654';
                 case 'yearbuilt': return '2015';
                 case 'square_foot': return '2400';
-                case 'front_image': return 'https://example.com/front.jpg';
-                case 'other_image': return 'https://example.com/other.jpg';
-                case 'street_view_link': return 'https://example.com/streetview';
+                case 'front_image': return 'front_image.jpg';
+                case 'other_image': return 'other_image.jpg';
+                case 'street_view_link': return 'http://google.com/maps';
                 default: return '';
             }
         });

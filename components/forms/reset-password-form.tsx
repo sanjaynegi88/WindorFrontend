@@ -17,6 +17,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { resetPassword } from "@/lib/actions";
 
 const formSchema = z
@@ -75,9 +76,12 @@ export function ResetPasswordForm({
     <div className="flex flex-col items-center w-full">
       {/* Logo */}
       <div className="w-[100px] h-[95px] md:w-[168px] md:h-[159px] bg-white shadow-[0px_4px_14px_rgba(31,42,68,0.3)] rounded-[15px] md:rounded-[20px] flex items-center justify-center mt-10 mb-[40px] md:mb-[76px] shrink-0">
-        <img
+        <Image
           src="/assets/logo.png"
           alt="Windor Logo"
+          width={136}
+          height={118}
+          priority
           className="h-[60px] md:h-[118px] w-[70px] md:w-[136px] object-contain"
         />
       </div>

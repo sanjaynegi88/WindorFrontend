@@ -77,7 +77,7 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
   const fetchData = async (page: number = 1, limit: number = 10, name?: string) => {
     setLoading(true);
     try {
-      const response = await getPropertyTypeOptions();
+      const response = await getPropertyTypeOptions(page, limit, name);
       if (response && response.data) {
         setData(response.data);
         if (response.pagination) {
@@ -95,10 +95,6 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
     }
   };
 
-  useEffect(() => {
-    fetchData(pagination.pageIndex + 1, pagination.pageSize);
-  }, [refreshTrigger, pagination.pageIndex, pagination.pageSize]);
-
   // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -107,11 +103,14 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Reset to page 0 and fetch when search changes
+  // Reset to page 0 when search changes
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-    fetchData(1, pagination.pageSize, debouncedSearch);
   }, [debouncedSearch]);
+
+  useEffect(() => {
+    fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
+  }, [refreshTrigger, pagination.pageIndex, pagination.pageSize, debouncedSearch]);
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this Property Type?')) {

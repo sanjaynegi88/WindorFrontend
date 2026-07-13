@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { useState } from "react";
 
+import Image from "next/image";
+
 export default function ConfirmDialog({
   open,
   onOpenChange,
@@ -50,7 +52,7 @@ export default function ConfirmDialog({
         </DialogHeader>
 
         <DialogBody className="flex flex-col items-center pb-10 px-10">
-          <img src="/media/illustrations/23.svg" className="max-h-[150px] mb-10" />
+          <Image src="/media/illustrations/23.svg" alt="Illustration" width={150} height={150} className="max-h-[150px] mb-10 w-auto" />
 
           <h2 className="text-2xl font-semibold text-gray-800 mb-3">{title}</h2>
 

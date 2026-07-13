@@ -8,6 +8,7 @@ import { cn, downloadPdfFromUrl } from '@/lib/utils';
 import { generatePdfReport } from '@/lib/actions';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { PdfGenerationLoader } from './pdf-generation-loader';
 
 function ImageWithLoader({ src, alt, className }: { src: string; alt: string; className?: string }) {
@@ -20,9 +21,11 @@ function ImageWithLoader({ src, alt, className }: { src: string; alt: string; cl
           <Loader2 className="w-6 h-6 animate-spin text-blue-600/40" />
         </div>
       )}
-      <img
+      <Image
         src={src}
         alt={alt}
+        fill
+        sizes="(max-width: 640px) 50vw, 33vw"
         className={cn(
           "object-cover w-full h-full transition-all duration-700 ease-in-out",
           loading ? "scale-110 blur-md opacity-0" : "scale-100 blur-0 opacity-100"

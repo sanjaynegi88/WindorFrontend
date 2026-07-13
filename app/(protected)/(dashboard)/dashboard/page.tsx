@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { Content } from "@/components/layouts/crm/components/content";
-import { ChevronLeft, ChevronRight, FileText, HardHat, Home, Landmark, Loader2, ShieldCheck } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, HardHat, Home, Landmark, List, Loader2, Map, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   getPropertyListUser,
   generateMultipleReports,
   checkoutReports,
 } from "@/lib/actions";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PropertyCard } from "@/components/common/property-card";
 import { UnifiedSearchBar } from "@/components/common/unified-search-bar";
 import { PropertyGrid } from "@/components/common/property-grid";
@@ -23,14 +23,41 @@ import { cn, downloadPdfFromUrl } from "@/lib/utils";
 import type { SearchScope } from "@/components/common/unified-search-bar";
 import Image from "next/image";
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const router = useRouter();
   const { user } = useUser();
   const [userProperties, setUserProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [viewMode] = useState<"list" | "map">("list");
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [mapFocus, setMapFocus] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapFocusId, setMapFocusId] = useState<string | null>(null);
   const [isGeneratingTop10, setIsGeneratingTop10] = useState(false);
+
+  const searchParamsHook = useSearchParams();
+
+  useEffect(() => {
+    if (!searchParamsHook) return;
+    const view = searchParamsHook.get("view");
+    const lat = searchParamsHook.get("lat");
+    const lng = searchParamsHook.get("lng");
+    const id = searchParamsHook.get("id");
+
+    if (view === "map") {
+      setViewMode("map");
+      setShowResults(true);
+
+      // Clean up search params from the address bar so they don't persist on refresh or page navigation
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState(null, '', cleanUrl);
+    }
+    if (lat && lng) {
+      setMapFocus({ lat: parseFloat(lat), lng: parseFloat(lng) });
+    }
+    if (id) {
+      setMapFocusId(id);
+    }
+  }, [searchParamsHook]);
 
   const [filters, setFilters] = useState({
     search: "",
@@ -170,7 +197,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full lg:max-w-[786px] justify-items-center">
               <button
                 onClick={() => router.push("/projects")}
-                className="w-full max-w-[381px] cursor-pointer h-[160px] bg-white rounded-[20px] p-[17px] flex items-center gap-[19px] text-left border-[4px] border-transparent hover:border-[#20A8A7] hover:shadow-[0px_0px_20px_rgba(0,0,0,0.75)] active:scale-[0.98] transition-all duration-300 ease-in-out group"
+                className="w-full max-w-[381px] cursor-pointer h-[160px] bg-white rounded-[20px] p-[17px] flex items-center gap-[19px] text-left border-4 border-transparent hover:border-[#20A8A7] hover:shadow-[0px_0px_20px_rgba(0,0,0,0.75)] active:scale-[0.98] transition-all duration-300 ease-in-out group"
               >
                 <div className="w-[94px] h-[94px] rounded-full bg-linear-to-b from-[#265D81] to-[#212B45] flex items-center justify-center shrink-0">
                   <div className="relative w-[54px] h-[54px] flex items-center justify-center">
@@ -198,9 +225,9 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => router.push("/properties/new")}
-                className="w-full max-w-[381px] cursor-pointer h-[160px] bg-white rounded-[20px] p-[17px] flex items-center gap-[19px] text-left border-[4px] border-transparent hover:border-[#20A8A7] hover:shadow-[0px_0px_20px_rgba(0,0,0,0.75)] active:scale-[0.98] transition-all duration-300 ease-in-out group"
+                className="w-full max-w-[381px] cursor-pointer h-[160px] bg-white rounded-[20px] p-[17px] flex items-center gap-[19px] text-left border-4 border-transparent hover:border-[#20A8A7] hover:shadow-[0px_0px_20px_rgba(0,0,0,0.75)] active:scale-[0.98] transition-all duration-300 ease-in-out group"
               >
-                <div className="w-[94px] h-[94px] rounded-full bg-gradient-to-b from-[#265D81] to-[#212B45] flex items-center justify-center shrink-0">
+                <div className="w-[94px] h-[94px] rounded-full bg-linear-to-b from-[#265D81] to-[#212B45] flex items-center justify-center shrink-0">
                   <div className="relative w-[52px] h-[52px] flex items-center justify-center">
                     <Image
                       src="/assets/add_property_new.png"
@@ -226,7 +253,7 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => router.push("/my-projects")}
-                className="w-full max-w-[381px] cursor-pointer h-[160px] bg-white rounded-[20px] p-[17px] flex items-center gap-[19px] text-left border-[4px] border-transparent hover:border-[#20A8A7] hover:shadow-[0px_0px_20px_rgba(0,0,0,0.75)] active:scale-[0.98] transition-all duration-300 ease-in-out group"
+                className="w-full max-w-[381px] cursor-pointer h-[160px] bg-white rounded-[20px] p-[17px] flex items-center gap-[19px] text-left border-4 border-transparent hover:border-[#20A8A7] hover:shadow-[0px_0px_20px_rgba(0,0,0,0.75)] active:scale-[0.98] transition-all duration-300 ease-in-out group"
               >
                 <div className="w-[94px] h-[94px] rounded-full bg-linear-to-b from-[#265D81] to-[#212B45] flex items-center justify-center shrink-0">
                   <div className="relative w-[52px] h-[52px] flex items-center justify-center">
@@ -254,7 +281,7 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => router.push("/reports")}
-                className="w-full max-w-[381px] cursor-pointer h-[160px] bg-white rounded-[20px] p-[17px] flex items-center gap-[19px] text-left border-[4px] border-transparent hover:border-[#20A8A7] hover:shadow-[0px_0px_20px_rgba(0,0,0,0.75)] active:scale-[0.98] transition-all duration-300 ease-in-out group"
+                className="w-full max-w-[381px] cursor-pointer h-[160px] bg-white rounded-[20px] p-[17px] flex items-center gap-[19px] text-left border-4 border-transparent hover:border-[#20A8A7] hover:shadow-[0px_0px_20px_rgba(0,0,0,0.75)] active:scale-[0.98] transition-all duration-300 ease-in-out group"
               >
                 <div className="w-[94px] h-[94px] rounded-full bg-linear-to-b from-[#265D81] to-[#212B45] flex items-center justify-center shrink-0">
                   <div className="relative w-[50px] h-[50px] flex items-center justify-center">
@@ -335,7 +362,7 @@ export default function DashboardPage() {
                 <div
                   key={item.name}
                   className={`flex items-center justify-center gap-1 md:gap-2 h-[29px] md:h-[53px] rounded-[10px] border transition-all 
-                                          bg-[#ffffff] text-[#000000] hover:border-[#339FD0] w-[var(--width)] md:w-[var(--md-width)]`}
+                                          bg-[#ffffff] text-[#000000] hover:border-[#339FD0] w-(--width) md:w-(--md-width)`}
                   style={
                     {
                       "--width": item.width,
@@ -456,6 +483,7 @@ export default function DashboardPage() {
               showSearchButton={true}
               onChange={setFilters}
               onSearchTriggered={() => setShowResults(true)}
+              isMapView={viewMode === "map"}
             />
           }
 
@@ -481,10 +509,56 @@ export default function DashboardPage() {
                   <span className="sm:hidden">Top 10</span>
                 </Button>
               </div>
+
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => setViewMode("list")}
+                  className={cn(
+                    "px-4 py-2 rounded-lg text-sm font-medium h-auto transition-all",
+                    viewMode === "list"
+                      ? "bg-[#1F2A44] text-white shadow-sm"
+                      : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                  )}
+                >
+                  <List className="size-4 mr-2" />
+                  List View
+                </Button>
+                <Button
+                  onClick={() => setViewMode("map")}
+                  className={cn(
+                    "px-4 py-2 rounded-lg text-sm font-medium h-auto transition-all",
+                    viewMode === "map"
+                      ? "bg-[#1F2A44] text-white shadow-sm"
+                      : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                  )}
+                >
+                  <Map className="size-4 mr-2" />
+                  Map View
+                </Button>
+              </div>
               {viewMode === "list" && (
-                <PropertyGrid searchParams={searchParams} showActionButtons={true} showDetail={true} />
+                <PropertyGrid
+                  searchParams={searchParams}
+                  showActionButtons={true}
+                  showDetail={true}
+                  onOpenInMap={(lat, lng, id) => {
+                    setMapFocus({ lat, lng });
+                    setMapFocusId(id);
+                    setViewMode("map");
+                  }}
+                />
               )}
-              {viewMode === "map" && <MapView searchParams={searchParams} />}
+              {viewMode === "map" && (
+                <MapView
+                  searchParams={searchParams}
+                  focusCenter={mapFocus || undefined}
+                  focusId={mapFocusId || undefined}
+                  onFocusCleared={() => {
+                    setMapFocus(null);
+                    setMapFocusId(null);
+                  }}
+                />
+              )}
             </div>
           )}
 
@@ -543,7 +617,7 @@ export default function DashboardPage() {
                   <div
                     key={item.name}
                     className={`flex items-center justify-center gap-1 md:gap-2 h-[29px] md:h-[53px] rounded-[10px] border transition-all 
-                                          bg-[#F2FFFF] text-[#22a699] hover:border-[#1CA7A6] w-[var(--width)] md:w-[var(--md-width)]`}
+                                          bg-[#F2FFFF] text-[#22a699] hover:border-[#1CA7A6] w-(--width) md:w-(--md-width)`}
                     style={
                       {
                         "--width": item.width,
@@ -573,5 +647,13 @@ export default function DashboardPage() {
         message="Generating Reports..."
       />
     </Content>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-500 font-semibold font-asap">Loading Dashboard...</div>}>
+      <DashboardPageContent />
+    </Suspense>
   );
 }

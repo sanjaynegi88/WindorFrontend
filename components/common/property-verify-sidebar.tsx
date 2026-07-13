@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, MapPin, ShieldCheck, ShieldOff, CheckCircle2, ShieldX, FilePlus, Upload, X, Eye, Download } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, toPascalCase } from '@/lib/utils';
 import { getPropertyDetail, verifyInstallation, uploadPermit } from '@/lib/actions';
 import { toast } from 'sonner';
 import { useUser } from '@/components/providers/user-provider';
@@ -65,6 +65,7 @@ export function PropertyVerifySidebar({
   const { role } = useUser();
   const isAdmin = role === 'admin';
   const isInspector = role === 'city_inspector';
+  const isOwner = role === 'property_owner';
 
   const [property, setProperty] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -403,15 +404,15 @@ export function PropertyVerifySidebar({
                                 variant="outline"
                                 className="px-2 py-0 text-[9px] font-black uppercase tracking-tighter border-none bg-muted/50 text-muted-foreground"
                               >
-                                {project.project_type}
+                                {toPascalCase(project.project_type)}
                               </Badge>
                             </div>
 
                             {/* Component header */}
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="text-xs font-black uppercase tracking-widest text-foreground">
-                                  {comp.component_type}
+                                <span className="text-xs font-black tracking-widest text-foreground">
+                                  {toPascalCase(comp.component_type)}
                                 </span>
 
                                 <Badge
@@ -431,7 +432,7 @@ export function PropertyVerifySidebar({
 
                               <div className="flex items-center gap-1.5 shrink-0">
                                 {/* View/Download Permit buttons for admin/inspector when permit exists */}
-                                {(isAdmin || isInspector) && hasPermit && (project.permit_url || comp.permit_file_url) && (
+                                {(isAdmin || isInspector || isOwner) && hasPermit && (project.permit_url || comp.permit_file_url) && (
                                   <>
                                     <Button
                                       size="sm"
@@ -474,7 +475,7 @@ export function PropertyVerifySidebar({
                                 )}
 
                                 {/* Verify button: no need_permit, OR permit uploaded and not yet VERIFIED */}
-                                {canVerify && !permitVerified && (
+                                {canVerify && !permitVerified && !isOwner && (
                                   <Button
                                     size="sm"
                                     onClick={() => {
@@ -512,7 +513,7 @@ export function PropertyVerifySidebar({
                                 )}
 
                                 {/* Inspector: verified state is read-only */}
-                                {permitVerified && isInspector && (
+                                {permitVerified && (isInspector || isOwner) && (
                                   <div className="flex items-center gap-1.5 text-emerald-600">
                                     <CheckCircle2 className="size-4" />
                                     <span className="text-[10px] font-black uppercase tracking-widest">
@@ -530,7 +531,7 @@ export function PropertyVerifySidebar({
                                 { label: 'Style', value: comp.style },
                                 { label: 'Color', value: comp.color },
                                 { label: 'Material', value: comp.material },
-                                { label: 'Installer', value: comp.installer },
+                                { label: 'Contractor', value: comp.installer },
                                 { label: 'Supplier', value: comp.supplier },
                                 {
                                   label: 'Install Date',

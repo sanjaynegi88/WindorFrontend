@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { ArrowLeft, Calendar, User, Building, Palette, Wrench, Package, Shield, Star } from 'lucide-react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -123,11 +124,12 @@ export default function ComponentDetail({ componentId, componentData }: Componen
 
                     return images.map((img, index) => (
                       <div key={`${image.id}-${index}`} className="relative aspect-square rounded-lg overflow-hidden border bg-muted">
-                        <img
+                        <Image
                           src={img.url}
                           alt={`Installation - ${img.type}`}
-                          className="w-full h-full object-cover"
-                          style={{ width: '100%', height: '100%', objectFit: 'cover', maxWidth: '100%', maxHeight: '100%' }}
+                          fill
+                          sizes="(max-width: 768px) 50vw, 33vw"
+                          className="object-cover"
                         />
                         <div className="absolute top-2 right-2">
                           <Badge

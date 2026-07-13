@@ -99,7 +99,7 @@ export default function ContractorDirectoryPage() {
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        const response = await getServiceProvided(1, 100);
+        const response = await getServiceProvided();
         const serviceItems = response.data.map(
           (type: { id: string; service_name: string }) => ({ id: type.id, name: type.service_name }),
         );

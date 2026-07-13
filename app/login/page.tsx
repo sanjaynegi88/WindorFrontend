@@ -12,6 +12,7 @@ import { type CredentialResponse } from "@/hooks/use-google-login";
 import { GoogleLogin } from "@react-oauth/google";
 import { Navbar1, Footer1 } from "@/components/layouts/global";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
+import Image from "next/image";
 import { useUser } from "@/components/providers/user-provider";
 
 const formSchema = z.object({
@@ -107,9 +108,12 @@ export default function Login1Page() {
       <section className="relative flex-1 flex items-center py-[60px] overflow-hidden bg-[#EDEFF1] w-full min-h-[calc(100vh-100px)]">
         {/* Full-bleed background image */}
         <div className="absolute inset-0 z-0">
-          <img
+          <Image
             src="/assets/login/login-bg-1.png"
             alt="Login Background"
+            fill
+            sizes="100vw"
+            priority
             className="w-full h-full object-cover object-center block"
           />
         </div>
@@ -204,7 +208,7 @@ export default function Login1Page() {
                             type="checkbox"
                             checked={value}
                             onChange={(e) => onChange(e.target.checked)}
-                            className="w-[18px] h-[18px] border-2 border-white rounded-[3px] appearance-none checked:bg-white relative cursor-pointer flex-shrink-0 checked:after:content-[''] checked:after:absolute checked:after:left-[4px] checked:after:top-[1px] checked:after:w-[5px] checked:after:h-[10px] checked:after:border-r-2 checked:after:border-b-2 checked:after:border-[#339FD0] checked:after:rotate-45"
+                            className="w-[18px] h-[18px] border-2 border-white rounded-[3px] appearance-none checked:bg-white relative cursor-pointer shrink-0 checked:after:content-[''] checked:after:absolute checked:after:left-[4px] checked:after:top-px checked:after:w-[5px] checked:after:h-[10px] checked:after:border-r-2 checked:after:border-b-2 checked:after:border-[#339FD0] checked:after:rotate-45"
                             {...field}
                           />
                           <span>Keep me logged in</span>
@@ -247,9 +251,11 @@ export default function Login1Page() {
                     aria-label="Continue with Apple"
                     className="inline-flex items-center justify-center w-[42px] h-[42px] rounded-full bg-black hover:-translate-y-0.5 transition-all duration-200 shadow-md hover:shadow-lg"
                   >
-                    <img
+                    <Image
                       src="/assets/apple-logo.png"
                       alt="Apple"
+                      width={22}
+                      height={22}
                       className="w-[22px] h-[22px] object-contain"
                     />
                   </a>

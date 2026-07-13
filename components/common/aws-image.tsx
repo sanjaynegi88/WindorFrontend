@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, ImgHTMLAttributes } from 'react';
+import React, { useState, useEffect } from 'react';
+import Image, { ImageProps } from 'next/image';
 import { getWorkingAwsImageUrl } from '@/lib/utils';
 
-interface AwsImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> {
+interface AwsImageProps extends Omit<ImageProps, 'src'> {
   src?: string | null;
   folders?: string[];
   fallbackSrc?: string;
@@ -11,7 +12,7 @@ interface AwsImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'>
 
 export function AwsImage({
   src,
-  folders = ['Ramsey'],
+  folders = ['ramsey', 'hennepin', 'scott', 'dakota', 'washington', 'carver', 'anoka'],
   fallbackSrc = '/assets/prop_placeholder.png',
   alt = '',
   ...props
@@ -48,13 +49,18 @@ export function AwsImage({
     };
   }, [src, JSON.stringify(folders)]);
 
+  const hasDimension = props.width !== undefined || props.height !== undefined;
+  const isFill = props.fill === true;
+  const layoutProps = (!hasDimension && !isFill) ? { fill: true } : {};
+
   return (
-    <img
+    <Image
       src={currentSrc}
       alt={alt}
-      onError={(e) => {
-        e.currentTarget.src = fallbackSrc;
+      onError={() => {
+        setCurrentSrc(fallbackSrc);
       }}
+      {...layoutProps}
       {...props}
     />
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import { ChevronLeft, ImageIcon, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getImageCategory } from '@/lib/actions';
@@ -110,7 +111,7 @@ export function CategoryImageUpload({ address, initialCategory = 'roofing', onSa
                         const photo = photos[fieldName];
                         return (
                             <div key={id} className="flex items-center gap-2 md:gap-[23px] w-full">
-                                <span className="text-[16px] md:text-[24px] font-bold text-[#708090] w-[100px] md:w-[200px] break-words">
+                                <span className="text-[16px] md:text-[24px] font-bold text-[#708090] w-[100px] md:w-[200px] wrap-break-word">
                                     {label}
                                 </span>
 
@@ -125,9 +126,12 @@ export function CategoryImageUpload({ address, initialCategory = 'roofing', onSa
 
                                 {photo?.preview ? (
                                     <div className="flex-1 flex items-center gap-3 h-[46px] md:h-[70px] bg-[rgba(28,167,166,0.08)] border border-[rgba(28,167,166,0.3)] rounded-[6px] px-4">
-                                        <img
+                                        <Image
                                             src={photo.preview}
                                             alt={label}
+                                            width={76}
+                                            height={52}
+                                            unoptimized
                                             className="h-[34px] md:h-[52px] w-[50px] md:w-[76px] object-cover rounded-[4px]"
                                         />
                                         <span className="flex-1 text-[13px] md:text-[16px] font-medium text-[#1F2A44] max-w-[700px] truncate">

@@ -157,7 +157,7 @@ export function testImageUrl(url: string): Promise<boolean> {
  */
 export async function getWorkingAwsImageUrl(
   imageName: string | null | undefined,
-  folders: string[] = ['Ramsey', 'Kitie', 'Opera']
+  folders: string[] = ['ramsey', 'hennepin', 'scott', 'dakota', 'washington', 'carver', 'anoka']
 ): Promise<string> {
   const fallback = '/assets/prop_placeholder.png';
   if (!imageName) return fallback;

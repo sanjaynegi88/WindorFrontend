@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import Image from "next/image";
 import { Loader2, ImagePlus, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn, toPascalCase } from "@/lib/utils";
 import { uploadPropertOwnerImages } from "@/lib/actions";
@@ -176,7 +177,7 @@ export const InstallationCard = ({
           { label: "Material", value: item.material },
           { label: "Class Rating", value: item.class_rating },
           { label: "Install Date", value: formattedDate },
-          { label: "Installer", value: item.installer },
+          { label: "Contractor", value: item.installer },
           { label: "Supplier", value: item.supplier },
         ].map(({ label, value }) => (
           <div key={label} className="space-y-0.5">
@@ -206,20 +207,23 @@ export const InstallationCard = ({
         <>
           <div className="grid grid-cols-1 gap-2 pt-1 max-w-[260px]">
             <div
-              className="relative overflow-hidden rounded-[8px] border border-[#E8EDF2] cursor-pointer"
+              className="relative overflow-hidden rounded-[8px] border border-[#E8EDF2] cursor-pointer h-[120px] md:h-[150px]"
               onClick={() => {
                 setSelectedImages(validImageUrls);
                 setCurrentImageIndex(0);
                 setIsImageModalOpen(true);
               }}
             >
-              <img
+              <Image
                 src={validImageUrls[0]}
                 alt={`${item.component_type} image 1`}
-                className="w-full h-[120px] md:h-[150px] object-cover"
+                fill
+                sizes="(max-width: 768px) 100vw, 260px"
+                unoptimized
+                className="object-cover"
               />
               {validImageUrls.length > 1 && (
-                <div className="absolute bottom-3 right-3 rounded-full bg-black/60 px-3 py-1 text-[11px] md:text-[12px] font-semibold text-white">
+                <div className="absolute bottom-3 right-3 rounded-full bg-black/60 px-3 py-1 text-[11px] md:text-[12px] font-semibold text-white z-10">
                   +{validImageUrls.length - 1}
                 </div>
               )}
@@ -248,11 +252,16 @@ export const InstallationCard = ({
                   </button>
                 )}
 
-                <img
-                  src={selectedImages[currentImageIndex]}
-                  alt={`Project image ${currentImageIndex + 1}`}
-                  className="max-w-full max-h-[80vh] object-contain rounded-lg"
-                />
+                <div className="relative w-full h-[60vh] md:h-[80vh]">
+                  <Image
+                    src={selectedImages[currentImageIndex]}
+                    alt={`Project image ${currentImageIndex + 1}`}
+                    fill
+                    sizes="100vw"
+                    unoptimized
+                    className="object-contain rounded-lg"
+                  />
+                </div>
 
                 {selectedImages.length > 1 && (
                   <button

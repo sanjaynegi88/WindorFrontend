@@ -36,7 +36,6 @@ export default function ContractorProfileSetupPage() {
                         selectedCities: data.selectedCities ?? [],
                         cityDetails: data.cityDetails ?? [],
                         membershipLevel: data.membershipLevel,
-                        services_provided_ids: data.services_provided_ids ?? [],
                     };
                     setMembershipLevel(data.membershipLevel);
                     setInitialData(mapped);

@@ -7,6 +7,7 @@ import { RoleSelectionPage } from '@/components/register/role-selection-page';
 import { cn } from '@/lib/utils';
 import { Step2PropertyForm, Step2PropertyValues } from '../register/complete-profile/step2-property-form';
 import { Step2ContractorForm, Step2ContractorValues } from '../register/complete-profile/step2-contractor-form';
+import Image from 'next/image';
 
 // Roles excluded from self-selection (assigned by admins only)
 const EXCLUDED_ROLES = ['ADMIN', 'CITY_INSPECTOR'];
@@ -155,7 +156,7 @@ export default function SelectRolePage() {
         <div >
           <div className="flex justify-center mb-8 pt-6">
             <div className="w-[80px] h-[76px] md:w-[100px] md:h-[95px] bg-white shadow-[0px_4px_14px_rgba(31,42,68,0.3)] rounded-[15px] flex items-center justify-center">
-              <img src="/assets/logo.png" alt="Windor Logo" className="h-[50px] md:h-[65px] w-[55px] md:w-[75px] object-contain" />
+              <Image src="/assets/logo.png" alt="Windor Logo" width={75} height={65} priority className="h-[50px] md:h-[65px] w-[55px] md:w-[75px] object-contain" />
             </div>
           </div>
 

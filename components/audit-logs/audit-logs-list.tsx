@@ -23,7 +23,7 @@ import {
   Edit
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, toPascalCase } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -256,8 +256,8 @@ export default function AuditLogsList() {
                                   {config.label}
                                 </span>
                                 {log.table_name !== 'auth_events' && (
-                                  <Badge variant="secondary" className="text-[10px] uppercase tracking-wider py-0 h-4 rounded-md">
-                                    {log.table_name}
+                                  <Badge variant="primary" className="text-[10px] uppercase tracking-wider py-0 h-4 rounded-md">
+                                    {toPascalCase(log.table_name as string)}
                                   </Badge>
                                 )}
                               </div>
@@ -267,7 +267,7 @@ export default function AuditLogsList() {
                             </div>
 
                             <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-1">
-                              "{log.change_reason}"
+                              "{toPascalCase(log.change_reason)}"
                             </p>
 
                             <div className="mt-3 flex items-center gap-4 text-[11px] text-slate-400 flex-wrap">
@@ -310,7 +310,7 @@ export default function AuditLogsList() {
                                       </div>
                                       <div className="flex justify-between">
                                         <span className="text-xs text-muted-foreground">Action:</span>
-                                        <Badge variant="outline" className="text-[10px] h-4">{log.action}</Badge>
+                                        <Badge variant="outline" className="text-[10px] h-4 text-black">{toPascalCase(log.action)}</Badge>
                                       </div>
                                       <div className="flex justify-between">
                                         <span className="text-xs text-muted-foreground">Timestamp:</span>

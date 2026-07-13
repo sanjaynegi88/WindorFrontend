@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 interface RoleSelectionProps {
   roles: { id: string; role_name: string }[];
@@ -75,7 +76,7 @@ export function RoleSelectionPage({ roles, loadingRoles, onSelect }: RoleSelecti
   return (
     <div className="w-full flex flex-col bg-white font-inter">
       <div className="relative w-full overflow-hidden flex items-center justify-center text-center" style={{ minHeight: 200 }}>
-        <img src="/assets/register/top_bg.png" alt="" className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none select-none" />
+        <Image src="/assets/register/top_bg.png" alt="" fill sizes="100vw" priority className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none select-none" />
         <div className="relative z-10 px-6 sm:px-[14%] py-10">
           <h1 className="font-asap font-bold uppercase text-[#212B45] text-[28px] sm:text-[38px] lg:text-[50px] leading-tight mb-3">
             SIGNUP OVERVIEW - ALL ROLES
@@ -111,7 +112,7 @@ export function RoleSelectionPage({ roles, loadingRoles, onSelect }: RoleSelecti
                     <div className="absolute top-0 left-0 w-full z-20 rounded-[20px] overflow-hidden flex flex-col bg-[#212B45] h-[400px] shadow-[0px_4px_44px_0px_rgba(51,159,208,0.7)]">
                       <div className="relative flex items-center gap-3 px-4 h-[58px] shrink-0 bg-white/5">
                         <div className="w-[46px] h-[46px] flex items-center justify-center shrink-0 overflow-hidden rounded-[4px] bg-white/10">
-                          <img src={getRoleImage(role.role_name)} alt="" className="w-full h-full object-contain p-[4px]" style={{ filter: "brightness(0) invert(1)" }} />
+                          <Image src={getRoleImage(role.role_name)} alt="" width={46} height={46} className="w-full h-full object-contain p-[4px]" style={{ filter: "brightness(0) invert(1)" }} />
                         </div>
                         <span className="font-asap font-semibold text-white text-[16px] uppercase leading-tight pr-6">{mainName}</span>
                         <button type="button" onClick={() => setDetailRole(null)} className="absolute cursor-pointer right-3 top-3 text-white/50 hover:text-white transition-colors" aria-label="Close">
@@ -156,7 +157,7 @@ export function RoleSelectionPage({ roles, loadingRoles, onSelect }: RoleSelecti
                 <div key={role.id} className="group flex flex-col rounded-[20px] p-6 transition-all duration-200 bg-[rgba(51,159,208,0.18)] hover:bg-[#212B45]" style={{ minHeight: 250 }}>
                   <div className="flex items-center gap-4 mb-auto">
                     <div className="shrink-0 w-[60px] h-[60px] rounded-[6px] overflow-hidden flex items-center justify-center bg-[#212B45] group-hover:bg-white/10 transition-colors duration-200">
-                      <img src={getRoleImage(role.role_name)} alt={mainName} className="w-full h-full object-contain p-[6px]" style={{ filter: "brightness(0) invert(1)" }} />
+                      <Image src={getRoleImage(role.role_name)} alt={mainName} width={60} height={60} className="w-full h-full object-contain p-[6px]" style={{ filter: "brightness(0) invert(1)" }} />
                     </div>
                     <div className="flex flex-col">
                       <span className="font-asap font-semibold text-[18px] lg:text-[20px] uppercase leading-tight text-[#212B45] group-hover:text-white transition-colors duration-200">{mainName}</span>

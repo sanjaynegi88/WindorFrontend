@@ -412,7 +412,7 @@ export default function AllProjectsList({ user }: { user: string }) {
                                                                         { label: 'Install Date', value: projectDateLabel || 'N/A' },
                                                                         { label: 'Brand', value: detail.brand || 'N/A' },
                                                                         { label: 'Material', value: detail.material || 'N/A' },
-                                                                        { label: 'Installer', value: detail.installer || 'N/A' },
+                                                                        { label: 'Contractor', value: detail.installer || 'N/A' },
                                                                         { label: 'Supplier', value: detail.supplier || 'N/A' },
                                                                         { label: 'Style', value: detail.style || 'N/A' },
                                                                         { label: 'Color', value: detail.color || 'N/A' },

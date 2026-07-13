@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -96,6 +97,7 @@ interface InstallationFormProps {
     initialFiles?: File[];
     isSubmitting?: boolean;
     hasReport?: boolean;
+    isOwnerProjectType?: boolean;
 }
 
 export function InstallationForm({
@@ -107,7 +109,8 @@ export function InstallationForm({
     initialValues,
     initialFiles,
     isSubmitting,
-    hasReport
+    hasReport,
+    isOwnerProjectType,
 }: InstallationFormProps) {
     const [loading, setLoading] = useState(false);
     const [contractorImagePreviews, setContractorImagePreviews] = useState<string[]>([]);
@@ -158,10 +161,11 @@ export function InstallationForm({
     useEffect(() => {
         if (!type) return;
         const fetchImageCategories = async () => {
+            console.log(type)
             setLoadingCategories(true);
             try {
                 const res = await getImageCategory(type.toUpperCase());
-                console.log("res", res);
+                //console.log("res", res);
                 const cats = res?.data || res || [];
                 setImageCategories(cats);
                 setCategoryPhotos(prev => {
@@ -415,9 +419,9 @@ export function InstallationForm({
                                 name="installer"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="font-semibold text-foreground">Installer Name</FormLabel>
+                                        <FormLabel className="font-semibold text-foreground">Contractor Name</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Installer name" className="h-11 bg-muted/20 focus:bg-background transition-all" {...field} />
+                                            <Input placeholder="Contractor name" className="h-11 bg-muted/20 focus:bg-background transition-all" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -651,7 +655,7 @@ export function InstallationForm({
                             <div className="md:col-span-2 space-y-6">
                                 {/* ── Contractor Images (category-based) ── */}
                                 <div className="space-y-3">
-                                    <FormLabel className="font-semibold text-foreground">Contractor Images</FormLabel>
+                                    <FormLabel className="font-semibold text-foreground">Images</FormLabel>
                                     <p className="text-xs text-muted-foreground flex flex-col gap-0.5">
                                         <span>{!isEditMode ? "Upload a photo for each category." : "Leave empty to keep the current image."}</span>
                                         <span className="text-[11px] text-amber-600 font-semibold">Acceptable size: Max 2MB per image</span>
@@ -694,7 +698,7 @@ export function InstallationForm({
                                                         >
                                                             {photo?.preview ? (
                                                                 <>
-                                                                    <img src={photo.preview} alt={label} className="w-full h-full object-cover" />
+                                                                    <Image src={photo.preview} alt={label} fill sizes="(max-width: 768px) 30vw, 15vw" unoptimized className="w-full h-full object-cover" />
                                                                     <button
                                                                         type="button"
                                                                         onClick={(e) => {
@@ -713,7 +717,7 @@ export function InstallationForm({
                                                                 </>
                                                             ) : existingUrl ? (
                                                                 <>
-                                                                    <img src={existingUrl} alt={label} className="w-full h-full object-cover opacity-60" />
+                                                                    <Image src={existingUrl} alt={label} fill sizes="(max-width: 768px) 30vw, 15vw" className="w-full h-full object-cover opacity-60" />
                                                                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/20">
                                                                         <ImagePlus className="size-5 text-white" />
                                                                         <span className="text-[10px] text-white font-medium">Replace</span>
@@ -754,7 +758,7 @@ export function InstallationForm({
                                 </div>
 
                                 {/* ── Property Owner Images ── */}
-                                {isEditMode && isAdmin && (
+                                {isEditMode && isAdmin && !isOwnerProjectType && (
                                     <div className="space-y-4">
                                         <div className="flex flex-col gap-0.5">
                                             <FormLabel className="font-semibold text-foreground">Property Owner Images (Up to 5)</FormLabel>
@@ -767,7 +771,7 @@ export function InstallationForm({
                                                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                                                     {existingOwnerImages.map((url, index) => (
                                                         <div key={`existing-owner-${index}`} className="relative aspect-square rounded-xl overflow-hidden border bg-muted/20">
-                                                            <img src={url} alt={`Existing Owner ${index + 1}`} className="w-full h-full object-cover" />
+                                                            <Image src={url} alt={`Existing Owner ${index + 1}`} fill sizes="(max-width: 768px) 30vw, 15vw" className="w-full h-full object-cover" />
                                                             <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-green-500 text-white text-xs rounded-md font-medium">Current</div>
                                                         </div>
                                                     ))}
@@ -781,7 +785,7 @@ export function InstallationForm({
                                         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                                             {ownerImagePreviews.map((preview, index) => (
                                                 <div key={index} className="relative aspect-square rounded-xl overflow-hidden border bg-muted/20 group">
-                                                    <img src={preview} alt={`Owner ${index + 1}`} className="w-full h-full object-cover" />
+                                                    <Image src={preview} alt={`Owner ${index + 1}`} fill sizes="(max-width: 768px) 30vw, 15vw" unoptimized className="w-full h-full object-cover" />
                                                     <button
                                                         type="button"
                                                         onClick={() => removeOwnerImage(index)}
@@ -818,7 +822,7 @@ export function InstallationForm({
                                         Processing...
                                     </>
                                 ) : (
-                                    hasReport === false ? 'Save' : 'Save'
+                                    hasReport === false ? 'Save & Create Report' : 'Save'
                                 )}
                             </Button>
 

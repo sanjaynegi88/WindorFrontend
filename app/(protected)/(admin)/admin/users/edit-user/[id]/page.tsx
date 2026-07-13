@@ -85,6 +85,7 @@ const userSchema = z.object({
     cityAddress: z.string().optional().or(z.literal('')),
     cityPhone: z.string().optional().or(z.literal('')),
 }).superRefine((data, ctx) => {
+    if (data.sub_account) return;
     const role = data.role?.toUpperCase();
     if (role === 'PROPERTY_OWNER' || role === 'REALTOR') {
         if (!data.propertyAddress?.trim()) {
@@ -225,8 +226,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
         const fetchUserData = async () => {
             try {
                 const userData = await getUserById(id);
-                console.log("userData", userData);
-
+                console.log(userData)
                 const userInfo = userData;
                 if (!userInfo) {
                     throw new Error('User data not found');
@@ -478,9 +478,9 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Role</FormLabel>
-                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                    <Select onValueChange={field.onChange} value={field.value} disabled>
                                                         <FormControl>
-                                                            <SelectTrigger className="h-11 bg-muted/20 cursor-pointer focus:bg-background transition-all">
+                                                            <SelectTrigger className="h-11 bg-muted/20 disabled:cursor-not-allowed focus:bg-background transition-all">
                                                                 <SelectValue placeholder="Select a role" />
                                                             </SelectTrigger>
                                                         </FormControl>
@@ -521,6 +521,9 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
                                             const role = form.watch('role');
                                             const group = getRoleGroup(role);
                                             if (!group) return null;
+
+                                            const isSubUser = form.watch('sub_account') === true;
+                                            if (isSubUser) return null;
 
                                             return (
                                                 <div className="md:col-span-2 pt-6 mt-6 border-t border-border/60">

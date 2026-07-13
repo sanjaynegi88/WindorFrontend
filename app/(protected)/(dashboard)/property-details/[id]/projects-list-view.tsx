@@ -30,7 +30,7 @@ export const ProjectsListView = ({
   const router = useRouter();
   const [projectTypes, setProjectTypes] = useState<string[]>([]);
   const [activeProjectType, setActiveProjectType] = useState<string | null>(null);
-  const [projectsByType, setProjectsByType] = useState<Record<string, any[]>>({});
+  const [allProjects, setAllProjects] = useState<any[]>([]);
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [loadingTypes, setLoadingTypes] = useState(false);
   const [loadingProjects, setLoadingProjects] = useState(false);
@@ -43,85 +43,67 @@ export const ProjectsListView = ({
 
     let isMounted = true;
 
-    const fetchProjectTypes = async () => {
+    const fetchAllData = async () => {
       setLoadingTypes(true);
+      setLoadingProjects(true);
       try {
-        const response = await getprojectTypesInProperty(propertyId);
-        const types = Array.isArray(response?.data) ? response.data : [];
-        const count = response.totalcount;
+        const [typesResponse, projectsResponse] = await Promise.all([
+          getprojectTypesInProperty(propertyId),
+          getprojectListingOfProperty(propertyId),
+        ]);
+
+        console.log("typesResponse", typesResponse);
+        console.log("projectsResponse", projectsResponse);
+
+        const types = Array.isArray(typesResponse?.data) ? typesResponse.data : [];
+        const count = typesResponse.totalcount;
+        const projects = Array.isArray(projectsResponse) ? projectsResponse : (Array.isArray(projectsResponse?.data) ? projectsResponse.data : []);
+
         if (!isMounted) return;
 
         setTotalCount(count);
         setProjectTypes(types);
+        setAllProjects(projects);
         setActiveProjectType((current) =>
           current && types.some((t: any) => t.name === current)
             ? current
             : types[0]?.name ?? null
         );
       } catch (error) {
-        console.error("Failed to fetch project types:", error);
-        toast.error("Failed to load project types");
+        console.error("Failed to fetch project data:", error);
+        toast.error("Failed to load projects");
         if (!isMounted) return;
         setProjectTypes([]);
         setActiveProjectType(null);
+        setAllProjects([]);
       } finally {
-        if (isMounted) setLoadingTypes(false);
+        if (isMounted) {
+          setLoadingTypes(false);
+          setLoadingProjects(false);
+        }
       }
     };
 
-    fetchProjectTypes();
+    fetchAllData();
 
     return () => {
       isMounted = false;
     };
   }, [propertyId]);
 
-  useEffect(() => {
-    if (!propertyId || !activeProjectType) return;
-
-    let isMounted = true;
-
-    const fetchProjects = async () => {
-      setLoadingProjects(true);
-      try {
-        const response = await getprojectListingOfProperty(propertyId, activeProjectType);
-        const projects = Array.isArray(response?.data) ? response.data : [];
-
-        if (!isMounted) return;
-
-        setProjectsByType((prev) => ({
-          ...prev,
-          [activeProjectType]: projects,
-        }));
-      } catch (error) {
-        console.error("Failed to fetch projects:", error);
-        toast.error("Failed to load projects");
-        if (!isMounted) return;
-        setProjectsByType((prev) => ({
-          ...prev,
-          [activeProjectType]: [],
-        }));
-      } finally {
-        if (isMounted) setLoadingProjects(false);
-      }
-    };
-
-    fetchProjects();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [propertyId, activeProjectType]);
-
   const handleAddInstallation = (project: any) => {
     localStorage.setItem('current_project_id', project.id);
     localStorage.setItem('current_property_id', propertyId);
     localStorage.setItem('current_property_name', propertyName || '');
     localStorage.setItem('current_project_type', projectTypeToFormType(project.project_type));
-    const isOwnerProject = 
-      project.project_type === 'WINDOWS AND DOORS' || 
-      project.added_by === 'PROPERTY_OWNER' || 
-      (!project.contractor_id && !project.contractor);
+    const ownerId = project.property?.property_owner_id || project.property_owner_id || project.property?.property_owner?.id;
+    const ownerEmail = project.property?.property_owner_email || project.property_owner_email || project.property?.property_owner?.email || propertyOwnerEmail;
+    const isOwnerProject =
+      project.project_type === 'WINDOWS AND DOORS' ||
+      project.added_by === 'PROPERTY_OWNER' ||
+      project.created_by_type === 'PROPERTY_OWNER' ||
+      (project.created_by && ownerId && project.created_by === ownerId) ||
+      (project.created_by_email && ownerEmail && project.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
     localStorage.setItem('is_owner_project_type', isOwnerProject ? 'true' : 'false');
     router.push('/properties/new?flow=add-installation');
   };
@@ -133,7 +115,12 @@ export const ProjectsListView = ({
     }));
   };
 
-  const selectedProjects = activeProjectType ? projectsByType[activeProjectType] ?? [] : [];
+  const selectedProjects = activeProjectType
+    ? allProjects.filter(
+      (p: any) =>
+        String(p.project_type).toUpperCase() === String(activeProjectType).toUpperCase()
+    )
+    : [];
 
   return (
     <div className="space-y-[20px] md:space-y-[32px] font-asap">

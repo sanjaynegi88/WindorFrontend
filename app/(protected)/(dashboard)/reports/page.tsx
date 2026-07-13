@@ -52,12 +52,12 @@ function ReportRow({ item, onDownload, downloadingId }: ReportRowProps) {
       //     label: "Bulk Reports",
       //     className: "bg-[rgba(67,160,71,0.1)] text-[#43A047] border-[#43A047]",
       //   };
-      case "property_report":
+      case "full_property":
         return {
           label: "Complete Property Report",
           className: "bg-[rgba(28,167,166,0.12)] text-[#1CA7A6] border-[#1CA7A6]",
         };
-      case "full_property":
+      case "property_report":
         return {
           label: "Property Report",
           className: "bg-[rgba(31,42,68,0.1)] text-[#1F2A44] border-[#1F2A44]",
@@ -162,8 +162,8 @@ export default function ReportsPage() {
 
   const tabs = [
     { key: "all", label: "All" },
-    { key: "property_report", label: "Complete Property Report(Contractors & Owners)" },
-    { key: "full_property", label: "Property Report(Contractors)" },
+    { key: "full_property", label: "Complete Property Report(Contractors & Owners)" },
+    { key: "property_report", label: "Property Report(Contractors)" },
     { key: "contractor_project", label: "Contractor Project" },
     { key: "owner_project", label: "Owner Project" },
   ];
@@ -231,7 +231,14 @@ export default function ReportsPage() {
       let source = item.purchaseInfo?.metadata?.source || "individual_project";
       if (source === "individual_project") {
         const projectRaw = item.project;
-        const isContractor = projectRaw?.created_by_type === "CONTRACTOR" || projectRaw?.added_by === "CONTRACTOR";
+        const ownerId = item.property?.property_owner_id || projectRaw?.property_owner_id || item.property?.property_owner?.id || projectRaw?.property?.property_owner_id;
+        const ownerEmail = item.property?.property_owner_email || projectRaw?.property_owner_email || item.property?.property_owner?.email || projectRaw?.property?.property_owner?.email;
+        const isOwner =
+          projectRaw?.created_by_type === 'PROPERTY_OWNER' ||
+          projectRaw?.added_by === 'PROPERTY_OWNER' ||
+          (projectRaw?.created_by && ownerId && projectRaw?.created_by === ownerId) ||
+          (projectRaw?.created_by_email && ownerEmail && projectRaw?.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
+        const isContractor = !isOwner;
         source = isContractor ? "contractor_project" : "owner_project";
       }
       return {
@@ -275,12 +282,12 @@ export default function ReportsPage() {
         //   downloadUrl = await generateMultipleReports({ search: debouncedSearchQuery });
         //   filename = `bulk-reports-${item.id}.pdf`;
         //   break;
-        case "property_report":
+        case "full_property":
           if (!item.propertyId) throw new Error("Property ID is missing");
           downloadUrl = await generatePdfReport(item.propertyId);
           filename = `full-property-report-${item.address}.pdf`;
           break;
-        case "full_property":
+        case "property_report":
           if (!item.propertyId) throw new Error("Property ID is missing");
           downloadUrl = await generateAllContractorPdfReport(item.propertyId);
           filename = `full-contractor-projects-report-${item.address}.pdf`;
@@ -298,7 +305,14 @@ export default function ReportsPage() {
         case "individual_project":
           if (!item.projectId) throw new Error("Project ID is missing");
           const projectRaw = item.raw?.project;
-          const isContractor = projectRaw?.created_by_type === "CONTRACTOR" || projectRaw?.added_by === "CONTRACTOR";
+          const ownerId = item.raw?.property?.property_owner_id || projectRaw?.property_owner_id || item.raw?.property?.property_owner?.id || projectRaw?.property?.property_owner_id;
+          const ownerEmail = item.raw?.property?.property_owner_email || projectRaw?.property_owner_email || item.raw?.property?.property_owner?.email || projectRaw?.property?.property_owner?.email;
+          const isOwner =
+            projectRaw?.created_by_type === 'PROPERTY_OWNER' ||
+            projectRaw?.added_by === 'PROPERTY_OWNER' ||
+            (projectRaw?.created_by && ownerId && projectRaw?.created_by === ownerId) ||
+            (projectRaw?.created_by_email && ownerEmail && projectRaw?.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
+          const isContractor = !isOwner;
           if (isContractor) {
             downloadUrl = await generateContractorProjectPdfReport(item.projectId);
             filename = `contractor-projects-report-${item.projectId}.pdf`;

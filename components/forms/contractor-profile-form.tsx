@@ -40,7 +40,6 @@ export interface ContractorProfileInitialData {
   companyLogo?: string | null;
   selectedCities: string[];
   membershipLevel: string;
-  services_provided_ids?: string[];
   cityDetails?: {
     id: string;
     name: string;
@@ -92,9 +91,7 @@ export function ContractorProfileForm({
     selected_cities: z.array(z.string()).min(1, "Select at least one city"),
     description: z.string().optional(),
     company_logo: z.any().optional(),
-    services_provided_ids: isPremium
-      ? z.array(z.string()).min(1, "Select at least one service")
-      : z.array(z.string()).optional(),
+    services_provided_ids: z.array(z.string()).optional(),
   });
 
   type ContractorProfileFormValues = z.infer<typeof contractorProfileSchema>;
@@ -115,13 +112,13 @@ export function ContractorProfileForm({
 
         selected_cities: initialData.selectedCities,
         description: initialData.description ?? "",
-        services_provided_ids: initialData.services_provided_ids ?? [],
       });
 
     }
   }, [initialData, form]);
 
   const onSubmit = async (data: ContractorProfileFormValues) => {
+    console.log(" edit runned");
     setIsSubmitting(true);
     try {
       const formData = new FormData();
@@ -257,55 +254,6 @@ export function ContractorProfileForm({
                             className="h-12 "
                           />
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="services_provided_ids"
-                    render={() => (
-                      <FormItem>
-                        <Label className="text-xs font-bold uppercase">
-                          Services Provided <span className="text-red-500">*</span>
-                        </Label>
-                        <div className="grid grid-cols-2 gap-4 mt-2">
-                          {services.map((service) => (
-                            <FormField
-                              key={service.id}
-                              control={form.control}
-                              name="services_provided_ids"
-                              render={({ field }) => (
-                                <FormItem
-                                  key={service.id}
-                                  className="flex flex-row items-center space-x-3 space-y-0"
-                                >
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={field.value?.includes(service.id)}
-                                      onCheckedChange={(checked) =>
-                                        checked
-                                          ? field.onChange([
-                                            ...(field.value || []),
-                                            service.id,
-                                          ])
-                                          : field.onChange(
-                                            field.value?.filter(
-                                              (v) => v !== service.id,
-                                            ) || [],
-                                          )
-                                      }
-                                    />
-                                  </FormControl>
-                                  <Label className="text-sm font-medium cursor-pointer">
-                                    {toPascalCase(service.service_name)}
-                                  </Label>
-                                </FormItem>
-                              )}
-                            />
-                          ))}
-                        </div>
                         <FormMessage />
                       </FormItem>
                     )}

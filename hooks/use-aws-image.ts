@@ -7,7 +7,7 @@ import { getWorkingAwsImageUrl } from '@/lib/utils';
  */
 export function useAwsImage(
   imageName: string | null | undefined,
-  folders: string[] = ['Ramsey', 'Kitie', 'Opera']
+  folders: string[] = ['ramsey', 'hennepin', 'scott', 'dakota', 'washington', 'carver', 'anoka']
 ): string {
   const baseUrl =
     process.env.NEXT_PUBLIC_AWS_IMAGE_BASE_URL ||
@@ -24,7 +24,7 @@ export function useAwsImage(
     ) {
       return trimmed;
     }
-    const defaultFolder = folders[0] || 'Ramsey';
+    const defaultFolder = folders[0] || 'ramsey';
     return `${baseUrl}/${defaultFolder}/${trimmed}`;
   };
 

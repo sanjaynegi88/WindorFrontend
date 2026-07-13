@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowRight, MoreVertical, Edit2, FileText, ShoppingCart, ShieldCheck, Plus, Trash2 } from 'lucide-react';
+import { ArrowRight, MoreVertical, Edit2, FileText, ShoppingCart, ShieldCheck, Plus, Trash2, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
@@ -35,6 +35,7 @@ interface PropertyCardProps {
   propertyName?: string;
   address: string;
   address2?: string;
+  hasReport?: boolean;
   city: string;
   state: string;
   zip: string;
@@ -44,25 +45,29 @@ interface PropertyCardProps {
   redirectUrl?: string;
   showActionButtons?: boolean;
   showDetail?: boolean;
+  latitude?: number;
+  longitude?: number;
+  onOpenInMap?: (lat: number, lng: number, id: string) => void;
 }
 
-export function PropertyCard({ address, address2, city, state, zip, propertyId, isPurchased = false, propertyName, propertyOwnerEmail, redirectUrl, showActionButtons, showDetail }: PropertyCardProps) {
+export function PropertyCard({ address, address2, city, state, zip, propertyId, hasReport, isPurchased = false, propertyName, propertyOwnerEmail, redirectUrl, showActionButtons, showDetail, latitude, longitude, onOpenInMap }: PropertyCardProps) {
   const { user, role } = useUser();
   const [isGenerating, setIsGenerating] = useState(false);
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [reportUsage, setReportUsage] = useState<any>(null);
   const [purchased, setPurchased] = useState(isPurchased);
+
   const router = useRouter();
 
   const isAdmin = role === 'admin';
   const isCityInspector = role === 'city_inspector';
   const isContractor = role === 'contractor';
   const isPropertyOwner = role === 'property_owner' || role === 'realtor';
-  const canVerify = isAdmin || isCityInspector;
-
-  // Property owners can only create a new project on their own property
   const isOwnerOfProperty = isPropertyOwner && !!propertyOwnerEmail && user?.email === propertyOwnerEmail;
+  const canVerify = isAdmin || isCityInspector || isOwnerOfProperty;
+
+
   const canAddNewProject = isContractor || isAdmin || isOwnerOfProperty;
 
   const [isVerifySidebarOpen, setIsVerifySidebarOpen] = useState(false);
@@ -75,7 +80,7 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
 
   const shouldShowActionButtons =
     showActionButtons &&
-    (isCityInspector || isAdmin);
+    (hasReport || isAdmin || canVerify || canAddNewProject);
 
   const fetchReportUsage = async () => {
     try {
@@ -168,6 +173,19 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40 rounded-xl">
+                {hasReport &&
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (latitude && longitude && onOpenInMap) {
+                        onOpenInMap(latitude, longitude, propertyId);
+                      }
+                    }}
+                    className="gap-2 cursor-pointer py-2"
+                    disabled={!latitude || !longitude}
+                  >
+                    <MapPin className="size-3.5" />
+                    <span className="text-xs font-bold">Open in Map</span>
+                  </DropdownMenuItem>}
                 {isAdmin && (
                   <DropdownMenuItem asChild className="gap-2 cursor-pointer py-2">
                     <Link href={`/properties/edit/${propertyId}`}>

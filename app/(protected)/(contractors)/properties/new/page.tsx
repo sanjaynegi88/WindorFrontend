@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 
 import { AddressForm, AddressData, PropertyOwnerOption } from '@/components/property-wizard/AddressForm';
 import { CategorySelection } from '@/components/property-wizard/CategorySelection';
@@ -12,7 +13,7 @@ import { MobileHeader } from '@/components/layouts/global';
 import { Suspense } from 'react';
 
 
-import { postProperty, postReport, postInstallation, postPropertyOwnerInstallations, getStates, getCities, getPropertyOwners, uploadInstallationImages, uploadPropertOwnerImages, getPropertyTypeOptions, getPropertyById, confirmProject } from '@/lib/actions';
+import { postProperty, postReport, postInstallation, postPropertyOwnerInstallations, getStates, getCities, getPropertyOwners, uploadInstallationImages, uploadPropertOwnerImages, getPropertyTypeOptions, getPropertyById, confirmProject, uploadOwnerProjectImage } from '@/lib/actions';
 import { type StateOption, type CityOption } from '@/lib/location-utils';
 import { InstallationForm } from '@/components/property-wizard/InstallationForm';
 import { ConfirmSubmitDialog } from '@/components/property-wizard/ConfirmSubmitDialog';
@@ -451,17 +452,37 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
         const installationId = installationResult.data?.data?.id || installationResult.data?.id;
         if (!installationId) throw new Error(`Failed to save ${type} installation — no ID returned`);
 
-        if (files.categoryFiles && Object.keys(files.categoryFiles).length > 0) {
-            const imgResult = await uploadInstallationImages(apiType, installationId, files.categoryFiles);
-            if (!imgResult.success) throw new Error(imgResult.message);
-        } else if (files.contractorFiles.length > 0) {
-            const imgResult = await uploadInstallationImages(apiType, installationId, files.contractorFiles);
-            if (!imgResult.success) throw new Error(imgResult.message);
-        }
+        if (isOwnerProject) {
+            const allOwnerFiles: File[] = [];
+            if (files.categoryFiles) {
+                Object.values(files.categoryFiles).forEach(f => {
+                    if (f) allOwnerFiles.push(f);
+                });
+            }
+            if (files.contractorFiles && files.contractorFiles.length > 0) {
+                allOwnerFiles.push(...files.contractorFiles);
+            }
+            if (files.ownerFiles && files.ownerFiles.length > 0) {
+                allOwnerFiles.push(...files.ownerFiles);
+            }
 
-        if (files.ownerFiles.length > 0) {
-            const ownerImgResult = await uploadPropertOwnerImages(apiType, installationId, files.ownerFiles);
-            if (!ownerImgResult.success) throw new Error(ownerImgResult.message);
+            for (const file of allOwnerFiles) {
+                const imgResult = await uploadOwnerProjectImage(installationId, file);
+                if (!imgResult.success) throw new Error(imgResult.message);
+            }
+        } else {
+            if (files.categoryFiles && Object.keys(files.categoryFiles).length > 0) {
+                const imgResult = await uploadInstallationImages(apiType, installationId, files.categoryFiles);
+                if (!imgResult.success) throw new Error(imgResult.message);
+            } else if (files.contractorFiles.length > 0) {
+                const imgResult = await uploadInstallationImages(apiType, installationId, files.contractorFiles);
+                if (!imgResult.success) throw new Error(imgResult.message);
+            }
+
+            if (files.ownerFiles.length > 0) {
+                const ownerImgResult = await uploadPropertOwnerImages(apiType, installationId, files.ownerFiles);
+                if (!ownerImgResult.success) throw new Error(ownerImgResult.message);
+            }
         }
 
         const newData = { ...installationsData, [type]: { values, files } };
@@ -601,9 +622,12 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
             {step === 'ADDRESS' ? (
 
                 <div className="relative w-full overflow-hidden h-[412px] md:h-[1080px]">
-                    <img
-                        src={"/assets/add-property/new-address.png"}
+                    <Image
+                        src="/assets/add-property/new-address.png"
                         alt="Hero"
+                        fill
+                        sizes="100vw"
+                        priority
                         className="absolute inset-0 w-full h-[250px] md:h-full object-cover md:top-[-70px]"
                     />
                     <div className="absolute inset-0 h-full" />
@@ -658,7 +682,29 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
                                 onSave={async (photos) => {
                                     if (!currentInstallationId) return;
                                     setLoading(true);
-                                    const result = await uploadInstallationImages(selectedCategory, currentInstallationId, photos as Record<string, File>);
+
+                                    const type = selectedCategory;
+                                    const isOwner = user.role === 'property_owner' ||
+                                        isOwnerProjectType ||
+                                        type === 'windows and doors' ||
+                                        type === 'WINDOWS AND DOORS';
+
+                                    let result;
+                                    if (isOwner) {
+                                        try {
+                                            const filesToUpload = Object.values(photos).filter(Boolean) as File[];
+                                            for (const file of filesToUpload) {
+                                                const res = await uploadOwnerProjectImage(currentInstallationId, file);
+                                                if (!res.success) throw new Error(res.message);
+                                            }
+                                            result = { success: true };
+                                        } catch (err: any) {
+                                            result = { success: false, message: err.message };
+                                        }
+                                    } else {
+                                        result = await uploadInstallationImages(selectedCategory, currentInstallationId, photos as Record<string, File>);
+                                    }
+
                                     setLoading(false);
                                     if (!result.success) {
                                         toast.error(result.message || 'Failed to upload images. Please try again.');

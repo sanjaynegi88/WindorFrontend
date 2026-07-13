@@ -54,6 +54,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ImagePlus, Loader2 } from 'lucide-react';
+import Image from 'next/image';
 import { toast } from 'sonner';
 
 type InstallationStatus = 'Verified' | 'Not Verified';
@@ -351,7 +352,7 @@ export default function InstallationList() {
         id: 'installer',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Installer"
+            title="Contractor"
             visibility={true}
             column={column}
           />
@@ -572,7 +573,7 @@ export default function InstallationList() {
                     <Button
                       mode="icon"
                       variant="ghost"
-                      className="absolute end-1.5 top-1/2 -translate-y-1/2 h-6 w-6"
+                      className="absolute inset-e-1.5 top-1/2 -translate-y-1/2 h-6 w-6"
                       onClick={() => setSearchQuery('')}
                     >
                       <X />
@@ -617,7 +618,7 @@ export default function InstallationList() {
             <div className="grid grid-cols-2 gap-4">
               {previews.map((preview, index) => (
                 <div key={index} className="relative aspect-square rounded-lg overflow-hidden border bg-muted">
-                  <img src={preview} alt="Upload preview" className="w-full h-full object-cover" />
+                  <Image src={preview} alt="Upload preview" fill sizes="(max-width: 768px) 50vw, 15vw" unoptimized className="w-full h-full object-cover" />
                   <button
                     onClick={() => removeFile(index)}
                     className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full hover:bg-destructive/90 transition-colors"

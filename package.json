@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^2.0.2",
+    "@googlemaps/markerclusterer": "^2.6.2",
     "@hookform/resolvers": "^5.2.1",
     "@ianvs/prettier-plugin-sort-imports": "^4.6.2",
     "@radix-ui/react-alert-dialog": "^1.1.15",

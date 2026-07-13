@@ -14,9 +14,10 @@ interface PropertyGridProps {
   showActionButtons?: boolean;
   showDetail?: boolean;
   isPropertyOwner?: boolean;
+  onOpenInMap?: (lat: number, lng: number, id: string) => void;
 }
 
-export function PropertyGrid({ searchParams, redirectUrl, showActionButtons, showDetail, isPropertyOwner }: PropertyGridProps) {
+export function PropertyGrid({ searchParams, redirectUrl, showActionButtons, showDetail, isPropertyOwner, onOpenInMap }: PropertyGridProps) {
   const [properties, setProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -111,6 +112,7 @@ export function PropertyGrid({ searchParams, redirectUrl, showActionButtons, sho
                 propertyName={prop.property_name || ""}
                 address={prop.address || ""}
                 address2={prop.address2 || ""}
+                hasReport={prop.has_report || false}
                 city={cityName}
                 state={stateName}
                 zip={prop.zip || ""}
@@ -120,6 +122,9 @@ export function PropertyGrid({ searchParams, redirectUrl, showActionButtons, sho
                 redirectUrl={redirectUrl || "/property-details/"}
                 showActionButtons={showActionButtons}
                 showDetail={showDetail}
+                latitude={prop.latitude ? Number(prop.latitude) : undefined}
+                longitude={prop.longitude ? Number(prop.longitude) : undefined}
+                onOpenInMap={onOpenInMap}
               />
             );
           })}
