@@ -165,8 +165,11 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
 
       >
         {shouldShowActionButtons && (
-          <div className="absolute top-3 right-3 z-10 has-data-[state=open]:opacity-100 transition-opacity">
-            <DropdownMenu>
+          <div className="absolute top-3 right-3 z-10 has-data-[state=open]:opacity-100 transition-opacity text-[#1CA7A6]">
+            <Link href={`/properties/new?propertyId=${propertyId}`}>
+              <Plus className="size-4 mr-2" />
+            </Link>
+            {/* <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-[#1F2A44] text-gray-500 hover:text-white">
                   <MoreVertical className="size-4" />
@@ -223,33 +226,57 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
-            </DropdownMenu>
+            </DropdownMenu> */}
           </div>)}
 
         <CardContent
           onClick={() => { router.push(`${redirectUrl}${propertyId}`) }}
           className="p-4 md:p-8 flex flex-col h-full min-h-[140px] md:min-h-[220px]">
           <div className="space-y-1 flex justify-between">
-            <div className='w-[60%]'>
+            <div className='w-[60%] mb-[30px]'>
               <h3 className="text-[15px] md:text-2xl font-black text-[#1e293b] leading-[20px] md:leading-tight tracking-tighter uppercase font-asap">
                 {propertyName}
               </h3>
             </div>
-            <div className="shrink-0">
-              <Image
-                src="/assets/home-icon.png"
-                alt="view-property"
-                width={34}
-                height={34}
-                className="md:hidden"
-              />
-              <Image
-                src="/assets/home-icon.png"
-                alt="view-property"
-                width={60}
-                height={60}
-                className="hidden md:block"
-              />
+            <div className="shrink-0 absolute right-[32px] z-10">
+              {canAddNewProject ?
+                <>
+                  <Link href={`/properties/new?propertyId=${propertyId}`}>
+                    <Image
+                      src="/assets/home-icon.png"
+                      alt="view-property"
+                      width={34}
+                      height={34}
+                      className="md:hidden"
+                    />
+                  </Link>
+                  <Link href={`/properties/new?propertyId=${propertyId}`}>
+                    <Image
+                      src="/assets/home-icon.png"
+                      alt="view-property"
+                      width={60}
+                      height={60}
+                      className="hidden md:block"
+                    />
+                  </Link>
+                </>
+                :
+                <>
+                  <Image
+                    src="/assets/home-icon.png"
+                    alt="view-property"
+                    width={34}
+                    height={34}
+                    className="md:hidden"
+                  />
+                  <Image
+                    src="/assets/home-icon.png"
+                    alt="view-property"
+                    width={60}
+                    height={60}
+                    className="hidden md:block"
+                  />
+                </>}
             </div>
           </div>
 
@@ -258,16 +285,33 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
             {address2 && <p className="text-[14px] md:text-lg font-bold text-gray-400">{address2}</p>}
             <p className="text-[14px] md:text-lg font-bold text-gray-400">{city} {state} {zip}</p>
           </div>
-
-          <div className="mt-auto pt-4 md:pt-6">
-            <Link
-              href={`/property-details/${propertyId}`}
-              className="inline-flex items-center gap-2 text-[#1CA7A6] font-black text-xs md:text-sm uppercase tracking-[0.2em] group/link font-asap"
-            >
-              {showDetail ? "Learn More" : "Add Project"}
-              {showDetail ? <ArrowRight className="size-4 md:size-5 transition-transform -rotate-45" /> : <Plus className="size-4 md:size-5 transition-transform" />}
-            </Link>
-          </div>
+            <div className="mt-auto pt-4 md:pt-6 flex flex-row justify-between items-center">
+              <div>
+                <Link
+                  href={`/property-details/${propertyId}`}
+                  className="inline-flex items-center gap-2 text-[#1CA7A6] font-black text-xs md:text-sm uppercase tracking-[0.2em] group/link font-asap"
+                >
+                  {showDetail ? "Learn More" : "Add Project"}
+                  {showDetail ? <ArrowRight className="size-4 md:size-5 transition-transform -rotate-45" /> : <Plus className="size-4 md:size-5 transition-transform" />}
+                </Link>
+              </div>
+              <div>
+                {hasReport &&
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (latitude && longitude && onOpenInMap) {
+                        onOpenInMap(latitude, longitude, propertyId);
+                      }
+                    }}
+                    disabled={!latitude || !longitude}
+                    className="flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    <MapPin className="size-5 text-[#1CA7A6] tracking-[0.2em] group/link" />
+                  </button>
+                }
+              </div>
+            </div>
         </CardContent>
       </Card>
 
