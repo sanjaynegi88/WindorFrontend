@@ -130,19 +130,9 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
     if (!propertyId) return;
     setLoadingContractor(true);
     try {
-      const res = await getprojectListingOfProperty(propertyId);
+      const res = await getprojectListingOfProperty(propertyId, undefined, 'CONTRACTOR');
       console.log("res", res)
-      const allProjects = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
-      const projects = allProjects.filter((p: any) => {
-        const ownerId = p.property?.property_owner_id || p.property_owner_id || p.property?.property_owner?.id;
-        const ownerEmail = p.property?.property_owner_email || p.property_owner_email || p.property?.property_owner?.email;
-        const isOwner =
-          p.created_by_type === 'PROPERTY_OWNER' ||
-          p.added_by === 'PROPERTY_OWNER' ||
-          (p.created_by && ownerId && p.created_by === ownerId) ||
-          (p.created_by_email && ownerEmail && p.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
-        return !isOwner;
-      });
+      const projects = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
       setContractorProjects(projects);
     } catch (err) {
       console.error('Failed to load contractor projects:', err);
@@ -156,18 +146,8 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
     if (!propertyId) return;
     setLoadingHomeowner(true);
     try {
-      const res = await getprojectListingOfProperty(propertyId);
-      const allProjects = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
-      const projects = allProjects.filter((p: any) => {
-        const ownerId = p.property?.property_owner_id || p.property_owner_id || p.property?.property_owner?.id;
-        const ownerEmail = p.property?.property_owner_email || p.property_owner_email || p.property?.property_owner?.email;
-        const isOwner =
-          p.created_by_type === 'PROPERTY_OWNER' ||
-          p.added_by === 'PROPERTY_OWNER' ||
-          (p.created_by && ownerId && p.created_by === ownerId) ||
-          (p.created_by_email && ownerEmail && p.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
-        return isOwner;
-      });
+      const res = await getprojectListingOfProperty(propertyId, undefined, 'PROPERTY_OWNER');
+      const projects = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
       setHomeownerProjects(projects);
     } catch (err) {
       console.error('Failed to load homeowner projects:', err);
@@ -201,18 +181,22 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
   const isOwnerOfProperty = role === 'property_owner' && !!propertyOwnerEmail && user?.email?.toLowerCase() === propertyOwnerEmail.toLowerCase();
   const isAdmin = role === 'admin';
   const isCityInspector = role === 'city_inspector';
+  const hasReport = !!property?.has_report;
 
   const showGenerateOption =
-    (role === "property_owner" && (isOwnerOfProperty || purchased)) ||
-    role === "admin" ||
-    role === "city_inspector" ||
-    (role === "contractor" && purchased) ||
-    (role === "manufacturer" && purchased) ||
-    (role === "realtor" && purchased) ||
-    (role === "insurance_company" &&
-      (purchased || (reportUsage && reportUsage.remaining > 0)));
+    hasReport && (
+      (role === "property_owner" && (isOwnerOfProperty || purchased)) ||
+      role === "admin" ||
+      role === "city_inspector" ||
+      (role === "contractor" && purchased) ||
+      (role === "manufacturer" && purchased) ||
+      (role === "realtor" && purchased) ||
+      (role === "insurance_company" &&
+        (purchased || (reportUsage && reportUsage.remaining > 0)))
+    );
 
   const showBuyOption =
+    hasReport &&
     totalProjectsCount > 0 &&
     ((role === "property_owner" && !isOwnerOfProperty && !purchased) ||
       (role === "contractor" && !purchased) ||

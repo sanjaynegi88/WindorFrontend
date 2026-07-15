@@ -2429,3 +2429,35 @@ export async function getPermitsForProperty(propertyId: string) {
     }
     return response.data;
 }
+
+export async function getAddedPropertiesListing(params?: { page?: number; limit?: number; search?: string }): Promise<ActionResult> {
+    const page = params?.page || 1;
+    const limit = params?.limit || 100;
+    const search = params?.search || '';
+    const query = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+        ...(search && { search }),
+    }).toString();
+    const response = await fetchApi({
+        url: `/api/properties/approvals/listing?${query}`,
+        method: 'GET',
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to fetch added properties') };
+    }
+    return { success: true, data: response.data?.data || response.data };
+}
+
+export async function updatePropertyApproval(propertyId: string, status: 'APPROVE' | 'REJECT'): Promise<ActionResult> {
+    console.log("api runned")
+    const response = await fetchApi({
+        url: `/api/properties/approvals/${propertyId}`,
+        method: 'PUT',
+        data: { status },
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, `Failed to ${status.toLowerCase()} property`) };
+    }
+    return { success: true, data: response.data };
+}

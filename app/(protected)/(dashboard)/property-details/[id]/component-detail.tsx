@@ -98,17 +98,22 @@ export default function ComponentDetail({
 
   const isOwnerOfProperty = role === "property_owner" && !!componentData?.property_owner?.email && user?.email === componentData.property_owner.email;
   const showAddProject = role === "admin" || role === "contractor" || role === "manufacturer" || (role === 'property_owner' && isOwnerOfProperty);
+  const hasReportApi = !!componentData?.has_report;
+
   const showGenerateOption =
-    (role === "property_owner" && (isOwnerOfProperty || purchased)) ||
-    role === "admin" ||
-    role === "city_inspector" ||
-    (role === "contractor" && (purchased)) ||
-    (role === "manufacturer" && purchased) ||
-    (role === "realtor" && purchased) ||
-    (role === "insurance_company" &&
-      (purchased || (reportUsage && reportUsage.remaining > 0)));
+    hasReportApi && (
+      (role === "property_owner" && (isOwnerOfProperty || purchased)) ||
+      role === "admin" ||
+      role === "city_inspector" ||
+      (role === "contractor" && (purchased)) ||
+      (role === "manufacturer" && purchased) ||
+      (role === "realtor" && purchased) ||
+      (role === "insurance_company" &&
+        (purchased || (reportUsage && reportUsage.remaining > 0)))
+    );
 
   const showBuyOption =
+    hasReportApi &&
     allProjects.length > 0 &&
     ((role === "property_owner" && !isOwnerOfProperty && !purchased) ||
       (role === "contractor" && !purchased) ||

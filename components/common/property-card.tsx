@@ -165,7 +165,7 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
 
       >
         {shouldShowActionButtons && (
-          <div className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 has-data-[state=open]:opacity-100 transition-opacity">
+          <div className="absolute top-3 right-3 z-10 has-data-[state=open]:opacity-100 transition-opacity">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-[#1F2A44] text-gray-500 hover:text-white">

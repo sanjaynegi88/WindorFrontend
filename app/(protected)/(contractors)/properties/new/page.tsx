@@ -339,7 +339,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
 
                 if (nextStep === 'SAVE') {
                     clearPropertyFlow();
-                    router.push('/dashboard');
+                    router.push('/added-properties');
                     return;
                 }
 
@@ -356,11 +356,9 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
 
             if (nextStep === 'IMAGES') {
                 setStep('PHOTOS');
-            } else if (nextStep === 'PROJECT') {
-                setStep('PROJECT');
             } else if (nextStep === 'SAVE') {
                 clearPropertyFlow();
-                router.push('/dashboard');
+                router.push('/added-properties');
             }
         } catch (error: any) {
             console.error('Failed to save property:', error);
@@ -659,7 +657,10 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
                             <PropertyAddressPhotos
                                 address={addressData.property_name}
                                 propertyId={tempPropertyId ?? ''}
-                                onSave={() => setStep('PROJECT')}
+                                onSave={() => {
+                                    clearPropertyFlow();
+                                    router.push('/added-properties');
+                                }}
                                 onBack={() => setStep('ADDRESS')}
                             />
                         )}

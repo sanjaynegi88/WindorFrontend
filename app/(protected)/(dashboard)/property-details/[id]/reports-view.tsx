@@ -172,19 +172,9 @@ export const ReportsView = ({
   useEffect(() => {
     if (showContractorProjectsDialog) {
       setLoadingContractor(true);
-      getprojectListingOfProperty(propertyId)
+      getprojectListingOfProperty(propertyId, undefined, 'CONTRACTOR')
         .then((res) => {
-          const allProjects = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
-          const projects = allProjects.filter((p: any) => {
-            const ownerId = p.property?.property_owner_id || p.property_owner_id || p.property?.property_owner?.id || componentsData?.property_owner_id || componentsData?.property_owner?.id;
-            const ownerEmail = p.property?.property_owner_email || p.property_owner_email || p.property?.property_owner?.email || componentsData?.property_owner_email || componentsData?.property_owner?.email || propertyOwnerEmail;
-            const isOwner =
-              p.created_by_type === 'PROPERTY_OWNER' ||
-              p.added_by === 'PROPERTY_OWNER' ||
-              (p.created_by && ownerId && p.created_by === ownerId) ||
-              (p.created_by_email && ownerEmail && p.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
-            return !isOwner;
-          });
+          const projects = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
           setContractorProjects(projects);
         })
         .catch((err) => {
@@ -193,24 +183,14 @@ export const ReportsView = ({
         })
         .finally(() => setLoadingContractor(false));
     }
-  }, [showContractorProjectsDialog, propertyId, componentsData, propertyOwnerEmail]);
+  }, [showContractorProjectsDialog, propertyId]);
 
   useEffect(() => {
     if (showHomeOwnerProjectsDialog) {
       setLoadingHomeowner(true);
-      getprojectListingOfProperty(propertyId)
+      getprojectListingOfProperty(propertyId, undefined, 'PROPERTY_OWNER')
         .then((res) => {
-          const allProjects = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
-          const projects = allProjects.filter((p: any) => {
-            const ownerId = p.property?.property_owner_id || p.property_owner_id || p.property?.property_owner?.id || componentsData?.property_owner_id || componentsData?.property_owner?.id;
-            const ownerEmail = p.property?.property_owner_email || p.property_owner_email || p.property?.property_owner?.email || componentsData?.property_owner_email || componentsData?.property_owner?.email || propertyOwnerEmail;
-            const isOwner =
-              p.created_by_type === 'PROPERTY_OWNER' ||
-              p.added_by === 'PROPERTY_OWNER' ||
-              (p.created_by && ownerId && p.created_by === ownerId) ||
-              (p.created_by_email && ownerEmail && p.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
-            return isOwner;
-          });
+          const projects = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
           setHomeownerProjects(projects);
         })
         .catch((err) => {
@@ -219,7 +199,7 @@ export const ReportsView = ({
         })
         .finally(() => setLoadingHomeowner(false));
     }
-  }, [showHomeOwnerProjectsDialog, propertyId, componentsData, propertyOwnerEmail]);
+  }, [showHomeOwnerProjectsDialog, propertyId]);
 
   useEffect(() => {
     setPurchased(isPurchased);
@@ -262,17 +242,22 @@ export const ReportsView = ({
     }
   };
 
+  const hasReportApi = !!componentsData?.has_report;
+
   const showGenerateOption =
-    (role === "property_owner" && (isOwnerOfProperty || purchased)) ||
-    role === "admin" ||
-    role === "city_inspector" ||
-    (role === "contractor" && (purchased)) ||
-    (role === "manufacturer" && purchased) ||
-    (role === "realtor" && purchased) ||
-    (role === "insurance_company" &&
-      (purchased || (reportUsage && reportUsage.remaining > 0)));
+    hasReportApi && (
+      (role === "property_owner" && (isOwnerOfProperty || purchased)) ||
+      role === "admin" ||
+      role === "city_inspector" ||
+      (role === "contractor" && (purchased)) ||
+      (role === "manufacturer" && purchased) ||
+      (role === "realtor" && purchased) ||
+      (role === "insurance_company" &&
+        (purchased || (reportUsage && reportUsage.remaining > 0)))
+    );
 
   const showBuyOption =
+    hasReportApi &&
     totalProjectsCount > 0 &&
     ((role === "property_owner" && !isOwnerOfProperty && !purchased) ||
       (role === "contractor" && !purchased) ||

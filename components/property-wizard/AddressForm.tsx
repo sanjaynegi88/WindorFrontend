@@ -17,7 +17,7 @@ import { ConfirmSubmitDialog } from './ConfirmSubmitDialog';
 import { ZipSelect } from '@/components/city-zip-selector';
 import { useUser } from '../providers/user-provider';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { getCities } from '@/lib/actions';
+import { getCities, getUserProfile, getReportUsage } from '@/lib/actions';
 import { MapDialog } from './MapDialog';
 
 export interface AddressData {
@@ -86,6 +86,81 @@ export function AddressForm({
     const [fetchedCities, setFetchedCities] = useState<CityOption[]>([]);
     const [loadingCities, setLoadingCities] = useState(false);
     const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
+
+    const [usageLimitInfo, setUsageLimitInfo] = useState<{
+        isFreePlan: boolean;
+        isLimitReached: boolean;
+        errorMessage: string | null;
+        loading: boolean;
+    }>({
+        isFreePlan: false,
+        isLimitReached: false,
+        errorMessage: null,
+        loading: false,
+    });
+
+    useEffect(() => {
+        const currentRole = user.role?.toLowerCase();
+        const isContractorOrManufacturer = currentRole === 'contractor' || currentRole === 'manufacturer';
+        
+        if (!isContractorOrManufacturer || alreadySaved) return;
+
+        let active = true;
+        const fetchLimits = async () => {
+            setUsageLimitInfo(prev => ({ ...prev, loading: true }));
+            try {
+                const [profile, usage] = await Promise.all([
+                    getUserProfile(),
+                    getReportUsage()
+                ]);
+
+                if (!active) return;
+
+                const profilePayload = profile?.data ?? profile;
+                const usagePayload = usage?.data ?? usage;
+
+                const level = (profilePayload as any)?.level;
+                const subscriptionLevel = (profilePayload as any)?.current_subscription?.status === 'ACTIVE'
+                    ? (profilePayload as any)?.current_subscription?.plan?.level
+                    : undefined;
+                const effectivelevel = (level || subscriptionLevel || '').toUpperCase();
+                
+                const isFreePlan = !effectivelevel || effectivelevel === 'FREE';
+
+                const propertiesUsed = usagePayload?.propertiesUsed ?? 0;
+                const propertiesProvided = usagePayload?.propertiesProvided ?? 0;
+                const propertiesUnlimited = usagePayload?.propertiesUnlimited === true || usagePayload?.propertiesUnlimited === 'true';
+
+                const remainingLimit = propertiesUnlimited ? 999999 : (propertiesProvided - propertiesUsed);
+                const isLimitReached = !propertiesUnlimited && remainingLimit <= 0;
+
+                let errorMessage = null;
+                if (isFreePlan) {
+                    errorMessage = 'Your current membership does not include the ability to submit new property addresses. Upgrade your membership to enable this feature.';
+                } else if (isLimitReached) {
+                    errorMessage = 'You have reached your monthly limit of new property submissions for your current membership plan. Your limit will reset on the first day of next month, or you may upgrade your membership to continue submitting properties.';
+                }
+
+                setUsageLimitInfo({
+                    isFreePlan,
+                    isLimitReached,
+                    errorMessage,
+                    loading: false
+                });
+            } catch (err) {
+                console.error('Failed to fetch limit info:', err);
+                if (active) {
+                    setUsageLimitInfo(prev => ({ ...prev, loading: false }));
+                }
+            }
+        };
+
+        fetchLimits();
+
+        return () => {
+            active = false;
+        };
+    }, [user.role, alreadySaved]);
 
     useEffect(() => {
         let active = true;
@@ -337,31 +412,31 @@ export function AddressForm({
             </div>
 
             <div className="space-y-[15px] md:space-y-[17px] pt-[15px] md:pt-[23px]">
-                <Button
-                    type="button"
-                    disabled={loading}
-                    onClick={(e) => handleFormSubmit(e, 'SAVE')}
-                    className="w-full h-[52px] md:h-[77px] border border-[#1CA7A6] bg-white text-[#1CA7A6] hover:bg-[#1CA7A6]/5 font-bold rounded-[10px] text-[20px] md:text-[30px] font-asap shadow-none"
-                >
-                    {loading ? 'Saving...' : alreadySaved ? 'Saved ✓' : 'Save'}
-                </Button>
-
-                {!isEdit && (
-                    <Button
-                        type="button"
-                        disabled={loading}
-                        onClick={(e) => handleFormSubmit(e, 'PROJECT')}
-                        className="w-full h-[52px] md:h-[77px] bg-[#1CA7A6] hover:bg-[#199695] text-white font-bold rounded-[10px] text-[20px] md:text-[30px] shadow-none font-asap"
-                    >
-                        {alreadySaved ? 'Continue to Project' : 'Save & Add Project'}
-                    </Button>
+                {usageLimitInfo.errorMessage && !alreadySaved && (
+                    <div className="flex items-start gap-3 p-4 md:p-5 rounded-[6px] md:rounded-[10px] border border-red-100 bg-red-50/80 text-red-800 text-[14px] md:text-[16px] font-medium leading-relaxed font-asap shadow-sm">
+                        <svg className="size-5 md:size-6 text-red-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <div>
+                            {usageLimitInfo.errorMessage}
+                        </div>
+                    </div>
                 )}
 
                 <Button
                     type="button"
-                    disabled={loading}
+                    disabled={loading || usageLimitInfo.loading || (!!usageLimitInfo.errorMessage && !alreadySaved)}
+                    onClick={(e) => handleFormSubmit(e, 'SAVE')}
+                    className="w-full h-[52px] md:h-[77px] border border-[#1CA7A6] bg-white text-[#1CA7A6] hover:bg-[#1CA7A6]/5 disabled:opacity-50 disabled:cursor-not-allowed font-bold rounded-[10px] text-[20px] md:text-[30px] font-asap shadow-none"
+                >
+                    {loading ? 'Saving...' : alreadySaved ? 'Saved ✓' : 'Save'}
+                </Button>
+
+                <Button
+                    type="button"
+                    disabled={loading || usageLimitInfo.loading || (!!usageLimitInfo.errorMessage && !alreadySaved)}
                     onClick={(e) => handleFormSubmit(e, 'IMAGES')}
-                    className="w-full h-[52px] md:h-[77px] border border-[#1F2A44] bg-white text-[#1F2A44] hover:bg-slate-50 font-bold rounded-[6px] text-[20px] md:text-[30px] flex items-center justify-center gap-4 font-asap shadow-none"
+                    className="w-full h-[52px] md:h-[77px] border border-[#1F2A44] bg-white text-[#1F2A44] hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold rounded-[6px] text-[20px] md:text-[30px] flex items-center justify-center gap-4 font-asap shadow-none"
                 >
                     {hasSavedImages && !isEdit ? (
                         <>
