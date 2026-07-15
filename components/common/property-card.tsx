@@ -167,7 +167,7 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
         {shouldShowActionButtons && (
           <div className="absolute top-3 right-3 z-10 has-data-[state=open]:opacity-100 transition-opacity text-[#1CA7A6]">
             <Link href={`/properties/new?propertyId=${propertyId}`}>
-              <Plus className="size-4 mr-2" />
+              <Plus className="size-6 mr-2" />
             </Link>
             {/* <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -241,7 +241,7 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
             <div className="shrink-0 absolute right-[32px] z-10">
               {canAddNewProject ?
                 <>
-                  <Link href={`/properties/new?propertyId=${propertyId}`}>
+                  <Link href={`/properties/new?propertyId=${propertyId}`} onClick={(e) => e.stopPropagation()}>
                     <Image
                       src="/assets/home-icon.png"
                       alt="view-property"
@@ -250,7 +250,7 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
                       className="md:hidden"
                     />
                   </Link>
-                  <Link href={`/properties/new?propertyId=${propertyId}`}>
+                  <Link href={`/properties/new?propertyId=${propertyId}`} onClick={(e) => e.stopPropagation()}>
                     <Image
                       src="/assets/home-icon.png"
                       alt="view-property"
@@ -299,7 +299,8 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
                 {hasReport &&
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (latitude && longitude && onOpenInMap) {
                         onOpenInMap(latitude, longitude, propertyId);
                       }
