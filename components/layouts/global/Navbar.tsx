@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn, toPascalCase } from "@/lib/utils";
@@ -41,10 +41,32 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [adminExpanded, setAdminExpanded] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [mobileSubmenuOpen, setMobileSubmenuOpen] = useState<Record<string, boolean>>({});
   const router = useRouter();
   const { notifications, unreadCount, markAsRead } = useNotifications();
 
   const role = user?.role?.toLowerCase() || "";
+
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = (menuName: string) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setOpenMenu(menuName);
+  };
+
+  const handleMouseLeave = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      setOpenMenu(null);
+    }, 250);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const loginUrl = process.env.NEXT_PUBLIC_LOGIN_URL || "/login";
   const isAuthPage =
@@ -92,6 +114,8 @@ export function Navbar() {
   useEffect(() => {
     setMobileOpen(false);
     setAdminExpanded(false);
+    setMobileSubmenuOpen({});
+    setOpenMenu(null);
   }, [pathname]);
 
   const handleSignout = async () => {
@@ -99,18 +123,10 @@ export function Navbar() {
     router.replace(process.env.NEXT_PUBLIC_LOGIN_URL || '/login');
   };
 
-  const navItems = useMemo(() => {
+  const navItems = useMemo((): { name: string; href?: string; activeFor?: string[]; submenu?: { name: string; href: string }[] }[] => {
     if (!isLoggedIn || !user)
       return [
-        { name: "HOME", href: "/dashboard" },
-        {
-          name: "PROPERTIES",
-          href: "/properties/new",
-          activeFor: ["/properties", "/property-details"],
-        },
-        { name: "REPORTS", href: "/reports" },
-        { name: "CONTRACTORS", href: "/contractors" },
-        { name: "PROFILE", href: "/profile" },
+        { name: "DIRECTORY", href: "/contractors" },
       ];
 
     switch (role) {
@@ -119,14 +135,25 @@ export function Navbar() {
           { name: "HOME", href: "/dashboard" },
           {
             name: "PROPERTIES",
-            href: "/properties",
             activeFor: ["/properties", "/property-details"],
+            submenu: [
+              { name: "View Properties", href: "/properties" },
+              { name: "Enter new Property", href: "/properties/new" },
+            ],
+          },
+          {
+            name: "PROJECTS",
+            activeFor: ["/projects", "/my-projects"],
+            submenu: [
+              { name: "My projects Lists", href: "/my-projects" },
+              { name: "Create new Project", href: "/projects" },
+            ],
           },
           { name: "REPORTS", href: "/reports" },
-          { name: "CONTRACTORS", href: "/contractors" },
+          { name: "DIRECTORY", href: "/contractors" },
           { name: "PROFILE", href: "/profile" },
           ...(!user?.user?.sub_account
-            ? [{ name: "STAFF", href: "/contractor-users" }]
+            ? [{ name: "TEAM", href: "/contractor-users" }]
             : []),
         ];
 
@@ -135,10 +162,21 @@ export function Navbar() {
           { name: "HOME", href: "/dashboard" },
           {
             name: "PROPERTIES",
-            href: "/properties/new",
             activeFor: ["/properties", "/property-details"],
+            submenu: [
+              { name: "View Properties", href: "/properties" },
+              { name: "Enter new Property", href: "/properties/new" },
+            ],
           },
-          { name: "CONTRACTORS", href: "/contractors" },
+          {
+            name: "PROJECTS",
+            activeFor: ["/projects", "/my-projects"],
+            submenu: [
+              { name: "My projects Lists", href: "/my-projects" },
+              { name: "Create new Project", href: "/projects" },
+            ],
+          },
+          { name: "DIRECTORY", href: "/contractors" },
           { name: "PROFILE", href: "/profile" },
         ];
 
@@ -146,11 +184,11 @@ export function Navbar() {
         return [
           { name: "HOME", href: "/dashboard" },
           { name: "REPORTS", href: "/reports" },
-          { name: "CONTRACTORS", href: "/contractors" },
+          { name: "DIRECTORY", href: "/contractors" },
           { name: "PROFILE", href: "/profile" },
           ...(!user?.user?.sub_account
             ? [
-              { name: "STAFF", href: "/company-users" },
+              { name: "TEAM", href: "/company-users" },
               { name: "Audit Logs", href: "/company-logs" },
             ]
             : []),
@@ -159,11 +197,11 @@ export function Navbar() {
       case "city_inspector":
         return [
           { name: "HOME", href: "/dashboard" },
-          { name: "CONTRACTORS", href: "/contractors" },
+          { name: "DIRECTORY", href: "/contractors" },
           { name: "PROFILE", href: "/profile" },
           ...(!user?.user?.sub_account
             ? [
-              { name: "STAFF", href: "/city-users" },
+              { name: "TEAM", href: "/city-users" },
               { name: "Audit Logs", href: "/city-logs" },
             ]
             : []),
@@ -172,8 +210,23 @@ export function Navbar() {
       case "property_owner":
         return [
           { name: "HOME", href: "/dashboard" },
+          {
+            name: "PROPERTIES",
+            activeFor: ["/properties", "/property-details"],
+            submenu: [
+              { name: "View Properties", href: "/properties" }
+            ],
+          },
+          {
+            name: "PROJECTS",
+            activeFor: ["/projects", "/my-projects"],
+            submenu: [
+              { name: "My projects Lists", href: "/my-projects" },
+              { name: "Create new Project", href: "/projects" },
+            ],
+          },
           { name: "REPORTS", href: "/reports" },
-          { name: "CONTRACTORS", href: "/contractors" },
+          { name: "DIRECTORY", href: "/contractors" },
           { name: "PROFILE", href: "/profile" },
         ];
 
@@ -181,7 +234,7 @@ export function Navbar() {
         return [
           { name: "HOME", href: "/dashboard" },
           { name: "REPORTS", href: "/reports" },
-          { name: "CONTRACTORS", href: "/contractors" },
+          { name: "DIRECTORY", href: "/contractors" },
           { name: "PROFILE", href: "/profile" },
         ];
     }
@@ -227,63 +280,148 @@ export function Navbar() {
 
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-[45px]">
-          {navItems.map((link) => (
-            <Link
-              key={link.name}
-              href={link.href}
-              className={cn(
-                "text-[15px] font-medium transition-colors uppercase relative py-2",
-                (
-                  link.activeFor
-                    ? link.activeFor.some((p) => pathname.startsWith(p))
-                    : pathname.startsWith(link.href)
-                )
-                  ? "text-[#1CA7A6]"
-                  : "text-[#708090]/90",
-              )}
-            >
-              {link.name}
-              {(link.activeFor
-                ? link.activeFor.some((p) => pathname.startsWith(p))
-                : pathname.startsWith(link.href)) && (
+          {navItems.map((link) => {
+            const isActive = link.activeFor
+              ? link.activeFor.some((p) => pathname.startsWith(p))
+              : link.href
+                ? pathname.startsWith(link.href)
+                : link.submenu?.some((sub) => pathname.startsWith(sub.href));
+
+            if (link.submenu) {
+              return (
+                <div
+                  key={link.name}
+                  onMouseEnter={() => handleMouseEnter(link.name)}
+                  onMouseLeave={handleMouseLeave}
+                  className="relative"
+                >
+                  <DropdownMenu
+                    open={openMenu === link.name}
+                    onOpenChange={(open) => {
+                      if (!open) {
+                        setOpenMenu(null);
+                      } else {
+                        setOpenMenu(link.name);
+                      }
+                    }}
+                    modal={false}
+                  >
+                    <DropdownMenuTrigger asChild>
+                      <button 
+                        onPointerDown={(e) => e.preventDefault()}
+                        onClick={(e) => e.preventDefault()}
+                        className={cn(
+                          "flex items-center gap-1 text-[15px] font-medium transition-colors uppercase relative py-2 outline-none cursor-pointer",
+                          isActive ? "text-[#1CA7A6]" : "text-[#708090]/90 hover:text-[#1CA7A6]"
+                        )}
+                      >
+                        {link.name}
+                        <ChevronDown className="size-4" />
+                        {isActive && (
+                          <div className="absolute bottom-[-10px] left-0 w-full h-[2px] bg-[#1CA7A6] rounded-[3px]" />
+                        )}
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="start"
+                      className="w-56 rounded-xl border-none shadow-2xl p-2 bg-white mt-1"
+                      onMouseEnter={() => handleMouseEnter(link.name)}
+                      onMouseLeave={handleMouseLeave}
+                    >
+                      {link.submenu.map((sub) => (
+                        <DropdownMenuItem
+                          key={sub.name}
+                          asChild
+                          className={cn(
+                            "rounded-lg focus:bg-[#1CA7A6]/10 focus:text-[#1CA7A6] cursor-pointer py-3 px-4",
+                            pathname === sub.href && "bg-[#1CA7A6]/10 text-[#1CA7A6]"
+                          )}
+                        >
+                          <Link href={sub.href} className="w-full">
+                            <span className="font-bold text-sm">{sub.name}</span>
+                          </Link>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              );
+            }
+
+            return (
+              <Link
+                key={link.name}
+                href={link.href!}
+                className={cn(
+                  "text-[15px] font-medium transition-colors uppercase relative py-2",
+                  isActive
+                    ? "text-[#1CA7A6]"
+                    : "text-[#708090]/90 hover:text-[#1CA7A6]",
+                )}
+              >
+                {link.name}
+                {isActive && (
                   <div className="absolute bottom-[-10px] left-0 w-full h-[2px] bg-[#1CA7A6] rounded-[3px]" />
                 )}
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
 
           {role === "admin" && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-1 text-[15px] font-medium text-[#708090]/90 hover:text-[#1CA7A6] transition-colors outline-none uppercase">
-                  ADMIN
-                  <ChevronDown className="size-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="w-56 rounded-xl border-none shadow-2xl p-2 bg-white"
+            <div
+              onMouseEnter={() => handleMouseEnter("ADMIN")}
+              onMouseLeave={handleMouseLeave}
+              className="relative"
+            >
+              <DropdownMenu
+                open={openMenu === "ADMIN"}
+                onOpenChange={(open) => {
+                  if (!open) {
+                    setOpenMenu(null);
+                  } else {
+                    setOpenMenu("ADMIN");
+                  }
+                }}
+                modal={false}
               >
-                {adminMenuItems.map((item) => (
-                  <DropdownMenuItem
-                    key={item.name}
-                    asChild
-                    className={cn(
-                      "rounded-lg focus:bg-[#1CA7A6]/10 focus:text-[#1CA7A6] cursor-pointer py-3 px-4",
-                      pathname === item.href &&
-                      "bg-[#1CA7A6]/10 text-[#1CA7A6]",
-                    )}
+                <DropdownMenuTrigger asChild>
+                  <button 
+                    onPointerDown={(e) => e.preventDefault()}
+                    onClick={(e) => e.preventDefault()}
+                    className="flex items-center gap-1 text-[15px] font-medium text-[#708090]/90 hover:text-[#1CA7A6] transition-colors outline-none uppercase cursor-pointer"
                   >
-                    <Link
-                      href={item.href}
-                      className="flex items-center gap-3 w-full"
+                    ADMIN
+                    <ChevronDown className="size-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-56 rounded-xl border-none shadow-2xl p-2 bg-white"
+                  onMouseEnter={() => handleMouseEnter("ADMIN")}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  {adminMenuItems.map((item) => (
+                    <DropdownMenuItem
+                      key={item.name}
+                      asChild
+                      className={cn(
+                        "rounded-lg focus:bg-[#1CA7A6]/10 focus:text-[#1CA7A6] cursor-pointer py-3 px-4",
+                        pathname === item.href &&
+                        "bg-[#1CA7A6]/10 text-[#1CA7A6]",
+                      )}
                     >
-                      <item.icon className="size-4" />
-                      <span className="font-bold text-sm">{item.name}</span>
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                      <Link
+                        href={item.href}
+                        className="flex items-center gap-3 w-full"
+                      >
+                        <item.icon className="size-4" />
+                        <span className="font-bold text-sm">{item.name}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )}
         </div>
 
@@ -468,25 +606,103 @@ export function Navbar() {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden border-t bg-white px-4 py-4 space-y-1 shadow-lg font-inter">
-          {navItems.map((link) => (
-            <Link
-              key={link.name}
-              href={link.href}
-              className={cn(
-                "flex items-center px-4 py-3 rounded-xl text-[15px] font-bold uppercase tracking-wider transition-colors",
-                (
-                  link.activeFor
-                    ? link.activeFor.some((p) => pathname.startsWith(p))
-                    : pathname.startsWith(link.href)
-                )
-                  ? "bg-[#1CA7A6]/10 text-[#1CA7A6]"
-                  : "text-[#708090] hover:bg-gray-50 hover:text-[#1CA7A6]",
+        <div className="md:hidden border-t bg-white px-4 py-4 space-y-1 shadow-lg font-inter max-h-[calc(100vh-120px)] overflow-y-auto">
+          {navItems.map((link) => {
+            const isActive = link.activeFor
+              ? link.activeFor.some((p) => pathname.startsWith(p))
+              : link.href
+                ? pathname.startsWith(link.href)
+                : link.submenu?.some((sub) => pathname.startsWith(sub.href));
+
+            if (link.submenu) {
+              const isOpen = !!mobileSubmenuOpen[link.name];
+              return (
+                <div key={link.name} className="space-y-1">
+                  <button
+                    onClick={() => setMobileSubmenuOpen(prev => ({ ...prev, [link.name]: !prev[link.name] }))}
+                    className={cn(
+                      "flex items-center justify-between w-full px-4 py-3 rounded-xl text-[15px] font-bold uppercase tracking-wider transition-colors cursor-pointer",
+                      isActive
+                        ? "bg-[#1CA7A6]/10 text-[#1CA7A6]"
+                        : "text-[#708090] hover:bg-gray-50 hover:text-[#1CA7A6]"
+                    )}
+                  >
+                    <span>{link.name}</span>
+                    <ChevronDown className={cn("size-4 transition-transform", isOpen && "rotate-180")} />
+                  </button>
+                  {isOpen && (
+                    <div className="pl-4 space-y-1 border-l border-gray-100 ml-4">
+                      {link.submenu.map((sub) => (
+                        <Link
+                          key={sub.name}
+                          href={sub.href}
+                          className={cn(
+                            "flex items-center px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-colors",
+                            pathname === sub.href
+                              ? "text-[#1CA7A6] bg-[#1CA7A6]/5"
+                              : "text-[#708090] hover:text-[#1CA7A6]"
+                          )}
+                        >
+                          {sub.name}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            return (
+              <Link
+                key={link.name}
+                href={link.href!}
+                className={cn(
+                  "flex items-center px-4 py-3 rounded-xl text-[15px] font-bold uppercase tracking-wider transition-colors",
+                  isActive
+                    ? "bg-[#1CA7A6]/10 text-[#1CA7A6]"
+                    : "text-[#708090] hover:bg-gray-50 hover:text-[#1CA7A6]",
+                )}
+              >
+                {link.name}
+              </Link>
+            );
+          })}
+
+          {role === "admin" && (
+            <div className="space-y-1">
+              <button
+                onClick={() => setMobileSubmenuOpen(prev => ({ ...prev, ADMIN: !prev.ADMIN }))}
+                className={cn(
+                  "flex items-center justify-between w-full px-4 py-3 rounded-xl text-[15px] font-bold uppercase tracking-wider transition-colors cursor-pointer",
+                  pathname.startsWith("/admin")
+                    ? "bg-[#1CA7A6]/10 text-[#1CA7A6]"
+                    : "text-[#708090] hover:bg-gray-50 hover:text-[#1CA7A6]"
+                )}
+              >
+                <span>ADMIN</span>
+                <ChevronDown className={cn("size-4 transition-transform", !!mobileSubmenuOpen.ADMIN && "rotate-180")} />
+              </button>
+              {!!mobileSubmenuOpen.ADMIN && (
+                <div className="pl-4 space-y-1 border-l border-gray-100 ml-4">
+                  {adminMenuItems.map((item) => (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-colors",
+                        pathname === item.href
+                          ? "text-[#1CA7A6] bg-[#1CA7A6]/5"
+                          : "text-[#708090] hover:text-[#1CA7A6]"
+                      )}
+                    >
+                      <item.icon className="size-4" />
+                      <span>{item.name}</span>
+                    </Link>
+                  ))}
+                </div>
               )}
-            >
-              {link.name}
-            </Link>
-          ))}
+            </div>
+          )}
         </div>
       )}
     </nav>

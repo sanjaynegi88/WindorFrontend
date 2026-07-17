@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowRight, MoreVertical, Edit2, FileText, ShoppingCart, ShieldCheck, Plus, Trash2, MapPin } from 'lucide-react';
+import { ArrowRight, MoreVertical, Edit2, FileText, ShoppingCart, ShieldCheck, Plus, Trash2, MapPin, FileUp } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
@@ -78,9 +78,6 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
     }
   }, [role]);
 
-  const shouldShowActionButtons =
-    showActionButtons &&
-    (hasReport || isAdmin || canVerify || canAddNewProject);
 
   const fetchReportUsage = async () => {
     try {
@@ -164,12 +161,9 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
       <Card className="overflow-hidden shadow-none hover:shadow-lg transition-all group rounded-[10px] cursor-pointer bg-white border border-[#1CA7A6] relative h-full flex flex-col"
 
       >
-        {shouldShowActionButtons && (
-          <div className="absolute top-3 right-3 z-10 has-data-[state=open]:opacity-100 transition-opacity text-[#1CA7A6]">
-            <Link href={`/properties/new?propertyId=${propertyId}`}>
-              <Plus className="size-6 mr-2" />
-            </Link>
-            {/* <DropdownMenu>
+        {showActionButtons && (isAdmin || isCityInspector) ? (
+          <div className="absolute top-3 right-3 z-10 has-data-[state=open]:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-[#1F2A44] text-gray-500 hover:text-white">
                   <MoreVertical className="size-4" />
@@ -226,8 +220,17 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
-            </DropdownMenu> */}
-          </div>)}
+            </DropdownMenu>
+          </div>
+        ) : (
+          showActionButtons && canAddNewProject && (
+            <div className="absolute top-3 right-3 z-10 transition-opacity text-[#1CA7A6]" onClick={(e) => e.stopPropagation()}>
+              <Link href={`/properties/new?propertyId=${propertyId}`}>
+                <Plus className="size-6 mr-2" />
+              </Link>
+            </div>
+          )
+        )}
 
         <CardContent
           onClick={() => { router.push(`${redirectUrl}${propertyId}`) }}
@@ -239,7 +242,7 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
               </h3>
             </div>
             <div className="shrink-0 absolute right-[32px] z-10">
-              {canAddNewProject ?
+              {showActionButtons && canAddNewProject && !(isAdmin || isCityInspector) ?
                 <>
                   <Link href={`/properties/new?propertyId=${propertyId}`} onClick={(e) => e.stopPropagation()}>
                     <Image
@@ -285,34 +288,47 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
             {address2 && <p className="text-[14px] md:text-lg font-bold text-gray-400">{address2}</p>}
             <p className="text-[14px] md:text-lg font-bold text-gray-400">{city} {state} {zip}</p>
           </div>
-            <div className="mt-auto pt-4 md:pt-6 flex flex-row justify-between items-center">
-              <div>
-                <Link
-                  href={`/property-details/${propertyId}`}
-                  className="inline-flex items-center gap-2 text-[#1CA7A6] font-black text-xs md:text-sm uppercase tracking-[0.2em] group/link font-asap"
-                >
-                  {showDetail ? "Learn More" : "Add Project"}
-                  {showDetail ? <ArrowRight className="size-4 md:size-5 transition-transform -rotate-45" /> : <Plus className="size-4 md:size-5 transition-transform" />}
-                </Link>
-              </div>
-              <div>
-                {hasReport &&
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (latitude && longitude && onOpenInMap) {
-                        onOpenInMap(latitude, longitude, propertyId);
-                      }
-                    }}
-                    disabled={!latitude || !longitude}
-                    className="flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    <MapPin className="size-5 text-[#1CA7A6] tracking-[0.2em] group/link" />
-                  </button>
-                }
-              </div>
+          <div className="mt-auto pt-4 md:pt-6 flex flex-row justify-between items-center">
+            <div>
+              <Link
+                href={`/property-details/${propertyId}`}
+                className="inline-flex items-center gap-2 text-[#1CA7A6] font-black text-xs md:text-sm uppercase tracking-[0.2em] group/link font-asap"
+              >
+                {showDetail ? "Learn More" : "Add Project"}
+                {showDetail ? <ArrowRight className="size-4 md:size-5 transition-transform -rotate-45" /> : <Plus className="size-4 md:size-5 transition-transform" />}
+              </Link>
             </div>
+            <div className="flex items-center gap-4">
+              {canVerify && !(isAdmin || isCityInspector) && showActionButtons && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsVerifySidebarOpen(true);
+                  }}
+                  className="flex items-center gap-2 cursor-pointer text-[#1CA7A6] hover:opacity-80 transition-opacity"
+                  title="Upload Documents"
+                >
+                  <FileUp className="size-5 text-[#1CA7A6]" />
+                </button>
+              )}
+              {hasReport && showActionButtons &&
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (latitude && longitude && onOpenInMap) {
+                      onOpenInMap(latitude, longitude, propertyId);
+                    }
+                  }}
+                  disabled={!latitude || !longitude}
+                  className="flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <MapPin className="size-5 text-[#1CA7A6] tracking-[0.2em] group/link" />
+                </button>
+              }
+            </div>
+          </div>
         </CardContent>
       </Card>
 

@@ -7,7 +7,7 @@ import {
     Home, Search, FileText, User, Plus,
     MoreHorizontal, Users, ClipboardList,
     History, Map as MapIcon, Building2, Tag,
-    ShieldCheck, Settings, Shield
+    ShieldCheck, Settings, Shield, Images, DollarSign
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/components/providers/user-provider';
@@ -25,29 +25,44 @@ export function MobileTabs() {
     const role = user?.role?.toLowerCase() || "";
     const [isOpen, setIsOpen] = React.useState(false);
 
-    // Close sheet when route changes
     React.useEffect(() => {
         setIsOpen(false);
     }, [pathname]);
 
-    const tabs = [
-        { name: 'Home', href: '/dashboard', icon: Home },
-        { name: 'Properties', href: '/properties/new', icon: Search },
-        { name: 'More', icon: MoreHorizontal, isCenter: true },
-        { name: 'Report', href: '/reports', icon: FileText },
-        { name: 'Profile', href: '/profile', icon: User },
-    ];
+    const tabs = React.useMemo((): { name: string; href?: string; icon: React.ComponentType<any>; isCenter?: boolean }[] => {
+        const baseTabs: { name: string; href?: string; icon: React.ComponentType<any>; isCenter?: boolean }[] = [
+            { name: 'Home', href: '/dashboard', icon: Home },
+        ];
 
-    // Options for the "More" menu
+        const hasProperties = role === 'contractor' || role === 'admin' || role === 'property_owner';
+        const hasReports = role === 'contractor' || role === 'property_owner' || role === 'insurance_company';
+
+        if (hasProperties) {
+            baseTabs.push({ name: 'Properties', href: '/properties', icon: Search });
+        }
+
+        baseTabs.push({ name: 'More', icon: Plus, isCenter: true });
+
+        if (hasReports) {
+            baseTabs.push({ name: 'Report', href: '/reports', icon: FileText });
+        }
+
+        baseTabs.push({ name: 'Profile', href: '/profile', icon: User });
+
+        return baseTabs;
+    }, [role]);
+
     const getMoreOptions = () => {
         const options = [];
 
-        // Public Routes
         options.push({ name: 'Contractors', href: '/contractors', icon: Shield });
 
-        // Add Property (available for contractor and admin)
-        if (role === 'contractor' || role === 'admin') {
-            options.push({ name: 'Add Property', href: '/properties/new', icon: Plus });
+        // Properties & Projects options (available for contractor, admin, property_owner)
+        if (role === 'contractor' || role === 'admin' || role === 'property_owner') {
+            options.push({ name: 'View Properties', href: '/properties', icon: Search });
+            options.push({ name: 'Enter new Property', href: '/properties/new', icon: Plus });
+            options.push({ name: 'My projects Lists', href: '/my-projects', icon: ClipboardList });
+            options.push({ name: 'Create new Project', href: '/projects', icon: Plus });
         }
 
         // Inspector Routes
@@ -73,6 +88,11 @@ export function MobileTabs() {
             options.push({ name: 'City', href: '/admin/city', icon: Building2 });
             options.push({ name: 'Brands', href: '/admin/brands', icon: Tag });
             options.push({ name: 'Membership', href: '/admin/membership', icon: ShieldCheck });
+            options.push({ name: 'Property Types', href: '/admin/property-types', icon: Building2 });
+            options.push({ name: 'Roles', href: '/admin/roles', icon: Shield });
+            options.push({ name: 'Project Image Category', href: '/admin/image-category', icon: Images });
+            options.push({ name: 'Service Provided', href: '/admin/service-provided', icon: Building2 });
+            options.push({ name: 'Set Prices', href: '/admin/report-price', icon: DollarSign });
             options.push({ name: 'Admin Logs', href: '/admin/admin-logs', icon: History });
         }
 
@@ -99,11 +119,14 @@ export function MobileTabs() {
                                     </span>
                                 </button>
                             </SheetTrigger>
-                            <SheetContent side="bottom" className="rounded-t-[25px] border-none bg-white p-8 pb-28 outline-none">
-                                <SheetHeader className="mb-8">
+                            <SheetContent
+                                side="bottom"
+                                className="rounded-t-[25px] border-none bg-white p-8 outline-none h-[65vh] max-h-[550px] flex flex-col"
+                            >
+                                <SheetHeader className="mb-6 shrink-0">
                                     <SheetTitle className="text-[#1F2A44] font-bold text-xl uppercase tracking-tight text-center font-asap">Menu Options</SheetTitle>
                                 </SheetHeader>
-                                <div className="grid grid-cols-3 gap-4">
+                                <div className="grid grid-cols-3 gap-4 overflow-y-auto flex-1 pr-1 pb-6">
                                     {moreOptions.map((option) => (
                                         <Link
                                             key={option.name}
@@ -114,7 +137,7 @@ export function MobileTabs() {
                                             <div className="size-11 rounded-full bg-white flex items-center justify-center text-[#1F2A44] group-hover:text-[#1CA7A6] shadow-sm transition-colors">
                                                 <option.icon className="size-5" />
                                             </div>
-                                            <span className="text-[11px] font-bold text-[#1F2A44] text-center uppercase leading-tight font-asap">
+                                            <span className="text-[11px] font-bold text-[#1F2A44] text-center uppercase leading-tight font-asap font-semibold">
                                                 {option.name}
                                             </span>
                                         </Link>

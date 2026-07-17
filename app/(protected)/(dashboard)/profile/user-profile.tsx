@@ -71,9 +71,6 @@ const profileSchema = z.object({
         if (!data.companyAddress?.trim()) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Company Address is required', path: ['companyAddress'] });
         }
-        if (!data.websiteUrl?.trim()) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Website URL is required', path: ['websiteUrl'] });
-        }
         if (!data.mobilePhone) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Mobile Phone is required', path: ['mobilePhone'] });
         }
@@ -84,9 +81,7 @@ const profileSchema = z.object({
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Title is required', path: ['title'] });
         }
     } else if (role === 'city_inspector') {
-        if (!data.city_id?.trim()) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'City is required', path: ['city_id'] });
-        }
+
         if (!data.cityOfficial?.trim()) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'City Official is required', path: ['cityOfficial'] });
         }

@@ -30,6 +30,7 @@ import { Content } from '@/components/layouts/crm/components/content';
 import { addUser, getRoles, getServiceProvided, getStates } from '@/lib/actions';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toPascalCase } from '@/lib/utils';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 const inputCls = 'h-[65px] px-[19px] border-[rgba(112,128,144,0.23)] rounded-[6px] text-[20px] leading-[23px] font-medium text-[#1F2A44] bg-white placeholder:text-[#1F2A44]/50 font-asap';
@@ -69,9 +70,9 @@ const phoneRegex = /^\d{10}$/;
 
 const propertySchema = z.object({
     propertyAddress: z.string().min(1, 'Property address is required'),
+    mobilePhone: z.string().min(1, 'Mobile phone is required').regex(phoneRegex, 'Mobile phone must be exactly 10 digits'),
     ownerDateStart: z.string().min(1, 'Start date is required'),
     ownerDateEnd: z.string().optional(),
-    mobilePhone: z.string().regex(phoneRegex, 'Mobile phone must be exactly 10 digits'),
     state_id: z.string().min(1, 'State is required'),
     city_id: z.string().min(1, 'City is required'),
     zip: z.string().min(1, 'Zip code is required'),
@@ -81,11 +82,11 @@ const contractorSchema = z.object({
     companyAddress: z.string().min(1, 'Company address is required'),
     company_name: z.string().optional(),
     companyEmail: z.string().optional(),
-    websiteUrl: z.string().min(1, 'Website URL is required'),
-    city_id: z.string().min(1, 'City is required'),
-    mobilePhone: z.string().regex(phoneRegex, 'Mobile phone must be exactly 10 digits'),
-    companyPhone: z.string().regex(phoneRegex, 'Company phone must be exactly 10 digits'),
-    licenseNumber: z.string().min(1, 'License number is required'),
+    websiteUrl: z.string().optional(),
+    licenseNumber: z.string().optional(),
+    mobilePhone: z.string().min(1, 'Mobile phone is required').regex(phoneRegex, 'Mobile phone must be exactly 10 digits'),
+    companyPhone: z.string().min(1, 'Company phone is required').regex(phoneRegex, 'Company phone must be exactly 10 digits'),
+    city_id: z.string().optional(),
     serviceTypes: z.array(z.string()).min(1, 'Select at least one service'),
 });
 
@@ -230,6 +231,8 @@ function ContractorForm({ onSubmit, onBack, loading }: {
 }) {
     const [services, setServices] = useState<{ id: string; service_name: string }[]>([]);
     const [loadingServices, setLoadingServices] = useState(true);
+    const [showLicenseWarning, setShowLicenseWarning] = useState(false);
+    const [pendingValues, setPendingValues] = useState<ContractorValues | null>(null);
 
     useEffect(() => {
         getServiceProvided()
@@ -242,112 +245,137 @@ function ContractorForm({ onSubmit, onBack, loading }: {
         resolver: zodResolver(contractorSchema),
         defaultValues: { companyAddress: '', websiteUrl: '', mobilePhone: '', companyPhone: '', serviceTypes: [], licenseNumber: '', city_id: '', companyEmail: '', company_name: '' },
     });
+
+    function handleFormSubmit(values: ContractorValues) {
+        if (!values.licenseNumber || values.licenseNumber.trim() === '') {
+            setPendingValues(values);
+            setShowLicenseWarning(true);
+        } else {
+            onSubmit(values);
+        }
+    }
+
     return (
-        <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-                <FormField control={form.control} name="company_name" render={({ field }) => (
-                    <FormItem><FormLabel>Company Name</FormLabel>
-                        <FormControl><Input placeholder="Company Name (optional)" {...field} className={inputCls} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )} />
-                <FormField control={form.control} name="companyEmail" render={({ field }) => (
-                    <FormItem><FormLabel>Company Email</FormLabel>
-                        <FormControl><Input placeholder="Email (optional)" {...field} className={inputCls} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )} />
-                <FormField control={form.control} name="companyAddress" render={({ field }) => (
-                    <FormItem><FormLabel>Company Address</FormLabel>
-                        <FormControl><Input placeholder="Company Address" {...field} className={inputCls} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )} />
-                <FormField control={form.control} name="websiteUrl" render={({ field }) => (
-                    <FormItem><FormLabel>Website URL</FormLabel>
-                        <FormControl><Input placeholder="https://..." {...field} className={inputCls} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )} />
-                <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="mobilePhone" render={({ field }) => (
-                        <FormItem><FormLabel>Mobile Phone</FormLabel>
-                            <FormControl><Input placeholder="Mobile (10 digits)" {...field} className={inputCls}
-                                maxLength={10}
-                                inputMode="numeric"
-                                onChange={(e) => {
-                                    const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                    field.onChange(digits);
-                                }}
-                            /></FormControl>
+        <>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-5">
+                    <FormField control={form.control} name="company_name" render={({ field }) => (
+                        <FormItem><FormLabel>Company Name</FormLabel>
+                            <FormControl><Input placeholder="Company Name (optional)" {...field} className={inputCls} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )} />
-                    <FormField control={form.control} name="companyPhone" render={({ field }) => (
-                        <FormItem><FormLabel>Company Phone</FormLabel>
-                            <FormControl><Input placeholder="Company (10 digits)" {...field} className={inputCls}
-                                maxLength={10}
-                                inputMode="numeric"
-                                onChange={(e) => {
-                                    const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                    field.onChange(digits);
-                                }}
-                            /></FormControl>
+                    <FormField control={form.control} name="companyEmail" render={({ field }) => (
+                        <FormItem><FormLabel>Company Email</FormLabel>
+                            <FormControl><Input placeholder="Email (optional)" {...field} className={inputCls} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )} />
-                </div>
-                <CitySelect
-                    name="city_id"
-                    valueType="id"
-                    placeholder="Select a city"
-                />
-                <FormField
-                    control={form.control}
-                    name="licenseNumber"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormControl>
-                                <Input placeholder="License No." {...field} className={inputCls} />
-                            </FormControl>
+                    <FormField control={form.control} name="companyAddress" render={({ field }) => (
+                        <FormItem><FormLabel>Company Address</FormLabel>
+                            <FormControl><Input placeholder="Company Address" {...field} className={inputCls} /></FormControl>
                             <FormMessage />
                         </FormItem>
-                    )}
-                />
-                <FormField control={form.control} name="serviceTypes" render={() => (
-                    <FormItem>
-                        <FormLabel>Services Provided</FormLabel>
-                        <div className="grid grid-cols-2 gap-3 pt-1">
-                            {loadingServices ? (
-                                <p className="text-sm text-muted-foreground col-span-2">Loading services...</p>
-                            ) : services.map(service => (
-                                <FormField key={service.id} control={form.control} name="serviceTypes"
-                                    render={({ field }) => {
-                                        const checked = field.value?.includes(service.id) ?? false;
-                                        return (
-                                            <FormItem className="flex items-center gap-2 space-y-0">
-                                                <FormControl>
-                                                    <Checkbox checked={checked}
-                                                        onCheckedChange={val => {
-                                                            const cur = field.value ?? [];
-                                                            field.onChange(val ? [...cur, service.id] : cur.filter(v => v !== service.id));
-                                                        }}
-                                                        className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                                                    />
-                                                </FormControl>
-                                                <span className="text-sm font-medium">{toPascalCase(service.service_name)}</span>
-                                            </FormItem>
-                                        );
+                    )} />
+                    <FormField control={form.control} name="websiteUrl" render={({ field }) => (
+                        <FormItem><FormLabel>Website URL</FormLabel>
+                            <FormControl><Input placeholder="https://..." {...field} className={inputCls} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField control={form.control} name="mobilePhone" render={({ field }) => (
+                            <FormItem><FormLabel>Mobile Phone</FormLabel>
+                                <FormControl><Input placeholder="Mobile (10 digits)" {...field} className={inputCls}
+                                    maxLength={10}
+                                    inputMode="numeric"
+                                    onChange={(e) => {
+                                        const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                        field.onChange(digits);
                                     }}
-                                />
-                            ))}
-                        </div>
-                        <FormMessage />
-                    </FormItem>
-                )} />
-                <FormButtons onBack={onBack} loading={loading} />
-            </form>
-        </Form>
+                                /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name="companyPhone" render={({ field }) => (
+                            <FormItem><FormLabel>Company Phone</FormLabel>
+                                <FormControl><Input placeholder="Company (10 digits)" {...field} className={inputCls}
+                                    maxLength={10}
+                                    inputMode="numeric"
+                                    onChange={(e) => {
+                                        const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                        field.onChange(digits);
+                                    }}
+                                /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                    </div>
+                    <CitySelect
+                        name="city_id"
+                        valueType="id"
+                        placeholder="Select a city"
+                    />
+                    <FormField
+                        control={form.control}
+                        name="licenseNumber"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormControl>
+                                    <Input placeholder="License No." {...field} className={inputCls} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField control={form.control} name="serviceTypes" render={() => (
+                        <FormItem>
+                            <FormLabel>Services Provided</FormLabel>
+                            <div className="grid grid-cols-2 gap-3 pt-1">
+                                {loadingServices ? (
+                                    <p className="text-sm text-muted-foreground col-span-2">Loading services...</p>
+                                ) : services.map(service => (
+                                    <FormField key={service.id} control={form.control} name="serviceTypes"
+                                        render={({ field }) => {
+                                            const checked = field.value?.includes(service.id) ?? false;
+                                            return (
+                                                <FormItem className="flex items-center gap-2 space-y-0">
+                                                    <FormControl>
+                                                        <Checkbox checked={checked}
+                                                            onCheckedChange={val => {
+                                                                const cur = field.value ?? [];
+                                                                field.onChange(val ? [...cur, service.id] : cur.filter(v => v !== service.id));
+                                                            }}
+                                                            className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                                                        />
+                                                    </FormControl>
+                                                    <span className="text-sm font-medium">{toPascalCase(service.service_name)}</span>
+                                                </FormItem>
+                                            );
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                    <FormButtons onBack={onBack} loading={loading} />
+                </form>
+            </Form>
+            <ConfirmDialog
+                isOpen={showLicenseWarning}
+                onOpenChange={setShowLicenseWarning}
+                title="License Not Filled"
+                description="License is not filled. Do you want to continue anyway?"
+                confirmText="Continue Anyway"
+                cancelText="Close"
+                onConfirm={() => {
+                    if (pendingValues) {
+                        onSubmit(pendingValues);
+                    }
+                }}
+            />
+        </>
     );
 }
 

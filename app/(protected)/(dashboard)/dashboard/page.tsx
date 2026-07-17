@@ -10,7 +10,6 @@ import {
   checkoutReports,
 } from "@/lib/actions";
 import { useRouter, useSearchParams } from "next/navigation";
-import { PropertyCard } from "@/components/common/property-card";
 import { UnifiedSearchBar } from "@/components/common/unified-search-bar";
 import { PropertyGrid } from "@/components/common/property-grid";
 import MapView from "./map-view";
@@ -22,6 +21,7 @@ import { toast } from "sonner";
 import { cn, downloadPdfFromUrl } from "@/lib/utils";
 import type { SearchScope } from "@/components/common/unified-search-bar";
 import Image from "next/image";
+import Link from "next/link";
 
 function DashboardPageContent() {
   const router = useRouter();
@@ -195,8 +195,7 @@ function DashboardPageContent() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full lg:max-w-[786px] justify-items-center">
-              <button
-                onClick={() => router.push("/projects")}
+              <Link href="/projects"
                 className="w-full max-w-[381px] cursor-pointer h-[160px] bg-white rounded-[20px] p-[17px] flex items-center gap-[19px] text-left border-4 border-transparent hover:border-[#20A8A7] hover:shadow-[0px_0px_20px_rgba(0,0,0,0.75)] active:scale-[0.98] transition-all duration-300 ease-in-out group"
               >
                 <div className="w-[94px] h-[94px] rounded-full bg-linear-to-b from-[#265D81] to-[#212B45] flex items-center justify-center shrink-0">
@@ -221,10 +220,10 @@ function DashboardPageContent() {
                 <div className="w-[29px] h-[29px] bg-[#20A8A7] rounded-[4px] flex items-center justify-center shrink-0 self-center group-hover:bg-[#1CA7A6] transition-colors">
                   <ChevronRight className="size-4 text-white stroke-[3px]" />
                 </div>
-              </button>
+              </Link>
 
-              <button
-                onClick={() => router.push("/properties/new")}
+              <Link
+                href="/properties/new"
                 className="w-full max-w-[381px] cursor-pointer h-[160px] bg-white rounded-[20px] p-[17px] flex items-center gap-[19px] text-left border-4 border-transparent hover:border-[#20A8A7] hover:shadow-[0px_0px_20px_rgba(0,0,0,0.75)] active:scale-[0.98] transition-all duration-300 ease-in-out group"
               >
                 <div className="w-[94px] h-[94px] rounded-full bg-linear-to-b from-[#265D81] to-[#212B45] flex items-center justify-center shrink-0">
@@ -249,10 +248,10 @@ function DashboardPageContent() {
                 <div className="w-[29px] h-[29px] bg-[#20A8A7] rounded-[4px] flex items-center justify-center shrink-0 self-center group-hover:bg-[#1CA7A6] transition-colors">
                   <ChevronRight className="size-4 text-white stroke-[3px]" />
                 </div>
-              </button>
+              </Link>
 
-              <button
-                onClick={() => router.push("/my-projects")}
+              <Link
+                href="/my-projects"
                 className="w-full max-w-[381px] cursor-pointer h-[160px] bg-white rounded-[20px] p-[17px] flex items-center gap-[19px] text-left border-4 border-transparent hover:border-[#20A8A7] hover:shadow-[0px_0px_20px_rgba(0,0,0,0.75)] active:scale-[0.98] transition-all duration-300 ease-in-out group"
               >
                 <div className="w-[94px] h-[94px] rounded-full bg-linear-to-b from-[#265D81] to-[#212B45] flex items-center justify-center shrink-0">
@@ -277,10 +276,9 @@ function DashboardPageContent() {
                 <div className="w-[29px] h-[29px] bg-[#20A8A7] rounded-[4px] flex items-center justify-center shrink-0 self-center group-hover:bg-[#1CA7A6] transition-colors">
                   <ChevronRight className="size-4 text-white stroke-[3px]" />
                 </div>
-              </button>
+              </Link>
 
-              <button
-                onClick={() => router.push("/reports")}
+              <Link href="/reports"
                 className="w-full max-w-[381px] cursor-pointer h-[160px] bg-white rounded-[20px] p-[17px] flex items-center gap-[19px] text-left border-4 border-transparent hover:border-[#20A8A7] hover:shadow-[0px_0px_20px_rgba(0,0,0,0.75)] active:scale-[0.98] transition-all duration-300 ease-in-out group"
               >
                 <div className="w-[94px] h-[94px] rounded-full bg-linear-to-b from-[#265D81] to-[#212B45] flex items-center justify-center shrink-0">
@@ -305,7 +303,7 @@ function DashboardPageContent() {
                 <div className="w-[29px] h-[29px] bg-[#20A8A7] rounded-[4px] flex items-center justify-center shrink-0 self-center group-hover:bg-[#1CA7A6] transition-colors">
                   <ChevronRight className="size-4 text-white stroke-[3px]" />
                 </div>
-              </button>
+              </Link>
             </div>
           </div>
           <div className="pt-[20px] md:pt-[60px] space-y-[20px] relative z-0">
@@ -394,85 +392,91 @@ function DashboardPageContent() {
         <div className="w-full max-w-[1170px] px-4 py-8 md:py-16 space-y-[20px] md:space-y-[30px]">
           {isPropertyOwner && (
             <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6">
-              <Button
-                onClick={() => router.push("/projects")}
-                className="h-[50px] md:h-[100px] w-full bg-[#1F2A44] gap-4 md:gap-10 hover:bg-[#1a212c] text-white font-bold text-[18px] md:text-[30px] leading-[22px] md:leading-[34px] rounded-[10px] transition-all shadow-none"
+              <Link
+                href={"/projects"}
+                className="flex items-center justify-center h-[50px] md:h-[100px] w-full bg-[#1F2A44] gap-4 md:gap-10 hover:bg-[#1a212c] text-white font-bold text-[18px] md:text-[30px] leading-[22px] md:leading-[34px] rounded-[10px] transition-all shadow-none"
               >
                 <Image
                   src="/assets/enter_project.png"
                   alt="Enter New Project"
                   width={50}
                   height={50}
+                  className="w-[25px] h-[25px] md:w-[50px] md:h-[50px] object-contain"
                 />
                 Enter New Project
-              </Button>
-              <Button
-                onClick={() => router.push("/my-projects")}
-                className="h-[50px] md:h-[100px] w-full bg-[#1F2A44] gap-4 md:gap-10 hover:bg-[#1a212c] text-white font-bold text-[18px] md:text-[30px] leading-[22px] md:leading-[34px] rounded-[10px] transition-all shadow-none"
+              </Link>
+              <Link
+                href={"/my-projects"}
+                className="flex items-center justify-center h-[50px] md:h-[100px] w-full bg-[#1F2A44] gap-4 md:gap-10 hover:bg-[#1a212c] text-white font-bold text-[18px] md:text-[30px] leading-[22px] md:leading-[34px] rounded-[10px] transition-all shadow-none"
               >
                 <Image
                   src="/assets/view_project.png"
                   alt="View Projects"
                   width={50}
                   height={50}
+                  className="w-[25px] h-[25px] md:w-[50px] md:h-[50px] object-contain"
                 />
                 View Projects
-              </Button>
+              </Link>
             </div>
           )}
           {isAdmin && (
             <>
               <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6">
-                <Button
-                  onClick={() => router.push("/projects")}
-                  className="h-[50px] md:h-[100px] w-full bg-[#1F2A44] gap-4 md:gap-10 hover:bg-[#1a212c] text-white font-bold text-[18px] md:text-[30px] leading-[22px] md:leading-[34px] rounded-[10px] transition-all shadow-none"
+                <Link
+                  href={"/projects"}
+                  className="flex items-center justify-center h-[50px] md:h-[100px] w-full bg-[#1F2A44] gap-4 md:gap-10 hover:bg-[#1a212c] text-white font-bold text-[18px] md:text-[30px] leading-[22px] md:leading-[34px] rounded-[10px] transition-all shadow-none"
                 >
                   <Image
                     src="/assets/enter_project.png"
                     alt="Enter New Project"
                     width={50}
                     height={50}
+                    className="w-[25px] h-[25px] md:w-[50px] md:h-[50px] object-contain"
                   />
                   Enter New Project
-                </Button>
-                <Button
-                  onClick={() => router.push("/properties/new")}
-                  className="h-[50px] md:h-[100px] w-full bg-[#1F2A44] gap-4 md:gap-10 hover:bg-[#1a212c] text-white font-bold text-[18px] md:text-[30px] leading-[22px] md:leading-[34px] rounded-[10px] transition-all shadow-none"
+                </Link>
+                <Link
+                  href={"/properties/new"}
+                  className="flex items-center justify-center h-[50px] md:h-[100px] w-full bg-[#1F2A44] gap-4 md:gap-10 hover:bg-[#1a212c] text-white font-bold text-[18px] md:text-[30px] leading-[22px] md:leading-[34px] rounded-[10px] transition-all shadow-none"
                 >
                   <Image
                     src="/assets/enter_property.png"
-                    alt="View Projects"
+                    alt="Enter New Property"
                     width={50}
                     height={50}
+                    className="w-[25px] h-[25px] md:w-[50px] md:h-[50px] object-contain"
                   />
                   Enter New Property
-                </Button>
+                </Link>
               </div>
               <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6">
-                <Button
-                  onClick={() => router.push("/all-projects")}
-                  className="h-[50px] md:h-[100px] w-full bg-[#1F2A44] gap-4 md:gap-10 hover:bg-[#1a212c] text-white font-bold text-[18px] md:text-[30px] leading-[22px] md:leading-[34px] rounded-[10px] transition-all shadow-none"
+                <Link
+                  href={"/all-projects"}
+                  className="flex items-center justify-center h-[50px] md:h-[100px] w-full bg-[#1F2A44] gap-4 md:gap-10 hover:bg-[#1a212c] text-white font-bold text-[18px] md:text-[30px] leading-[22px] md:leading-[34px] rounded-[10px] transition-all shadow-none"
                 >
                   <Image
                     src="/assets/View_Report.png"
-                    alt="Enter New Project"
+                    alt="View All Projects"
                     width={50}
                     height={50}
+                    className="w-[25px] h-[25px] md:w-[50px] md:h-[50px] object-contain"
                   />
                   View All Projects
-                </Button>
-                <Button
-                  onClick={() => router.push("/my-projects")}
-                  className="h-[50px] md:h-[100px] w-full bg-[#1F2A44] gap-4 md:gap-10 hover:bg-[#1a212c] text-white font-bold text-[18px] md:text-[30px] leading-[22px] md:leading-[34px] rounded-[10px] transition-all shadow-none"
+                </Link>
+                <Link
+                  href={"/my-projects"}
+                  className="flex items-center justify-center h-[50px] md:h-[100px] w-full bg-[#1F2A44] gap-4 md:gap-10 hover:bg-[#1a212c] text-white font-bold text-[18px] md:text-[30px] leading-[22px] md:leading-[34px] rounded-[10px] transition-all shadow-none"
                 >
                   <Image
                     src="/assets/View_Report.png"
                     alt="View My Projects"
                     width={50}
                     height={50}
+                    className="w-[25px] h-[25px] md:w-[50px] md:h-[50px] object-contain"
                   />
                   View My Projects
-                </Button>
+                </Link>
               </div>
             </>
           )}

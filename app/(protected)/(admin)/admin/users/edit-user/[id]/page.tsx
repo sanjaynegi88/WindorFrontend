@@ -32,6 +32,7 @@ import { Content } from '@/components/layouts/crm/components/content';
 import { getUserById, editUserAdmin, getStates, getServiceProvided } from '@/lib/actions';
 import { ScreenLoader } from '@/components/common/screen-loader';
 import { toPascalCase } from '@/lib/utils';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 
 // ─── Role groups ──────────────────────────────────────────────────────────────
 const PROPERTY_ROLES = ['PROPERTY_OWNER', 'REALTOR'];
@@ -110,20 +111,11 @@ const userSchema = z.object({
         if (!data.companyAddress?.trim()) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Company address is required', path: ['companyAddress'] });
         }
-        if (!data.websiteUrl?.trim()) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Website URL is required', path: ['websiteUrl'] });
-        }
-        if (!data.city_id?.trim()) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'City is required', path: ['city_id'] });
-        }
         if (!data.mobilePhone || !phoneRegex.test(data.mobilePhone)) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Mobile phone must be exactly 10 digits', path: ['mobilePhone'] });
         }
         if (!data.companyPhone || !phoneRegex.test(data.companyPhone)) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Company phone must be exactly 10 digits', path: ['companyPhone'] });
-        }
-        if (!data.licenseNumber?.trim()) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'License number is required', path: ['licenseNumber'] });
         }
         if (!data.serviceTypes || data.serviceTypes.length === 0) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Select at least one service', path: ['serviceTypes'] });
@@ -175,6 +167,8 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
     const [userDataRaw, setUserDataRaw] = useState<any>(null);
     const [states, setStates] = useState<{ id: string; name: string }[]>([]);
     const [services, setServices] = useState<{ id: string; service_name: string }[]>([]);
+    const [showLicenseWarning, setShowLicenseWarning] = useState(false);
+    const [pendingValues, setPendingValues] = useState<UserFormValues | null>(null);
 
     const form = useForm<UserFormValues>({
         resolver: zodResolver(userSchema),
@@ -296,7 +290,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
         }
     };
 
-    const onSubmit = async (values: UserFormValues) => {
+    const executeSubmit = async (values: UserFormValues) => {
         setLoading(true);
         const formData = new FormData();
         formData.append('first_name', values.firstName);
@@ -359,6 +353,17 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
         }
         toast.success('User updated successfully!');
         router.push('/admin/users');
+    };
+
+    const onSubmit = async (values: UserFormValues) => {
+        const role = values.role;
+        const group = getRoleGroup(role);
+        if (group === 'contractor' && (!values.licenseNumber || values.licenseNumber.trim() === '')) {
+            setPendingValues(values);
+            setShowLicenseWarning(true);
+        } else {
+            await executeSubmit(values);
+        }
     };
 
     if (pageLoading) {
@@ -875,6 +880,19 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
                     </Card>
                 </div>
             </Content>
+            <ConfirmDialog
+                isOpen={showLicenseWarning}
+                onOpenChange={setShowLicenseWarning}
+                title="License Not Filled"
+                description="License is not filled. Do you want to continue anyway?"
+                confirmText="Continue Anyway"
+                cancelText="Close"
+                onConfirm={async () => {
+                    if (pendingValues) {
+                        await executeSubmit(pendingValues);
+                    }
+                }}
+            />
         </>
     );
 }

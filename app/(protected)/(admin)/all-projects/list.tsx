@@ -246,6 +246,12 @@ export default function AllProjectsList({ user }: { user: string }) {
                             const propertyAddress = property.address || property.street_address || property.address_line_1 || project.address || 'N/A';
                             const stateName = property.state?.name || property.state_name || property.state?.state_name || project.state_name || 'N/A';
                             const ownerEmail = property.owner?.email || property.owner_email || project.owner_email || property.owner?.user?.email || 'N/A';
+                            const ownerObj = property.owner || property.property_owner || project.property_owner || project.property?.property_owner;
+                            const ownerUserObj = ownerObj?.user || ownerObj;
+                            const clientName = ownerUserObj
+                                ? `${ownerUserObj.first_name || ''} ${ownerUserObj.last_name || ''}`.trim() || ownerUserObj.name || ownerUserObj.email || 'N/A'
+                                : (property.owner_email || project.owner_email || 'N/A');
+
                             const actualProjectId = project.id ?? project.project_id ?? project._id;
                             const handleAddInstallation = (project: any) => {
                                 router.push(`/properties/edit/${property.id}?projectId=${actualProjectId}&noInstallation=true`);
@@ -255,7 +261,7 @@ export default function AllProjectsList({ user }: { user: string }) {
                                 <ExpandableProjectCard
                                     key={projectId}
                                     title={projectName}
-                                    subtitle={projectDateLabel || `${toPascalCase(projectType)} • ${projectStatus}`}
+                                    subtitle={`${propertyAddress} • Client: ${clientName}${projectDateLabel ? ` • ${projectDateLabel}` : ''}`}
                                     badges={[
                                         {
                                             label: toPascalCase(projectType),
@@ -369,6 +375,8 @@ export default function AllProjectsList({ user }: { user: string }) {
                                                 <div className="space-y-3">
                                                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                                         {[
+                                                            { label: 'Project Name', value: projectName },
+                                                            { label: 'Client Name (Full Name)', value: clientName },
                                                             { label: 'Property Address', value: propertyAddress },
                                                             { label: 'State Name', value: stateName },
                                                             { label: 'Owner Email', value: ownerEmail },

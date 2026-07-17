@@ -17,6 +17,7 @@ import { CitySelect } from '@/components/city-zip-selector';
 import { toast } from 'sonner';
 import { getServiceProvided } from '@/lib/actions';
 import { cn, toPascalCase } from '@/lib/utils';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 
 const inputCls =
   'h-[65px] px-[19px] border-[rgba(112,128,144,0.23)] rounded-[6px] text-[20px] leading-[23px] font-medium text-[#1F2A44] bg-white placeholder:text-[#1F2A44]/50 font-asap';
@@ -28,7 +29,7 @@ const step2ContractorSchema = z.object({
   company_name: z.string().optional(),
   companyEmail: z.string().optional(),
   websiteUrl: z.string().optional(),
-  licenseNumber: z.string().min(1, { message: 'License number is required' }),
+  licenseNumber: z.string().optional(),
   mobilePhone: z
     .string()
     .min(1, { message: 'Mobile phone is required' })
@@ -37,7 +38,7 @@ const step2ContractorSchema = z.object({
     .string()
     .min(1, { message: 'Company phone is required' })
     .regex(/^\d{10}$/, { message: 'Company phone must be exactly 10 digits' }),
-  city_id: z.string().min(1, { message: 'City is required' }),
+  city_id: z.string().optional(),
   serviceTypes: z.array(z.string()).min(1, { message: 'Select at least one service' }),
 });
 
@@ -51,13 +52,10 @@ interface Step2ContractorFormProps {
 
 export function Step2ContractorForm({ onBack, onSubmit, loading }: Step2ContractorFormProps) {
 
-  const formatReportType = (value: string) =>
-    value
-      .split('_')
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
   const [loadingService, setLoadingService] = useState(true);
   const [services, setServices] = useState<{ id: string; service_name: string }[]>([]);
+  const [showLicenseWarning, setShowLicenseWarning] = useState(false);
+  const [pendingValues, setPendingValues] = useState<Step2ContractorValues | null>(null);
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -90,7 +88,12 @@ export function Step2ContractorForm({ onBack, onSubmit, loading }: Step2Contract
   });
 
   function handleFormSubmit(values: Step2ContractorValues) {
-    onSubmit(values);
+    if (!values.licenseNumber || values.licenseNumber.trim() === '') {
+      setPendingValues(values);
+      setShowLicenseWarning(true);
+    } else {
+      onSubmit(values);
+    }
   }
 
   return (
@@ -284,6 +287,19 @@ export function Step2ContractorForm({ onBack, onSubmit, loading }: Step2Contract
           </div>
         </form>
       </Form>
+      <ConfirmDialog
+        isOpen={showLicenseWarning}
+        onOpenChange={setShowLicenseWarning}
+        title="License Not Filled"
+        description="License is not filled. Do you want to continue anyway?"
+        confirmText="Continue Anyway"
+        cancelText="Close"
+        onConfirm={() => {
+          if (pendingValues) {
+            onSubmit(pendingValues);
+          }
+        }}
+      />
     </div>
   );
 }

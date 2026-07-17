@@ -78,14 +78,10 @@ export function Navbar1() {
     fetchUser();
   }, [user, isAuthPage, isProtectedPage]);
 
-  const navItems = useMemo(() => {
+  const navItems = useMemo((): { name: string; href: string; activeFor?: string[] }[] => {
     if (!isLoggedIn || !user)
       return [
-        { name: "HOME", href: "/dashboard" },
-        { name: "PROPERTIES", href: "/properties/new", activeFor: ["/properties", "/property-details"] },
-        { name: "REPORTS", href: "/reports" },
-        { name: "CONTRACTORS", href: "/contractors" },
-        { name: "PROFILE", href: "/profile" },
+        { name: "DIRECTORY", href: "/contractors" },
       ];
 
     switch (role) {
@@ -93,7 +89,7 @@ export function Navbar1() {
         return [
           { name: "HOME", href: "/dashboard" },
           { name: "REPORTS", href: "/reports" },
-          { name: "CONTRACTORS", href: "/contractors" },
+          { name: "DIRECTORY", href: "/contractors" },
           { name: "PROFILE", href: "/profile" },
         ];
     }
