@@ -22,6 +22,7 @@ import {
   DollarSignIcon,
   FileText,
   FileDownIcon,
+  User,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -39,6 +40,8 @@ export function Navbar() {
   const { user, setUser } = useUser();
   const isLoggedIn = !!user;
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [adminExpanded, setAdminExpanded] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [mobileSubmenuOpen, setMobileSubmenuOpen] = useState<Record<string, boolean>>({});
@@ -116,6 +119,8 @@ export function Navbar() {
     setAdminExpanded(false);
     setMobileSubmenuOpen({});
     setOpenMenu(null);
+    setProfileOpen(false);
+    setNotificationsOpen(false);
   }, [pathname]);
 
   const handleSignout = async () => {
@@ -151,7 +156,7 @@ export function Navbar() {
           },
           { name: "REPORTS", href: "/reports" },
           { name: "DIRECTORY", href: "/contractors" },
-          { name: "PROFILE", href: "/profile" },
+          //{ name: "PROFILE", href: "/profile" },
           ...(!user?.user?.sub_account
             ? [{ name: "TEAM", href: "/contractor-users" }]
             : []),
@@ -177,7 +182,7 @@ export function Navbar() {
             ],
           },
           { name: "DIRECTORY", href: "/contractors" },
-          { name: "PROFILE", href: "/profile" },
+          //{ name: "PROFILE", href: "/profile" },
         ];
 
       case "insurance_company":
@@ -185,7 +190,7 @@ export function Navbar() {
           { name: "HOME", href: "/dashboard" },
           { name: "REPORTS", href: "/reports" },
           { name: "DIRECTORY", href: "/contractors" },
-          { name: "PROFILE", href: "/profile" },
+          // { name: "PROFILE", href: "/profile" },
           ...(!user?.user?.sub_account
             ? [
               { name: "TEAM", href: "/company-users" },
@@ -198,7 +203,7 @@ export function Navbar() {
         return [
           { name: "HOME", href: "/dashboard" },
           { name: "DIRECTORY", href: "/contractors" },
-          { name: "PROFILE", href: "/profile" },
+          //{ name: "PROFILE", href: "/profile" },
           ...(!user?.user?.sub_account
             ? [
               { name: "TEAM", href: "/city-users" },
@@ -227,7 +232,7 @@ export function Navbar() {
           },
           { name: "REPORTS", href: "/reports" },
           { name: "DIRECTORY", href: "/contractors" },
-          { name: "PROFILE", href: "/profile" },
+          //{ name: "PROFILE", href: "/profile" },
         ];
 
       default:
@@ -235,7 +240,7 @@ export function Navbar() {
           { name: "HOME", href: "/dashboard" },
           { name: "REPORTS", href: "/reports" },
           { name: "DIRECTORY", href: "/contractors" },
-          { name: "PROFILE", href: "/profile" },
+          // { name: "PROFILE", href: "/profile" },
         ];
     }
   }, [isLoggedIn, user, role]);
@@ -307,7 +312,7 @@ export function Navbar() {
                     modal={false}
                   >
                     <DropdownMenuTrigger asChild>
-                      <button 
+                      <button
                         onPointerDown={(e) => e.preventDefault()}
                         onClick={(e) => e.preventDefault()}
                         className={cn(
@@ -385,7 +390,7 @@ export function Navbar() {
                 modal={false}
               >
                 <DropdownMenuTrigger asChild>
-                  <button 
+                  <button
                     onPointerDown={(e) => e.preventDefault()}
                     onClick={(e) => e.preventDefault()}
                     className="flex items-center gap-1 text-[15px] font-medium text-[#708090]/90 hover:text-[#1CA7A6] transition-colors outline-none uppercase cursor-pointer"
@@ -440,7 +445,7 @@ export function Navbar() {
             </div>
           ) : isLoggedIn && user ? (
             <div className="flex items-center gap-6">
-              <DropdownMenu>
+              <DropdownMenu open={profileOpen} onOpenChange={setProfileOpen}>
                 <DropdownMenuTrigger asChild>
                   <div className="flex items-center gap-3 group cursor-pointer">
                     <Avatar className="h-[43px] w-[43px]">
@@ -482,6 +487,15 @@ export function Navbar() {
                   className="w-56 rounded-xl border-none shadow-2xl p-2 bg-white mt-2 font-inter"
                 >
                   <DropdownMenuItem
+                    asChild
+                    className="rounded-lg focus:bg-[#1CA7A6]/10  cursor-pointer py-3 px-4"
+                  >
+                    <Link href="/profile" className="flex items-center gap-3 w-full">
+                      <User className="size-4" />
+                      <span className="font-bold text-sm">Profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     className="rounded-lg focus:bg-[#1CA7A6]/10  cursor-pointer py-3 px-4 text-red-500 focus:text-red-600"
                     onClick={() => handleSignout()}
                   >
@@ -493,7 +507,7 @@ export function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <DropdownMenu>
+              <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
                 <DropdownMenuTrigger asChild>
                   <button className="relative size-10 bg-[#1CA7A6]/20 rounded-full text-[#1CA7A6] border border-[#1CA7A6]/28 shadow-[0px_4px_14px_rgba(28,167,166,0.3)] hover:bg-[#1CA7A6]/30 transition-colors cursor-pointer flex items-center justify-center outline-none">
                     <Image

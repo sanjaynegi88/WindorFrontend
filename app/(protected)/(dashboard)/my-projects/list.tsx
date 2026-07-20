@@ -66,6 +66,7 @@ export default function MyProjectList() {
 
     try {
       const response = await getMyProjects(pageNum, 9, debouncedSearchQuery, isAdmin);
+      console.log(response);
       const normalizedProjects = Array.isArray(response)
         ? response
         : Array.isArray(response?.data)
@@ -248,9 +249,9 @@ export default function MyProjectList() {
               const property = project.property ?? {};
               const propertyAddress = property.address || property.street_address || property.address_line_1 || project.address || 'N/A';
               const stateName = property.state?.name || property.state_name || property.state?.state_name || project.state_name || 'N/A';
-              const ownerEmail = property.owner?.email || property.owner_email || project.owner_email || property.owner?.user?.email || 'N/A';
-              const ownerObj = property.owner || property.property_owner || project.property_owner || project.property?.property_owner;
-              const ownerUserObj = ownerObj?.user || ownerObj;
+              const ownerEmail = property.property_owner?.email || property.owner_email || project.owner_email || property.owner?.user?.email || 'N/A';
+              const ownerObj = property.property_owner || project.property?.property_owner;
+              const ownerUserObj = ownerObj;
               const clientName = ownerUserObj
                 ? `${ownerUserObj.first_name || ''} ${ownerUserObj.last_name || ''}`.trim() || ownerUserObj.name || ownerUserObj.email || 'N/A'
                 : (property.owner_email || project.owner_email || 'N/A');
