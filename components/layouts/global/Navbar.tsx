@@ -486,7 +486,7 @@ export function Navbar() {
                         <>
                           <div className="flex items-center gap-1">
                             <span className="text-[15px] text-[#708090] font-medium leading-[17px]">
-                              Hello
+                              Hello, {user.first_name} {user.last_name}
                             </span>
                             <Image
                               src={"/assets/mdi_hand-wave.png"}
@@ -494,10 +494,7 @@ export function Navbar() {
                               width={12}
                               height={12}
                             />
-                          </div>
-                          <span className="text-[17px] font-bold text-[#1F2A44] leading-[19px] transition-colors">
-                            {user.first_name} {user.last_name}
-                          </span>
+                          </div>                          
                           <span className="text-[15px] text-[#708090]">{toPascalCase(role)}</span>
                         </>
                       }
