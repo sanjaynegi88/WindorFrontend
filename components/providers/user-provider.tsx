@@ -11,6 +11,7 @@ interface User {
   role: string;
   profile_image_url?: string;
   [key: string]: any;
+  company_name:string;
 }
 
 interface UserContextType {

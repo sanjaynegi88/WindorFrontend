@@ -137,7 +137,7 @@ export function Navbar() {
     switch (role) {
       case "contractor":
         return [
-          { name: "HOME", href: "/dashboard" },
+          { name: "DASHBOARD", href: "/dashboard" },
           {
             name: "PROPERTIES",
             activeFor: ["/properties", "/property-details"],
@@ -164,7 +164,7 @@ export function Navbar() {
 
       case "admin":
         return [
-          { name: "HOME", href: "/dashboard" },
+          { name: "DASHBOARD", href: "/dashboard" },
           {
             name: "PROPERTIES",
             activeFor: ["/properties", "/property-details"],
@@ -187,7 +187,7 @@ export function Navbar() {
 
       case "insurance_company":
         return [
-          { name: "HOME", href: "/dashboard" },
+          { name: "DASHBOARD", href: "/dashboard" },
           { name: "REPORTS", href: "/reports" },
           { name: "DIRECTORY", href: "/contractors" },
           // { name: "PROFILE", href: "/profile" },
@@ -201,7 +201,7 @@ export function Navbar() {
 
       case "city_inspector":
         return [
-          { name: "HOME", href: "/dashboard" },
+          { name: "DASHBOARD", href: "/dashboard" },
           { name: "DIRECTORY", href: "/contractors" },
           //{ name: "PROFILE", href: "/profile" },
           ...(!user?.user?.sub_account
@@ -214,7 +214,7 @@ export function Navbar() {
 
       case "property_owner":
         return [
-          { name: "HOME", href: "/dashboard" },
+          { name: "DASHBOARD", href: "/dashboard" },
           {
             name: "PROPERTIES",
             activeFor: ["/properties", "/property-details"],
@@ -237,7 +237,7 @@ export function Navbar() {
 
       default:
         return [
-          { name: "HOME", href: "/dashboard" },
+          { name: "DASHBOARD", href: "/dashboard" },
           { name: "REPORTS", href: "/reports" },
           { name: "DIRECTORY", href: "/contractors" },
           // { name: "PROFILE", href: "/profile" },
@@ -464,21 +464,43 @@ export function Navbar() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="hidden lg:flex flex-col text-left">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[15px] text-[#708090] font-medium leading-[17px]">
-                          Hello
-                        </span>
-                        <Image
-                          src={"/assets/mdi_hand-wave.png"}
-                          alt="wave-icon"
-                          width={12}
-                          height={12}
-                        />
-                      </div>
-                      <span className="text-[17px] font-bold text-[#1F2A44] leading-[19px] transition-colors">
-                        {user.first_name} {user.last_name}
-                      </span>
-                      <span className="text-[15px] text-[#708090]">{toPascalCase(role)}</span>
+                      {user.company_name ?
+                        <>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[15px] text-[#708090] font-medium leading-[17px]">
+                              Hello, {user.first_name} {user.last_name}
+                            </span>
+                            <Image
+                              src={"/assets/mdi_hand-wave.png"}
+                              alt="wave-icon"
+                              width={12}
+                              height={12}
+                            />
+                          </div>
+                          <span className="text-[17px] font-bold text-[#1F2A44] leading-[19px] transition-colors">
+                            {user.company_name}
+                          </span>
+                          <span className="text-[15px] text-[#708090]">{toPascalCase(role)}</span>
+                        </>
+                        :
+                        <>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[15px] text-[#708090] font-medium leading-[17px]">
+                              Hello
+                            </span>
+                            <Image
+                              src={"/assets/mdi_hand-wave.png"}
+                              alt="wave-icon"
+                              width={12}
+                              height={12}
+                            />
+                          </div>
+                          <span className="text-[17px] font-bold text-[#1F2A44] leading-[19px] transition-colors">
+                            {user.first_name} {user.last_name}
+                          </span>
+                          <span className="text-[15px] text-[#708090]">{toPascalCase(role)}</span>
+                        </>
+                      }
                     </div>
                   </div>
                 </DropdownMenuTrigger>
