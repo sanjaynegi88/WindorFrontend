@@ -292,7 +292,7 @@ export function Navbar() {
         </div>
 
         {/* Desktop nav */}
-        <div className="hidden md:flex items-center gap-[45px]">
+        <div className="hidden md:flex items-center gap-[30px]">
           {navItems.map((link) => {
             const isActive = link.activeFor
               ? link.activeFor.some((p) => pathname.startsWith(p))
