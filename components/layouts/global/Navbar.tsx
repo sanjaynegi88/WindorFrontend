@@ -128,7 +128,7 @@ export function Navbar() {
     router.replace(process.env.NEXT_PUBLIC_LOGIN_URL || '/login');
   };
   const navItems = useMemo((): { name: string; href?: string; activeFor?: string[]; submenu?: { name: string; href: string }[] }[] => {
-    const landingUrl = process.env.NEXT_PUBLIC_LANDING_PAGE_URL || "#";
+    const landingUrl = process.env.NEXT_PUBLIC_LANDING_PAGE_URL || "/#";
 
     if (!isLoggedIn || !user)
       return [
