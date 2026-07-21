@@ -30,7 +30,7 @@ export default function AllProjectsList({ user }: { user: string }) {
     const [isDeleting, setIsDeleting] = useState(false);
 
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-    const [projectToConfirm, setProjectToConfirm] = useState<{ id: string; name: string } | null>(null);
+    const [projectToConfirm, setProjectToConfirm] = useState<{ id: string; name: string; hasReport?: boolean; propertyId?: string } | null>(null);
     const [isConfirming, setIsConfirming] = useState(false);
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -104,7 +104,7 @@ export default function AllProjectsList({ user }: { user: string }) {
         if (!projectToConfirm) return;
         setIsConfirming(true);
         try {
-            const response = await confirmProject(projectToConfirm.id);
+            const response = await confirmProject(projectToConfirm.id, projectToConfirm.hasReport, projectToConfirm.propertyId);
             if (!response?.success) {
                 toast.error(response?.message || 'Failed to confirm project');
             } else {
@@ -298,7 +298,7 @@ export default function AllProjectsList({ user }: { user: string }) {
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                setProjectToConfirm({ id: actualProjectId, name: projectName });
+                                                                setProjectToConfirm({ id: actualProjectId, name: projectName, hasReport, propertyId: property.id });
                                                                 setConfirmDialogOpen(true);
                                                             }}
                                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1CA7A6]/10 hover:bg-[#1CA7A6]/20 text-[#1CA7A6] font-bold text-xs uppercase tracking-widest transition-colors cursor-pointer border border-[#1CA7A6]/20 font-asap">

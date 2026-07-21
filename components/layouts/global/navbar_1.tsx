@@ -79,17 +79,21 @@ export function Navbar1() {
   }, [user, isAuthPage, isProtectedPage]);
 
   const navItems = useMemo((): { name: string; href: string; activeFor?: string[] }[] => {
+    const landingUrl = process.env.NEXT_PUBLIC_LANDING_PAGE_URL || "#";
+
     if (!isLoggedIn || !user)
       return [
-        { name: "DIRECTORY", href: "/contractors" },
+        { name: "HOME", href: landingUrl },
+        { name: "CONTRACTORS", href: "/contractors" },
+
       ];
 
     switch (role) {
       default:
         return [
-          { name: "HOME", href: "/dashboard" },
+          { name: "HOME", href: landingUrl },
           { name: "REPORTS", href: "/reports" },
-          { name: "DIRECTORY", href: "/contractors" },
+          { name: "CONTRACTORS", href: "/contractors" },
           { name: "PROFILE", href: "/profile" },
         ];
     }
@@ -101,7 +105,7 @@ export function Navbar1() {
       <div className="max-w-[1450px] mx-auto w-[90%] flex items-center justify-between py-2 md:py-3">
         {/* Logo */}
         <div className="flex items-center">
-          <Link href="/">
+          <Link href={process.env.NEXT_PUBLIC_LANDING_PAGE_URL || "/#"}>
             <Image
               src="/assets/logo-1.png"
               alt="Windor Logo"
@@ -121,23 +125,31 @@ export function Navbar1() {
               } xl:block absolute xl:relative top-full xl:top-auto left-0 right-0 xl:left-auto xl:right-auto bg-white xl:bg-transparent border-t xl:border-t-0 border-gray-100 xl:border-0 shadow-lg xl:shadow-none max-h-[calc(100vh-80px)] xl:max-h-none overflow-y-auto xl:overflow-visible z-999 xl:z-auto mr-4`}
           >
             <ul className="flex flex-col xl:flex-row gap-0 xl:gap-[18px] xl:flex-wrap p-0 xl:p-0 m-0 list-none">
-              {navItems.map((link) => (
-                <li key={link.name} className="w-full xl:w-auto">
-                  <Link
-                    href={link.href}
-                    className={cn(
-                      "no-underline font-medium uppercase text-[15px] transition-colors py-3.5 xl:py-2 px-6 xl:px-0 block",
-                      (link.activeFor
-                        ? link.activeFor.some((p) => pathname.startsWith(p))
-                        : pathname.startsWith(link.href))
-                        ? "text-[#339FD0]"
-                        : "text-slate-500 hover:text-[#339FD0]"
-                    )}
-                  >
-                    {link.name}
-                  </Link>
-                </li>
-              ))}
+              {navItems.map((link) => {
+                const isActive = link.activeFor
+                  ? link.activeFor.some((p) => pathname.startsWith(p))
+                  : link.href === "/"
+                    ? pathname === "/"
+                    : link.href && link.href !== "#" && link.href !== "/#"
+                      ? pathname.startsWith(link.href)
+                      : false;
+
+                return (
+                  <li key={link.name} className="w-full xl:w-auto">
+                    <Link
+                      href={link.href}
+                      className={cn(
+                        "no-underline font-medium uppercase text-[15px] transition-colors py-3.5 xl:py-2 px-6 xl:px-0 block",
+                        isActive
+                          ? "text-[#339FD0]"
+                          : "text-slate-500 hover:text-[#339FD0]"
+                      )}
+                    >
+                      {link.name}
+                    </Link>
+                  </li>
+                );
+              })}
 
             </ul>
           </nav>

@@ -319,9 +319,9 @@ export function InstallationForm({
         });
         const allFiles = { contractorFiles: isEditMode ? [] : contractorFiles, ownerFiles, categoryFiles: categoryFileMap };
         if (pendingAction === 'addImages' && onAddImages) {
-            onAddImages(values, allFiles as any);
+            await onAddImages(values, allFiles as any);
         } else if (onSave) {
-            onSave(values, allFiles as any);
+            await onSave(values, allFiles as any);
         }
     };
 
@@ -809,24 +809,30 @@ export function InstallationForm({
 
                         </div>
 
-                        <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t mt-10">
-                            <Button
-                                type="submit"
-                                disabled={loading || isSubmitting}
-                                onClick={() => setPendingAction('save')}
-                                className="md:flex-1 h-12 bg-[#1F2A44] hover:bg-[#1a212c] text-white font-bold text-base rounded-xl"
-                            >
-                                {loading || isSubmitting ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                        Processing...
-                                    </>
-                                ) : (
-                                    hasReport === false ? 'Save & Create Report' : 'Save'
-                                )}
-                            </Button>
+                        {(() => {
+                            const isProcessing = loading || isSubmitting || form.formState.isSubmitting;
+                            return (
+                                <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t mt-10">
+                                    <Button
+                                        type="submit"
+                                        disabled={isProcessing}
+                                        onClick={() => setPendingAction('save')}
+                                        className="md:flex-1 h-12 bg-[#1F2A44] hover:bg-[#1a212c] text-white font-bold text-base rounded-xl cursor-pointer"
+                                    >
+                                        {isProcessing ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                                Processing...
+                                            </>
+                                        ) : (
+                                            'Save'
+                                        )}
+                                    </Button>
+                                </div>
+                            );
+                        })()}
 
-                            {/* {!isEditMode && onAddImages && (
+                        {/* {!isEditMode && onAddImages && (
                                 <Button
                                     type="submit"
                                     variant="outline"
@@ -838,7 +844,6 @@ export function InstallationForm({
                                     Add Images
                                 </Button>
                             )} */}
-                        </div>
                     </form>
                 </Form>
             </CardContent>

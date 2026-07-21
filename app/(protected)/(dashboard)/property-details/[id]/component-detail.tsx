@@ -63,9 +63,10 @@ export default function ComponentDetail({
   const [showPurchaseDialogTop, setShowPurchaseDialogTop] = useState(false);
   const [reportUsage, setReportUsage] = useState<any>(null);
   const [totalCount, setTotalCount] = useState<number>(0);
-  console.log('purchased', purchased)
-  console.log('isPurchased', isPurchased)
-  console.log("api data", componentData)
+  const [isLoadingTotalCount, setIsLoadingTotalCount] = useState<boolean>(true);
+  // console.log('purchased', purchased)
+  // console.log('isPurchased', isPurchased)
+  // console.log("api data", componentData)
 
   const [heroImageSrc, setHeroImageSrc] = useState(heroImageUrl);
 
@@ -87,12 +88,16 @@ export default function ComponentDetail({
 
   useEffect(() => {
     if (!componentId) return;
+    setIsLoadingTotalCount(true);
     getprojectTypesInProperty(componentId)
       .then((res) => {
         setTotalCount(res?.totalcount ?? 0);
       })
       .catch((err) => {
         console.error("Failed to fetch project types:", err);
+      })
+      .finally(() => {
+        setIsLoadingTotalCount(false);
       });
   }, [componentId]);
 
@@ -337,6 +342,7 @@ export default function ComponentDetail({
                 setActiveTab={setActiveTab}
                 tabs={tabs}
                 totalCount={totalCount}
+                isLoadingTotalCount={isLoadingTotalCount}
                 propertyId={componentId}
                 projects={allProjects}
                 installations={installations}

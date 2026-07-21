@@ -677,13 +677,13 @@ export default function UserList() {
                         <span className="text-sm font-semibold text-foreground">{viewingUserData.form_details.ownerDateEnd}</span>
                       </div>
                     )}
-                    {viewingUserData.form_details.serviceTypes && viewingUserData.form_details.serviceTypes.length > 0 && (
+                    {viewingUserData.form_details.service_types_details && viewingUserData.form_details.service_types_details.length > 0 && (
                       <div className="sm:col-span-2">
                         <span className="block text-xs font-medium text-muted-foreground mb-1.5">Services Provided</span>
                         <div className="flex flex-wrap gap-1.5">
-                          {viewingUserData.form_details.serviceTypes.map((serviceId: string) => (
-                            <Badge key={serviceId} variant="secondary" className="text-xs">
-                              {serviceId}
+                          {viewingUserData.form_details.service_types_details.map((service: any) => (
+                            <Badge key={service.id} variant="secondary" className="text-xs">
+                              {service.service_name}
                             </Badge>
                           ))}
                         </div>

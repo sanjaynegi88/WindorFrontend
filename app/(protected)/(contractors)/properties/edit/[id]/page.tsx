@@ -273,7 +273,8 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
         }
         setSaving(true);
         try {
-            const res = await confirmProject(pId);
+            const hasReport = property?.has_report || false;
+            const res = await confirmProject(pId, hasReport, propertyId);
             if (res.success) {
                 toast.success("Project confirmed successfully!");
                 router.replace('/my-projects');

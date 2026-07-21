@@ -22,7 +22,6 @@ import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ChangePasswordForm } from '@/components/forms/change-password-form';
-import { logout } from '@/lib/actions';
 import { formatDistanceToNow } from 'date-fns';
 import { useUser } from '@/components/providers/user-provider';
 import { CitySelect } from '@/components/city-zip-selector';
@@ -107,7 +106,7 @@ interface UserProfileData {
     sub_account?: boolean;
     first_name: string | null;
     last_name: string | null;
-    phone_number: string | null;
+    // phone_number: string | null;
     company_name: string | null;
     companyEmail: string | null;
     profile_image_url: string | null;
@@ -166,14 +165,13 @@ export default function UserProfile() {
     const [recentLogs, setRecentLogs] = useState<any[]>([]);
     const [logsLoading, setLogsLoading] = useState(false);
     const router = useRouter();
-    const { user: contextUser } = useUser();
+    const { user: contextUser, setUser: setContextUser } = useUser();
     const [purchaseUsersOpen, setPurchaseUsersOpen] = useState(false);
     const [purchaseUserCount, setPurchaseUserCount] = useState(1);
     const [purchaseLoading, setPurchaseLoading] = useState(false);
     const [reportUsage, setReportUsage] = useState<any>(null);
     const [reportUsageLoading, setReportUsageLoading] = useState(false);
 
-    // Role-specific extra data
     const [services, setServices] = useState<{ id: string; service_name: string }[]>([]);
     const [states, setStates] = useState<{ id: string; name: string }[]>([]);
     const [selectedStateId, setSelectedStateId] = useState('');
@@ -360,7 +358,7 @@ export default function UserProfile() {
         let score = 50;
         if (user.first_name && user.last_name) score += 10;
         if (user.profile_image_url || previewUrl) score += 20;
-        if (user.phone_number && user.phone_number.length >= 10) score += 20;
+        // if (user.phone_number && user.phone_number.length >= 10) score += 20;
         return score;
     };
 
@@ -385,8 +383,21 @@ export default function UserProfile() {
         }
     };
 
+    const ROLE_ALLOWED_KEYS: Record<string, string[]> = {
+        contractor: ['company_name', 'companyAddress', 'websiteUrl', 'licenseNumber', 'mobilePhone', 'companyPhone', 'city_id', 'serviceTypes'],
+        manufacturer: ['company_name', 'companyAddress', 'websiteUrl', 'licenseNumber', 'mobilePhone', 'companyPhone', 'city_id', 'serviceTypes'],
+        insurance_company: ['company_name', 'companyAddress', 'mobilePhone', 'companyPhone', 'title'],
+        city_inspector: ['cityOfficial', 'cityAddress', 'cityPhone', 'title', 'city_id'],
+        property_owner: ['propertyAddress', 'ownerDateStart', 'ownerDateEnd', 'state_id', 'zip'],
+        realtor: ['company_name', 'companyAddress', 'websiteUrl', 'licenseNumber', 'mobilePhone', 'companyPhone', 'propertyAddress', 'state_id', 'zip'],
+        admin: ['mobilePhone'],
+    };
+
     async function onSubmit(data: ProfileFormValues) {
         const formData = new FormData();
+        const userRole = (user?.role || data.role || '').toLowerCase();
+        const allowedRoleKeys = ROLE_ALLOWED_KEYS[userRole];
+
         Object.entries(data).forEach(([key, value]) => {
             if (key === 'full_name' && typeof value === 'string') {
                 const parts = value.trim().split(' ');
@@ -399,17 +410,25 @@ export default function UserProfile() {
                 key !== 'role' &&
                 key !== 'serviceTypes' &&
                 value !== null &&
-                value !== undefined &&
-                value !== ''
+                value !== undefined
             ) {
+                if (allowedRoleKeys && !allowedRoleKeys.includes(key)) {
+                    return;
+                }
+                if ((key.endsWith('_id') || key.endsWith('Id')) && value === '') {
+                    return;
+                }
                 formData.append(key, value as string);
             }
         });
 
-        if (Array.isArray(data.serviceTypes)) {
+        if (Array.isArray(data.serviceTypes) && (!allowedRoleKeys || allowedRoleKeys.includes('serviceTypes'))) {
             formData.append('serviceTypes', data.serviceTypes.join(','));
         }
         if (selectedImage) formData.append('image', selectedImage);
+
+
+        console.log('FormData submitting:', Object.fromEntries(formData.entries()));
 
 
 
@@ -420,6 +439,7 @@ export default function UserProfile() {
         }
         setIsEditing(false);
         const updatedData = result.data;
+        const updatedCompany = updatedData.company_name ?? updatedData.form_details?.company_name ?? null;
         setUser({
             ...updatedData,
             companyAddress: updatedData.form_details?.companyAddress ?? null,
@@ -438,8 +458,19 @@ export default function UserProfile() {
             cityOfficial: updatedData.form_details?.cityOfficial ?? null,
             cityAddress: updatedData.form_details?.cityAddress ?? null,
             cityPhone: updatedData.form_details?.cityPhone ?? null,
-            company_name: updatedData.company_name ?? updatedData.form_details?.company_name ?? null,
+            company_name: updatedCompany,
         });
+
+        if (setContextUser) {
+            setContextUser({
+                ...contextUser,
+                ...updatedData,
+                first_name: updatedData.first_name,
+                last_name: updatedData.last_name,
+                company_name: updatedCompany,
+                profile_image_url: updatedData.profile_image_url ?? contextUser?.profile_image_url,
+            });
+        }
         setSelectedImage(null);
         setPreviewUrl(null);
         toast.success('Profile updated successfully!');
@@ -451,9 +482,9 @@ export default function UserProfile() {
         <Content className="p-4 md:p-6 lg:p-10 mx-auto">
             <div className="max-w-6xl mx-auto flex flex-col lg:flex-row lg:items-start gap-8">
 
-                <div className="flex-1 space-y-8">
+                <div className="flex-1 w-full min-w-0 space-y-8">
 
-                    <Card className="border shadow-lg rounded-2xl overflow-hidden bg-background">
+                    <Card className="w-full border shadow-lg rounded-2xl overflow-hidden bg-background">
                         <CardHeader className="bg-muted/30 px-4 md:px-8 py-4 md:py-6 border-b flex-row flex-wrap items-center justify-between gap-3">
                             <CardTitle className="text-xl font-bold tracking-tight">General Information</CardTitle>
                             <Button size="sm" variant={isEditing ? 'outline' : 'primary'} onClick={() => setIsEditing(!isEditing)}>
@@ -485,7 +516,7 @@ export default function UserProfile() {
                                             </div>
                                             <div className="space-y-1">
                                                 <p className="text-sm font-bold text-foreground">Profile Picture</p>
-                                                <p className="text-xs text-muted-foreground leading-relaxed">Click camera to upload</p>
+                                                {isEditing && <p className="text-xs text-muted-foreground leading-relaxed">Click camera to upload</p>}
                                             </div>
                                         </div>
                                     </div>
@@ -671,30 +702,28 @@ export default function UserProfile() {
                                             </div>
                                             <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
                                                 <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest pt-2">Services</Label>
-                                                <div className="md:col-span-2">
+                                                <div className="md:col-span-2 min-w-0">
                                                     {!isEditing ? (
-                                                        <div className="flex flex-wrap gap-2">
+                                                        <div className="flex flex-wrap gap-2 min-w-0">
                                                             {user?.serviceTypes?.length ? (
                                                                 services
                                                                     .filter((s) => user.serviceTypes!.includes(s.id))
                                                                     .map((s) => (
                                                                         <span
                                                                             key={s.id}
-                                                                            className="px-2 py-1 text-sm font-bold rounded-md bg-gray-100"
+                                                                            className="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary/10 text-primary border border-primary/20 break-words"
                                                                         >
-                                                                            {s.service_name
-                                                                                .replace(/_/g, " ")
-                                                                                .replace(/\b\w/g, (c) => c.toUpperCase())}
+                                                                            {toPascalCase(s.service_name)}
                                                                         </span>
                                                                     ))
                                                             ) : (
-                                                                <span className="text-sm font-bold">Not provided</span>
+                                                                <span className="text-sm font-bold text-muted-foreground">Not provided</span>
                                                             )}
                                                         </div>
                                                     ) : (
                                                         <FormField control={form.control} name="serviceTypes" render={({ field }) => (
                                                             <FormItem>
-                                                                <div className="grid grid-cols-1 gap-2">
+                                                                <div className="flex flex-wrap gap-2 min-w-0">
                                                                     {services.map((service) => {
                                                                         const selected = (field.value || []).includes(service.id);
                                                                         return (
@@ -707,23 +736,24 @@ export default function UserProfile() {
                                                                                     field.onChange(selected ? cur.filter(v => v !== service.id) : [...cur, service.id]);
                                                                                 }}
                                                                                 className={cn(
-                                                                                    "flex items-center gap-3 text-left",
+                                                                                    "inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all text-left break-words cursor-pointer",
+                                                                                    selected
+                                                                                        ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                                                                                        : "bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground",
                                                                                     isSubAccount && "opacity-60 cursor-not-allowed"
                                                                                 )}
                                                                             >
                                                                                 <span className={cn(
-                                                                                    'w-5 h-5 shrink-0 rounded border-2 flex items-center justify-center transition-colors',
-                                                                                    selected ? 'bg-primary border-primary' : 'bg-background border-muted-foreground/40',
+                                                                                    'w-3.5 h-3.5 shrink-0 rounded-xs border flex items-center justify-center transition-colors',
+                                                                                    selected ? 'border-white bg-white/20' : 'border-muted-foreground/50',
                                                                                 )}>
                                                                                     {selected && (
-                                                                                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
                                                                                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                                                                         </svg>
                                                                                     )}
                                                                                 </span>
-                                                                                <span className="text-sm font-medium">
-                                                                                    {toPascalCase(service.service_name)}
-                                                                                </span>
+                                                                                <span>{toPascalCase(service.service_name)}</span>
                                                                             </button>
                                                                         );
                                                                     })}

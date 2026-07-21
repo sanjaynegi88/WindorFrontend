@@ -204,6 +204,12 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
     });
 
     useEffect(() => {
+        if (Object.keys(form.formState.errors).length > 0) {
+            console.log('Zod errors:', form.formState.errors);
+        }
+    }, [form.formState.errors]);
+
+    useEffect(() => {
         getStates(1, 1000)
             .then((res) => {
                 const raw: any[] = Array.isArray(res) ? res : res?.data || [];
@@ -356,11 +362,13 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
     };
 
     const onSubmit = async (values: UserFormValues) => {
+        // console.log('Zod values:', values);
         const role = values.role;
         const group = getRoleGroup(role);
         if (group === 'contractor' && (!values.licenseNumber || values.licenseNumber.trim() === '')) {
-            setPendingValues(values);
-            setShowLicenseWarning(true);
+            // setPendingValues(values);
+            // setShowLicenseWarning(true);
+            await executeSubmit(values);
         } else {
             await executeSubmit(values);
         }
@@ -419,7 +427,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
                             </div>
 
                             <Form {...form}>
-                                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                                <form onSubmit={form.handleSubmit(onSubmit, (errors) => console.log('Zod errors:', errors))} className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <FormField
                                             control={form.control}
@@ -883,10 +891,10 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
             <ConfirmDialog
                 isOpen={showLicenseWarning}
                 onOpenChange={setShowLicenseWarning}
-                title="License Not Filled"
-                description="License is not filled. Do you want to continue anyway?"
-                confirmText="Continue Anyway"
-                cancelText="Close"
+                title="License Number Not Provided"
+                description="The license number field is empty. Would you like to continue without entering it?"
+                confirmText="Continue Without License"
+                cancelText="Cancel"
                 onConfirm={async () => {
                     if (pendingValues) {
                         await executeSubmit(pendingValues);

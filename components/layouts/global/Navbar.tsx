@@ -127,16 +127,19 @@ export function Navbar() {
     await signout();
     router.replace(process.env.NEXT_PUBLIC_LOGIN_URL || '/login');
   };
-
   const navItems = useMemo((): { name: string; href?: string; activeFor?: string[]; submenu?: { name: string; href: string }[] }[] => {
+    const landingUrl = process.env.NEXT_PUBLIC_LANDING_PAGE_URL || "#";
+
     if (!isLoggedIn || !user)
       return [
+        { name: "HOME", href: landingUrl },
         { name: "DIRECTORY", href: "/contractors" },
       ];
 
     switch (role) {
       case "contractor":
         return [
+          { name: "HOME", href: landingUrl },
           { name: "DASHBOARD", href: "/dashboard" },
           {
             name: "PROPERTIES",
@@ -164,6 +167,7 @@ export function Navbar() {
 
       case "admin":
         return [
+          { name: "HOME", href: landingUrl },
           { name: "DASHBOARD", href: "/dashboard" },
           {
             name: "PROPERTIES",
@@ -187,6 +191,7 @@ export function Navbar() {
 
       case "insurance_company":
         return [
+          { name: "HOME", href: landingUrl },
           { name: "DASHBOARD", href: "/dashboard" },
           { name: "REPORTS", href: "/reports" },
           { name: "DIRECTORY", href: "/contractors" },
@@ -201,6 +206,7 @@ export function Navbar() {
 
       case "city_inspector":
         return [
+          { name: "HOME", href: landingUrl },
           { name: "DASHBOARD", href: "/dashboard" },
           { name: "DIRECTORY", href: "/contractors" },
           //{ name: "PROFILE", href: "/profile" },
@@ -214,6 +220,7 @@ export function Navbar() {
 
       case "property_owner":
         return [
+          { name: "HOME", href: landingUrl },
           { name: "DASHBOARD", href: "/dashboard" },
           {
             name: "PROPERTIES",
@@ -237,6 +244,7 @@ export function Navbar() {
 
       default:
         return [
+          { name: "HOME", href: landingUrl },
           { name: "DASHBOARD", href: "/dashboard" },
           { name: "REPORTS", href: "/reports" },
           { name: "DIRECTORY", href: "/contractors" },
@@ -269,7 +277,7 @@ export function Navbar() {
       <div className="max-w-[1170px] flex h-[118px] items-center justify-between mx-auto relative px-4">
         {/* Logo */}
         <div className="flex items-center">
-          <Link href="/" className="flex items-center">
+          <Link href={process.env.NEXT_PUBLIC_LANDING_PAGE_URL || "/#"} className="flex items-center">
             <div className="relative h-[85px] w-[93px]">
               <Image
                 src="/assets/logo.png"
@@ -288,9 +296,11 @@ export function Navbar() {
           {navItems.map((link) => {
             const isActive = link.activeFor
               ? link.activeFor.some((p) => pathname.startsWith(p))
-              : link.href
-                ? pathname.startsWith(link.href)
-                : link.submenu?.some((sub) => pathname.startsWith(sub.href));
+              : link.href === "/"
+                ? pathname === "/"
+                : link.href && link.href !== "#" && link.href !== "/#"
+                  ? pathname.startsWith(link.href)
+                  : link.submenu?.some((sub) => pathname.startsWith(sub.href));
 
             if (link.submenu) {
               return (
@@ -494,7 +504,7 @@ export function Navbar() {
                               width={12}
                               height={12}
                             />
-                          </div>                          
+                          </div>
                           <span className="text-[15px] text-[#708090]">{toPascalCase(role)}</span>
                         </>
                       }
@@ -643,9 +653,11 @@ export function Navbar() {
           {navItems.map((link) => {
             const isActive = link.activeFor
               ? link.activeFor.some((p) => pathname.startsWith(p))
-              : link.href
-                ? pathname.startsWith(link.href)
-                : link.submenu?.some((sub) => pathname.startsWith(sub.href));
+              : link.href === "/"
+                ? pathname === "/"
+                : link.href && link.href !== "#" && link.href !== "/#"
+                  ? pathname.startsWith(link.href)
+                  : link.submenu?.some((sub) => pathname.startsWith(sub.href));
 
             if (link.submenu) {
               const isOpen = !!mobileSubmenuOpen[link.name];

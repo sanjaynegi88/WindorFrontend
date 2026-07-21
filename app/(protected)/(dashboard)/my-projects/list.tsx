@@ -33,7 +33,7 @@ export default function MyProjectList() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [projectToConfirm, setProjectToConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [projectToConfirm, setProjectToConfirm] = useState<{ id: string; name: string; hasReport?: boolean; propertyId?: string } | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -108,7 +108,7 @@ export default function MyProjectList() {
     if (!projectToConfirm) return;
     setIsConfirming(true);
     try {
-      const response = await confirmProject(projectToConfirm.id);
+      const response = await confirmProject(projectToConfirm.id, projectToConfirm.hasReport, projectToConfirm.propertyId);
       if (!response?.success) {
         toast.error(response?.message || 'Failed to confirm project');
       } else {
@@ -302,7 +302,7 @@ export default function MyProjectList() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setProjectToConfirm({ id: actualProjectId, name: projectName });
+                                setProjectToConfirm({ id: actualProjectId, name: projectName, hasReport, propertyId: property.id });
                                 setConfirmDialogOpen(true);
                               }}
                               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1CA7A6]/10 hover:bg-[#1CA7A6]/20 text-[#1CA7A6] font-bold text-xs uppercase tracking-widest transition-colors cursor-pointer border border-[#1CA7A6]/20 font-asap">
@@ -356,6 +356,7 @@ export default function MyProjectList() {
                     <div className="overflow-hidden rounded-t-[12px] border border-[#E8EDF2]">
                       <div
                         className={`relative min-h-45 overflow-hidden ${allImages.length > 0 ? 'cursor-pointer' : ''}`}
+                        onClick={() => { router.push(`/property-details/${property.id}`) }}
                       >
                         <AwsImage
                           src={projectImage}

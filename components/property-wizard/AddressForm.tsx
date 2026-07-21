@@ -102,7 +102,7 @@ export function AddressForm({
     useEffect(() => {
         const currentRole = user.role?.toLowerCase();
         const isContractorOrManufacturer = currentRole === 'contractor' || currentRole === 'manufacturer';
-        
+
         if (!isContractorOrManufacturer || alreadySaved) return;
 
         let active = true;
@@ -124,7 +124,7 @@ export function AddressForm({
                     ? (profilePayload as any)?.current_subscription?.plan?.level
                     : undefined;
                 const effectivelevel = (level || subscriptionLevel || '').toUpperCase();
-                
+
                 const isFreePlan = !effectivelevel || effectivelevel === 'FREE';
 
                 const propertiesUsed = usagePayload?.propertiesUsed ?? 0;
@@ -363,14 +363,19 @@ export function AddressForm({
                 <Input
                     placeholder="Zip Code"
                     required
-                    className="h-[46px] md:h-[65px] px-[20px] md:px-[29px] bg-white border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap"
+                    inputMode="numeric"
+                    maxLength={6}
+                    className="h-11.5 md:h-16.25 px-5 md:px-7.25 bg-white border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap"
                     value={data.zip}
-                    onChange={(e) => onChange({ ...data, zip: e.target.value })}
+                    onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        onChange({ ...data, zip: val });
+                    }}
                 />
 
                 {/* Property Owner & Coordinates (Admin Only) */}
                 {user?.role === "admin" && (
-                    <div className="space-y-[15px] md:space-y-[20px] p-5 border border-dashed border-[rgba(28,167,166,0.3)] rounded-[10px] bg-slate-50/50">
+                    <div className="space-y-3.75 md:space-y-5 p-5 border border-dashed border-[rgba(28,167,166,0.3)] rounded-[10px] bg-slate-50/50">
                         <div>
                             <label className="text-[12px] md:text-[14px] font-bold text-[#708090] uppercase tracking-widest px-1 mb-1 block">
                                 Property Owner

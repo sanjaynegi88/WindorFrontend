@@ -248,8 +248,9 @@ function ContractorForm({ onSubmit, onBack, loading }: {
 
     function handleFormSubmit(values: ContractorValues) {
         if (!values.licenseNumber || values.licenseNumber.trim() === '') {
-            setPendingValues(values);
-            setShowLicenseWarning(true);
+            // setPendingValues(values);
+            // setShowLicenseWarning(true);
+            onSubmit(values);
         } else {
             onSubmit(values);
         }
@@ -365,10 +366,10 @@ function ContractorForm({ onSubmit, onBack, loading }: {
             <ConfirmDialog
                 isOpen={showLicenseWarning}
                 onOpenChange={setShowLicenseWarning}
-                title="License Not Filled"
-                description="License is not filled. Do you want to continue anyway?"
-                confirmText="Continue Anyway"
-                cancelText="Close"
+                title="License Number Not Provided"
+                description="The license number field is empty. Would you like to continue without entering it?"
+                confirmText="Continue Without License"
+                cancelText="Cancel"
                 onConfirm={() => {
                     if (pendingValues) {
                         onSubmit(pendingValues);

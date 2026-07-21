@@ -98,6 +98,10 @@
     @apply outline-ring rounded-xs shadow-none outline-2 outline-offset-3 transition-none!;
   }
 
+  button {
+    cursor: pointer;
+  }
+
   /* Prevent horizontal overflow — on html only, NOT body.
    * Setting overflow-x: hidden on body disables scrollbar-gutter: stable
    * in Chrome, which is the mechanism that prevents layout shift. */
@@ -207,4 +211,4 @@ html {
 
 .animate-pulse-progress {
   animation: pulse-progress 20s cubic-bezier(0.1, 0.8, 0.1, 1) forwards;
-}
+}

@@ -13,7 +13,7 @@ import { MobileHeader } from '@/components/layouts/global';
 import { Suspense } from 'react';
 
 
-import { postProperty, postReport, postInstallation, postPropertyOwnerInstallations, getStates, getCities, getPropertyOwners, uploadInstallationImages, uploadPropertOwnerImages, getPropertyTypeOptions, getPropertyById, confirmProject, uploadOwnerProjectImage } from '@/lib/actions';
+import { postProperty, postInstallation, postPropertyOwnerInstallations, getStates, getCities, getPropertyOwners, uploadInstallationImages, uploadPropertOwnerImages, getPropertyTypeOptions, getPropertyById, confirmProject, uploadOwnerProjectImage } from '@/lib/actions';
 import { type StateOption, type CityOption } from '@/lib/location-utils';
 import { InstallationForm } from '@/components/property-wizard/InstallationForm';
 import { ConfirmSubmitDialog } from '@/components/property-wizard/ConfirmSubmitDialog';
@@ -322,7 +322,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
                     ...(user.role == "admin" ? { property_owner_id: addressData.property_owner_id } : {}),
                     latitude: addressData.latitude,
                     longitude: addressData.longitude,
-                });
+                }, nextStep === 'DRAFT');
 
                 if (!propertyResult.success) {
                     toast.error(propertyResult.message || 'Failed to save property. Please try again.');
@@ -335,9 +335,11 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
                 const propertyData = propertyResult.data?.data ?? propertyResult.data;
                 const reportFlag = propertyData?.has_report === true || propertyData?.has_report === 'true';
                 const propertyName = propertyData?.property_name || addressData.property_name;
-                toast.success('Property created successfully!');
 
-                if (nextStep === 'SAVE') {
+                const msg = nextStep === 'DRAFT' ? 'Draft saved successfully!' : 'Property created successfully!';
+                toast.success(msg);
+
+                if (nextStep === 'SAVE' || nextStep === 'DRAFT') {
                     clearPropertyFlow();
                     router.push('/added-properties');
                     return;
@@ -496,22 +498,6 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
         try {
             const { type } = await saveInstallation(values, files);
 
-            if (hasExistingReport === false) {
-                try {
-                    const reportRes = await postReport(tempPropertyId);
-                    if (reportRes.success) {
-                        setHasExistingReport(true);
-                        if (typeof window !== 'undefined') {
-                            localStorage.setItem('current_property_has_report', 'true');
-                        }
-                    } else {
-                        console.error('Failed to generate report:', reportRes.message);
-                    }
-                } catch (reportErr) {
-                    console.error('Error generating report:', reportErr);
-                }
-            }
-
             if (currentTypeIndex < selectedTypes.length - 1) {
                 setCurrentTypeIndex(prev => prev + 1);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -535,22 +521,6 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
         setLoading(true);
         try {
             await saveInstallation(values, files);
-
-            if (hasExistingReport === false) {
-                try {
-                    const reportRes = await postReport(tempPropertyId);
-                    if (reportRes.success) {
-                        setHasExistingReport(true);
-                        if (typeof window !== 'undefined') {
-                            localStorage.setItem('current_property_has_report', 'true');
-                        }
-                    } else {
-                        console.error('Failed to generate report:', reportRes.message);
-                    }
-                } catch (reportErr) {
-                    console.error('Error generating report:', reportErr);
-                }
-            }
 
             toast.success('Installation saved!');
             setStep('IMAGE_UPLOAD');
@@ -577,7 +547,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
 
         setSubmitting(true);
         try {
-            const result = await confirmProject(currentProjectId);
+            const result = await confirmProject(currentProjectId, hasExistingReport, tempPropertyId ?? undefined);
             if (!result?.success) {
                 toast.error(result?.message || 'Failed to confirm project');
                 return;
@@ -724,6 +694,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
                                 address={addressData.property_name}
                                 propertyName={addressData.property_name || existingPropertyName}
                                 hasReport={hasExistingReport}
+                                isSubmitting={loading}
                                 onSave={handleStepSave}
                                 onAddImages={(values, files) => handleAddImages(values, files)}
                                 onBack={() => {

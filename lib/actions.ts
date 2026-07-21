@@ -639,9 +639,10 @@ export async function logout() {
     return { success: true };
 }
 
-export async function postProperty(body: any): Promise<ActionResult> {
+export async function postProperty(body: any, saveAsDraft?: boolean): Promise<ActionResult> {
+    const url = saveAsDraft ? '/api/properties/draft' : '/api/properties';
     const response = await fetchApi({
-        url: '/api/properties',
+        url,
         method: 'POST',
         data: body,
     });
@@ -1328,6 +1329,21 @@ export async function getAuditReports(page: number = 1, limit: number = 15, sear
     return response.data;
 }
 
+export async function getPropertyApprovalLogs(page: number = 1, limit: number = 15, search?: string) {
+    let url = `/api/property-approval/logs?page=${page}&limit=${limit}`;
+    if (search) {
+        url += `&search=${search}`;
+    }
+    const response = await fetchApi({
+        url,
+        method: 'GET',
+    });
+    if (response.type === 'error') {
+        throw new Error(normalizeMsg(response.messages, 'Failed to get property approval logs'));
+    }
+    return response.data;
+}
+
 export async function createContractorProfile(formData: FormData) {
     const response = await fetchApi({
         url: '/api/contractor-directory-profile',
@@ -1679,6 +1695,24 @@ export async function uploadPropertyImages(propertyId: string, frontImage?: File
 
     if (response.type === 'error') {
         return { success: false, message: normalizeMsg(response.messages, 'Failed to upload property images') };
+    }
+
+    return { success: true, data: response.data };
+}
+
+export async function updatePropertyApprovalImages(propertyId: string, frontImage?: File, otherImage?: File): Promise<ActionResult> {
+    const formData = new FormData();
+    if (frontImage) formData.append('front_image', frontImage);
+    if (otherImage) formData.append('other_image', otherImage);
+
+    const response = await fetchApi({
+        url: `/api/properties/approvals/${propertyId}/images`,
+        method: 'PUT',
+        data: formData,
+    });
+
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to update property images') };
     }
 
     return { success: true, data: response.data };
@@ -2274,7 +2308,7 @@ export async function getProjectByIdNew(projectId: string) {
     return response.data;
 }
 
-export async function confirmProject(projectId: string): Promise<ActionResult> {
+export async function confirmProject(projectId: string, hasReport: boolean = false, propertyId?: string): Promise<ActionResult> {
     const response = await fetchApi({
         url: `/api/project/${projectId}/confirm`,
         method: 'PUT',
@@ -2282,6 +2316,18 @@ export async function confirmProject(projectId: string): Promise<ActionResult> {
     if (response.type === 'error') {
         return { success: false, message: normalizeMsg(response.messages, 'Failed to confirm project') };
     }
+
+    if (!hasReport) {
+        const targetPropertyId = propertyId || response.data?.property_id || response.data?.property?.id || response.data?.data?.property_id;
+        if (targetPropertyId) {
+            try {
+                await postReport(targetPropertyId);
+            } catch (err) {
+                console.error('Failed to auto-generate report on project confirm:', err);
+            }
+        }
+    }
+
     return { success: true, data: response.data };
 }
 
@@ -2389,7 +2435,7 @@ export async function importPropertiesFile(formData: FormData): Promise<ActionRe
         url: '/api/properties/import',
         method: 'POST',
         data: formData,
-        timeout: 600_000, // 10 minutes timeout for large files (5-10MB)
+        timeout: 600_000,
     });
     if (response.type === 'error') {
         return { success: false, message: normalizeMsg(response.messages, 'Failed to import properties file') };
@@ -2430,14 +2476,16 @@ export async function getPermitsForProperty(propertyId: string) {
     return response.data;
 }
 
-export async function getAddedPropertiesListing(params?: { page?: number; limit?: number; search?: string }): Promise<ActionResult> {
+export async function getAddedPropertiesListing(params?: { page?: number; limit?: number; search?: string; status?: string }): Promise<ActionResult> {
     const page = params?.page || 1;
     const limit = params?.limit || 100;
     const search = params?.search || '';
+    const status = params?.status || '';
     const query = new URLSearchParams({
         page: String(page),
         limit: String(limit),
         ...(search && { search }),
+        ...(status && { status }),
     }).toString();
     const response = await fetchApi({
         url: `/api/properties/approvals/listing?${query}`,

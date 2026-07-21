@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { useUser } from "@/components/providers/user-provider";
 import type { Role } from "@/config/rbac";
 import { useRouter } from "next/navigation";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 // Map RBAC roles to membership targetRole values
 const roleMapping: Record<Role, string> = {
@@ -62,6 +63,7 @@ const Plans = () => {
   const [isCancelling, setIsCancelling] = useState(false);
   const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
   const [currentBillingCycle, setCurrentBillingCycle] = useState<string | null>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
   const hasAnnualPlans = plans.some(
     (plan) => plan.yearlyAmount !== null && plan.yearlyAmount !== undefined,
@@ -349,7 +351,7 @@ const Plans = () => {
                         : " hover:bg-white text-white hover:text-[#339FD0]",
                     )}
                     onClick={() =>
-                      isCurrentPlan ? handleCancel() : handleSubscribe(plan.id)
+                      isCurrentPlan ? setCancelDialogOpen(true) : handleSubscribe(plan.id)
                     }
                   >
                     {subscribingPlanId === plan.id || (isCancelling && isCurrentPlan) ? (
@@ -371,6 +373,17 @@ const Plans = () => {
             );
           })}
       </div>
+
+      <ConfirmDialog
+        isOpen={cancelDialogOpen}
+        onOpenChange={setCancelDialogOpen}
+        title="Cancel Membership"
+        description="Are you sure you want to cancel your current membership? You will lose access to active membership benefits."
+        confirmText="Yes, Cancel Membership"
+        cancelText="Keep Membership"
+        variant="destructive"
+        onConfirm={handleCancel}
+      />
     </div>
   );
 };

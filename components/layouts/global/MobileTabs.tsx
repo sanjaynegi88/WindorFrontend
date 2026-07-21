@@ -31,7 +31,7 @@ export function MobileTabs() {
 
     const tabs = React.useMemo((): { name: string; href?: string; icon: React.ComponentType<any>; isCenter?: boolean }[] => {
         const baseTabs: { name: string; href?: string; icon: React.ComponentType<any>; isCenter?: boolean }[] = [
-            { name: 'Home', href: '/dashboard', icon: Home },
+            { name: 'Dashboard', href: '/dashboard', icon: Home },
         ];
 
         const hasProperties = role === 'contractor' || role === 'admin' || role === 'property_owner';
@@ -102,9 +102,13 @@ export function MobileTabs() {
     const moreOptions = getMoreOptions();
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 z-[100] h-[55px] bg-[#1F2A44] md:hidden flex items-center justify-around px-2 shadow-[0_-4px_20px_rgba(0,0,0,0.2)]">
+        <div className="fixed bottom-0 left-0 right-0 z-100 h-[55px] bg-[#1F2A44] md:hidden flex items-center justify-around px-2 shadow-[0_-4px_20px_rgba(0,0,0,0.2)]">
             {tabs.map((tab) => {
-                const isActive = tab.href ? pathname.startsWith(tab.href) : false;
+                const isActive = tab.href
+                    ? tab.href === '/'
+                        ? pathname === '/'
+                        : pathname.startsWith(tab.href)
+                    : false;
 
                 if (tab.isCenter) {
                     return (
@@ -137,7 +141,7 @@ export function MobileTabs() {
                                             <div className="size-11 rounded-full bg-white flex items-center justify-center text-[#1F2A44] group-hover:text-[#1CA7A6] shadow-sm transition-colors">
                                                 <option.icon className="size-5" />
                                             </div>
-                                            <span className="text-[11px] font-bold text-[#1F2A44] text-center uppercase leading-tight font-asap font-semibold">
+                                            <span className="text-[11px] font-bold text-[#1F2A44] text-center uppercase leading-tight font-asap">
                                                 {option.name}
                                             </span>
                                         </Link>

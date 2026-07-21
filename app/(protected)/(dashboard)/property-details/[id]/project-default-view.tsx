@@ -22,6 +22,7 @@ interface ProjectDefaultViewProps {
   onShowProjects: () => void;
   onShowReports: () => void;
   totalCount: number;
+  isLoadingTotalCount?: boolean;
   onBack: () => void;
   otherImage?: string | null;
 }
@@ -40,6 +41,7 @@ export const ProjectDefaultView = ({
   onBack,
   otherImage,
   totalCount,
+  isLoadingTotalCount,
 }: ProjectDefaultViewProps) => {
   const { role } = useUser();
   const canComment = role === "property_owner";
@@ -177,12 +179,20 @@ export const ProjectDefaultView = ({
               onClick={onShowProjects}
               className="w-full md:w-[239.16px] h-[95.82px] md:h-[136.72px] bg-[#1F2A44] hover:bg-[#1CA7A6] border-2 border-[rgba(255,255,255,0.93)] rounded-[10px] p-4 md:p-6 text-white flex flex-col items-center justify-center shadow-[0px_4px_14px_rgba(31,42,68,0.2)] hover:scale-[1.02] transition-transform cursor-pointer group relative"
             >
-              <span className="text-[18px] md:text-[24px] font-bold uppercase leading-[24px] md:leading-[30px] font-inter">
-                {totalCount} PROJECTS
-              </span>
-              <span className="text-[14px] md:text-[20px] font-medium uppercase leading-[15px] opacity-80 pt-2 group-hover:opacity-100 font-asap">
-                + More
-              </span>
+              {isLoadingTotalCount ? (
+                <Loader2 className="w-6 h-6 animate-spin text-white" />
+              ) : (
+                <>
+                  <span className="text-[18px] md:text-[24px] font-bold uppercase leading-[24px] md:leading-[30px] font-inter">
+                    {totalCount} PROJECTS
+                  </span>
+                  {totalCount > 5 && (
+                    <span className="text-[14px] md:text-[20px] font-medium uppercase leading-[15px] opacity-80 pt-2 group-hover:opacity-100 font-asap">
+                      + More
+                    </span>
+                  )}
+                </>
+              )}
             </div>
             <div
               onClick={onShowReports}

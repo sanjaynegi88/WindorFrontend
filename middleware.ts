@@ -89,7 +89,14 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
+  const landingEnv = process.env.NEXT_PUBLIC_LANDING_PAGE_URL;
+  const landingPath = (landingEnv && landingEnv.startsWith('/') && !landingEnv.startsWith('/#'))
+    ? landingEnv.split('#')[0]
+    : null;
+
+  const isPublicRoute =
+    (landingPath ? (landingPath === '/' ? pathname === '/' : pathname.startsWith(landingPath)) : false) ||
+    publicRoutes.some(route => route === '/' ? pathname === '/' : pathname.startsWith(route));
   const hasSession = authToken || refreshToken;
 
   const authOnlyRoutes = [loginUrl, '/register', '/login', '/forgot-password', '/verify-otp', '/reset-password'];
