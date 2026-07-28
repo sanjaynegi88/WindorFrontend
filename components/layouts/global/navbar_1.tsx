@@ -160,7 +160,7 @@ export function Navbar1() {
             {isLoginPage ? (
               <Link
                 href="/register"
-                className="py-2.5 md:py-3 px-4 md:px-[22px] font-bold uppercase rounded-[6px]  inline-block text-[13px] md:text-[15px] bg-[#1f2a44] hover:border hover:border-[#1f2a44] hover:bg-white hover:text-[#1f2a44]  text-white transition-all duration-200"
+                className="py-2.5 md:py-3 px-4 md:px-[22px] font-bold uppercase rounded-[6px]  inline-block text-[13px] md:text-[15px] bg-[#339fd0] border border-[#339fd0] hover:border hover:border-[#1f2a44] hover:bg-white hover:text-[#1f2a44]  text-white transition-all duration-200"
               >
                 Sign Up
               </Link>
