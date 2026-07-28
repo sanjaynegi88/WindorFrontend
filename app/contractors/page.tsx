@@ -136,7 +136,7 @@ export default function ContractorDirectoryPage() {
         const response = await getContractorDirectory(params);
         const mapped = (response.data || []).map((item: any) => ({
           ...item,
-          companyName: item.contractor?.company_name || item.contractor?.profile?.company_name || "N/A",
+          companyName: item.contractor?.profile?.company_name || item.contractor?.profile?.display_name || `${item.contractor?.first_name || ""} ${item.contractor?.last_name || ""}`.trim() || "N/A",
           contactName: item.contractor?.profile?.display_name || `${item.contractor?.first_name || ""} ${item.contractor?.last_name || ""}`.trim() || "N/A",
           phone: item.contractor?.companyPhone || item.contractor?.mobilePhone || "N/A",
           email: item.contractor?.email || "N/A",

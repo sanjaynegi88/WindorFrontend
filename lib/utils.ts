@@ -30,11 +30,32 @@ export function getAppImageUrl(url: string | null | undefined): string {
  * Supports absolute URLs and relative paths (appends base URL).
  */
 export function toPascalCase(str: string): string {
+  if (!str) return '';
   return str
+    .trim()
     .split(/[_\s\-]+/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
 }
+
+/**
+ * Converts strings to Title Case:
+ * - "REDROOMS" -> "Redrooms"
+ * - "redRooms" -> "Redrooms"
+ * - "Red ROOMS" -> "Red Rooms"
+ * - "red rooms" -> "Red Rooms"
+ */
+export function toTitleCase(str: string | null | undefined): string {
+  if (!str) return '';
+  return str
+    .trim()
+    .split(/[_\s\-]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
 
 
 export function getResourceFileUrl(url: string | null | undefined): string {

@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import { Check, ChevronDown } from 'lucide-react';
-import { useFormContext } from 'react-hook-form';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import * as React from "react";
+import { Check, ChevronDown } from "lucide-react";
+import { useFormContext } from "react-hook-form";
+import { cn, toTitleCase } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -12,21 +12,27 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from '@/components/ui/command';
+} from "@/components/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { getCities } from '@/lib/actions';
+} from "@/components/ui/select";
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { getCities } from "@/lib/actions";
 
 interface CommonProps {
   name?: string;
@@ -35,7 +41,7 @@ interface CommonProps {
   onChange?: (value: string) => void;
   className?: string;
   placeholder?: string;
-  rounded?: 'md' | 'xl';
+  rounded?: "md" | "xl";
   labelClassName?: string;
   disabled?: boolean;
 }
@@ -44,7 +50,7 @@ interface CitySelectProps extends CommonProps {
   stateName?: string;
   stateValue?: string; // Add this for controlled component support
   zipName?: string;
-  valueType?: 'name' | 'id';
+  valueType?: "name" | "id";
   onSelectCity?: (city: any) => void;
   onLoaded?: () => void;
   syncState?: boolean;
@@ -55,14 +61,14 @@ export function CitySelect({
   label,
   value: controlledValue,
   onChange: controlledOnChange,
-  stateName = 'state',
+  stateName = "state",
   stateValue,
-  zipName = 'zip',
-  valueType = 'name',
+  zipName = "zip",
+  valueType = "name",
   className,
   placeholder = "Select city",
   onSelectCity,
-  rounded = 'md',
+  rounded = "md",
   labelClassName,
   onLoaded,
   syncState = false,
@@ -72,17 +78,25 @@ export function CitySelect({
   const [cities, setCities] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
 
-  const internalStateValue = stateValue || (stateName && formContext ? formContext.watch(stateName) : undefined);
+  const internalStateValue =
+    stateValue ||
+    (stateName && formContext ? formContext.watch(stateName) : undefined);
 
   React.useEffect(() => {
     let active = true;
     async function fetchCities() {
       try {
         setLoading(true);
-        const response = await getCities(undefined, undefined, undefined, undefined, internalStateValue);
+        const response = await getCities(
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          internalStateValue,
+        );
         if (active) setCities(response.data || []);
       } catch (error) {
-        console.error('Failed to load cities:', error);
+        console.error("Failed to load cities:", error);
       } finally {
         if (active) setLoading(false);
         if (onLoaded) onLoaded();
@@ -94,16 +108,22 @@ export function CitySelect({
     };
   }, [internalStateValue]);
 
-  const internalValue = name && formContext ? formContext.watch(name) : controlledValue;
+  const internalValue =
+    name && formContext ? formContext.watch(name) : controlledValue;
 
   const handleSelect = (city: any | null) => {
     if (city) {
-      const newValue = valueType === 'id' ? String(city.id) : city.name;
+      const newValue = valueType === "id" ? String(city.id) : city.name;
 
       if (name && formContext) {
         formContext.setValue(name, newValue);
-        if (syncState && stateName) formContext.setValue(stateName, city.state || city.state_id || "");
-        if (zipName && city.zip_codes?.length > 0 && !formContext.watch(zipName)) {
+        if (syncState && stateName)
+          formContext.setValue(stateName, city.state || city.state_id || "");
+        if (
+          zipName &&
+          city.zip_codes?.length > 0 &&
+          !formContext.watch(zipName)
+        ) {
           formContext.setValue(zipName, city.zip_codes[0]);
         }
       }
@@ -131,7 +151,7 @@ export function CitySelect({
       value={internalValue ? String(internalValue) : ""}
       onValueChange={(val) => {
         const city = cities.find((c) =>
-          valueType === 'id' ? String(c.id) === val : c.name === val
+          valueType === "id" ? String(c.id) === val : c.name === val,
         );
         handleSelect(city || null);
       }}
@@ -139,8 +159,10 @@ export function CitySelect({
       <SelectTrigger
         className={cn(
           "h-[39px] md:h-[65px] rounded-[10px] border-[rgba(28,167,166,0.25)] bg-white text-[#708090] font-medium px-4 md:px-6 focus:ring-[#22a699]/20 text-[13px] md:text-[20px] font-asap transition-all w-full shadow-none flex items-center justify-between",
-          !internalValue ? "text-[#708090]/60 font-normal" : "text-[#708090] font-medium",
-          className
+          !internalValue
+            ? "text-[#708090]/60 font-normal"
+            : "text-[#708090] font-medium",
+          className,
         )}
       >
         <SelectValue placeholder={placeholder} />
@@ -149,9 +171,9 @@ export function CitySelect({
         {cities.map((city) => (
           <SelectItem
             key={city.id}
-            value={valueType === 'id' ? String(city.id) : city.name}
+            value={valueType === "id" ? String(city.id) : city.name}
           >
-            {city.name}
+            {toTitleCase(city.name)}
           </SelectItem>
         ))}
       </SelectContent>
@@ -165,10 +187,14 @@ export function CitySelect({
         name={name}
         render={({ field }) => (
           <FormItem className="flex flex-col w-full">
-            {label && <FormLabel className={cn("text-sm font-semibold", labelClassName)}>{label}</FormLabel>}
-            <FormControl>
-              {content}
-            </FormControl>
+            {label && (
+              <FormLabel
+                className={cn("text-sm font-semibold", labelClassName)}
+              >
+                {label}
+              </FormLabel>
+            )}
+            <FormControl>{content}</FormControl>
             <FormMessage />
           </FormItem>
         )}
@@ -178,7 +204,11 @@ export function CitySelect({
 
   return (
     <div className="flex flex-col w-full">
-      {label && <label className={cn("text-sm font-semibold", labelClassName)}>{label}</label>}
+      {label && (
+        <label className={cn("text-sm font-semibold", labelClassName)}>
+          {label}
+        </label>
+      )}
       {content}
     </div>
   );
@@ -195,11 +225,11 @@ export function ZipSelect({
   label,
   value: controlledValue,
   onChange: controlledOnChange,
-  cityName = 'city',
+  cityName = "city",
   cityValue: controlledCityValue,
   className,
   placeholder = "Select zip",
-  rounded = 'md',
+  rounded = "md",
   labelClassName,
   onLoaded,
   disabled,
@@ -208,8 +238,10 @@ export function ZipSelect({
   const [cities, setCities] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [open, setOpen] = React.useState(false);
-  const internalValue = name && formContext ? formContext.watch(name) : controlledValue;
-  const currentCityName = cityName && formContext ? formContext.watch(cityName) : controlledCityValue;
+  const internalValue =
+    name && formContext ? formContext.watch(name) : controlledValue;
+  const currentCityName =
+    cityName && formContext ? formContext.watch(cityName) : controlledCityValue;
 
   React.useEffect(() => {
     async function fetchCities() {
@@ -218,7 +250,7 @@ export function ZipSelect({
         const response = await getCities();
         setCities(response.data || []);
       } catch (error) {
-        console.error('Failed to load cities:', error);
+        console.error("Failed to load cities:", error);
       } finally {
         setLoading(false);
         if (onLoaded) onLoaded();
@@ -231,18 +263,26 @@ export function ZipSelect({
     async function fetchSpecificCity() {
       if (!currentCityName) return;
 
-      const found = cities.find(c => c.name === currentCityName || c.id === currentCityName);
+      const found = cities.find(
+        (c) => c.name === currentCityName || c.id === currentCityName,
+      );
       if (!found) {
         try {
-          const response = await getCities(undefined, undefined, currentCityName);
+          const response = await getCities(
+            undefined,
+            undefined,
+            currentCityName,
+          );
           if (response.data) {
-            const newCity = Array.isArray(response.data) ? response.data[0] : response.data;
+            const newCity = Array.isArray(response.data)
+              ? response.data[0]
+              : response.data;
             if (newCity) {
-              setCities(prev => [...prev, newCity]);
+              setCities((prev) => [...prev, newCity]);
             }
           }
         } catch (error) {
-          console.error('Failed to load specific city:', error);
+          console.error("Failed to load specific city:", error);
         }
       }
     }
@@ -251,8 +291,9 @@ export function ZipSelect({
 
   const availableZips = React.useMemo(() => {
     if (currentCityName) {
-
-      const city = cities.find(c => c.name === currentCityName || c.id === currentCityName);
+      const city = cities.find(
+        (c) => c.name === currentCityName || c.id === currentCityName,
+      );
       return city?.zip_codes || [];
     }
     return [];
@@ -261,10 +302,10 @@ export function ZipSelect({
     if (name && formContext) {
       formContext.setValue(name, zip);
       if (!currentCityName) {
-        const city = cities.find(c => c.zip_codes.includes(zip));
+        const city = cities.find((c) => c.zip_codes.includes(zip));
         if (city) {
           formContext.setValue(cityName, city.name);
-          formContext.setValue('state', city.state_entity.state_name);
+          formContext.setValue("state", city.state_entity.state_name);
         }
       }
     }
@@ -281,13 +322,15 @@ export function ZipSelect({
       disabled={!currentCityName || disabled}
       className={cn(
         "h-[39px] md:h-[65px] rounded-[10px] border-[rgba(28,167,166,0.25)] bg-white text-[#708090] font-medium px-4 md:px-6 focus:ring-[#22a699]/20 text-[13px] md:text-[20px] font-asap transition-all w-full shadow-none flex items-center justify-between",
-        (!internalValue || !currentCityName) ? "text-[#708090]/60 font-normal" : "text-[#708090] font-medium",
+        !internalValue || !currentCityName
+          ? "text-[#708090]/60 font-normal"
+          : "text-[#708090] font-medium",
         (!currentCityName || disabled) && "cursor-not-allowed opacity-70",
-        className
+        className,
       )}
     >
       <span className="truncate">
-        {!currentCityName ? "Select city first" : (internalValue || placeholder)}
+        {!currentCityName ? "Select city first" : internalValue || placeholder}
       </span>
       <ChevronDown className="h-4 w-4 md:h-6 md:w-6 shrink-0 opacity-50" />
     </Button>
@@ -295,14 +338,20 @@ export function ZipSelect({
 
   const content = (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        {trigger}
-      </PopoverTrigger>
-      <PopoverContent className="w-(--radix-popover-trigger-width) p-0 rounded-xl overflow-hidden shadow-2xl border-[rgba(28,167,166,0.15)]" align="start">
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent
+        className="w-(--radix-popover-trigger-width) p-0 rounded-xl overflow-hidden shadow-2xl border-[rgba(28,167,166,0.15)]"
+        align="start"
+      >
         <Command>
-          <CommandInput placeholder="Search zip..." className="h-12 text-[16px] md:text-[18px] font-asap" />
+          <CommandInput
+            placeholder="Search zip..."
+            className="h-12 text-[16px] md:text-[18px] font-asap"
+          />
           <CommandList>
-            <CommandEmpty>{loading ? "Loading..." : "No results."}</CommandEmpty>
+            <CommandEmpty>
+              {loading ? "Loading..." : "No results."}
+            </CommandEmpty>
             <CommandGroup>
               {availableZips.map((zip: any) => (
                 <CommandItem
@@ -313,7 +362,7 @@ export function ZipSelect({
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      zip === internalValue ? "opacity-100" : "opacity-0"
+                      zip === internalValue ? "opacity-100" : "opacity-0",
                     )}
                   />
                   {zip}
@@ -333,10 +382,14 @@ export function ZipSelect({
         name={name}
         render={({ field }) => (
           <FormItem className="flex flex-col w-full">
-            {label && <FormLabel className={cn("text-sm font-semibold", labelClassName)}>{label}</FormLabel>}
-            <FormControl>
-              {content}
-            </FormControl>
+            {label && (
+              <FormLabel
+                className={cn("text-sm font-semibold", labelClassName)}
+              >
+                {label}
+              </FormLabel>
+            )}
+            <FormControl>{content}</FormControl>
             <FormMessage />
           </FormItem>
         )}
@@ -346,7 +399,11 @@ export function ZipSelect({
 
   return (
     <div className="flex flex-col w-full">
-      {label && <label className={cn("text-sm font-semibold", labelClassName)}>{label}</label>}
+      {label && (
+        <label className={cn("text-sm font-semibold", labelClassName)}>
+          {label}
+        </label>
+      )}
       {content}
     </div>
   );

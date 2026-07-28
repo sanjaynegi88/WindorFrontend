@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { PdfGenerationLoader } from "@/components/common/pdf-generation-loader";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMembershipGuard } from "@/hooks/useMembershipGuard";
 
 interface ReportItem {
   id: string;
@@ -147,6 +148,7 @@ function ReportRow({ item, onDownload, downloadingId }: ReportRowProps) {
 }
 
 export default function ReportsPage() {
+  const { validateMembership } = useMembershipGuard();
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
@@ -272,6 +274,9 @@ export default function ReportsPage() {
   }, [allItems, activeTab]);
 
   const handleDownload = async (item: ReportItem) => {
+    const isValid = await validateMembership();
+    if (!isValid) return;
+
     setDownloadingId(item.id);
     try {
       let downloadUrl = "";

@@ -13,11 +13,12 @@ import { MobileHeader } from '@/components/layouts/global';
 import { Suspense } from 'react';
 
 
-import { postProperty, postInstallation, postPropertyOwnerInstallations, getStates, getCities, getPropertyOwners, uploadInstallationImages, uploadPropertOwnerImages, getPropertyTypeOptions, getPropertyById, confirmProject, uploadOwnerProjectImage } from '@/lib/actions';
+import { postProperty, postInstallation, postPropertyOwnerInstallations, getStates, getCities, getPropertyOwners, uploadInstallationImages, uploadPropertOwnerImages, getPropertyTypes, getPropertyById, confirmProject, uploadOwnerProjectImage } from '@/lib/actions';
 import { type StateOption, type CityOption } from '@/lib/location-utils';
 import { InstallationForm } from '@/components/property-wizard/InstallationForm';
 import { ConfirmSubmitDialog } from '@/components/property-wizard/ConfirmSubmitDialog';
 import { useUser } from '@/components/providers/user-provider';
+import { useMembershipGuard } from '@/hooks/useMembershipGuard';
 
 
 
@@ -106,7 +107,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
     const [states, setStates] = useState<StateOption[]>([]);
     const [cities, setCities] = useState<CityOption[]>([]);
     const [propertyOwners, setPropertyOwners] = useState<PropertyOwnerOption[]>([]);
-    const [propertyTypes, setPropertyTypes] = useState<{ name: string }[]>([]);
+    const [propertyTypes, setPropertyTypes] = useState<{ id: string; category?: string; name?: string }[]>([]);
     const [hasSavedImages, setHasSavedImages] = useState(false);
 
     const user = useUser();
@@ -271,12 +272,18 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
                     getStates(1, 1000),
                     getCities(),
                     canFetchOwners ? getPropertyOwners() : Promise.resolve([]),
-                    getPropertyTypeOptions(),
+                    getPropertyTypes(),
                 ]);
-                const rawStates: any[] = Array.isArray(statesRes) ? statesRes : statesRes?.data || [];
-                const rawCities: any[] = Array.isArray(citiesRes) ? citiesRes : citiesRes?.data || [];
-                const rawOwners: any[] = Array.isArray(ownersRes) ? ownersRes : ownersRes?.data || [];
-                const rawPropertyTypes: any[] = typesRes?.data || [];
+                const rawStates: any[] = Array.isArray(statesRes) ? statesRes : (statesRes as any)?.data || [];
+                const rawCities: any[] = Array.isArray(citiesRes) ? citiesRes : (citiesRes as any)?.data || [];
+                const rawOwners: any[] = Array.isArray(ownersRes) ? ownersRes : (ownersRes as any)?.data || [];
+                const rawPropertyTypes: any[] = Array.isArray(typesRes)
+                    ? typesRes
+                    : Array.isArray((typesRes as any)?.data)
+                        ? (typesRes as any).data
+                        : Array.isArray((typesRes as any)?.data?.data)
+                            ? (typesRes as any).data.data
+                            : [];
                 setStates(rawStates.map((s) => ({ id: String(s.id), name: s.state_name || s.name, abbreviation: s.abbreviation })));
                 setCities(rawCities.map((c) => ({ id: String(c.id), name: c.city_name || c.name, state_id: c.state_id ? String(c.state_id) : undefined })));
                 setPropertyOwners(rawOwners.map((o: any) => ({
@@ -285,12 +292,19 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
                     last_name: o.last_name,
                     email: o.email
                 })));
-                setPropertyTypes(
-                    rawPropertyTypes.map((pt: any) => ({
-                        id: String(pt.id),
-                        name: pt.type_name,
-                    }))
-                );
+                const mappedTypes = rawPropertyTypes.map((pt: any, idx: number) => ({
+                    id: pt.id ? String(pt.id) : (pt.category || `pt-${idx}`),
+                    category: pt.category || pt.name,
+                    name: pt.category || pt.name,
+                }));
+                if (!mappedTypes.some((t: any) => t.category === 'OTHER' || t.id === 'OTHER')) {
+                    mappedTypes.push({
+                        id: 'OTHER',
+                        category: 'OTHER',
+                        name: 'OTHER',
+                    });
+                }
+                setPropertyTypes(mappedTypes);
             } catch (error) {
                 console.error('Failed to load location data:', error);
                 toast.error('Failed to load states and cities lists');
@@ -301,8 +315,13 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
 
 
 
+    const { validateMembership } = useMembershipGuard();
+
     const handleCreateProperty = async (e: React.FormEvent, nextStep?: string) => {
         e.preventDefault();
+
+        const isMembershipValid = await validateMembership();
+        if (!isMembershipValid) return;
 
         setLoading(true);
         try {
@@ -310,6 +329,10 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
             let propertyId = tempPropertyId;
 
             if (!propertyId) {
+                const isOtherType = addressData.property_type_category === 'OTHER' ||
+                    addressData.property_type_id === 'OTHER' ||
+                    addressData.property_type === 'OTHER';
+
                 const propertyResult = await postProperty({
                     address: addressData.address,
                     address2: addressData.address2,
@@ -317,7 +340,9 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
                     other_city: addressData.other_city || null,
                     state_id: addressData.state || addressData.state_id || null,
                     zip: addressData.zip,
-                    property_type_id: addressData.property_type,
+                    property_type_id: isOtherType ? null : (addressData.property_type_id || addressData.property_type || null),
+                    property_type_category: isOtherType ? 'OTHER' : (addressData.property_type_category || null),
+                    other_property_type: isOtherType ? (addressData.other_property_type || null) : null,
                     property_name: addressData.property_name,
                     ...(user.role == "admin" ? { property_owner_id: addressData.property_owner_id } : {}),
                     latitude: addressData.latitude,

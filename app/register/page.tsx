@@ -148,12 +148,12 @@ export default function Register1Page() {
   return (
     <div className="w-full min-h-screen flex flex-col font-inter bg-[#EDEFF1]">
       <Navbar1 />
-      <section className="relative flex-1 flex items-start py-[60px] overflow-hidden w-full min-h-[calc(100vh-100px)]">
+      <section className="relative flex-1 flex items-start py-15 overflow-hidden w-full min-h-[calc(100vh-100px)]">
         <div className="absolute inset-0 z-0">
           <Image src="/assets/login/new-login-bg.png" alt="" fill sizes="100vw" priority className="w-full h-full object-cover object-center" />
         </div>
-        <div className="max-w-[1450px] mx-auto w-[90%] relative z-10 flex justify-center lg:justify-end">
-          <div className="w-full max-w-[520px] bg-[#339FD0] border-[3px] border-white rounded-[16px] p-8 md:p-[40px_44px_36px_44px] text-white shadow-[0_20px_50px_rgba(15,42,68,0.18)]">
+        <div className="max-w-362.5 mx-auto w-[90%] relative z-10 flex justify-center lg:justify-end">
+          <div className="w-full max-w-130 bg-[#339FD0] border-[3px] border-white rounded-2xl p-8 md:p-[40px_44px_36px_44px] text-white shadow-[0_20px_50px_rgba(15,42,68,0.18)]">
 
             <h1 className="font-asap text-[36px] md:text-[40px] font-extrabold text-white mb-1.5 tracking-[1.5px] uppercase leading-none">
               CREATE ACCOUNT
@@ -166,14 +166,14 @@ export default function Register1Page() {
                   <FormField control={form.control} name="firstName" render={({ field }) => (
                     <FormItem className="flex-1">
                       <label className="text-sm font-semibold text-white font-inter">First Name</label>
-                      <FormControl><input  {...field} className="mt-1 h-[46px] w-full px-4 bg-white rounded-[4px] font-inter text-[15px] text-[#1F2A44] outline-none placeholder:text-gray-400" /></FormControl>
+                      <FormControl><input  {...field} className="mt-1 h-11.5 w-full px-4 bg-white rounded-[4px] font-inter text-[15px] text-[#1F2A44] outline-none placeholder:text-gray-400" /></FormControl>
                       <FormMessage className="text-xs font-semibold text-red-200 mt-1" />
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="lastName" render={({ field }) => (
                     <FormItem className="flex-1">
                       <label className="text-sm font-semibold text-white font-inter">Last Name</label>
-                      <FormControl><input {...field} className="mt-1 h-[46px] w-full px-4 bg-white rounded-[4px] font-inter text-[15px] text-[#1F2A44] outline-none placeholder:text-gray-400" /></FormControl>
+                      <FormControl><input {...field} className="mt-1 h-11.5 w-full px-4 bg-white rounded-[4px] font-inter text-[15px] text-[#1F2A44] outline-none placeholder:text-gray-400" /></FormControl>
                       <FormMessage className="text-xs font-semibold text-red-200 mt-1" />
                     </FormItem>
                   )} />
@@ -182,7 +182,7 @@ export default function Register1Page() {
                 <FormField control={form.control} name="email" render={({ field }) => (
                   <FormItem>
                     <label className="text-sm font-semibold text-white font-inter">Email Address</label>
-                    <FormControl><input type="email" {...field} className="mt-1 h-[46px] w-full px-4 bg-white rounded-[4px] font-inter text-[15px] text-[#1F2A44] outline-none placeholder:text-gray-400" /></FormControl>
+                    <FormControl><input type="email" {...field} className="mt-1 h-11.5 w-full px-4 bg-white rounded-[4px] font-inter text-[15px] text-[#1F2A44] outline-none placeholder:text-gray-400" /></FormControl>
                     <FormMessage className="text-xs font-semibold text-red-200 mt-1" />
                   </FormItem>
                 )} />
@@ -205,7 +205,7 @@ export default function Register1Page() {
                             );
                           }
                         }}
-                        className="mt-1 h-[46px] w-full px-4 bg-white rounded-[4px] font-inter text-[15px] text-[#1F2A44] outline-none border-0 appearance-none cursor-pointer"
+                        className="mt-1 h-11.5 w-full px-4 bg-white rounded-[4px] font-inter text-[15px] text-[#1F2A44] outline-none border-0 appearance-none cursor-pointer"
                         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%231F2A44' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 14px center" }}
                       >
                         <option value="" disabled className="text-gray-400">Select a role</option>
@@ -225,7 +225,7 @@ export default function Register1Page() {
                     <label className="text-sm font-semibold text-white font-inter">Password</label>
                     <FormControl>
                       <div className="relative mt-1">
-                        <input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} className="h-[46px] w-full pl-4 pr-12 bg-white rounded-[4px] font-inter text-[15px] text-[#1F2A44] outline-none placeholder:text-gray-400" />
+                        <input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} className="h-11.5 w-full pl-4 pr-12 bg-white rounded-[4px] font-inter text-[15px] text-[#1F2A44] outline-none placeholder:text-gray-400" />
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#1F2A44]">
                           {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
                         </button>
@@ -241,7 +241,7 @@ export default function Register1Page() {
                     <label className="text-sm font-semibold text-white font-inter">Confirm Password</label>
                     <FormControl>
                       <div className="relative mt-1">
-                        <input type={showConfirmPassword ? "text" : "password"} placeholder="••••••••" {...field} className="h-[46px] w-full pl-4 pr-12 bg-white rounded-[4px] font-inter text-[15px] text-[#1F2A44] outline-none placeholder:text-gray-400" />
+                        <input type={showConfirmPassword ? "text" : "password"} placeholder="••••••••" {...field} className="h-11.5 w-full pl-4 pr-12 bg-white rounded-[4px] font-inter text-[15px] text-[#1F2A44] outline-none placeholder:text-gray-400" />
                         <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#1F2A44]">
                           {showConfirmPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
                         </button>

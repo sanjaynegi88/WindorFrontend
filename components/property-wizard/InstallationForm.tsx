@@ -79,6 +79,11 @@ const garageDoorsSchema = z.object({
     orderNumber: z.string().optional(),
 });
 
+const otherContractorSchema = z.object({
+    ...commonSchema,
+    
+});
+
 const otherSchema = z.object({
     ...commonSchema,
 });
@@ -206,6 +211,10 @@ export function InstallationForm({
 
         case 'garage_doors':
             schema = garageDoorsSchema;
+            break;
+
+        case 'other_contractor':
+            schema = otherContractorSchema;
             break;
 
         default:
@@ -343,7 +352,9 @@ export function InstallationForm({
                             </span>
                         )}
                         <CardTitle className="text-2xl flex items-center gap-2 capitalize">
-                            {toPascalCase(type)} Specifications
+                            {type === 'other_contractor'
+                                ? (isAdmin ? 'Other Contractor Specifications' : 'Other Specifications')
+                                : `${toPascalCase(type)} Specifications`}
                             {isEditMode && (
                                 <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border/60 normal-case tracking-normal">
                                     Editing

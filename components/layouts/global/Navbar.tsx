@@ -44,7 +44,9 @@ export function Navbar() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [adminExpanded, setAdminExpanded] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
-  const [mobileSubmenuOpen, setMobileSubmenuOpen] = useState<Record<string, boolean>>({});
+  const [mobileSubmenuOpen, setMobileSubmenuOpen] = useState<
+    Record<string, boolean>
+  >({});
   const router = useRouter();
   const { notifications, unreadCount, markAsRead } = useNotifications();
 
@@ -125,10 +127,15 @@ export function Navbar() {
 
   const handleSignout = async () => {
     await signout();
-    router.replace(process.env.NEXT_PUBLIC_LOGIN_URL || '/login');
+    router.replace(process.env.NEXT_PUBLIC_LOGIN_URL || "/login");
   };
-  const navItems = useMemo((): { name: string; href?: string; activeFor?: string[]; submenu?: { name: string; href: string }[] }[] => {
-    const landingUrl = process.env.NEXT_PUBLIC_LANDING_PAGE_URL || "/#";
+  const navItems = useMemo((): {
+    name: string;
+    href?: string;
+    activeFor?: string[];
+    submenu?: { name: string; href: string }[];
+  }[] => {
+    const landingUrl = process.env.NEXT_PUBLIC_LANDING_PAGE_URL || "#";
 
     if (!isLoggedIn || !user)
       return [
@@ -147,6 +154,7 @@ export function Navbar() {
             submenu: [
               { name: "View Properties", href: "/properties" },
               { name: "Enter new Property", href: "/properties/new" },
+              { name: "Added Property list", href: "/added-properties" },
             ],
           },
           {
@@ -175,6 +183,7 @@ export function Navbar() {
             submenu: [
               { name: "View Properties", href: "/properties" },
               { name: "Enter new Property", href: "/properties/new" },
+              { name: "Added Property list", href: "/added-properties" },
             ],
           },
           {
@@ -198,9 +207,9 @@ export function Navbar() {
           // { name: "PROFILE", href: "/profile" },
           ...(!user?.user?.sub_account
             ? [
-              { name: "TEAM", href: "/company-users" },
-              { name: "Audit Logs", href: "/company-logs" },
-            ]
+                { name: "TEAM", href: "/company-users" },
+                { name: "Audit Logs", href: "/company-logs" },
+              ]
             : []),
         ];
 
@@ -212,9 +221,9 @@ export function Navbar() {
           //{ name: "PROFILE", href: "/profile" },
           ...(!user?.user?.sub_account
             ? [
-              { name: "TEAM", href: "/city-users" },
-              { name: "Audit Logs", href: "/city-logs" },
-            ]
+                { name: "TEAM", href: "/city-users" },
+                { name: "Audit Logs", href: "/city-logs" },
+              ]
             : []),
         ];
 
@@ -225,9 +234,7 @@ export function Navbar() {
           {
             name: "PROPERTIES",
             activeFor: ["/properties", "/property-details"],
-            submenu: [
-              { name: "View Properties", href: "/properties" }
-            ],
+            submenu: [{ name: "View Properties", href: "/properties" }],
           },
           {
             name: "PROJECTS",
@@ -261,7 +268,11 @@ export function Navbar() {
     { name: "Membership", href: "/admin/membership", icon: ClipboardList },
     { name: "Property Types", href: "/admin/property-types", icon: Building2 },
     { name: "Roles", href: "/admin/roles", icon: ShieldUser },
-    { name: "Project Image Category", href: "/admin/image-category", icon: Images },
+    {
+      name: "Project Image Category",
+      href: "/admin/image-category",
+      icon: Images,
+    },
     {
       name: "Service Provided",
       href: "/admin/service-provided",
@@ -277,7 +288,10 @@ export function Navbar() {
       <div className="max-w-[1170px] flex h-[118px] items-center justify-between mx-auto relative px-4">
         {/* Logo */}
         <div className="flex items-center">
-          <Link href={process.env.NEXT_PUBLIC_LANDING_PAGE_URL || "/#"} className="flex items-center">
+          <Link
+            href={process.env.NEXT_PUBLIC_LANDING_PAGE_URL || "/#"}
+            className="flex items-center"
+          >
             <div className="relative h-[85px] w-[93px]">
               <Image
                 src="/assets/logo.png"
@@ -327,7 +341,9 @@ export function Navbar() {
                         onClick={(e) => e.preventDefault()}
                         className={cn(
                           "flex items-center gap-1 text-[15px] font-medium transition-colors uppercase relative py-2 outline-none cursor-pointer",
-                          isActive ? "text-[#1CA7A6]" : "text-[#708090]/90 hover:text-[#1CA7A6]"
+                          isActive
+                            ? "text-[#1CA7A6]"
+                            : "text-[#708090]/90 hover:text-[#1CA7A6]",
                         )}
                       >
                         {link.name}
@@ -349,11 +365,14 @@ export function Navbar() {
                           asChild
                           className={cn(
                             "rounded-lg focus:bg-[#1CA7A6]/10 focus:text-[#1CA7A6] cursor-pointer py-3 px-4",
-                            pathname === sub.href && "bg-[#1CA7A6]/10 text-[#1CA7A6]"
+                            pathname === sub.href &&
+                              "bg-[#1CA7A6]/10 text-[#1CA7A6]",
                           )}
                         >
                           <Link href={sub.href} className="w-full">
-                            <span className="font-bold text-sm">{sub.name}</span>
+                            <span className="font-bold text-sm">
+                              {sub.name}
+                            </span>
                           </Link>
                         </DropdownMenuItem>
                       ))}
@@ -422,7 +441,7 @@ export function Navbar() {
                       className={cn(
                         "rounded-lg focus:bg-[#1CA7A6]/10 focus:text-[#1CA7A6] cursor-pointer py-3 px-4",
                         pathname === item.href &&
-                        "bg-[#1CA7A6]/10 text-[#1CA7A6]",
+                          "bg-[#1CA7A6]/10 text-[#1CA7A6]",
                       )}
                     >
                       <Link
@@ -474,7 +493,7 @@ export function Navbar() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="hidden lg:flex flex-col text-left">
-                      {user.company_name ?
+                      {user.company_name ? (
                         <>
                           <div className="flex items-center gap-1">
                             <span className="text-[15px] text-[#708090] font-medium leading-[17px]">
@@ -490,9 +509,11 @@ export function Navbar() {
                           <span className="text-[17px] font-bold text-[#1F2A44] leading-[19px] transition-colors">
                             {user.company_name}
                           </span>
-                          <span className="text-[15px] text-[#708090]">{toPascalCase(role)}</span>
+                          <span className="text-[15px] text-[#708090]">
+                            {toPascalCase(role)}
+                          </span>
                         </>
-                        :
+                      ) : (
                         <>
                           <div className="flex items-center gap-1">
                             <span className="text-[15px] text-[#708090] font-medium leading-[17px]">
@@ -505,9 +526,11 @@ export function Navbar() {
                               height={12}
                             />
                           </div>
-                          <span className="text-[15px] text-[#708090]">{toPascalCase(role)}</span>
+                          <span className="text-[15px] text-[#708090]">
+                            {toPascalCase(role)}
+                          </span>
                         </>
-                      }
+                      )}
                     </div>
                   </div>
                 </DropdownMenuTrigger>
@@ -519,7 +542,10 @@ export function Navbar() {
                     asChild
                     className="rounded-lg focus:bg-[#1CA7A6]/10  cursor-pointer py-3 px-4"
                   >
-                    <Link href="/profile" className="flex items-center gap-3 w-full">
+                    <Link
+                      href="/profile"
+                      className="flex items-center gap-3 w-full"
+                    >
                       <User className="size-4" />
                       <span className="font-bold text-sm">Profile</span>
                     </Link>
@@ -536,7 +562,10 @@ export function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
+              <DropdownMenu
+                open={notificationsOpen}
+                onOpenChange={setNotificationsOpen}
+              >
                 <DropdownMenuTrigger asChild>
                   <button className="relative size-10 bg-[#1CA7A6]/20 rounded-full text-[#1CA7A6] border border-[#1CA7A6]/28 shadow-[0px_4px_14px_rgba(28,167,166,0.3)] hover:bg-[#1CA7A6]/30 transition-colors cursor-pointer flex items-center justify-center outline-none">
                     <Image
@@ -555,14 +584,18 @@ export function Navbar() {
                   className="w-[360px] p-0 bg-white rounded-xl border border-gray-100 shadow-2xl overflow-hidden font-inter mt-2"
                 >
                   <div className="flex items-center justify-between px-4 py-3 bg-[#F8FBFF] border-b border-gray-100">
-                    <span className="font-bold text-xs text-[#1F2A44] uppercase tracking-wide">Notifications</span>
+                    <span className="font-bold text-xs text-[#1F2A44] uppercase tracking-wide">
+                      Notifications
+                    </span>
                     {unreadCount > 0 && (
                       <button
                         onClick={async (e) => {
                           e.preventDefault();
                           e.stopPropagation();
                           const unread = notifications.filter((n) => !n.isRead);
-                          await Promise.all(unread.map((n) => markAsRead(n.id)));
+                          await Promise.all(
+                            unread.map((n) => markAsRead(n.id)),
+                          );
                         }}
                         className="text-xs font-bold text-[#1CA7A6] hover:underline bg-transparent border-none cursor-pointer"
                       >
@@ -573,7 +606,9 @@ export function Navbar() {
                   <div className="max-h-[300px] overflow-y-auto divide-y divide-gray-50">
                     {notifications.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-8 text-center px-4">
-                        <span className="text-xs font-medium text-gray-400">No notifications</span>
+                        <span className="text-xs font-medium text-gray-400">
+                          No notifications
+                        </span>
                       </div>
                     ) : (
                       notifications.slice(0, 5).map((notif) => (
@@ -582,22 +617,33 @@ export function Navbar() {
                           onClick={() => {
                             if (!notif.isRead) markAsRead(notif.id);
                             if (notif.metadata?.propertyId) {
-                              router.push(`/property-details/${notif.metadata.propertyId}`);
+                              router.push(
+                                `/property-details/${notif.metadata.propertyId}`,
+                              );
                             }
                           }}
                           className={cn(
                             "flex items-start gap-3 p-3 cursor-pointer hover:bg-gray-50 transition-colors text-left",
-                            !notif.isRead && "bg-[#1CA7A6]/5"
+                            !notif.isRead && "bg-[#1CA7A6]/5",
                           )}
                         >
-                          <div className={cn(
-                            "size-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5",
-                            !notif.isRead ? "bg-[#1CA7A6]/10 text-[#1CA7A6]" : "bg-gray-100 text-gray-500"
-                          )}>
+                          <div
+                            className={cn(
+                              "size-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5",
+                              !notif.isRead
+                                ? "bg-[#1CA7A6]/10 text-[#1CA7A6]"
+                                : "bg-gray-100 text-gray-500",
+                            )}
+                          >
                             <FileText className="size-4" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={cn("text-xs text-[#1F2A44] leading-snug", !notif.isRead ? "font-bold" : "font-medium")}>
+                            <p
+                              className={cn(
+                                "text-xs text-[#1F2A44] leading-snug",
+                                !notif.isRead ? "font-bold" : "font-medium",
+                              )}
+                            >
                               {notif.title}
                             </p>
                             <p className="text-[11px] text-gray-500 truncate mt-0.5">
@@ -664,16 +710,26 @@ export function Navbar() {
               return (
                 <div key={link.name} className="space-y-1">
                   <button
-                    onClick={() => setMobileSubmenuOpen(prev => ({ ...prev, [link.name]: !prev[link.name] }))}
+                    onClick={() =>
+                      setMobileSubmenuOpen((prev) => ({
+                        ...prev,
+                        [link.name]: !prev[link.name],
+                      }))
+                    }
                     className={cn(
                       "flex items-center justify-between w-full px-4 py-3 rounded-xl text-[15px] font-bold uppercase tracking-wider transition-colors cursor-pointer",
                       isActive
                         ? "bg-[#1CA7A6]/10 text-[#1CA7A6]"
-                        : "text-[#708090] hover:bg-gray-50 hover:text-[#1CA7A6]"
+                        : "text-[#708090] hover:bg-gray-50 hover:text-[#1CA7A6]",
                     )}
                   >
                     <span>{link.name}</span>
-                    <ChevronDown className={cn("size-4 transition-transform", isOpen && "rotate-180")} />
+                    <ChevronDown
+                      className={cn(
+                        "size-4 transition-transform",
+                        isOpen && "rotate-180",
+                      )}
+                    />
                   </button>
                   {isOpen && (
                     <div className="pl-4 space-y-1 border-l border-gray-100 ml-4">
@@ -685,7 +741,7 @@ export function Navbar() {
                             "flex items-center px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-colors",
                             pathname === sub.href
                               ? "text-[#1CA7A6] bg-[#1CA7A6]/5"
-                              : "text-[#708090] hover:text-[#1CA7A6]"
+                              : "text-[#708090] hover:text-[#1CA7A6]",
                           )}
                         >
                           {sub.name}
@@ -716,16 +772,26 @@ export function Navbar() {
           {role === "admin" && (
             <div className="space-y-1">
               <button
-                onClick={() => setMobileSubmenuOpen(prev => ({ ...prev, ADMIN: !prev.ADMIN }))}
+                onClick={() =>
+                  setMobileSubmenuOpen((prev) => ({
+                    ...prev,
+                    ADMIN: !prev.ADMIN,
+                  }))
+                }
                 className={cn(
                   "flex items-center justify-between w-full px-4 py-3 rounded-xl text-[15px] font-bold uppercase tracking-wider transition-colors cursor-pointer",
                   pathname.startsWith("/admin")
                     ? "bg-[#1CA7A6]/10 text-[#1CA7A6]"
-                    : "text-[#708090] hover:bg-gray-50 hover:text-[#1CA7A6]"
+                    : "text-[#708090] hover:bg-gray-50 hover:text-[#1CA7A6]",
                 )}
               >
                 <span>ADMIN</span>
-                <ChevronDown className={cn("size-4 transition-transform", !!mobileSubmenuOpen.ADMIN && "rotate-180")} />
+                <ChevronDown
+                  className={cn(
+                    "size-4 transition-transform",
+                    !!mobileSubmenuOpen.ADMIN && "rotate-180",
+                  )}
+                />
               </button>
               {!!mobileSubmenuOpen.ADMIN && (
                 <div className="pl-4 space-y-1 border-l border-gray-100 ml-4">
@@ -737,7 +803,7 @@ export function Navbar() {
                         "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-colors",
                         pathname === item.href
                           ? "text-[#1CA7A6] bg-[#1CA7A6]/5"
-                          : "text-[#708090] hover:text-[#1CA7A6]"
+                          : "text-[#708090] hover:text-[#1CA7A6]",
                       )}
                     >
                       <item.icon className="size-4" />

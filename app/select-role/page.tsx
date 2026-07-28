@@ -129,6 +129,7 @@ export default function SelectRolePage() {
     if (values.companyPhone) payload.companyPhone = values.companyPhone;
     if (values.city_id) payload.city_id = values.city_id;
     if (values.serviceTypes?.length) payload.serviceTypes = values.serviceTypes;
+    if (values.other_service) payload.other_service = values.other_service;
     submitRole(payload);
   }
 

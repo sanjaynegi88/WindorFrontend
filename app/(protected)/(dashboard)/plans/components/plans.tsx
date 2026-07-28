@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Loader2, Star, Zap, Building2, Crown } from "lucide-react";
+import { Check, Loader2, Star, Zap, Building2, Crown, Clock } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -10,6 +10,8 @@ import {
   getUserProfile,
   subscribeToMembership,
   cancelMembership,
+  getFreeTrialStatus,
+  type FreeTrialStatusData,
 } from "@/lib/actions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -64,6 +66,7 @@ const Plans = () => {
   const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
   const [currentBillingCycle, setCurrentBillingCycle] = useState<string | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [trialStatus, setTrialStatus] = useState<FreeTrialStatusData | null>(null);
 
   const hasAnnualPlans = plans.some(
     (plan) => plan.yearlyAmount !== null && plan.yearlyAmount !== undefined,
@@ -135,9 +138,10 @@ const Plans = () => {
     const fetchData = async () => {
       try {
         const roleFilter = role && role !== "admin" ? roleMapping[role] : undefined;
-        const [plansResponse, profileResponse] = await Promise.all([
+        const [plansResponse, profileResponse, trialResponse] = await Promise.all([
           getMembership(undefined, roleFilter),
           getUserProfile(),
+          getFreeTrialStatus().catch(() => null),
         ]);
 
         if (plansResponse?.data) {
@@ -149,6 +153,10 @@ const Plans = () => {
         }
         if (profileResponse?.current_subscription?.billing_cycle) {
           setCurrentBillingCycle(profileResponse.current_subscription.billing_cycle);
+        }
+
+        if (trialResponse?.success && trialResponse?.data?.data) {
+          setTrialStatus(trialResponse.data.data);
         }
       } catch (error) {
         console.error("Failed to fetch data:", error);
@@ -188,6 +196,37 @@ const Plans = () => {
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Simple, <span className="text-primary italic">transparent</span>{" "}pricing
           </h2>
+          {trialStatus && trialStatus.show_free_trial_dashboard && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={cn(
+                "border rounded-2xl p-4 max-w-2xl mx-auto backdrop-blur-sm shadow-sm flex flex-col items-center text-center gap-1.5 my-4",
+                trialStatus.is_free_trial_active
+                  ? "bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200"
+                  : trialStatus.is_expired
+                  ? "bg-red-500/10 border-red-500/30 text-red-900 dark:text-red-200"
+                  : "bg-blue-500/10 border-blue-500/30 text-blue-900 dark:text-blue-200"
+              )}
+            >
+              <div className="flex items-center gap-2 font-semibold text-base">
+                <Clock className="w-5 h-5 shrink-0" />
+                {trialStatus.is_free_trial_active ? (
+                  <span>
+                    Free Trial Active — <strong>{trialStatus.days_left} {trialStatus.days_left === 1 ? "day" : "days"} remaining</strong>
+                  </span>
+                ) : trialStatus.is_expired ? (
+                  <span>Free Trial Expired</span>
+                ) : (
+                  <span>Free Trial Status</span>
+                )}
+              </div>
+              {trialStatus.display_message && (
+                <p className="text-sm opacity-90">{trialStatus.display_message}</p>
+              )}
+            </motion.div>
+          )}
+
           {currentPlanId ? (
             <motion.div
               initial={{ opacity: 0, y: -10 }}

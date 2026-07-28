@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { Content } from "@/components/layouts/crm/components/content";
-import { ChevronLeft, ChevronRight, FileText, HardHat, Home, Landmark, List, Loader2, Map, ShieldCheck } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, HardHat, Home, Landmark, List, Loader2, Map, ShieldCheck, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   getPropertyListUser,
   generateMultipleReports,
   checkoutReports,
+  getFreeTrialStatus,
+  type FreeTrialStatusData,
 } from "@/lib/actions";
 import { useRouter, useSearchParams } from "next/navigation";
 import { UnifiedSearchBar } from "@/components/common/unified-search-bar";
@@ -33,8 +35,32 @@ function DashboardPageContent() {
   const [mapFocus, setMapFocus] = useState<{ lat: number; lng: number } | null>(null);
   const [mapFocusId, setMapFocusId] = useState<string | null>(null);
   const [isGeneratingTop10, setIsGeneratingTop10] = useState(false);
+  const [trialStatus, setTrialStatus] = useState<FreeTrialStatusData | null>(null);
+
+  useEffect(() => {
+    const fetchTrialStatus = async () => {
+      try {
+        const res = await getFreeTrialStatus();
+        if (res.success && res.data?.data) {
+          setTrialStatus(res.data.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch trial status:", err);
+      }
+    };
+    fetchTrialStatus();
+  }, []);
 
   const searchParamsHook = useSearchParams();
+
+  const role = user?.role?.toLowerCase() || "";
+  const isAdminOrInspector = role === "admin" || role === "city_inspector";
+  const isAdmin = role === "admin";
+  const isPropertyOwner = role === "property_owner";
+  const isContractor = role === "contractor";
+
+  const hasMembershipCookie = typeof document !== "undefined" && document.cookie.split("; ").some(c => c.trim().startsWith("has-membership=true"));
+  const hasMembership = isAdmin || Boolean(user?.has_membership ?? user?.hasMembership ?? hasMembershipCookie);
 
   useEffect(() => {
     if (!searchParamsHook) return;
@@ -44,8 +70,10 @@ function DashboardPageContent() {
     const id = searchParamsHook.get("id");
 
     if (view === "map") {
-      setViewMode("map");
-      setShowResults(true);
+      if (hasMembership) {
+        setViewMode("map");
+        setShowResults(true);
+      }
 
       // Clean up search params from the address bar so they don't persist on refresh or page navigation
       const cleanUrl = window.location.pathname;
@@ -57,7 +85,7 @@ function DashboardPageContent() {
     if (id) {
       setMapFocusId(id);
     }
-  }, [searchParamsHook]);
+  }, [searchParamsHook, hasMembership]);
 
   const [filters, setFilters] = useState({
     search: "",
@@ -97,12 +125,16 @@ function DashboardPageContent() {
     [debouncedSearch, searchBy, state_id, city_id],
   );
 
-  const role = user?.role?.toLowerCase() || "";
-  const isAdminOrInspector = role === "admin" || role === "city_inspector";
-  const isAdmin = role === "admin";
-  const isPropertyOwner = role === "property_owner";
-  const isContractor = role === "contractor";
-  const resultsVisible = (!isAdmin || !isContractor) && showResults;
+  const resultsVisible = hasMembership && (!isAdmin || !isContractor) && showResults;
+
+  const handleSearchTriggered = () => {
+    if (!hasMembership) {
+      toast.error("Active membership is required to search properties. Please purchase a membership plan.");
+      setShowResults(false);
+      return;
+    }
+    setShowResults(true);
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -182,8 +214,46 @@ function DashboardPageContent() {
       )}
     >
       {isContractor ? (
-        <div className="space-y-10 mt-3">
-          <div className="w-full max-w-[1170px] px-4 flex flex-col lg:flex-row items-center lg:items-start lg:justify-between gap-8 md:gap-12">
+        <div className="space-y-10 mt-3 w-full max-w-[1170px] px-4 flex flex-col items-center">
+          {trialStatus && trialStatus.show_free_trial_dashboard && (
+            <div
+              className={cn(
+                "w-full p-4 rounded-2xl border backdrop-blur-sm flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm",
+                trialStatus.is_free_trial_active
+                  ? "bg-amber-500/20 border-amber-500/40 text-white"
+                  : trialStatus.is_expired
+                  ? "bg-red-500/20 border-red-500/40 text-white"
+                  : "bg-blue-500/20 border-blue-500/40 text-white"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                  <Clock className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <h4 className="font-bold text-base text-white flex items-center gap-2">
+                    {trialStatus.is_free_trial_active ? (
+                      <span>Free Trial Active — <strong>{trialStatus.days_left} {trialStatus.days_left === 1 ? "day" : "days"} remaining</strong></span>
+                    ) : trialStatus.is_expired ? (
+                      <span>Free Trial Expired</span>
+                    ) : (
+                      <span>Free Trial Status</span>
+                    )}
+                  </h4>
+                  {trialStatus.display_message && (
+                    <p className="text-xs sm:text-sm text-white/90">{trialStatus.display_message}</p>
+                  )}
+                </div>
+              </div>
+              <Link
+                href="/plans"
+                className="shrink-0 px-4 py-2 bg-[#339FD0] hover:bg-[#2887b3] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors shadow-sm"
+              >
+                Upgrade Plan
+              </Link>
+            </div>
+          )}
+          <div className="w-full flex flex-col lg:flex-row items-center lg:items-start lg:justify-between gap-8 md:gap-12">
             <div className="flex flex-col items-start gap-4 md:gap-[17px] w-full lg:w-[321px] shrink-0 text-left">
               <span className="font-inter font-bold text-[20px] leading-[24px] text-[#339FD0]">
                 Welcome back, {user?.first_name || "Clark"}
@@ -390,6 +460,44 @@ function DashboardPageContent() {
         </div>
       ) : (
         <div className="w-full max-w-[1170px] px-4 py-8 md:py-16 space-y-[20px] md:space-y-[30px]">
+          {trialStatus && trialStatus.show_free_trial_dashboard && (
+            <div
+              className={cn(
+                "w-full p-4 rounded-2xl border backdrop-blur-sm flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm",
+                trialStatus.is_free_trial_active
+                  ? "bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200"
+                  : trialStatus.is_expired
+                  ? "bg-red-500/10 border-red-500/30 text-red-900 dark:text-red-200"
+                  : "bg-blue-500/10 border-blue-500/30 text-blue-900 dark:text-blue-200"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#1F2A44]/10 flex items-center justify-center shrink-0">
+                  <Clock className="w-5 h-5 text-[#1F2A44]" />
+                </div>
+                <div className="text-left">
+                  <h4 className="font-bold text-base flex items-center gap-2">
+                    {trialStatus.is_free_trial_active ? (
+                      <span>Free Trial Active — <strong>{trialStatus.days_left} {trialStatus.days_left === 1 ? "day" : "days"} remaining</strong></span>
+                    ) : trialStatus.is_expired ? (
+                      <span>Free Trial Expired</span>
+                    ) : (
+                      <span>Free Trial Status</span>
+                    )}
+                  </h4>
+                  {trialStatus.display_message && (
+                    <p className="text-xs sm:text-sm opacity-90">{trialStatus.display_message}</p>
+                  )}
+                </div>
+              </div>
+              <Link
+                href="/plans"
+                className="shrink-0 px-4 py-2 bg-[#1F2A44] hover:bg-[#1a212c] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors shadow-sm"
+              >
+                Upgrade Plan
+              </Link>
+            </div>
+          )}
           {isPropertyOwner && (
             <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6">
               <Link
@@ -486,7 +594,7 @@ function DashboardPageContent() {
             <UnifiedSearchBar
               showSearchButton={true}
               onChange={setFilters}
-              onSearchTriggered={() => setShowResults(true)}
+              onSearchTriggered={handleSearchTriggered}
               isMapView={viewMode === "map"}
             />
           }

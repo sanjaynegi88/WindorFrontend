@@ -36,7 +36,8 @@ const projectSchema = z.object({
   notes: z.string().optional(),
   contractor_id: z.string().optional(),
 }).superRefine((data, ctx) => {
-  if (data.project_type.toUpperCase() === "OTHER" && !data.other?.trim()) {
+  const pType = data.project_type.toUpperCase();
+  if ((pType === "OTHER" || pType === "OTHER_CONTRACTOR") && !data.other?.trim()) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Please specify the project type",
@@ -107,7 +108,6 @@ export function CategorySelection({
   );
   const [governingCity, setGoverningCity] = useState(initialProjectData?.governing_city_id || defaultGoverningCityId || "");
   const [permit, setPermit] = useState(initialProjectData?.permit || "");
-  const [needPermit, setNeedPermit] = useState(initialProjectData?.need_permit ?? false);
   const [notes, setNotes] = useState(initialProjectData?.notes || "");
   const [other, setOther] = useState(initialProjectData?.other || "");
   const [contractorId, setContractorId] = useState(initialProjectData?.contractor_id || "");
@@ -135,21 +135,12 @@ export function CategorySelection({
   const selectedComponentType = componentTypes.find(
     (t) => t.name.toLowerCase() === projectType
   );
-  const isPermitRequired = selectedComponentType ? (selectedComponentType.required_permit === true) : !isPropertyOwner;
-
-  useEffect(() => {
-    if (componentTypes.length > 0) {
-      setNeedPermit(isPermitRequired);
-    }
-  }, [isPermitRequired, componentTypes]);
-
   useEffect(() => {
     setProjectName(initialProjectData?.project_name || "");
     setProjectType(initialProjectData?.project_type?.toLowerCase() || initialProjectType || "");
     setDateOfInstall(initialProjectData?.date_of_install ? parseISO(initialProjectData.date_of_install) : undefined);
     setGoverningCity(initialProjectData?.governing_city_id || defaultGoverningCityId || "");
     setPermit(initialProjectData?.permit || "");
-    setNeedPermit(isPropertyOwner ? (initialProjectData?.need_permit ?? false) : (initialProjectData?.need_permit ?? true));
     setNotes(initialProjectData?.notes || "");
     setOther(initialProjectData?.other || "");
     setContractorId(initialProjectData?.contractor_id || "");
@@ -238,7 +229,6 @@ export function CategorySelection({
         const fallback = [
           { name: "ROOFING", required_permit: true },
           { name: "SIDING", required_permit: true },
-          { name: "WINDOW_DOOR", required_permit: true },
         ];
         setComponentTypes(fallback);
         if (fallback[0]) setProjectType(fallback[0].name.toLowerCase());
@@ -251,6 +241,9 @@ export function CategorySelection({
 
   const getDisplayLabel = (name: string) => {
     if (name.toUpperCase() === "WINDOW_DOOR") return "Window & Door";
+    if (name.toLowerCase() === "other_contractor") {
+      return isAdmin ? "OTHER CONTRACTOR" : "OTHER";
+    }
     return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   };
 
@@ -266,7 +259,6 @@ export function CategorySelection({
     date_of_install: dateOfInstall ? format(dateOfInstall, "yyyy-MM-dd") : "",
     governing_city_id: governingCity,
     permit,
-    need_permit: needPermit,
     notes,
     contractor_id: contractorId,
     visible_status: visibility,
@@ -301,7 +293,6 @@ export function CategorySelection({
     dateOfInstall,
     governingCity,
     permit,
-    needPermit,
     status,
     notes,
     contractorId,
@@ -327,7 +318,6 @@ export function CategorySelection({
       // date_of_install: dateOfInstall ? format(dateOfInstall, "yyyy-MM-dd") : "",
       governing_city_id: governingCity,
       permit,
-      need_permit: needPermit,
       notes,
       contractor_id: contractorId,
     };
@@ -344,7 +334,7 @@ export function CategorySelection({
     }
     setErrors({});
 
-    const isOther = result.data.project_type.toUpperCase() === "OTHER";
+    const isOther = result.data.project_type.toUpperCase() === "OTHER" || result.data.project_type.toUpperCase() === "OTHER_CONTRACTOR";
 
     const body = {
       project_name: result.data.project_name,
@@ -353,7 +343,6 @@ export function CategorySelection({
       //date_of_install: result.data.date_of_install,
       governing_city_id: result.data.governing_city_id,
       permit: result.data.permit,
-      ...(!isPropertyOwner ? { need_permit: needPermit } : {}),
       notes: result.data.notes || "",
       ...(isAdmin && result.data.contractor_id
         ? { contractor_id: result.data.contractor_id }
@@ -457,7 +446,7 @@ export function CategorySelection({
       <div className="space-y-[15px] md:space-y-[28px]">
         <div>
           <input
-            placeholder="Project Name"
+            placeholder="Case Number from your own files"
             value={projectName}
             onChange={(e) => handleFieldChange(() => setProjectName(e.target.value))}
             className={inputClass}
@@ -524,7 +513,7 @@ export function CategorySelection({
           {fieldError("project_type")}
         </div>
 
-        {projectType === "other" && (
+        {(projectType === "other" || projectType === "other_contractor") && (
           <div>
             <input
               placeholder="Specify project type"
@@ -539,39 +528,6 @@ export function CategorySelection({
             )}
           </div>
         )}
-        {/* <div>
-          <Popover>
-            <PopoverTrigger asChild>
-              <div
-                className={cn(
-                  inputClass,
-                  "flex items-center justify-between cursor-pointer hover:border-[#1CA7A6]/50",
-                )}
-              >
-                <span
-                  className={
-                    dateOfInstall ? "text-[#1F2A44]" : "text-[#708090]/50"
-                  }
-                >
-                  {dateOfInstall ? format(dateOfInstall, "PPP") : "Date of Install"}
-                </span>
-                {chevronSvg}
-              </div>
-            </PopoverTrigger>
-            <PopoverContent
-              className="w-auto p-0 border-[#1CA7A6] rounded-[10px]"
-              align="start"
-            >
-              <Calendar
-                mode="single"
-                selected={dateOfInstall}
-                onSelect={(value) => handleFieldChange(() => setDateOfInstall(value))}
-              />
-            </PopoverContent>
-          </Popover>
-          {fieldError("date_of_install")}
-        </div> */}
-
         <div>
           <input
             placeholder="Permit Number"
@@ -582,26 +538,6 @@ export function CategorySelection({
           />
           {fieldError("permit")}
         </div>
-
-        <div className="flex items-center gap-[10px] md:gap-[15px]">
-          <input
-            id="need_permit"
-            type="checkbox"
-            checked={needPermit}
-            disabled={isPermitRequired}
-            onChange={(e) => handleFieldChange(() => setNeedPermit(e.target.checked))}
-            className={cn("size-[16px] md:size-[20px] accent-[#1CA7A6]", isPermitRequired ? "cursor-not-allowed opacity-70" : "cursor-pointer")}
-          />
-          <label
-            htmlFor="need_permit"
-            className={cn("text-[14px] md:text-[20px] font-medium text-[#708090] font-asap", isPermitRequired ? "cursor-not-allowed opacity-70" : "cursor-pointer")}
-          >
-            Need Permit
-          </label>
-        </div>
-
-
-
         <div>
           <Select
             value={governingCity || ""}

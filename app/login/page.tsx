@@ -123,7 +123,7 @@ export default function Login1Page() {
           {/* Solid Teal Card with White Inner Border */}
           <div className="w-full max-w-[520px] bg-[#339FD0] border-[3px] border-white rounded-[16px] p-8 md:p-[40px_44px_36px_44px] text-white shadow-[0_20px_50px_rgba(15,42,68,0.18)]">
             <h1 className="font-asap text-[36px] md:text-[40px] font-extrabold text-white mb-1.5 tracking-[1.5px] uppercase leading-none text-left">
-              LOGIN
+              Welcome Back!
             </h1>
             <p className="font-inter text-sm text-white/95 mb-6 text-left">
               Please enter your login details to log in.
@@ -231,7 +231,7 @@ export default function Login1Page() {
                 <p className="text-center font-inter text-sm text-white mt-1">
                   Don't have an account?{" "}
                   <Link href="/register" className="text-white font-bold hover:underline">
-                    Create Account
+                     Sign Up
                   </Link>
                 </p>
 

@@ -59,7 +59,8 @@ export async function middleware(request: NextRequest) {
         const userProfile = profileData.data || profileData;
         const role = (userProfile.role ? userProfile.role.toLowerCase() : null) || userRole || 'guest';
         const subAccount = String(userProfile.sub_account ?? isSubUser);
-        const membershipValue = String(userProfile.has_membership ?? hasMembership);
+        const rawMembership = userProfile.has_membership ?? userProfile.current_subscription?.is_active;
+        const membershipValue = String(rawMembership !== undefined ? Boolean(rawMembership) : hasMembership);
 
         authToken = idToken;
         userRole = role as Role;
@@ -168,12 +169,14 @@ export async function middleware(request: NextRequest) {
 
   if (hasSession && !hasMembership && !isPublicRoute &&
     !pathname.startsWith('/plans') &&
+    !pathname.startsWith('/dashboard') &&
     !pathname.startsWith('/subscription/') &&
     !pathname.startsWith('/purchase/') &&
     !pathname.startsWith('/profile') &&
     !pathname.startsWith('/profile-setup') &&
     !pathname.startsWith('/change-password') &&
     !pathname.startsWith('/property-details') &&
+    !pathname.startsWith('/reports') &&
     userRole !== 'admin' &&
     userRole !== 'city_inspector' &&
     !(userRole === 'insurance_company' && isSubUser) &&

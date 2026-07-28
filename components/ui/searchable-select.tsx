@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Search, PlusCircle, ChevronDown, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { cn, toTitleCase } from '@/lib/utils';
 import {
     Command,
     CommandGroup,
@@ -84,7 +84,7 @@ export function SearchableSelect({
                     className={cn(triggerClassName ?? triggerClass, !displayValue && "text-[#708090]/50")}
                 >
                     <span className="truncate flex-1 text-left">
-                        {displayValue || placeholder}
+                        {displayValue ? toTitleCase(displayValue) : placeholder}
                     </span>
                     <ChevronDown className="h-4 w-4 md:h-6 md:w-6 shrink-0 opacity-50" />
                 </Button>
@@ -124,7 +124,7 @@ export function SearchableSelect({
                                                     value === o.id ? "opacity-100" : "opacity-0"
                                                 )}
                                             />
-                                            {o.name}
+                                            {toTitleCase(o.name)}
                                         </CommandItem>
                                     ))}
 
@@ -139,7 +139,7 @@ export function SearchableSelect({
                                             className="text-[#1CA7A6] text-[15px] font-asap cursor-pointer py-2"
                                         >
                                             <PlusCircle className="mr-2 h-4 w-4 shrink-0" />
-                                            Add "{search.trim()}"
+                                            Add "{toTitleCase(search.trim())}"
                                         </CommandItem>
                                     )}
 

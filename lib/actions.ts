@@ -5,13 +5,13 @@
 import { cookies } from 'next/headers';
 
 /**
- * Converts a component type string to its API endpoint segment.
- * - Replaces all underscores with hyphens (e.g. garage_doors â†’ garage-doors)
- * - Special case: window_door â†’ windows-doors
+ * Converts a component type string to its API endpoint segment by replacing underscores with hyphens.
  */
 function toEndpointType(type: string): string {
-    if (type === 'window_door') return 'windows-doors';
-    return type.replace(/_/g, '-');
+    return (type || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[\s_]+/g, '-');
 }
 
 // Type definitions
@@ -423,7 +423,8 @@ export async function refreshAndSyncSession(refreshTokenValue: string) {
 
     const role = (userProfile.role ? userProfile.role.toLowerCase() : null) || existingRole || 'guest';
     const subAccount = String(userProfile.sub_account ?? existingSubAccount);
-    const hasMembership = String(userProfile.has_membership ?? existingHasMembership);
+    const rawMembership = userProfile.has_membership ?? userProfile.current_subscription?.is_active;
+    const hasMembership = String(rawMembership !== undefined ? Boolean(rawMembership) : existingHasMembership);
 
     cookieStore.set('auth-token', idToken, {
         httpOnly: true,
@@ -1047,6 +1048,34 @@ export async function cancelMembership(): Promise<ActionResult> {
         sameSite: 'lax',
         maxAge: 30 * 24 * 60 * 60
     });
+    return { success: true, data: response.data };
+}
+
+export interface FreeTrialStatusData {
+    has_used_free_trial: boolean;
+    is_free_trial_active: boolean;
+    free_trial_ends_at: string | null;
+    days_left: number;
+    is_expired: boolean;
+    can_claim_free_trial: boolean;
+    display_message: string;
+    upgrade_recommended_levels: string[];
+    show_free_trial_dashboard?: boolean;
+}
+
+export interface FreeTrialStatusResponse {
+    data: FreeTrialStatusData;
+    message: string;
+}
+
+export async function getFreeTrialStatus(): Promise<ActionResult<FreeTrialStatusResponse>> {
+    const response = await fetchApi({
+        url: "/api/membership-plans/free-trial-status",
+        method: "GET",
+    });
+    if (response.type === "error") {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to get free trial status') };
+    }
     return { success: true, data: response.data };
 }
 
@@ -2497,15 +2526,112 @@ export async function getAddedPropertiesListing(params?: { page?: number; limit?
     return { success: true, data: response.data?.data || response.data };
 }
 
-export async function updatePropertyApproval(propertyId: string, status: 'APPROVE' | 'REJECT'): Promise<ActionResult> {
+export async function updatePropertyApproval(propertyId: string, status: 'APPROVE' | 'REJECT', notes?: string): Promise<ActionResult> {
     console.log("api runned")
+    const data: { status: 'APPROVE' | 'REJECT'; notes?: string } = { status };
+    if (notes !== undefined && notes !== '') {
+        data.notes = notes;
+    }
     const response = await fetchApi({
         url: `/api/properties/approvals/${propertyId}`,
         method: 'PUT',
-        data: { status },
+        data,
     });
     if (response.type === 'error') {
         return { success: false, message: normalizeMsg(response.messages, `Failed to ${status.toLowerCase()} property`) };
+    }
+    return { success: true, data: response.data };
+}
+
+export async function updatePropertyStatusToUnderReview(propertyId: string): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: `/api/properties/approvals/${propertyId}`,
+        method: 'PUT',
+        data: { status: 'UNDERREVIEW' },
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to put property under review') };
+    }
+    return { success: true, data: response.data };
+}
+
+export async function updatePropertyStatusToPending(propertyId: string): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: `/api/properties/approvals/${propertyId}`,
+        method: 'PUT',
+        data: { status: 'PENDING' },
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to put property under review') };
+    }
+    return { success: true, data: response.data };
+}
+
+export async function withdrawProperty(propertyId: string): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: `/api/properties/approvals/${propertyId}/withdraw`,
+        method: 'PUT',
+        data: { status: 'WITHDRAWN' },
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to withdraw property') };
+    }
+    return { success: true, data: response.data };
+}
+
+export async function requestPropertyCorrection(propertyId: string): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: `/api/properties/approvals/${propertyId}/request-correction`,
+        method: 'POST',
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to request correction') };
+    }
+    return { success: true, data: response.data };
+}
+
+export async function updateCorrectionStatus(propertyId: string, status: boolean): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: `/api/properties/approvals/${propertyId}/correction-status`,
+        method: 'PUT',
+        data: { status: status ? 'TRUE' : 'FALSE' },
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to update correction status') };
+    }
+    return { success: true, data: response.data };
+}
+
+export async function editPropertyCorrection(propertyId: string, data: any): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: `/api/properties/approvals/${propertyId}/edit-correction`,
+        method: 'PUT',
+        data,
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to edit property correction') };
+    }
+    return { success: true, data: response.data };
+}
+
+export async function getDashboardCounts() : Promise<ActionResult> {
+    const response = await fetchApi({
+        url: '/api/property-approval/dashboard-counts',
+        method: 'GET',
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to get dashboard counts') };
+    }
+    return { success: true, data: response.data };
+}
+
+export async function getPropertyTypes(): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: '/api/property-types/categories',
+        method: 'GET',
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to get property types') };
     }
     return { success: true, data: response.data };
 }

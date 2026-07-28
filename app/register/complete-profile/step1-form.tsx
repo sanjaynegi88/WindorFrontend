@@ -120,7 +120,7 @@ export function Step1Form({ onSubmit, defaultValues }: Step1FormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="w-full">
-        <div className="space-y-[24px] mb-[40px]">
+        <div className="space-y-6 mb-10">
           <FormField
             control={form.control}
             name="firstName"
@@ -212,12 +212,12 @@ export function Step1Form({ onSubmit, defaultValues }: Step1FormProps) {
                       type="button"
                       tabIndex={-1}
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-[19px] top-1/2 -translate-y-1/2 text-[#708090] hover:text-[#1F2A44] transition-colors"
+                      className="absolute right-4.75 top-1/2 -translate-y-1/2 text-[#708090] hover:text-[#1F2A44] transition-colors"
                     >
                       {showPassword ? (
-                        <EyeOff className="h-[28px] w-[28px]" />
+                        <EyeOff className="h-7 w-7" />
                       ) : (
-                        <Eye className="h-[28px] w-[28px]" />
+                        <Eye className="h-7 w-7" />
                       )}
                     </button>
                   </div>
@@ -248,12 +248,12 @@ export function Step1Form({ onSubmit, defaultValues }: Step1FormProps) {
                       type="button"
                       tabIndex={-1}
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-[19px] top-1/2 -translate-y-1/2 text-[#708090] hover:text-[#1F2A44] transition-colors"
+                      className="absolute right-4.75 top-1/2 -translate-y-1/2 text-[#708090] hover:text-[#1F2A44] transition-colors"
                     >
                       {showConfirmPassword ? (
-                        <EyeOff className="h-[28px] w-[28px]" />
+                        <EyeOff className="h-7 w-7" />
                       ) : (
-                        <Eye className="h-[28px] w-[28px]" />
+                        <Eye className="h-7 w-7" />
                       )}
                     </button>
                   </div>
@@ -266,7 +266,7 @@ export function Step1Form({ onSubmit, defaultValues }: Step1FormProps) {
 
         <Button
           type="submit"
-          className="w-full h-[77px] bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-[24px] leading-[28px] rounded-[10px] font-asap"
+          className="w-full h-19.25 bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-[24px] leading-7 rounded-[10px] font-asap"
         >
           Next
         </Button>

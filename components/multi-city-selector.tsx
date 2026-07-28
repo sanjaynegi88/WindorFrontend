@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, ChevronDown } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, toTitleCase } from "@/lib/utils";
 import { Badge, BadgeButton } from "@/components/ui/badge";
 import { getCities } from "@/lib/actions";
 import {
@@ -118,7 +118,7 @@ export function MultiCitySelector({
                       appearance="default"
                       className="pl-2 pr-1 py-0 h-7 rounded-md flex items-center gap-1 text-sm border-none shadow-none"
                     >
-                      {cityName}
+                      {toTitleCase(cityName)}
                       <BadgeButton
                         onClick={(e) => {
                           e.stopPropagation();
@@ -164,10 +164,10 @@ export function MultiCitySelector({
                     >
                       <div className="flex flex-col gap-0.5">
                         <span className="font-medium text-[#1F2A44]">
-                          {city.name}
+                          {toTitleCase(city.name)}
                         </span>
                         <span className="text-xs text-slate-400">
-                          {city.state_name || city.state}
+                          {toTitleCase(city.state_name || city.state)}
                         </span>
                       </div>
                     </CommandItem>

@@ -35,8 +35,9 @@ export function Navbar1() {
   const role = user?.role?.toLowerCase() || "";
 
   const loginUrl = process.env.NEXT_PUBLIC_LOGIN_URL || '/login';
+  const isLoginPage = pathname.startsWith(loginUrl) || pathname === '/login';
   const isAuthPage =
-    pathname.startsWith(loginUrl) ||
+    isLoginPage ||
     pathname.startsWith('/register') ||
     pathname.startsWith('/forgot-password') ||
     pathname.startsWith('/reset-password') ||
@@ -79,7 +80,7 @@ export function Navbar1() {
   }, [user, isAuthPage, isProtectedPage]);
 
   const navItems = useMemo((): { name: string; href: string; activeFor?: string[] }[] => {
-    const landingUrl = process.env.NEXT_PUBLIC_LANDING_PAGE_URL || "#";
+    const landingUrl = process.env.NEXT_PUBLIC_LANDING_PAGE_URL || "/#";
 
     if (!isLoggedIn || !user)
       return [
@@ -156,12 +157,21 @@ export function Navbar1() {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-4">
-            <Link
-              href={process.env.NEXT_PUBLIC_LOGIN_URL || "/login"}
-              className="py-2.5 md:py-3 px-4 md:px-[22px] border border-[#1f2a44] text-secondary-new font-bold uppercase rounded-[6px] no-underline inline-block text-[13px] md:text-[15px] hover:bg-[#1f2a44] hover:text-white transition-all duration-200"
-            >
-              Login
-            </Link>
+            {isLoginPage ? (
+              <Link
+                href="/register"
+                className="py-2.5 md:py-3 px-4 md:px-[22px] font-bold uppercase rounded-[6px]  inline-block text-[13px] md:text-[15px] bg-[#1f2a44] hover:border hover:border-[#1f2a44] hover:bg-white hover:text-[#1f2a44]  text-white transition-all duration-200"
+              >
+                Sign Up
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="py-2.5 md:py-3 px-4 md:px-[22px] border border-[#1f2a44] text-secondary-new font-bold uppercase rounded-[6px] no-underline inline-block text-[13px] md:text-[15px] hover:bg-[#1f2a44] hover:text-white transition-all duration-200"
+              >
+                Login
+              </Link>
+            )}
 
             {/* Mobile Hamburger menu */}
             <button

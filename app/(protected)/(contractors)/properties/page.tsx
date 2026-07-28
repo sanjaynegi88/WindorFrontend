@@ -118,79 +118,81 @@ export default function PropertyPage() {
                     onSearchTriggered={() => setShowResults(true)}
                 />
 
-                <div className="space-y-4 md:space-y-6">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-2xl md:text-4xl font-black text-[#1e293b] tracking-tighter uppercase font-asap">
-                            Properties
-                        </h2>
-                        {role !== "contractor" && (
+                {showResults && (
+                    <div className="space-y-4 md:space-y-6">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-2xl md:text-4xl font-black text-[#1e293b] tracking-tighter uppercase font-asap">
+                                Properties
+                            </h2>
+                            {role !== "contractor" && (
+                                <Button
+                                    onClick={handleGenerateTop10}
+                                    disabled={isGeneratingTop10}
+                                    className="h-9 md:h-11 px-4 md:px-6 rounded-[10px] bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs md:text-sm uppercase tracking-widest gap-2 shadow-none"
+                                >
+                                    {isGeneratingTop10 ? (
+                                        <Loader2 className="size-4 animate-spin" />
+                                    ) : (
+                                        <FileText className="size-4" />
+                                    )}
+                                    <span className="hidden sm:inline">
+                                        Generate reports (max 10)
+                                    </span>
+                                    <span className="sm:hidden">Top 10</span>
+                                </Button>
+                            )}
+                        </div>
+                        <div className="flex gap-3">
                             <Button
-                                onClick={handleGenerateTop10}
-                                disabled={isGeneratingTop10}
-                                className="h-9 md:h-11 px-4 md:px-6 rounded-[10px] bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs md:text-sm uppercase tracking-widest gap-2 shadow-none"
-                            >
-                                {isGeneratingTop10 ? (
-                                    <Loader2 className="size-4 animate-spin" />
-                                ) : (
-                                    <FileText className="size-4" />
+                                onClick={() => setViewMode("list")}
+                                className={cn(
+                                    "px-4 py-2 rounded-lg text-sm font-medium h-auto transition-all",
+                                    viewMode === "list"
+                                        ? "bg-[#1F2A44] text-white shadow-sm"
+                                        : "bg-muted hover:bg-muted/80 text-muted-foreground"
                                 )}
-                                <span className="hidden sm:inline">
-                                    Generate reports (max 10)
-                                </span>
-                                <span className="sm:hidden">Top 10</span>
+                            >
+                                <List className="size-4 mr-2" />
+                                List View
                             </Button>
+                            <Button
+                                onClick={() => setViewMode("map")}
+                                className={cn(
+                                    "px-4 py-2 rounded-lg text-sm font-medium h-auto transition-all",
+                                    viewMode === "map"
+                                        ? "bg-[#1F2A44] text-white shadow-sm"
+                                        : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                                )}
+                            >
+                                <Map className="size-4 mr-2" />
+                                Map View
+                            </Button>
+                        </div>
+                        {viewMode === "list" && (
+                            <PropertyGrid
+                                searchParams={searchParams}
+                                showActionButtons={true}
+                                showDetail={true}
+                                onOpenInMap={(lat, lng, id) => {
+                                    setMapFocus({ lat, lng });
+                                    setMapFocusId(id);
+                                    setViewMode("map");
+                                }}
+                            />
+                        )}
+                        {viewMode === "map" && (
+                            <MapView
+                                searchParams={searchParams}
+                                focusCenter={mapFocus || undefined}
+                                focusId={mapFocusId || undefined}
+                                onFocusCleared={() => {
+                                    setMapFocus(null);
+                                    setMapFocusId(null);
+                                }}
+                            />
                         )}
                     </div>
-                    <div className="flex gap-3">
-                        <Button
-                            onClick={() => setViewMode("list")}
-                            className={cn(
-                                "px-4 py-2 rounded-lg text-sm font-medium h-auto transition-all",
-                                viewMode === "list"
-                                    ? "bg-[#1F2A44] text-white shadow-sm"
-                                    : "bg-muted hover:bg-muted/80 text-muted-foreground"
-                            )}
-                        >
-                            <List className="size-4 mr-2" />
-                            List View
-                        </Button>
-                        <Button
-                            onClick={() => setViewMode("map")}
-                            className={cn(
-                                "px-4 py-2 rounded-lg text-sm font-medium h-auto transition-all",
-                                viewMode === "map"
-                                    ? "bg-[#1F2A44] text-white shadow-sm"
-                                    : "bg-muted hover:bg-muted/80 text-muted-foreground"
-                            )}
-                        >
-                            <Map className="size-4 mr-2" />
-                            Map View
-                        </Button>
-                    </div>
-                    {viewMode === "list" && (
-                        <PropertyGrid
-                            searchParams={searchParams}
-                            showActionButtons={true}
-                            showDetail={true}
-                            onOpenInMap={(lat, lng, id) => {
-                                setMapFocus({ lat, lng });
-                                setMapFocusId(id);
-                                setViewMode("map");
-                            }}
-                        />
-                    )}
-                    {viewMode === "map" && (
-                        <MapView
-                            searchParams={searchParams}
-                            focusCenter={mapFocus || undefined}
-                            focusId={mapFocusId || undefined}
-                            onFocusCleared={() => {
-                                setMapFocus(null);
-                                setMapFocusId(null);
-                            }}
-                        />
-                    )}
-                </div>
+                )}
             </div>
 
             <PdfGenerationLoader

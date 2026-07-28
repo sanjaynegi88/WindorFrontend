@@ -33,6 +33,7 @@ import { useState, useEffect } from "react";
 import { MultiCitySelector } from "@/components/multi-city-selector";
 import { useRouter } from "next/navigation";
 import { toPascalCase } from "@/lib/utils";
+import { ServiceSelect } from "@/components/service-select";
 
 export interface ContractorProfileInitialData {
   id: string;
@@ -221,6 +222,8 @@ export function ContractorProfileForm({
 
               {isPremium && (
                 <>
+                  <ServiceSelect name="services_provided_ids" label="Services Provided" />
+
                   <FormField
                     control={form.control}
                     name="description"

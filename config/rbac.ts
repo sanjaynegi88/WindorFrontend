@@ -50,30 +50,10 @@ export const RBAC_CONFIG: RouteConfig[] = [
     { path: '/admin/property-types', allowedRoles: ['admin'] }
 ];
 
-const envLandingRoute = process.env.NEXT_PUBLIC_LANDING_PAGE_URL;
-const extraPublicLanding = (envLandingRoute && envLandingRoute.startsWith('/') && envLandingRoute !== '/' && !envLandingRoute.startsWith('/#'))
-    ? [envLandingRoute.split('#')[0]]
-    : [];
-
-export const publicRoutes = [
-    '/',
-    '/login',
-    '/register',
-    '/forgot-password',
-    '/verify-otp',
-    '/reset-password',
-    '/subscription/success',
-    '/subscription/cancel',
-    '/subscription/failure',
-    '/purchase/success',
-    '/purchase/cancel',
-    '/purchase/failed',
-    '/contractors',
-    ...extraPublicLanding
-];
+export const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/verify-otp', '/reset-password', '/subscription/success', '/subscription/cancel', '/subscription/failure', '/purchase/success', '/purchase/cancel', '/purchase/failed', '/contractors'];
 
 export function canAccess(role: Role, path: string): boolean {
-    if (path === '/' || publicRoutes.some(route => route === '/' ? path === '/' : path.startsWith(route))) return true;
+    if (path === '/' || publicRoutes.some(route => path.startsWith(route))) return true;
 
     const routePattern = RBAC_CONFIG.find(config => {
         if (config.path === path) return true;

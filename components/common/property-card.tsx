@@ -237,9 +237,9 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
           className="p-4 md:p-8 flex flex-col h-full min-h-[140px] md:min-h-[220px]">
           <div className="space-y-1 flex justify-between">
             <div className='w-[60%] mb-[30px]'>
-              <h3 className="text-[15px] md:text-2xl font-black text-[#1e293b] leading-[20px] md:leading-tight tracking-tighter uppercase font-asap">
+              {/* <h3 className="text-[15px] md:text-2xl font-black text-[#1e293b] leading-[20px] md:leading-tight tracking-tighter uppercase font-asap">
                 {propertyName}
-              </h3>
+              </h3> */}
             </div>
             <div className="shrink-0 absolute right-[32px] z-10">
               {showActionButtons && canAddNewProject && !(isAdmin || isCityInspector) ?

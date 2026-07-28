@@ -60,6 +60,15 @@ export default function ProjectList() {
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [isGeneratingTop10, setIsGeneratingTop10] = useState(false);
+  const isAdmin = role === "admin";
+  const hasMembershipCookie =
+    typeof document !== "undefined" &&
+    document.cookie
+      .split("; ")
+      .some((c) => c.trim().startsWith("has-membership=true"));
+  const hasMembership =
+    isAdmin ||
+    Boolean(user?.has_membership ?? user?.hasMembership ?? hasMembershipCookie);
 
   const handleGenerateTop10 = async () => {
     if (!user) {
@@ -104,6 +113,19 @@ export default function ProjectList() {
       setIsGeneratingTop10(false);
     }
   };
+
+  const handleSearchTriggered = () => {
+    if (!hasMembership) {
+      toast.error(
+        "Active membership is required to search properties. Please purchase a membership plan.",
+      );
+      setShowResults(false);
+      return;
+    }
+    setShowResults(true);
+  };
+
+  const resultsVisible = showResults;
   return (
     <Content className="p-0 bg-linear-to-b from-[#F5FFFF] to-[#FFFFFF] min-h-[calc(100vh-80px)] flex flex-col items-center">
       <div className="w-full max-w-[1170px] px-4 py-8 md:py-16 space-y-[20px] md:space-y-[30px]">
@@ -122,33 +144,41 @@ export default function ProjectList() {
         <UnifiedSearchBar
           showSearchButton={true}
           onChange={setFilters}
-          onSearchTriggered={() => setShowResults(true)}
+          onSearchTriggered={handleSearchTriggered}
+          allowEmptySearch={false}
         />
 
-        <div className="space-y-4 md:space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl md:text-4xl font-black text-[#1e293b] tracking-tighter uppercase font-asap">
-              Properties
-            </h2>
-            <Button
-              onClick={handleGenerateTop10}
-              disabled={isGeneratingTop10}
-              className="h-9 md:h-11 px-4 md:px-6 rounded-[10px] bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs md:text-sm uppercase tracking-widest gap-2 shadow-none"
-            >
-              {isGeneratingTop10 ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <FileText className="size-4" />
-              )}
-              <span className="hidden sm:inline">
-                Generate reports (max 10)
-              </span>
-              <span className="sm:hidden">Top 10</span>
-            </Button>
-          </div>
-        </div>
-
-        <PropertyGrid searchParams={searchParams} redirectUrl="properties/new?propertyId=" isPropertyOwner={isPropertyOwner} />
+        {resultsVisible && (
+          <>
+            <div className="space-y-4 md:space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl md:text-4xl font-black text-[#1e293b] tracking-tighter uppercase font-asap">
+                  Properties
+                </h2>
+                <Button
+                  onClick={handleGenerateTop10}
+                  disabled={isGeneratingTop10}
+                  className="h-9 md:h-11 px-4 md:px-6 rounded-[10px] bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs md:text-sm uppercase tracking-widest gap-2 shadow-none"
+                >
+                  {isGeneratingTop10 ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <FileText className="size-4" />
+                  )}
+                  <span className="hidden sm:inline">
+                    Generate reports (max 10)
+                  </span>
+                  <span className="sm:hidden">Top 10</span>
+                </Button>
+              </div>
+            </div>
+            <PropertyGrid
+              searchParams={searchParams}
+              redirectUrl="properties/new?propertyId="
+              isPropertyOwner={isPropertyOwner}
+            />
+          </>
+        )}
 
         {/* Back Button */}
         <div className="flex justify-center pt-8">
