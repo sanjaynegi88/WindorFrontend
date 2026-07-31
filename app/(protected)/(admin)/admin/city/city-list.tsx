@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 import {
   ColumnDef,
   getCoreRowModel,
@@ -10,7 +10,7 @@ import {
   PaginationState,
   SortingState,
   useReactTable,
-} from '@tanstack/react-table';
+} from "@tanstack/react-table";
 import {
   Search,
   MoreVertical,
@@ -22,9 +22,9 @@ import {
   Filter,
   CheckCircle2,
   XCircle,
-  Plus
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
+  Plus,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardFooter,
@@ -32,18 +32,18 @@ import {
   CardHeading,
   CardTable,
   CardToolbar,
-} from '@/components/ui/card';
-import { DataGrid } from '@/components/ui/data-grid';
-import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
-import { DataGridColumnVisibility } from '@/components/ui/data-grid-column-visibility';
-import { DataGridPagination } from '@/components/ui/data-grid-pagination';
+} from "@/components/ui/card";
+import { DataGrid } from "@/components/ui/data-grid";
+import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
+import { DataGridColumnVisibility } from "@/components/ui/data-grid-column-visibility";
+import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import {
   DataGridTable,
   DataGridTableRowSelect,
   DataGridTableRowSelectAll,
-} from '@/components/ui/data-grid-table';
-import { Input } from '@/components/ui/input';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+} from "@/components/ui/data-grid-table";
+import { Input } from "@/components/ui/input";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,16 +51,16 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { getCities, deleteCity, getStates } from '@/lib/actions';
-import { Skeleton } from '@/components/ui/skeleton';
+} from "@/components/ui/select";
+import { getCities, deleteCity, getStates } from "@/lib/actions";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -70,22 +70,28 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { toast } from 'sonner';
-import { CityFormDialog } from './city-form-dialog';
-import { Badge } from '@/components/ui/badge';
-import { formatDate } from '@/lib/helpers';
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { CityFormDialog } from "./city-form-dialog";
+import { Badge } from "@/components/ui/badge";
+import { formatDate } from "@/lib/helpers";
+import { toTitleCase } from "@/lib/utils";
 
-
-export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger: number, onSuccess: () => void }) {
+export default function CityList({
+  refreshTrigger,
+  onSuccess,
+}: {
+  refreshTrigger: number;
+  onSuccess: () => void;
+}) {
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
   });
 
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>([]);
   const [editingCity, setEditingCity] = useState<any | null>(null);
@@ -94,18 +100,32 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [stateOptions, setStateOptions] = useState<{ id: string; name: string }[]>([]);
-  const [selectedStateId, setSelectedStateId] = useState<string>('');
+  const [stateOptions, setStateOptions] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [selectedStateId, setSelectedStateId] = useState<string>("");
 
   const handleSuccess = () => {
     onSuccess?.();
     setIsAddDialogOpen(false);
   };
 
-  const fetchData = async (page: number = 1, limit: number = 10, name?: string, state_id?: string) => {
+  const fetchData = async (
+    page: number = 1,
+    limit: number = 10,
+    name?: string,
+    state_id?: string,
+  ) => {
     setLoading(true);
     try {
-      const response = await getCities(page, limit, undefined, name || undefined, state_id || undefined, true);
+      const response = await getCities(
+        page,
+        limit,
+        undefined,
+        name || undefined,
+        state_id || undefined,
+        true,
+      );
       if (response && response.data) {
         setData(response.data);
         if (response.pagination) {
@@ -116,8 +136,8 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
         setData([]);
       }
     } catch (error: any) {
-      console.error('Error fetching city list:', error);
-      toast.error(error.message || 'Failed to load cities');
+      console.error("Error fetching city list:", error);
+      toast.error(error.message || "Failed to load cities");
     } finally {
       setLoading(false);
     }
@@ -125,10 +145,17 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
 
   // Fetch state options for filter dropdown
   useEffect(() => {
-    getStates(1, 1000).then((res) => {
-      const raw = Array.isArray(res) ? res : res?.data || [];
-      setStateOptions(raw.map((s: any) => ({ id: String(s.id), name: s.state_name || s.name })));
-    }).catch(() => { });
+    getStates(1, 1000)
+      .then((res) => {
+        const raw = Array.isArray(res) ? res : res?.data || [];
+        setStateOptions(
+          raw.map((s: any) => ({
+            id: String(s.id),
+            name: s.state_name || s.name,
+          })),
+        );
+      })
+      .catch(() => {});
   }, []);
 
   // Debounce search query
@@ -145,8 +172,19 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
   }, [debouncedSearch, selectedStateId]);
 
   useEffect(() => {
-    fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch, selectedStateId);
-  }, [refreshTrigger, pagination.pageIndex, pagination.pageSize, debouncedSearch, selectedStateId]);
+    fetchData(
+      pagination.pageIndex + 1,
+      pagination.pageSize,
+      debouncedSearch,
+      selectedStateId,
+    );
+  }, [
+    refreshTrigger,
+    pagination.pageIndex,
+    pagination.pageSize,
+    debouncedSearch,
+    selectedStateId,
+  ]);
 
   const handleDelete = (id: string) => {
     setDeleteId(id);
@@ -159,11 +197,16 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
     setIsDeleting(false);
     setDeleteId(null);
     if (!result.success) {
-      toast.error(result.message || 'Failed to delete city');
+      toast.error(result.message || "Failed to delete city");
       return;
     }
-    toast.success('City deleted successfully');
-    fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch, selectedStateId);
+    toast.success("City deleted successfully");
+    fetchData(
+      pagination.pageIndex + 1,
+      pagination.pageSize,
+      debouncedSearch,
+      selectedStateId,
+    );
   };
 
   const handleEdit = (city: any) => {
@@ -175,9 +218,13 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
   const columns = useMemo<ColumnDef<any>[]>(
     () => [
       {
-        accessorKey: 'index',
-        id: 'index',
-        header: () => <div className="text-center text-[0.8125rem] font-normal text-foreground/70">Id</div>,
+        accessorKey: "index",
+        id: "index",
+        header: () => (
+          <div className="text-center text-[0.8125rem] font-normal text-foreground/70">
+            Id
+          </div>
+        ),
         cell: ({ row }) => (
           <div className="text-center font-medium text-muted-foreground/70">
             {pageIndex * pageSize + row.index + 1}
@@ -187,13 +234,13 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
         size: 60,
         meta: {
           skeleton: <Skeleton className="w-1/2 h-5" />,
-          headerClassName: 'ps-4',
-          cellClassName: 'ps-4',
-        }
+          headerClassName: "ps-4",
+          cellClassName: "ps-4",
+        },
       },
       {
-        accessorKey: 'name',
-        id: 'name',
+        accessorKey: "name",
+        id: "name",
         header: ({ column }) => (
           <DataGridColumnHeader
             title="City Name"
@@ -209,7 +256,7 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
               </div>
               <div className="flex flex-col">
                 <span className="font-semibold text-foreground text-sm leading-tight">
-                  {row.original.name}
+                  {toTitleCase(row.original.name)}
                 </span>
               </div>
             </div>
@@ -220,12 +267,12 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
         enableHiding: false,
         enableResizing: true,
         meta: {
-          skeleton: <Skeleton className="w-1/2 h-5" />
-        }
+          skeleton: <Skeleton className="w-1/2 h-5" />,
+        },
       },
       {
-        accessorKey: 'state',
-        id: 'state',
+        accessorKey: "state",
+        id: "state",
         header: ({ column }) => (
           <DataGridColumnHeader
             title="State"
@@ -238,7 +285,7 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
             <div className="flex items-center gap-3">
               <div className="flex flex-col">
                 <span className="font-semibold text-foreground text-sm leading-tight">
-                  {row.original.state_entity?.state_name || 'N/A'}
+                  {row.original.state_entity?.state_name || "N/A"}
                 </span>
               </div>
             </div>
@@ -249,12 +296,12 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
         enableHiding: false,
         enableResizing: true,
         meta: {
-          skeleton: <Skeleton className="w-1/2 h-5" />
-        }
+          skeleton: <Skeleton className="w-1/2 h-5" />,
+        },
       },
       {
-        accessorKey: 'zip_codes',
-        id: 'zip_codes',
+        accessorKey: "zip_codes",
+        id: "zip_codes",
         header: ({ column }) => (
           <DataGridColumnHeader
             title="Zip Codes"
@@ -265,15 +312,17 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
         cell: ({ row }) => {
           return (
             <div className="flex flex-wrap gap-1 max-w-75">
-              {(row.original.zip_codes || []).map((zipObj: any, idx: number) => (
-                <Badge
-                  key={idx}
-                  variant="primary"
-                  className="text-[10px] px-1.5 py-0"
-                >
-                  {zipObj}
-                </Badge>
-              ))}
+              {(row.original.zip_codes || []).map(
+                (zipObj: any, idx: number) => (
+                  <Badge
+                    key={idx}
+                    variant="primary"
+                    className="text-[10px] px-1.5 py-0"
+                  >
+                    {zipObj}
+                  </Badge>
+                ),
+              )}
             </div>
           );
         },
@@ -282,12 +331,12 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
         enableHiding: true,
         enableResizing: true,
         meta: {
-          skeleton: <Skeleton className="w-3/4 h-5" />
-        }
+          skeleton: <Skeleton className="w-3/4 h-5" />,
+        },
       },
       {
-        accessorKey: 'updated_at',
-        id: 'updated_at',
+        accessorKey: "updated_at",
+        id: "updated_at",
         header: ({ column }) => (
           <DataGridColumnHeader
             title="Last Updated"
@@ -306,11 +355,11 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
         enableHiding: true,
         enableResizing: true,
         meta: {
-          skeleton: <Skeleton className="w-24 h-5" />
-        }
+          skeleton: <Skeleton className="w-24 h-5" />,
+        },
       },
       {
-        id: 'actions',
+        id: "actions",
         cell: ({ row }) => {
           return (
             <DropdownMenu>
@@ -321,7 +370,10 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuItem className='cursor-pointer' onClick={() => handleEdit(row.original)}>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => handleEdit(row.original)}
+                >
                   <Edit className="size-3.5 mr-2" />
                   Edit City
                 </DropdownMenuItem>
@@ -361,7 +413,7 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
       sorting,
       columnOrder,
     },
-    columnResizeMode: 'onChange',
+    columnResizeMode: "onChange",
     onColumnOrderChange: setColumnOrder,
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
@@ -377,7 +429,7 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
         recordCount={totalRecords}
         isLoading={loading}
         tableClassNames={{
-          bodyRow: 'group/row',
+          bodyRow: "group/row",
         }}
         tableLayout={{
           dense: true,
@@ -451,13 +503,16 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
         onSuccess={handleSuccess}
       />
 
-      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+      <AlertDialog
+        open={!!deleteId}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+      >
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the city
-              and remove its data from our servers.
+              This action cannot be undone. This will permanently delete the
+              city and remove its data from our servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-0">
@@ -467,11 +522,11 @@ export default function CityList({ refreshTrigger, onSuccess }: { refreshTrigger
               disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
             >
-              {isDeleting ? 'Deleting...' : 'Delete City'}
+              {isDeleting ? "Deleting..." : "Delete City"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
   );
-};
+}

@@ -1,20 +1,36 @@
-'use client';
+"use client";
 
-import { Card, CardContent } from '@/components/ui/card';
-import { ArrowRight, MoreVertical, Edit2, FileText, ShoppingCart, ShieldCheck, Plus, Trash2, MapPin, FileUp } from 'lucide-react';
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  ArrowRight,
+  MoreVertical,
+  Edit2,
+  FileText,
+  ShoppingCart,
+  ShieldCheck,
+  Plus,
+  Trash2,
+  MapPin,
+  FileUp,
+} from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
-import Image from 'next/image';
-import { generatePdfReport, purchaseReport, getReportUsage, deleteProperty } from '@/lib/actions';
-import { toast } from 'sonner';
-import { useUser } from '@/components/providers/user-provider';
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import Image from "next/image";
+import {
+  generatePdfReport,
+  purchaseReport,
+  getReportUsage,
+  deleteProperty,
+} from "@/lib/actions";
+import { toast } from "sonner";
+import { useUser } from "@/components/providers/user-provider";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,11 +40,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { PdfGenerationLoader } from './pdf-generation-loader';
-import { PropertyVerifySidebar } from './property-verify-sidebar';
-import { downloadPdfFromUrl, getErrorMessage } from '@/lib/utils';
-import { useRouter } from 'next/navigation';
+} from "@/components/ui/alert-dialog";
+import { PdfGenerationLoader } from "./pdf-generation-loader";
+import { PropertyVerifySidebar } from "./property-verify-sidebar";
+import { downloadPdfFromUrl, getErrorMessage } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 interface PropertyCardProps {
   id: string;
@@ -50,7 +66,24 @@ interface PropertyCardProps {
   onOpenInMap?: (lat: number, lng: number, id: string) => void;
 }
 
-export function PropertyCard({ address, address2, city, state, zip, propertyId, hasReport, isPurchased = false, propertyName, propertyOwnerEmail, redirectUrl, showActionButtons, showDetail, latitude, longitude, onOpenInMap }: PropertyCardProps) {
+export function PropertyCard({
+  address,
+  address2,
+  city,
+  state,
+  zip,
+  propertyId,
+  hasReport,
+  isPurchased = false,
+  propertyName,
+  propertyOwnerEmail,
+  redirectUrl,
+  showActionButtons,
+  showDetail,
+  latitude,
+  longitude,
+  onOpenInMap,
+}: PropertyCardProps) {
   const { user, role } = useUser();
   const [isGenerating, setIsGenerating] = useState(false);
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
@@ -60,31 +93,32 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
 
   const router = useRouter();
 
-  const isAdmin = role === 'admin';
-  const isCityInspector = role === 'city_inspector';
-  const isContractor = role === 'contractor';
-  const isPropertyOwner = role === 'property_owner' || role === 'realtor';
-  const isOwnerOfProperty = isPropertyOwner && !!propertyOwnerEmail && user?.email === propertyOwnerEmail;
+  const isAdmin = role === "admin";
+  const isCityInspector = role === "city_inspector";
+  const isContractor = role === "contractor";
+  const isPropertyOwner = role === "property_owner" || role === "realtor";
+  const isOwnerOfProperty =
+    isPropertyOwner &&
+    !!propertyOwnerEmail &&
+    user?.email === propertyOwnerEmail;
   const canVerify = isAdmin || isCityInspector || isOwnerOfProperty;
-
 
   const canAddNewProject = isContractor || isAdmin || isOwnerOfProperty;
 
   const [isVerifySidebarOpen, setIsVerifySidebarOpen] = useState(false);
 
   useEffect(() => {
-    if (role === 'insurance_company') {
+    if (role === "insurance_company") {
       fetchReportUsage();
     }
   }, [role]);
-
 
   const fetchReportUsage = async () => {
     try {
       const response = await getReportUsage();
       setReportUsage(response.data);
     } catch (error: any) {
-      console.error('Failed to fetch report usage:', error);
+      console.error("Failed to fetch report usage:", error);
     }
   };
 
@@ -93,15 +127,15 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
     try {
       const url = await generatePdfReport(propertyId, undefined, user?.role);
       await downloadPdfFromUrl(url, `property-report-${propertyId}.pdf`);
-      toast.success('Report downloaded successfully');
+      toast.success("Report downloaded successfully");
       setPurchased(true);
 
-      if (user?.role === 'insurance_company') {
+      if (user?.role === "insurance_company") {
         await fetchReportUsage();
       }
     } catch (error: any) {
-      console.error('Download report error:', error);
-      toast.error(error.message || 'Failed to download report');
+      console.error("Download report error:", error);
+      toast.error(error.message || "Failed to download report");
     } finally {
       setIsGenerating(false);
     }
@@ -119,15 +153,15 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
       }
 
       if (response.data?.checkoutUrl) {
-        localStorage.setItem('pending_report_id', propertyId);
+        localStorage.setItem("pending_report_id", propertyId);
         window.location.href = response.data.checkoutUrl;
       } else {
-        toast.success('Report purchased successfully');
+        toast.success("Report purchased successfully");
         setPurchased(true);
         await downloadReport();
       }
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error, 'Something went wrong.'));
+      toast.error(getErrorMessage(error, "Something went wrong."));
       setIsGenerating(false);
     }
   };
@@ -141,16 +175,16 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
         toast.error(resposne.message);
         return;
       }
-      toast.success('Property deleted successfully');
+      toast.success("Property deleted successfully");
       setPurchased(true);
       router.refresh();
 
-      if (user?.role === 'insurance_company') {
+      if (user?.role === "insurance_company") {
         await fetchReportUsage();
       }
     } catch (error: any) {
-      console.error('Delete property error:', error);
-      toast.error(error.message || 'Failed to delete property');
+      console.error("Delete property error:", error);
+      toast.error(error.message || "Failed to delete property");
     } finally {
       setIsGenerating(false);
     }
@@ -158,19 +192,24 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
 
   return (
     <>
-      <Card className="overflow-hidden shadow-none hover:shadow-lg transition-all group rounded-[10px] cursor-pointer bg-white border border-[#1CA7A6] relative h-full flex flex-col"
-
-      >
+      <Card className="overflow-hidden shadow-none hover:shadow-lg transition-all group rounded-[10px] cursor-pointer bg-white border border-[#1CA7A6] relative h-full flex flex-col">
         {showActionButtons && (isAdmin || isCityInspector) ? (
-          <div className="absolute top-3 right-3 z-10 has-data-[state=open]:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="absolute top-3 right-3 z-10 has-data-[state=open]:opacity-100 transition-opacity"
+            onClick={(e) => e.stopPropagation()}
+          >
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-[#1F2A44] text-gray-500 hover:text-white">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full hover:bg-[#1F2A44] text-gray-500 hover:text-white"
+                >
                   <MoreVertical className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40 rounded-xl">
-                {hasReport &&
+                {hasReport && (
                   <DropdownMenuItem
                     onClick={() => {
                       if (latitude && longitude && onOpenInMap) {
@@ -182,9 +221,13 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
                   >
                     <MapPin className="size-3.5" />
                     <span className="text-xs font-bold">Open in Map</span>
-                  </DropdownMenuItem>}
+                  </DropdownMenuItem>
+                )}
                 {isAdmin && (
-                  <DropdownMenuItem asChild className="gap-2 cursor-pointer py-2">
+                  <DropdownMenuItem
+                    asChild
+                    className="gap-2 cursor-pointer py-2"
+                  >
                     <Link href={`/properties/edit/${propertyId}`}>
                       <Edit2 className="size-3.5" />
                       <span className="text-xs font-bold">Edit</span>
@@ -202,10 +245,15 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
                 )}
                 {canAddNewProject && (
                   <>
-                    <DropdownMenuItem asChild className="gap-2 cursor-pointer py-2">
+                    <DropdownMenuItem
+                      asChild
+                      className="gap-2 cursor-pointer py-2"
+                    >
                       <Link href={`/properties/new?propertyId=${propertyId}`}>
                         <FileText className="size-3.5" />
-                        <span className="text-xs font-bold">Create New Project</span>
+                        <span className="text-xs font-bold">
+                          Create New Project
+                        </span>
                       </Link>
                     </DropdownMenuItem>
                   </>
@@ -223,8 +271,12 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
             </DropdownMenu>
           </div>
         ) : (
-          showActionButtons && canAddNewProject && (
-            <div className="absolute top-3 right-3 z-10 transition-opacity text-[#1CA7A6]" onClick={(e) => e.stopPropagation()}>
+          showActionButtons &&
+          canAddNewProject && (
+            <div
+              className="absolute top-3 right-3 z-10 transition-opacity text-[#1CA7A6]"
+              onClick={(e) => e.stopPropagation()}
+            >
               <Link href={`/properties/new?propertyId=${propertyId}`}>
                 <Plus className="size-6 mr-2" />
               </Link>
@@ -233,18 +285,26 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
         )}
 
         <CardContent
-          onClick={() => { router.push(`${redirectUrl}${propertyId}`) }}
-          className="p-4 md:p-8 flex flex-col h-full min-h-[140px] md:min-h-[220px]">
+          onClick={() => {
+            router.push(`${redirectUrl}${propertyId}`);
+          }}
+          className="p-4 md:p-8 flex flex-col h-full min-h-[140px] md:min-h-[220px]"
+        >
           <div className="space-y-1 flex justify-between">
-            <div className='w-[60%] mb-[30px]'>
+            <div className="w-[60%] mb-[30px]">
               {/* <h3 className="text-[15px] md:text-2xl font-black text-[#1e293b] leading-[20px] md:leading-tight tracking-tighter uppercase font-asap">
                 {propertyName}
               </h3> */}
             </div>
             <div className="shrink-0 absolute right-[32px] z-10">
-              {showActionButtons && canAddNewProject && !(isAdmin || isCityInspector) ?
+              {showActionButtons &&
+              canAddNewProject &&
+              !(isAdmin || isCityInspector) ? (
                 <>
-                  <Link href={`/properties/new?propertyId=${propertyId}`} onClick={(e) => e.stopPropagation()}>
+                  <Link
+                    href={`/properties/new?propertyId=${propertyId}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Image
                       src="/assets/home-icon.png"
                       alt="view-property"
@@ -253,7 +313,10 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
                       className="md:hidden"
                     />
                   </Link>
-                  <Link href={`/properties/new?propertyId=${propertyId}`} onClick={(e) => e.stopPropagation()}>
+                  <Link
+                    href={`/properties/new?propertyId=${propertyId}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Image
                       src="/assets/home-icon.png"
                       alt="view-property"
@@ -263,7 +326,7 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
                     />
                   </Link>
                 </>
-                :
+              ) : (
                 <>
                   <Image
                     src="/assets/home-icon.png"
@@ -279,14 +342,23 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
                     height={60}
                     className="hidden md:block"
                   />
-                </>}
+                </>
+              )}
             </div>
           </div>
 
           <div className="space-y-0 mt-2">
-            <p className="text-[14px] md:text-lg font-bold text-gray-400">{address}</p>
-            {address2 && <p className="text-[14px] md:text-lg font-bold text-gray-400">{address2}</p>}
-            <p className="text-[14px] md:text-lg font-bold text-gray-400">{city} {state} {zip}</p>
+            <p className="text-[14px] md:text-lg font-bold text-gray-400 max-w-9/12 wrap-break-word">
+              {address}
+            </p>
+            {address2 && (
+              <p className="text-[14px] md:text-lg font-bold text-gray-400">
+                {address2}
+              </p>
+            )}
+            <p className="text-[14px] md:text-lg font-bold text-gray-400">
+              {city} {state} {zip}
+            </p>
           </div>
           <div className="mt-auto pt-4 md:pt-6 flex flex-row justify-between items-center">
             <div>
@@ -295,24 +367,30 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
                 className="inline-flex items-center gap-2 text-[#1CA7A6] font-black text-xs md:text-sm uppercase tracking-[0.2em] group/link font-asap"
               >
                 {showDetail ? "Learn More" : "Add Project"}
-                {showDetail ? <ArrowRight className="size-4 md:size-5 transition-transform -rotate-45" /> : <Plus className="size-4 md:size-5 transition-transform" />}
+                {showDetail ? (
+                  <ArrowRight className="size-4 md:size-5 transition-transform -rotate-45" />
+                ) : (
+                  <Plus className="size-4 md:size-5 transition-transform" />
+                )}
               </Link>
             </div>
             <div className="flex items-center gap-4">
-              {canVerify && !(isAdmin || isCityInspector) && showActionButtons && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsVerifySidebarOpen(true);
-                  }}
-                  className="flex items-center gap-2 cursor-pointer text-[#1CA7A6] hover:opacity-80 transition-opacity"
-                  title="Upload Documents"
-                >
-                  <FileUp className="size-5 text-[#1CA7A6]" />
-                </button>
-              )}
-              {hasReport && showActionButtons &&
+              {canVerify &&
+                !(isAdmin || isCityInspector) &&
+                showActionButtons && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsVerifySidebarOpen(true);
+                    }}
+                    className="flex items-center gap-2 cursor-pointer text-[#1CA7A6] hover:opacity-80 transition-opacity"
+                    title="Upload Documents"
+                  >
+                    <FileUp className="size-5 text-[#1CA7A6]" />
+                  </button>
+                )}
+              {hasReport && showActionButtons && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -326,23 +404,25 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
                 >
                   <MapPin className="size-5 text-[#1CA7A6] tracking-[0.2em] group/link" />
                 </button>
-              }
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <AlertDialog open={showPurchaseDialog} onOpenChange={setShowPurchaseDialog}>
+      <AlertDialog
+        open={showPurchaseDialog}
+        onOpenChange={setShowPurchaseDialog}
+      >
         <AlertDialogContent className="sm:max-w-[425px] rounded-[20px] border-none shadow-[0px_4px_34px_rgba(31,42,68,0.1)]">
           <AlertDialogHeader className="space-y-3">
             <AlertDialogTitle className="text-xl md:text-2xl font-black text-[#1F2A44] uppercase tracking-tight font-asap">
               Purchase Report
             </AlertDialogTitle>
             <AlertDialogDescription className="text-sm text-gray-600 font-medium leading-relaxed">
-              {user?.role === 'contractor'
-                ? 'This report requires purchase. Would you like to proceed with the payment?'
-                : `You have ${reportUsage?.remaining || 0} free reports remaining. Would you like to purchase this report?`
-              }
+              {user?.role === "contractor"
+                ? "This report requires purchase. Would you like to proceed with the payment?"
+                : `You have ${reportUsage?.remaining || 0} free reports remaining. Would you like to purchase this report?`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-2 mt-4">
@@ -366,7 +446,8 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
               Delete Property
             </AlertDialogTitle>
             <AlertDialogDescription className="text-sm text-gray-600 font-medium leading-relaxed">
-              Are you sure you want to delete this property? This action cannot be undone.
+              Are you sure you want to delete this property? This action cannot
+              be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-2 mt-4">
@@ -383,7 +464,10 @@ export function PropertyCard({ address, address2, city, state, zip, propertyId, 
         </AlertDialogContent>
       </AlertDialog>
 
-      <PdfGenerationLoader isOpen={isGenerating} message="Generating Report..." />
+      <PdfGenerationLoader
+        isOpen={isGenerating}
+        message="Generating Report..."
+      />
 
       <PropertyVerifySidebar
         propertyId={propertyId}

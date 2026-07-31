@@ -65,15 +65,17 @@ export function ContractorProfileForm({
 }: ContractorProfileFormProps) {
   const isEditMode = !!profileId && !!initialData;
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [services, setServices] = useState<{ id: string; service_name: string }[]>([]);
+  const [services, setServices] = useState<
+    { id: string; service_name: string }[]
+  >([]);
   const isPremium = membershipLevel === "GOLD";
   const router = useRouter();
 
   const formatReportType = (value: string) =>
     value
-      .split('_')
+      .split("_")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
+      .join(" ");
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -92,7 +94,6 @@ export function ContractorProfileForm({
     selected_cities: z.array(z.string()).min(1, "Select at least one city"),
     description: z.string().optional(),
     company_logo: z.any().optional(),
-    services_provided_ids: z.array(z.string()).optional(),
   });
 
   type ContractorProfileFormValues = z.infer<typeof contractorProfileSchema>;
@@ -102,19 +103,15 @@ export function ContractorProfileForm({
     defaultValues: {
       selected_cities: [],
       description: "",
-      services_provided_ids: [],
     },
   });
 
   useEffect(() => {
     if (initialData) {
-
       form.reset({
-
         selected_cities: initialData.selectedCities,
         description: initialData.description ?? "",
       });
-
     }
   }, [initialData, form]);
 
@@ -131,15 +128,14 @@ export function ContractorProfileForm({
         if (data.company_logo?.[0]) {
           formData.append("company_logo", data.company_logo[0]);
         }
-        if (data.services_provided_ids?.length) {
-          data.services_provided_ids.forEach((id) => {
-            formData.append("services_provided_ids", id);
-          });
-        }
       }
 
       if (isEditMode) {
-        const response = await updateContractorProfile(profileId, formData, role);
+        const response = await updateContractorProfile(
+          profileId,
+          formData,
+          role,
+        );
         if (!response.success) {
           toast.error(response.message);
           return;
@@ -159,9 +155,9 @@ export function ContractorProfileForm({
     } catch (error: any) {
       toast.error(
         error.message ||
-        (isEditMode
-          ? "Failed to update contractor profile"
-          : "Failed to create contractor profile"),
+          (isEditMode
+            ? "Failed to update contractor profile"
+            : "Failed to create contractor profile"),
       );
     } finally {
       setIsSubmitting(false);
@@ -170,13 +166,14 @@ export function ContractorProfileForm({
 
   const handleSkip = async () => {
     if (!isEditMode) {
-      toast.success("You can add your profile in Directory Listing later by visiting the Profile page.");
-      router.push("/dashboard")
+      toast.success(
+        "You can add your profile in Directory Listing later by visiting the Profile page.",
+      );
+      router.push("/dashboard");
+    } else {
+      router.back();
     }
-    else {
-      router.back()
-    }
-  }
+  };
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -219,50 +216,6 @@ export function ContractorProfileForm({
                   </FormItem>
                 )}
               />
-
-              {isPremium && (
-                <>
-                  <ServiceSelect name="services_provided_ids" label="Services Provided" />
-
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <Label className="text-xs font-bold uppercase">
-                          Description
-                        </Label>
-                        <FormControl>
-                          <Textarea {...field} rows={4} className="w-full bg-white border border-[rgba(112,128,144,0.23)] text-[#1F2A44] placeholder:text-[#1F2A44]/50 font-asap font-medium  px-3 py-3 focus-visible:border-[#1CA7A6] focus-visible:ring-[#1CA7A6]/30 focus-visible:outline-none resize-none transition-[color,box-shadow]" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="company_logo"
-                    render={({ field: { onChange, value, ...field } }) => (
-                      <FormItem>
-                        <Label className="text-xs font-bold uppercase">
-                          Company Logo
-                        </Label>
-                        <FormControl>
-                          <Input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => onChange(e.target.files)}
-                            {...field}
-                            className="h-12 "
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </>
-              )}
             </CardContent>
           </Card>
 

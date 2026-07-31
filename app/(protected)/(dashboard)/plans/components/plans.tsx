@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Loader2, Star, Zap, Building2, Crown, Clock } from "lucide-react";
+import {
+  Check,
+  Loader2,
+  Star,
+  Zap,
+  Building2,
+  Crown,
+  Clock,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -61,12 +69,18 @@ const Plans = () => {
   const [isAnnual, setIsAnnual] = useState(false);
   const [plans, setPlans] = useState<IPlanData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [subscribingPlanId, setSubscribingPlanId] = useState<string | null>(null);
+  const [subscribingPlanId, setSubscribingPlanId] = useState<string | null>(
+    null,
+  );
   const [isCancelling, setIsCancelling] = useState(false);
   const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
-  const [currentBillingCycle, setCurrentBillingCycle] = useState<string | null>(null);
+  const [currentBillingCycle, setCurrentBillingCycle] = useState<string | null>(
+    null,
+  );
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const [trialStatus, setTrialStatus] = useState<FreeTrialStatusData | null>(null);
+  const [trialStatus, setTrialStatus] = useState<FreeTrialStatusData | null>(
+    null,
+  );
 
   const hasAnnualPlans = plans.some(
     (plan) => plan.yearlyAmount !== null && plan.yearlyAmount !== undefined,
@@ -101,7 +115,8 @@ const Plans = () => {
         if (user) {
           setUser({ ...user, has_membership: true });
         }
-        document.cookie = "has-membership=true; path=/; max-age=" + 30 * 24 * 60 * 60;
+        document.cookie =
+          "has-membership=true; path=/; max-age=" + 30 * 24 * 60 * 60;
         toast.success("Free membership activated successfully!");
         localStorage.removeItem("pending_level");
         window.location.replace("/dashboard");
@@ -128,43 +143,49 @@ const Plans = () => {
 
     setCurrentPlanId(null);
     setCurrentBillingCycle(null);
+    fetchData();
     if (user) {
       setUser({ ...user, has_membership: false });
     }
     toast.success("Membership cancelled successfully");
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const roleFilter = role && role !== "admin" ? roleMapping[role] : undefined;
-        const [plansResponse, profileResponse, trialResponse] = await Promise.all([
+  const fetchData = async () => {
+    try {
+      const roleFilter =
+        role && role !== "admin" ? roleMapping[role] : undefined;
+      const [plansResponse, profileResponse, trialResponse] = await Promise.all(
+        [
           getMembership(undefined, roleFilter),
           getUserProfile(),
           getFreeTrialStatus().catch(() => null),
-        ]);
+        ],
+      );
 
-        if (plansResponse?.data) {
-          setPlans(plansResponse.data);
-        }
-
-        if (profileResponse?.current_subscription?.plan?.id) {
-          setCurrentPlanId(profileResponse.current_subscription.plan.id);
-        }
-        if (profileResponse?.current_subscription?.billing_cycle) {
-          setCurrentBillingCycle(profileResponse.current_subscription.billing_cycle);
-        }
-
-        if (trialResponse?.success && trialResponse?.data?.data) {
-          setTrialStatus(trialResponse.data.data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch data:", error);
-      } finally {
-        setIsLoading(false);
+      if (plansResponse?.data) {
+        setPlans(plansResponse.data);
       }
-    };
 
+      if (profileResponse?.current_subscription?.plan?.id) {
+        setCurrentPlanId(profileResponse.current_subscription.plan.id);
+      }
+      if (profileResponse?.current_subscription?.billing_cycle) {
+        setCurrentBillingCycle(
+          profileResponse.current_subscription.billing_cycle,
+        );
+      }
+
+      if (trialResponse?.success && trialResponse?.data?.data) {
+        setTrialStatus(trialResponse.data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (role) {
       fetchData();
     }
@@ -182,8 +203,12 @@ const Plans = () => {
     return (
       <div className="flex flex-col items-center justify-center p-24 space-y-4">
         <Building2 className="w-16 h-16 text-muted-foreground" />
-        <h2 className="text-2xl font-bold text-muted-foreground">No Plans Available</h2>
-        <p className="text-muted-foreground">There are currently no membership plans available.</p>
+        <h2 className="text-2xl font-bold text-muted-foreground">
+          No Plans Available
+        </h2>
+        <p className="text-muted-foreground">
+          There are currently no membership plans available.
+        </p>
       </div>
     );
   }
@@ -192,9 +217,12 @@ const Plans = () => {
     <div className="w-full max-w-7xl mx-auto px-4 py-8">
       <div className="flex flex-col items-center mb-16 space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">Choose Your Plan</h1>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">
+            Choose Your Plan
+          </h1>
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Simple, <span className="text-primary italic">transparent</span>{" "}pricing
+            Simple, <span className="text-primary italic">transparent</span>{" "}
+            pricing
           </h2>
           {trialStatus && trialStatus.show_free_trial_dashboard && (
             <motion.div
@@ -205,15 +233,19 @@ const Plans = () => {
                 trialStatus.is_free_trial_active
                   ? "bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200"
                   : trialStatus.is_expired
-                  ? "bg-red-500/10 border-red-500/30 text-red-900 dark:text-red-200"
-                  : "bg-blue-500/10 border-blue-500/30 text-blue-900 dark:text-blue-200"
+                    ? "bg-red-500/10 border-red-500/30 text-red-900 dark:text-red-200"
+                    : "bg-blue-500/10 border-blue-500/30 text-blue-900 dark:text-blue-200",
               )}
             >
               <div className="flex items-center gap-2 font-semibold text-base">
                 <Clock className="w-5 h-5 shrink-0" />
                 {trialStatus.is_free_trial_active ? (
                   <span>
-                    Free Trial Active — <strong>{trialStatus.days_left} {trialStatus.days_left === 1 ? "day" : "days"} remaining</strong>
+                    Free Trial Active —{" "}
+                    <strong>
+                      {trialStatus.days_left}{" "}
+                      {trialStatus.days_left === 1 ? "day" : "days"} remaining
+                    </strong>
                   </span>
                 ) : trialStatus.is_expired ? (
                   <span>Free Trial Expired</span>
@@ -222,7 +254,9 @@ const Plans = () => {
                 )}
               </div>
               {trialStatus.display_message && (
-                <p className="text-sm opacity-90">{trialStatus.display_message}</p>
+                <p className="text-sm opacity-90">
+                  {trialStatus.display_message}
+                </p>
               )}
             </motion.div>
           )}
@@ -240,23 +274,43 @@ const Plans = () => {
             </motion.div>
           ) : (
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              {role === "contractor" && "Access the tools you need to manage jobs, track installations, and grow your contracting business."}
-              {role === "insurance_company" && "Get detailed property verification reports and streamlined data access for faster underwriting decisions."}
-              {role === "city_inspector" && "Stay on top of inspections, manage city-wide logs, and keep your verification workflow running smoothly."}
-              {role === "property_owner" && "Monitor your properties, review installation reports, and stay informed at every step."}
-              {role === "admin" && "Manage users, memberships, and platform settings across your entire organization."}
-              {!role && "Choose the plan that fits your workflow and get full access to the platform."}
+              {role === "contractor" &&
+                "Access the tools you need to manage jobs, track installations, and grow your contracting business."}
+              {role === "insurance_company" &&
+                "Get detailed property verification reports and streamlined data access for faster underwriting decisions."}
+              {role === "city_inspector" &&
+                "Stay on top of inspections, manage city-wide logs, and keep your verification workflow running smoothly."}
+              {role === "property_owner" &&
+                "Monitor your properties, review installation reports, and stay informed at every step."}
+              {role === "admin" &&
+                "Manage users, memberships, and platform settings across your entire organization."}
+              {!role &&
+                "Choose the plan that fits your workflow and get full access to the platform."}
             </p>
           )}
         </div>
 
         {hasAnnualPlans && (
           <div className="flex items-center gap-4 bg-muted/30 p-2 rounded-2xl border border-border/50 backdrop-blur-sm shadow-inner">
-            <span className={cn("text-sm font-medium transition-colors", !isAnnual ? "text-foreground" : "text-muted-foreground")}>
+            <span
+              className={cn(
+                "text-sm font-medium transition-colors",
+                !isAnnual ? "text-foreground" : "text-muted-foreground",
+              )}
+            >
               Monthly
             </span>
-            <Switch checked={isAnnual} onCheckedChange={handleToggleBilling} className="data-[state=checked]:bg-primary" />
-            <span className={cn("text-sm font-medium transition-colors", isAnnual ? "text-foreground" : "text-muted-foreground")}>
+            <Switch
+              checked={isAnnual}
+              onCheckedChange={handleToggleBilling}
+              className="data-[state=checked]:bg-primary"
+            />
+            <span
+              className={cn(
+                "text-sm font-medium transition-colors",
+                isAnnual ? "text-foreground" : "text-muted-foreground",
+              )}
+            >
               Annual
             </span>
           </div>
@@ -273,7 +327,9 @@ const Plans = () => {
             const Icon = planIcons[plan.name] || Star;
             const isCurrentPlan =
               plan.id === currentPlanId &&
-              (isAnnual ? currentBillingCycle === "annually" : currentBillingCycle === "monthly");
+              (isAnnual
+                ? currentBillingCycle === "annually"
+                : currentBillingCycle === "monthly");
 
             return (
               <motion.div
@@ -297,18 +353,26 @@ const Plans = () => {
                     <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-6 transition-transform duration-500 group-hover:text-[#339FD0] bg-white text-secondary-new">
                       <Icon className="w-6 h-6" />
                     </div>
-                    <h3 className="text-2xl font-bold text-white mb-2 tracking-tight">{plan.name}</h3>
-                    <p className="text-white text-sm line-clamp-2 min-h-10">{plan.description}</p>
+                    <h3 className="text-2xl font-bold text-white mb-2 tracking-tight">
+                      {plan.name}
+                    </h3>
+                    <p className="text-white text-sm line-clamp-2 min-h-10">
+                      {plan.description}
+                    </p>
                   </div>
 
                   <div className="mb-8">
                     <div className="flex items-baseline gap-1">
                       <span className="text-4xl text-white tracking-tighter">
-                        {Number(isAnnual ? plan.yearlyAmount : plan.monthlyAmount) === 0
+                        {Number(
+                          isAnnual ? plan.yearlyAmount : plan.monthlyAmount,
+                        ) === 0
                           ? "Free"
                           : `$${isAnnual ? plan.yearlyAmount : plan.monthlyAmount}`}
                       </span>
-                      {Number(isAnnual ? plan.yearlyAmount : plan.monthlyAmount) !== 0 && (
+                      {Number(
+                        isAnnual ? plan.yearlyAmount : plan.monthlyAmount,
+                      ) !== 0 && (
                         <span className="text-white text-sm font-medium">
                           /{isAnnual ? "year" : "month"}
                         </span>
@@ -332,11 +396,16 @@ const Plans = () => {
                         <span className="text-xs font-bold text-white uppercase tracking-wider">
                           {plan.targetRole.toLowerCase()}s
                           {plan.targetRole === "CONTRACTOR" && plan.level && (
-                            <span className="ml-1 text-white/60 normal-case font-medium">— {plan.level} level</span>
+                            <span className="ml-1 text-white/60 normal-case font-medium">
+                              — {plan.level} level
+                            </span>
                           )}
-                          {plan.targetRole === "INSURANCE" && plan.maxReports && (
-                            <span className="ml-1 text-white/60 normal-case font-medium">— {plan.maxReports} reports/mo</span>
-                          )}
+                          {plan.targetRole === "INSURANCE" &&
+                            plan.maxReports && (
+                              <span className="ml-1 text-white/60 normal-case font-medium">
+                                — {plan.maxReports} reports/mo
+                              </span>
+                            )}
                         </span>
                       </div>
                     )}
@@ -355,19 +424,34 @@ const Plans = () => {
 
                       return (
                         <div key={key} className="flex items-start gap-2.5">
-                          <div className={cn(
-                            "mt-0.5 size-4 rounded-full flex items-center justify-center shrink-0",
-                            isEnabled ? "bg-white/20" : "bg-white/5"
-                          )}>
-                            <Check className={cn("w-2.5 h-2.5 stroke-[3px]", isEnabled ? "text-white" : "text-white/20")} />
+                          <div
+                            className={cn(
+                              "mt-0.5 size-4 rounded-full flex items-center justify-center shrink-0",
+                              isEnabled ? "bg-white/20" : "bg-white/5",
+                            )}
+                          >
+                            <Check
+                              className={cn(
+                                "w-2.5 h-2.5 stroke-[3px]",
+                                isEnabled ? "text-white" : "text-white/20",
+                              )}
+                            />
                           </div>
-                          <span className={cn(
-                            "text-sm",
-                            isEnabled ? "text-white font-medium" : "text-white/30 line-through decoration-dotted"
-                          )}>
-                            <span className="capitalize">{key.replace(/_/g, " ")}</span>
+                          <span
+                            className={cn(
+                              "text-sm",
+                              isEnabled
+                                ? "text-white font-medium"
+                                : "text-white/30 line-through decoration-dotted",
+                            )}
+                          >
+                            <span className="capitalize">
+                              {key.replace(/_/g, " ")}
+                            </span>
                             {displayValue && (
-                              <span className="ml-1 text-white/60 text-xs">({displayValue})</span>
+                              <span className="ml-1 text-white/60 text-xs">
+                                ({displayValue})
+                              </span>
                             )}
                           </span>
                         </div>
@@ -390,10 +474,13 @@ const Plans = () => {
                         : " hover:bg-white text-white hover:text-[#339FD0]",
                     )}
                     onClick={() =>
-                      isCurrentPlan ? setCancelDialogOpen(true) : handleSubscribe(plan.id)
+                      isCurrentPlan
+                        ? setCancelDialogOpen(true)
+                        : handleSubscribe(plan.id)
                     }
                   >
-                    {subscribingPlanId === plan.id || (isCancelling && isCurrentPlan) ? (
+                    {subscribingPlanId === plan.id ||
+                    (isCancelling && isCurrentPlan) ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
                     ) : isCurrentPlan ? (
                       "Cancel Membership"

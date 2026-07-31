@@ -34,31 +34,31 @@ export function Navbar1() {
 
   const role = user?.role?.toLowerCase() || "";
 
-  const loginUrl = process.env.NEXT_PUBLIC_LOGIN_URL || '/login';
-  const isLoginPage = pathname.startsWith(loginUrl) || pathname === '/login';
+  const loginUrl = process.env.NEXT_PUBLIC_LOGIN_URL || "/login";
+  const isLoginPage = pathname.startsWith(loginUrl) || pathname === "/login";
   const isAuthPage =
     isLoginPage ||
-    pathname.startsWith('/register') ||
-    pathname.startsWith('/forgot-password') ||
-    pathname.startsWith('/reset-password') ||
-    pathname.startsWith('/verify-otp');
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password") ||
+    pathname.startsWith("/verify-otp");
 
   const isProtectedPage =
-    pathname.startsWith('/dashboard') ||
-    pathname.startsWith('/admin') ||
-    pathname.startsWith('/profile') ||
-    pathname.startsWith('/property-details') ||
-    pathname.startsWith('/plans') ||
-    pathname.startsWith('/properties') ||
-    pathname.startsWith('/installations') ||
-    pathname.startsWith('/city-users') ||
-    pathname.startsWith('/company-users') ||
-    pathname.startsWith('/city-logs') ||
-    pathname.startsWith('/company-logs') ||
-    pathname.startsWith('/verification') ||
-    pathname.startsWith('/subscription') ||
-    pathname.startsWith('/purchase') ||
-    pathname.startsWith('/reports');
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/profile") ||
+    pathname.startsWith("/property-details") ||
+    pathname.startsWith("/plans") ||
+    pathname.startsWith("/properties") ||
+    pathname.startsWith("/installations") ||
+    pathname.startsWith("/city-users") ||
+    pathname.startsWith("/company-users") ||
+    pathname.startsWith("/city-logs") ||
+    pathname.startsWith("/company-logs") ||
+    pathname.startsWith("/verification") ||
+    pathname.startsWith("/subscription") ||
+    pathname.startsWith("/purchase") ||
+    pathname.startsWith("/reports");
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -79,14 +79,17 @@ export function Navbar1() {
     fetchUser();
   }, [user, isAuthPage, isProtectedPage]);
 
-  const navItems = useMemo((): { name: string; href: string; activeFor?: string[] }[] => {
+  const navItems = useMemo((): {
+    name: string;
+    href: string;
+    activeFor?: string[];
+  }[] => {
     const landingUrl = process.env.NEXT_PUBLIC_LANDING_PAGE_URL || "/#";
 
     if (!isLoggedIn || !user)
       return [
         { name: "HOME", href: landingUrl },
         { name: "CONTRACTORS", href: "/contractors" },
-
       ];
 
     switch (role) {
@@ -99,7 +102,6 @@ export function Navbar1() {
         ];
     }
   }, [isLoggedIn, user, role]);
-
 
   return (
     <header className="w-full bg-white border-b border-gray-100 relative z-50 font-inter">
@@ -122,8 +124,9 @@ export function Navbar1() {
         <div className="flex items-center">
           {/* Navigation Menu */}
           <nav
-            className={`${mobileOpen ? "block" : "hidden"
-              } xl:block absolute xl:relative top-full xl:top-auto left-0 right-0 xl:left-auto xl:right-auto bg-white xl:bg-transparent border-t xl:border-t-0 border-gray-100 xl:border-0 shadow-lg xl:shadow-none max-h-[calc(100vh-80px)] xl:max-h-none overflow-y-auto xl:overflow-visible z-999 xl:z-auto mr-4`}
+            className={`${
+              mobileOpen ? "block" : "hidden"
+            } xl:block absolute xl:relative top-full xl:top-auto left-0 right-0 xl:left-auto xl:right-auto bg-white xl:bg-transparent border-t xl:border-t-0 border-gray-100 xl:border-0 shadow-lg xl:shadow-none max-h-[calc(100vh-80px)] xl:max-h-none overflow-y-auto xl:overflow-visible z-999 xl:z-auto mr-4`}
           >
             <ul className="flex flex-col xl:flex-row gap-0 xl:gap-[18px] xl:flex-wrap p-0 xl:p-0 m-0 list-none">
               {navItems.map((link) => {
@@ -143,7 +146,7 @@ export function Navbar1() {
                         "no-underline font-medium uppercase text-[15px] transition-colors py-3.5 xl:py-2 px-6 xl:px-0 block",
                         isActive
                           ? "text-[#339FD0]"
-                          : "text-slate-500 hover:text-[#339FD0]"
+                          : "text-slate-500 hover:text-[#339FD0]",
                       )}
                     >
                       {link.name}
@@ -151,7 +154,6 @@ export function Navbar1() {
                   </li>
                 );
               })}
-
             </ul>
           </nav>
 

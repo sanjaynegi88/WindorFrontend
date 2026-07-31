@@ -567,6 +567,7 @@ export default function UserProfile() {
       "ownerDateEnd",
       "state_id",
       "zip",
+      "mobilePhone",
     ],
     realtor: [
       "company_name",
@@ -822,6 +823,53 @@ export default function UserProfile() {
                       )}
                     </div>
                   </div>
+
+                  {/* ── Admin-specific fields ── */}
+                  {role === "admin" && (
+                    <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                      <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
+                        Mobile Phone
+                        {isEditing && (
+                          <label className="text-red-500">*</label>
+                        )}
+                      </Label>
+
+                      <div className="md:col-span-2">
+                        {!isEditing ? (
+                          <p className="text-sm font-bold">
+                            {user?.mobilePhone || "Not provided"}
+                          </p>
+                        ) : (
+                          <FormField
+                            control={form.control}
+                            name="mobilePhone"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormControl>
+                                  <Input
+                                    disabled={isSubAccount}
+                                    placeholder="Mobile Phone (10 digits)"
+                                    {...field}
+                                    value={field.value || ""}
+                                    maxLength={10}
+                                    inputMode="numeric"
+                                    onChange={(e) => {
+                                      const digits = e.target.value
+                                        .replace(/\D/g, "")
+                                        .slice(0, 10);
+                                      field.onChange(digits);
+                                    }}
+                                    className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* ── Contractor-specific fields ── */}
                   {(role === "contractor" || role === "manufacturer") && (
@@ -2092,52 +2140,164 @@ export default function UserProfile() {
 
                       <div className="space-y-3 pt-2">
                         {/* Properties Usage */}
-                        <div className="space-y-1.5">
-                          <div className="flex justify-between text-xs font-bold">
+                        <div className="space-y-1.5 p-3 rounded-xl bg-muted/20 border border-muted/40">
+                          <div className="flex items-center justify-between text-xs font-bold">
                             <span className="text-muted-foreground uppercase tracking-wider">
                               Properties
                             </span>
-                            <span>
-                              {reportUsage?.propertiesUsed ?? 0} /{" "}
-                              {reportUsage?.propertiesUnlimited
-                                ? "Unlimited"
-                                : (reportUsage?.propertiesProvided ?? 0)}
+                            <span className="text-xs font-medium">
+                              <span className="font-bold text-foreground">
+                                {reportUsage?.propertiesUsed ?? 0}
+                              </span>{" "}
+                              <span className="text-muted-foreground">used</span>
+                              <span className="text-muted-foreground/60 mx-1">/</span>
+                              {reportUsage?.propertiesUnlimited ? (
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                  Unlimited
+                                </span>
+                              ) : (
+                                <>
+                                  <span className="font-bold text-foreground">
+                                    {reportUsage?.propertiesProvided ?? 0}
+                                  </span>{" "}
+                                  <span className="text-muted-foreground">limit</span>
+                                </>
+                              )}
                             </span>
                           </div>
-                          {!reportUsage?.propertiesUnlimited && (
-                            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-primary rounded-full transition-all duration-500"
-                                style={{
-                                  width: `${Math.min(100, ((reportUsage?.propertiesUsed ?? 0) / (reportUsage?.propertiesProvided || 1)) * 100)}%`,
-                                }}
-                              />
+                          {reportUsage?.propertiesUnlimited ? (
+                            <div className="flex justify-between items-center text-[11px] text-emerald-600 dark:text-emerald-400 font-medium pt-1">
+                              <span className="flex items-center gap-1.5">
+                                <span className="inline-block size-1.5 rounded-full bg-emerald-500" />
+                                Unlimited plan
+                              </span>
+                              <span>No usage cap</span>
                             </div>
+                          ) : (
+                            <>
+                              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-500 ${
+                                    ((reportUsage?.propertiesUsed ?? 0) /
+                                      (reportUsage?.propertiesProvided || 1)) >= 1
+                                      ? "bg-destructive"
+                                      : ((reportUsage?.propertiesUsed ?? 0) /
+                                          (reportUsage?.propertiesProvided || 1)) >= 0.8
+                                      ? "bg-amber-500"
+                                      : "bg-primary"
+                                  }`}
+                                  style={{
+                                    width: `${Math.min(
+                                      100,
+                                      ((reportUsage?.propertiesUsed ?? 0) /
+                                        (reportUsage?.propertiesProvided || 1)) *
+                                        100
+                                    )}%`,
+                                  }}
+                                />
+                              </div>
+                              <div className="flex justify-between items-center text-[11px] text-muted-foreground font-medium pt-0.5">
+                                <span>
+                                  {Math.round(
+                                    Math.min(
+                                      100,
+                                      ((reportUsage?.propertiesUsed ?? 0) /
+                                        (reportUsage?.propertiesProvided || 1)) *
+                                        100
+                                    )
+                                  )}% used
+                                </span>
+                                <span>
+                                  {Math.max(
+                                    0,
+                                    (reportUsage?.propertiesProvided ?? 0) -
+                                      (reportUsage?.propertiesUsed ?? 0)
+                                  )}{" "}
+                                  remaining
+                                </span>
+                              </div>
+                            </>
                           )}
                         </div>
 
                         {/* Projects Usage */}
-                        <div className="space-y-1.5">
-                          <div className="flex justify-between text-xs font-bold">
+                        <div className="space-y-1.5 p-3 rounded-xl bg-muted/20 border border-muted/40">
+                          <div className="flex items-center justify-between text-xs font-bold">
                             <span className="text-muted-foreground uppercase tracking-wider">
                               Projects
                             </span>
-                            <span>
-                              {reportUsage?.projectsUsed ?? 0} /{" "}
-                              {reportUsage?.projectsUnlimited
-                                ? "Unlimited"
-                                : (reportUsage?.projectsProvided ?? 0)}
+                            <span className="text-xs font-medium">
+                              <span className="font-bold text-foreground">
+                                {reportUsage?.projectsUsed ?? 0}
+                              </span>{" "}
+                              <span className="text-muted-foreground">used</span>
+                              <span className="text-muted-foreground/60 mx-1">/</span>
+                              {reportUsage?.projectsUnlimited ? (
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                  Unlimited
+                                </span>
+                              ) : (
+                                <>
+                                  <span className="font-bold text-foreground">
+                                    {reportUsage?.projectsProvided ?? 0}
+                                  </span>{" "}
+                                  <span className="text-muted-foreground">limit</span>
+                                </>
+                              )}
                             </span>
                           </div>
-                          {!reportUsage?.projectsUnlimited && (
-                            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-primary rounded-full transition-all duration-500"
-                                style={{
-                                  width: `${Math.min(100, ((reportUsage?.projectsUsed ?? 0) / (reportUsage?.projectsProvided || 1)) * 100)}%`,
-                                }}
-                              />
+                          {reportUsage?.projectsUnlimited ? (
+                            <div className="flex justify-between items-center text-[11px] text-emerald-600 dark:text-emerald-400 font-medium pt-1">
+                              <span className="flex items-center gap-1.5">
+                                <span className="inline-block size-1.5 rounded-full bg-emerald-500" />
+                                Unlimited plan
+                              </span>
+                              <span>No usage cap</span>
                             </div>
+                          ) : (
+                            <>
+                              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-500 ${
+                                    ((reportUsage?.projectsUsed ?? 0) /
+                                      (reportUsage?.projectsProvided || 1)) >= 1
+                                      ? "bg-destructive"
+                                      : ((reportUsage?.projectsUsed ?? 0) /
+                                          (reportUsage?.projectsProvided || 1)) >= 0.8
+                                      ? "bg-amber-500"
+                                      : "bg-primary"
+                                  }`}
+                                  style={{
+                                    width: `${Math.min(
+                                      100,
+                                      ((reportUsage?.projectsUsed ?? 0) /
+                                        (reportUsage?.projectsProvided || 1)) *
+                                        100
+                                    )}%`,
+                                  }}
+                                />
+                              </div>
+                              <div className="flex justify-between items-center text-[11px] text-muted-foreground font-medium pt-0.5">
+                                <span>
+                                  {Math.round(
+                                    Math.min(
+                                      100,
+                                      ((reportUsage?.projectsUsed ?? 0) /
+                                        (reportUsage?.projectsProvided || 1)) *
+                                        100
+                                    )
+                                  )}% used
+                                </span>
+                                <span>
+                                  {Math.max(
+                                    0,
+                                    (reportUsage?.projectsProvided ?? 0) -
+                                      (reportUsage?.projectsUsed ?? 0)
+                                  )}{" "}
+                                  remaining
+                                </span>
+                              </div>
+                            </>
                           )}
                         </div>
                       </div>

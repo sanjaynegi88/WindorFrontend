@@ -22,7 +22,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import { getAppImageUrl, cn, toPascalCase } from "@/lib/utils";
+import { getAppImageUrl, cn, toPascalCase, toTitleCase } from "@/lib/utils";
 import { ContractorDetailsDialog } from "@/components/contractor/ContractorDetailsDialog";
 import { motion } from "motion/react";
 import {
@@ -53,18 +53,20 @@ const GridBackground = dynamic(
   { ssr: false },
 );
 
-
 export default function ContractorDirectoryPage() {
   const { user, role } = useUser();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("ALL");
   const [selectedCity, setSelectedCity] = useState("ALL");
-  const [selectedContractor, setSelectedContractor] =
-    useState<any | null>(null);
+  const [selectedContractor, setSelectedContractor] = useState<any | null>(
+    null,
+  );
   const [contractors, setContractors] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [services, setServices] = useState<{ id: string; name: string }[]>([{ id: "ALL", name: "ALL" }]);
+  const [services, setServices] = useState<{ id: string; name: string }[]>([
+    { id: "ALL", name: "ALL" },
+  ]);
   const [cities, setCities] = useState<{ id: string; name: string }[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -81,7 +83,10 @@ export default function ContractorDirectoryPage() {
     if (!deleteTarget) return;
     setIsDeleting(true);
     try {
-      const response = await deleteContractorProfile(deleteTarget.id, role || undefined);
+      const response = await deleteContractorProfile(
+        deleteTarget.id,
+        role || undefined,
+      );
       if (!response.success) {
         toast.error(response.message);
         return;
@@ -101,7 +106,10 @@ export default function ContractorDirectoryPage() {
       try {
         const response = await getServiceProvided();
         const serviceItems = response.data.map(
-          (type: { id: string; service_name: string }) => ({ id: type.id, name: type.service_name }),
+          (type: { id: string; service_name: string }) => ({
+            id: type.id,
+            name: type.service_name,
+          }),
         );
         setServices([{ id: "ALL", name: "ALL" }, ...serviceItems]);
       } catch (error) {
@@ -127,7 +135,8 @@ export default function ContractorDirectoryPage() {
     const fetchContractors = async () => {
       try {
         setIsLoading(true);
-        const params: { city_id?: string; service?: string; keyword?: string } = {};
+        const params: { city_id?: string; service?: string; keyword?: string } =
+          {};
 
         if (searchQuery) params.keyword = searchQuery;
         if (activeFilter !== "ALL") params.service = activeFilter;
@@ -136,9 +145,19 @@ export default function ContractorDirectoryPage() {
         const response = await getContractorDirectory(params);
         const mapped = (response.data || []).map((item: any) => ({
           ...item,
-          companyName: item.contractor?.profile?.company_name || item.contractor?.profile?.display_name || `${item.contractor?.first_name || ""} ${item.contractor?.last_name || ""}`.trim() || "N/A",
-          contactName: item.contractor?.profile?.display_name || `${item.contractor?.first_name || ""} ${item.contractor?.last_name || ""}`.trim() || "N/A",
-          phone: item.contractor?.companyPhone || item.contractor?.mobilePhone || "N/A",
+          companyName:
+            item.contractor?.profile?.company_name ||
+            item.contractor?.profile?.display_name ||
+            `${item.contractor?.first_name || ""} ${item.contractor?.last_name || ""}`.trim() ||
+            "N/A",
+          contactName:
+            item.contractor?.profile?.display_name ||
+            `${item.contractor?.first_name || ""} ${item.contractor?.last_name || ""}`.trim() ||
+            "N/A",
+          phone:
+            item.contractor?.companyPhone ||
+            item.contractor?.mobilePhone ||
+            "N/A",
           email: item.contractor?.email || "N/A",
           websiteUrl: item.contractor?.websiteUrl || "#",
         }));
@@ -269,7 +288,7 @@ export default function ContractorDirectoryPage() {
                 <option value="ALL">All Cities</option>
                 {cities.map((city) => (
                   <option key={city.id} value={city.id}>
-                    {city.name}
+                    {toTitleCase(city.name)}
                   </option>
                 ))}
               </select>
@@ -351,7 +370,8 @@ export default function ContractorDirectoryPage() {
                                 </div>
                                 <span className="text-xs font-bold text-gray-600 truncate">
                                   {contractor.cityDetails?.[0]?.name || "N/A"}
-                                  {contractor.cityDetails && contractor.cityDetails.length > 1 &&
+                                  {contractor.cityDetails &&
+                                    contractor.cityDetails.length > 1 &&
                                     ` +${contractor.cityDetails.length - 1} more`}
                                 </span>
                               </div>

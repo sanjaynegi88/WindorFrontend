@@ -122,8 +122,8 @@ export function MembershipForm({
         const response = await getRoles();
         setRoles(response.data || []);
       } catch (error: any) {
-        console.error('Failed to fetch roles:', error);
-        toast.error(error.message || 'Failed to load roles');
+        console.error("Failed to fetch roles:", error);
+        toast.error(error.message || "Failed to load roles");
       } finally {
         setLoadingRoles(false);
       }
@@ -164,6 +164,10 @@ export function MembershipForm({
     if (isFree) {
       form.setValue("monthlyPrice", "0");
       form.setValue("yearlyPrice", "0");
+      form.setValue("maxProjects", "0");
+      form.setValue("maxProperties", "0");
+      form.setValue("isUnlimitedProjects", false);
+      form.setValue("isUnlimitedProperties", false);
     }
   }, [isFree, form]);
 
@@ -203,7 +207,6 @@ export function MembershipForm({
     console.log("eee", requestBody);
     try {
       if (isEditing && membership) {
-
         const response = await updateMembership(requestBody, membership.id);
         if (!response.success) {
           toast.error(response.message);
@@ -211,7 +214,6 @@ export function MembershipForm({
         }
         toast.success(`Successfully updated membership plan: ${data.name}`);
       } else {
-
         const request = await createMembership(requestBody);
         if (!request.success) {
           toast.error(request.message);
@@ -223,7 +225,7 @@ export function MembershipForm({
     } catch (error: any) {
       toast.error(
         error.message ||
-        `Failed to ${isEditing ? "update" : "create"} membership`,
+          `Failed to ${isEditing ? "update" : "create"} membership`,
       );
     }
   };
@@ -257,7 +259,9 @@ export function MembershipForm({
                   name="targetRole"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-semibold text-foreground">Target Role</FormLabel>
+                      <FormLabel className="font-semibold text-foreground">
+                        Target Role
+                      </FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value}
@@ -265,18 +269,31 @@ export function MembershipForm({
                       >
                         <FormControl>
                           <SelectTrigger className="h-12  border-input focus:bg-background transition-all shadow-none">
-                            <SelectValue placeholder={loadingRoles ? "Loading roles..." : "Select target role"} />
+                            <SelectValue
+                              placeholder={
+                                loadingRoles
+                                  ? "Loading roles..."
+                                  : "Select target role"
+                              }
+                            />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {roles
-                            .filter((role) => role.role_name.toLowerCase() !== 'admin')
+                            .filter(
+                              (role) =>
+                                role.role_name.toLowerCase() !== "admin",
+                            )
                             .map((role) => (
                               <SelectItem key={role.id} value={role.role_name}>
                                 {role.role_name
-                                  .split('_')
-                                  .map((word: string) => word.charAt(0) + word.slice(1).toLowerCase())
-                                  .join(' ')}
+                                  .split("_")
+                                  .map(
+                                    (word: string) =>
+                                      word.charAt(0) +
+                                      word.slice(1).toLowerCase(),
+                                  )
+                                  .join(" ")}
                               </SelectItem>
                             ))}
                         </SelectContent>
@@ -290,7 +307,9 @@ export function MembershipForm({
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-semibold text-foreground">Plan Name</FormLabel>
+                      <FormLabel className="font-semibold text-foreground">
+                        Plan Name
+                      </FormLabel>
                       <FormControl>
                         <Input
                           placeholder="Name of the plan"
@@ -307,7 +326,9 @@ export function MembershipForm({
                   name="monthlyPrice"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-semibold text-foreground">Monthly Price ($)</FormLabel>
+                      <FormLabel className="font-semibold text-foreground">
+                        Monthly Price ($)
+                      </FormLabel>
                       <FormControl>
                         <Input
                           placeholder="0.00"
@@ -325,7 +346,9 @@ export function MembershipForm({
                   name="yearlyPrice"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="font-semibold text-foreground">Yearly Price ($)</FormLabel>
+                      <FormLabel className="font-semibold text-foreground">
+                        Yearly Price ($)
+                      </FormLabel>
                       <FormControl>
                         <Input
                           placeholder="0.00"
@@ -344,7 +367,9 @@ export function MembershipForm({
                   name="description"
                   render={({ field }) => (
                     <FormItem className="md:col-span-2">
-                      <FormLabel className="font-semibold text-foreground">Description</FormLabel>
+                      <FormLabel className="font-semibold text-foreground">
+                        Description
+                      </FormLabel>
                       <FormControl>
                         <Textarea
                           placeholder="Brief description"
@@ -366,7 +391,9 @@ export function MembershipForm({
                     name="level"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-semibold text-foreground">Level</FormLabel>
+                        <FormLabel className="font-semibold text-foreground">
+                          Level
+                        </FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
@@ -390,13 +417,16 @@ export function MembershipForm({
                     name="maxProjects"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-semibold text-foreground"> Max Projects</FormLabel>
+                        <FormLabel className="font-semibold text-foreground">
+                          {" "}
+                          Max Projects
+                        </FormLabel>
                         <FormControl>
                           <Input
                             type="number"
                             placeholder="Maximum number of Projects"
                             {...field}
-                            disabled={unlimitedProject}
+                            disabled={unlimitedProject || isFree}
                             className="h-12  border-input focus:bg-background transition-all shadow-none font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         </FormControl>
@@ -409,10 +439,13 @@ export function MembershipForm({
                     name="isUnlimitedProjects"
                     render={({ field }) => (
                       <FormItem className="flex-row items-center gap-2">
-                        <FormLabel className="font-semibold text-foreground">unlimitedProject</FormLabel>
+                        <FormLabel className="font-semibold text-foreground">
+                          unlimitedProject
+                        </FormLabel>
                         <FormControl>
                           <Checkbox
                             checked={field.value}
+                            disabled={isFree}
                             onCheckedChange={field.onChange}
                           />
                         </FormControl>
@@ -430,7 +463,9 @@ export function MembershipForm({
                     name="level"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-semibold text-foreground">Level</FormLabel>
+                        <FormLabel className="font-semibold text-foreground">
+                          Level
+                        </FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
@@ -456,7 +491,10 @@ export function MembershipForm({
                     name="maxCities"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-semibold text-foreground"> Max Cities</FormLabel>
+                        <FormLabel className="font-semibold text-foreground">
+                          {" "}
+                          Max Cities
+                        </FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -474,13 +512,15 @@ export function MembershipForm({
                     name="maxProperties"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-semibold text-foreground">Max Properties</FormLabel>
+                        <FormLabel className="font-semibold text-foreground">
+                          Max Properties
+                        </FormLabel>
                         <FormControl>
                           <Input
                             type="number"
                             placeholder="Maximum number of Properties can add"
                             {...field}
-                            disabled={unlimitedProperty}
+                            disabled={unlimitedProperty || isFree}
                             className="h-12  border-input focus:bg-background transition-all shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         </FormControl>
@@ -493,7 +533,9 @@ export function MembershipForm({
                     name="maxUsers"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-semibold text-foreground">Max Users</FormLabel>
+                        <FormLabel className="font-semibold text-foreground">
+                          Max Users
+                        </FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -511,13 +553,16 @@ export function MembershipForm({
                     name="maxProjects"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-semibold text-foreground"> Max Projects</FormLabel>
+                        <FormLabel className="font-semibold text-foreground">
+                          {" "}
+                          Max Projects
+                        </FormLabel>
                         <FormControl>
                           <Input
                             type="number"
                             placeholder="Maximum number of Projects"
                             {...field}
-                            disabled={unlimitedProject}
+                            disabled={unlimitedProject || isFree}
                             className="h-12  border-input focus:bg-background transition-all shadow-none font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         </FormControl>
@@ -530,10 +575,13 @@ export function MembershipForm({
                     name="isUnlimitedProperties"
                     render={({ field }) => (
                       <FormItem className="flex-row items-center gap-2">
-                        <FormLabel className="font-semibold text-foreground">unlimitedProperty</FormLabel>
+                        <FormLabel className="font-semibold text-foreground">
+                          unlimitedProperty
+                        </FormLabel>
                         <FormControl>
                           <Checkbox
                             checked={field.value}
+                            disabled={isFree}
                             onCheckedChange={field.onChange}
                           />
                         </FormControl>
@@ -546,9 +594,12 @@ export function MembershipForm({
                     name="isUnlimitedProjects"
                     render={({ field }) => (
                       <FormItem className="flex-row items-center gap-2">
-                        <FormLabel className="font-semibold text-foreground">unlimitedProject</FormLabel>
+                        <FormLabel className="font-semibold text-foreground">
+                          unlimitedProject
+                        </FormLabel>
                         <FormControl>
                           <Checkbox
+                            disabled={isFree}
                             checked={field.value}
                             onCheckedChange={field.onChange}
                           />
@@ -567,7 +618,9 @@ export function MembershipForm({
                     name="maxReports"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-semibold text-foreground">Max Reports</FormLabel>
+                        <FormLabel className="font-semibold text-foreground">
+                          Max Reports
+                        </FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -590,7 +643,9 @@ export function MembershipForm({
                     name="isUnlimitedAccess"
                     render={({ field }) => (
                       <FormItem className="flex-row items-center gap-2">
-                        <FormLabel className="font-semibold text-foreground">Unlimited Access</FormLabel>
+                        <FormLabel className="font-semibold text-foreground">
+                          Unlimited Access
+                        </FormLabel>
                         <FormControl>
                           <Checkbox
                             checked={field.value}
@@ -618,7 +673,9 @@ export function MembershipForm({
                 name="status"
                 render={({ field }) => (
                   <FormItem className="flex-row items-center gap-2">
-                    <FormLabel className="font-semibold text-foreground">Status (is active)</FormLabel>
+                    <FormLabel className="font-semibold text-foreground">
+                      Status (is active)
+                    </FormLabel>
                     <FormControl>
                       <Checkbox
                         checked={field.value}

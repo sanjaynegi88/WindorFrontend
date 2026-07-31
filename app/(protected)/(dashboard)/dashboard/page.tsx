@@ -2,7 +2,19 @@
 
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { Content } from "@/components/layouts/crm/components/content";
-import { ChevronLeft, ChevronRight, FileText, HardHat, Home, Landmark, List, Loader2, Map, ShieldCheck, Clock } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  HardHat,
+  Home,
+  Landmark,
+  List,
+  Loader2,
+  Map,
+  ShieldCheck,
+  Clock,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   getPropertyListUser,
@@ -32,10 +44,14 @@ function DashboardPageContent() {
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
-  const [mapFocus, setMapFocus] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapFocus, setMapFocus] = useState<{ lat: number; lng: number } | null>(
+    null,
+  );
   const [mapFocusId, setMapFocusId] = useState<string | null>(null);
   const [isGeneratingTop10, setIsGeneratingTop10] = useState(false);
-  const [trialStatus, setTrialStatus] = useState<FreeTrialStatusData | null>(null);
+  const [trialStatus, setTrialStatus] = useState<FreeTrialStatusData | null>(
+    null,
+  );
 
   useEffect(() => {
     const fetchTrialStatus = async () => {
@@ -59,8 +75,14 @@ function DashboardPageContent() {
   const isPropertyOwner = role === "property_owner";
   const isContractor = role === "contractor";
 
-  const hasMembershipCookie = typeof document !== "undefined" && document.cookie.split("; ").some(c => c.trim().startsWith("has-membership=true"));
-  const hasMembership = isAdmin || Boolean(user?.has_membership ?? user?.hasMembership ?? hasMembershipCookie);
+  const hasMembershipCookie =
+    typeof document !== "undefined" &&
+    document.cookie
+      .split("; ")
+      .some((c) => c.trim().startsWith("has-membership=true"));
+  const hasMembership =
+    isAdminOrInspector ||
+    Boolean(user?.has_membership ?? user?.hasMembership ?? hasMembershipCookie);
 
   useEffect(() => {
     if (!searchParamsHook) return;
@@ -77,7 +99,7 @@ function DashboardPageContent() {
 
       // Clean up search params from the address bar so they don't persist on refresh or page navigation
       const cleanUrl = window.location.pathname;
-      window.history.replaceState(null, '', cleanUrl);
+      window.history.replaceState(null, "", cleanUrl);
     }
     if (lat && lng) {
       setMapFocus({ lat: parseFloat(lat), lng: parseFloat(lng) });
@@ -125,11 +147,14 @@ function DashboardPageContent() {
     [debouncedSearch, searchBy, state_id, city_id],
   );
 
-  const resultsVisible = hasMembership && (!isAdmin || !isContractor) && showResults;
+  const resultsVisible =
+    hasMembership && (!isAdmin || !isContractor) && showResults;
 
   const handleSearchTriggered = () => {
     if (!hasMembership) {
-      toast.error("Active membership is required to search properties. Please purchase a membership plan.");
+      toast.error(
+        "Active membership is required to search properties. Please purchase a membership plan.",
+      );
       setShowResults(false);
       return;
     }
@@ -210,7 +235,7 @@ function DashboardPageContent() {
         "p-0 flex flex-col items-center w-full min-h-[calc(80vh-118px)]",
         isContractor
           ? "bg-linear-to-b from-[#265D81] to-[#212B45] justify-center py-12 md:py-20"
-          : "bg-linear-to-b from-[#F5FFFF] to-[#FFFFFF]"
+          : "bg-linear-to-b from-[#F5FFFF] to-[#FFFFFF]",
       )}
     >
       {isContractor ? (
@@ -222,8 +247,8 @@ function DashboardPageContent() {
                 trialStatus.is_free_trial_active
                   ? "bg-amber-500/20 border-amber-500/40 text-white"
                   : trialStatus.is_expired
-                  ? "bg-red-500/20 border-red-500/40 text-white"
-                  : "bg-blue-500/20 border-blue-500/40 text-white"
+                    ? "bg-red-500/20 border-red-500/40 text-white"
+                    : "bg-blue-500/20 border-blue-500/40 text-white",
               )}
             >
               <div className="flex items-center gap-3">
@@ -233,7 +258,14 @@ function DashboardPageContent() {
                 <div className="text-left">
                   <h4 className="font-bold text-base text-white flex items-center gap-2">
                     {trialStatus.is_free_trial_active ? (
-                      <span>Free Trial Active — <strong>{trialStatus.days_left} {trialStatus.days_left === 1 ? "day" : "days"} remaining</strong></span>
+                      <span>
+                        Free Trial Active —{" "}
+                        <strong>
+                          {trialStatus.days_left}{" "}
+                          {trialStatus.days_left === 1 ? "day" : "days"}{" "}
+                          remaining
+                        </strong>
+                      </span>
                     ) : trialStatus.is_expired ? (
                       <span>Free Trial Expired</span>
                     ) : (
@@ -241,7 +273,9 @@ function DashboardPageContent() {
                     )}
                   </h4>
                   {trialStatus.display_message && (
-                    <p className="text-xs sm:text-sm text-white/90">{trialStatus.display_message}</p>
+                    <p className="text-xs sm:text-sm text-white/90">
+                      {trialStatus.display_message}
+                    </p>
                   )}
                 </div>
               </div>
@@ -265,7 +299,8 @@ function DashboardPageContent() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full lg:max-w-[786px] justify-items-center">
-              <Link href="/projects"
+              <Link
+                href="/projects"
                 className="w-full max-w-[381px] cursor-pointer h-[160px] bg-white rounded-[20px] p-[17px] flex items-center gap-[19px] text-left border-4 border-transparent hover:border-[#20A8A7] hover:shadow-[0px_0px_20px_rgba(0,0,0,0.75)] active:scale-[0.98] transition-all duration-300 ease-in-out group"
               >
                 <div className="w-[94px] h-[94px] rounded-full bg-linear-to-b from-[#265D81] to-[#212B45] flex items-center justify-center shrink-0">
@@ -348,7 +383,8 @@ function DashboardPageContent() {
                 </div>
               </Link>
 
-              <Link href="/reports"
+              <Link
+                href="/reports"
                 className="w-full max-w-[381px] cursor-pointer h-[160px] bg-white rounded-[20px] p-[17px] flex items-center gap-[19px] text-left border-4 border-transparent hover:border-[#20A8A7] hover:shadow-[0px_0px_20px_rgba(0,0,0,0.75)] active:scale-[0.98] transition-all duration-300 ease-in-out group"
               >
                 <div className="w-[94px] h-[94px] rounded-full bg-linear-to-b from-[#265D81] to-[#212B45] flex items-center justify-center shrink-0">
@@ -467,8 +503,8 @@ function DashboardPageContent() {
                 trialStatus.is_free_trial_active
                   ? "bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200"
                   : trialStatus.is_expired
-                  ? "bg-red-500/10 border-red-500/30 text-red-900 dark:text-red-200"
-                  : "bg-blue-500/10 border-blue-500/30 text-blue-900 dark:text-blue-200"
+                    ? "bg-red-500/10 border-red-500/30 text-red-900 dark:text-red-200"
+                    : "bg-blue-500/10 border-blue-500/30 text-blue-900 dark:text-blue-200",
               )}
             >
               <div className="flex items-center gap-3">
@@ -478,7 +514,14 @@ function DashboardPageContent() {
                 <div className="text-left">
                   <h4 className="font-bold text-base flex items-center gap-2">
                     {trialStatus.is_free_trial_active ? (
-                      <span>Free Trial Active — <strong>{trialStatus.days_left} {trialStatus.days_left === 1 ? "day" : "days"} remaining</strong></span>
+                      <span>
+                        Free Trial Active —{" "}
+                        <strong>
+                          {trialStatus.days_left}{" "}
+                          {trialStatus.days_left === 1 ? "day" : "days"}{" "}
+                          remaining
+                        </strong>
+                      </span>
                     ) : trialStatus.is_expired ? (
                       <span>Free Trial Expired</span>
                     ) : (
@@ -486,7 +529,9 @@ function DashboardPageContent() {
                     )}
                   </h4>
                   {trialStatus.display_message && (
-                    <p className="text-xs sm:text-sm opacity-90">{trialStatus.display_message}</p>
+                    <p className="text-xs sm:text-sm opacity-90">
+                      {trialStatus.display_message}
+                    </p>
                   )}
                 </div>
               </div>
@@ -590,14 +635,14 @@ function DashboardPageContent() {
           )}
 
           {/* Unified Search Bar */}
-          {!isContractor &&
+          {!isContractor && (
             <UnifiedSearchBar
               showSearchButton={true}
               onChange={setFilters}
               onSearchTriggered={handleSearchTriggered}
               isMapView={viewMode === "map"}
             />
-          }
+          )}
 
           {resultsVisible && (
             <div className="space-y-4 md:space-y-6">
@@ -629,7 +674,7 @@ function DashboardPageContent() {
                     "px-4 py-2 rounded-lg text-sm font-medium h-auto transition-all",
                     viewMode === "list"
                       ? "bg-[#1F2A44] text-white shadow-sm"
-                      : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                      : "bg-muted hover:bg-muted/80 text-muted-foreground",
                   )}
                 >
                   <List className="size-4 mr-2" />
@@ -641,7 +686,7 @@ function DashboardPageContent() {
                     "px-4 py-2 rounded-lg text-sm font-medium h-auto transition-all",
                     viewMode === "map"
                       ? "bg-[#1F2A44] text-white shadow-sm"
-                      : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                      : "bg-muted hover:bg-muted/80 text-muted-foreground",
                   )}
                 >
                   <Map className="size-4 mr-2" />
@@ -764,7 +809,13 @@ function DashboardPageContent() {
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-gray-500 font-semibold font-asap">Loading Dashboard...</div>}>
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-gray-500 font-semibold font-asap">
+          Loading Dashboard...
+        </div>
+      }
+    >
       <DashboardPageContent />
     </Suspense>
   );
