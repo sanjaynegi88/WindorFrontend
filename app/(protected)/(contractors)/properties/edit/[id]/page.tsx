@@ -869,30 +869,14 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
     <div className="bg-[#FFFFFF] md:bg-[#1F2A44] md:min-h-screen flex flex-col flex-1">
       <MobileHeader variant="overlay" sticky={false} />
 
-      {/* Hero */}
-      {step === "EDIT_ADDRESS" ? (
-        <div className="relative w-full overflow-hidden h-103 md:h-[1080px]">
-          <Image
-            src="/assets/add-property/new-address.png"
-            alt="Hero"
-            fill
-            sizes="100vw"
-            priority
-            className="absolute inset-0 w-full h-[250px] md:h-full object-cover md:top-[-70px]"
-          />
-          <div className="absolute inset-0 h-full" />
-        </div>
-      ) : null}
-
-      {/* Content card */}
       <div
-        className={`relative z-10 flex flex-col flex-1 items-center w-full ${step === "EDIT_ADDRESS" ? "mt-[-200px] md:mt-[-462px]" : "mt-0"}`}
+        className={`relative z-10 flex flex-col flex-1 items-center w-full mt-0`}
       >
         <div className="absolute top-[-30px] md:top-[-50px] bottom-0 md:bottom-20 left-0 w-full bg-white opacity-30 rounded-t-[40px] md:rounded-t-[50px] pointer-events-none" />
         <div className="absolute top-[-15px] md:top-[-25px] bottom-0 md:bottom-20 left-0 w-full bg-white opacity-30 rounded-t-[40px] md:rounded-t-[50px] pointer-events-none" />
 
         <div
-          className={`w-full bg-white ${step === "EDIT_ADDRESS" ? "rounded-t-[40px] md:rounded-t-[50px]" : ""}  shadow-[0px_4px_34px_rgba(31,42,68,0.1)] md:shadow-none px-6 pt-10 pb-[100px] md:p-[80px] flex-1 md:min-h-[781px] relative mt-0`}
+          className={`w-full bg-white shadow-[0px_4px_34px_rgba(31,42,68,0.1)] md:shadow-none px-6 pt-10 pb-[100px] md:p-[80px] flex-1 md:min-h-[781px] relative mt-0`}
         >
           <div className="max-w-[1170px] mx-auto relative w-full">
             {/* ── Loading ── */}

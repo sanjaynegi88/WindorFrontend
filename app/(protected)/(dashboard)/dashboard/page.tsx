@@ -127,10 +127,8 @@ function DashboardPageContent() {
       brandName: searchBy === "brand" ? debouncedSearch : "",
       color: searchBy === "color" ? debouncedSearch : "",
       style: searchBy === "style" ? debouncedSearch : "",
-      state: state,
-      city: city,
-      state_id: state_id,
-      city_id: city_id,
+      state_id: state_id || (state !== "all" ? state : ""),
+      city_id: city_id || (city !== "all" ? city : ""),
     }),
     [debouncedSearch, searchBy, state, city, state_id, city_id],
   );
@@ -149,6 +147,18 @@ function DashboardPageContent() {
 
   const resultsVisible =
     hasMembership && (!isAdmin || !isContractor) && showResults;
+
+  useEffect(() => {
+    if (
+      debouncedSearch.trim().length > 0 ||
+      (state_id && state_id !== "all") ||
+      (city_id && city_id !== "all")
+    ) {
+      if (hasMembership) {
+        setShowResults(true);
+      }
+    }
+  }, [debouncedSearch, state_id, city_id, hasMembership]);
 
   const handleSearchTriggered = () => {
     if (!hasMembership) {

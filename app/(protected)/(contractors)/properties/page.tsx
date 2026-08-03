@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import { PropertyGrid } from '@/components/common/property-grid'
 import { Content } from '@/components/layouts/crm/components/content'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import { UnifiedSearchBar } from "@/components/common/unified-search-bar";
 import { FileText, List, Loader2, Map } from "lucide-react";
 import { generateMultipleReports, checkoutReports } from "@/lib/actions";
 import { useUser } from "@/components/providers/user-provider";
+import { useSearchParams } from "next/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "sonner";
 import type { SearchScope } from "@/components/common/unified-search-bar";
@@ -16,13 +17,37 @@ import { PdfGenerationLoader } from "@/components/common/pdf-generation-loader";
 import MapView from "../../(dashboard)/dashboard/map-view";
 import { cn, downloadPdfFromUrl } from "@/lib/utils";
 
-export default function PropertyPage() {
+function PropertyPageContent() {
     const { user } = useUser();
     const [showResults, setShowResults] = useState(false);
     const [viewMode, setViewMode] = useState<"list" | "map">("list");
     const [mapFocus, setMapFocus] = useState<{ lat: number; lng: number } | null>(null);
     const [mapFocusId, setMapFocusId] = useState<string | null>(null);
     const [isGeneratingTop10, setIsGeneratingTop10] = useState(false);
+
+    const searchParamsHook = useSearchParams();
+
+    useEffect(() => {
+        if (!searchParamsHook) return;
+        const view = searchParamsHook.get("view");
+        const lat = searchParamsHook.get("lat");
+        const lng = searchParamsHook.get("lng");
+        const id = searchParamsHook.get("id");
+
+        if (view === "map") {
+            setViewMode("map");
+            setShowResults(true);
+        }
+        if (lat && lng) {
+            setMapFocus({ lat: parseFloat(lat), lng: parseFloat(lng) });
+        }
+        if (id) {
+            setMapFocusId(id);
+        }
+
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState(null, "", cleanUrl);
+    }, [searchParamsHook]);
 
     const [filters, setFilters] = useState({
         search: "",
@@ -36,16 +61,20 @@ export default function PropertyPage() {
     const debouncedSearch = useDebounce(filters.search, 300);
     const { searchBy, state, city, state_id, city_id } = filters;
 
+    useEffect(() => {
+        if (debouncedSearch.trim().length > 0 || (state_id && state_id !== "all") || (city_id && city_id !== "all")) {
+            setShowResults(true);
+        }
+    }, [debouncedSearch, state_id, city_id]);
+
     const searchParams = useMemo(
         () => ({
             search: searchBy === "all" ? debouncedSearch : "",
             brandName: searchBy === "brand" ? debouncedSearch : "",
             color: searchBy === "color" ? debouncedSearch : "",
             style: searchBy === "style" ? debouncedSearch : "",
-            state: state,
-            city: city,
-            state_id: state_id,
-            city_id: city_id,
+            state_id: state_id || (state !== "all" ? state : ""),
+            city_id: city_id || (city !== "all" ? city : ""),
         }),
         [debouncedSearch, searchBy, state, city, state_id, city_id],
     );
@@ -200,5 +229,17 @@ export default function PropertyPage() {
                 message="Generating Reports..."
             />
         </Content>
-    )
+    );
+}
+
+export default function PropertyPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center min-h-screen">
+                <Loader2 className="w-8 h-8 animate-spin text-[#1CA7A6]" />
+            </div>
+        }>
+            <PropertyPageContent />
+        </Suspense>
+    );
 }

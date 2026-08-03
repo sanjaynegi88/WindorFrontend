@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
 import { checkoutReports, generateMultipleReports } from "@/lib/actions";
 import { ChevronLeft, FileText, Loader2 } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { downloadPdfFromUrl } from "@/lib/utils";
 
@@ -34,10 +34,8 @@ export default function ProjectList() {
       brandName: searchBy === "brand" ? debouncedSearch : "",
       color: searchBy === "color" ? debouncedSearch : "",
       style: searchBy === "style" ? debouncedSearch : "",
-      state: state,
-      city: city,
-      state_id: state_id,
-      city_id: city_id,
+      state_id: state_id || (state !== "all" ? state : ""),
+      city_id: city_id || (city !== "all" ? city : ""),
     }),
     [debouncedSearch, searchBy, state, city, state_id, city_id],
   );
@@ -69,6 +67,18 @@ export default function ProjectList() {
   const hasMembership =
     isAdmin ||
     Boolean(user?.has_membership ?? user?.hasMembership ?? hasMembershipCookie);
+
+  useEffect(() => {
+    if (
+      debouncedSearch.trim().length > 0 ||
+      (state_id && state_id !== "all") ||
+      (city_id && city_id !== "all")
+    ) {
+      if (hasMembership) {
+        setShowResults(true);
+      }
+    }
+  }, [debouncedSearch, state_id, city_id, hasMembership]);
 
   const handleGenerateTop10 = async () => {
     if (!user) {
@@ -148,36 +158,35 @@ export default function ProjectList() {
           allowEmptySearch={false}
         />
 
+        <div className="space-y-4 md:space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl md:text-4xl font-black text-[#1e293b] tracking-tighter uppercase font-asap">
+              Properties
+            </h2>
+            <Button
+              onClick={handleGenerateTop10}
+              disabled={isGeneratingTop10}
+              className="h-9 md:h-11 px-4 md:px-6 rounded-[10px] bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs md:text-sm uppercase tracking-widest gap-2 shadow-none"
+            >
+              {isGeneratingTop10 ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <FileText className="size-4" />
+              )}
+              <span className="hidden sm:inline">
+                Generate reports (max 10)
+              </span>
+              <span className="sm:hidden">Top 10</span>
+            </Button>
+          </div>
+        </div>
+
         {resultsVisible && (
-          <>
-            <div className="space-y-4 md:space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl md:text-4xl font-black text-[#1e293b] tracking-tighter uppercase font-asap">
-                  Properties
-                </h2>
-                <Button
-                  onClick={handleGenerateTop10}
-                  disabled={isGeneratingTop10}
-                  className="h-9 md:h-11 px-4 md:px-6 rounded-[10px] bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs md:text-sm uppercase tracking-widest gap-2 shadow-none"
-                >
-                  {isGeneratingTop10 ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <FileText className="size-4" />
-                  )}
-                  <span className="hidden sm:inline">
-                    Generate reports (max 10)
-                  </span>
-                  <span className="sm:hidden">Top 10</span>
-                </Button>
-              </div>
-            </div>
-            <PropertyGrid
-              searchParams={searchParams}
-              redirectUrl="properties/new?propertyId="
-              isPropertyOwner={isPropertyOwner}
-            />
-          </>
+          <PropertyGrid
+            searchParams={searchParams}
+            redirectUrl="properties/new?propertyId="
+            isPropertyOwner={isPropertyOwner}
+          />
         )}
 
         {/* Back Button */}
