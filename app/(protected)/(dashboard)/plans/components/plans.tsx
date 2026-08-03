@@ -74,6 +74,7 @@ const Plans = () => {
   );
   const [isCancelling, setIsCancelling] = useState(false);
   const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
+  const [currentPlanLevel, setCurrentPlanLevel] = useState<string | null>(null);
   const [currentBillingCycle, setCurrentBillingCycle] = useState<string | null>(
     null,
   );
@@ -81,6 +82,17 @@ const Plans = () => {
   const [trialStatus, setTrialStatus] = useState<FreeTrialStatusData | null>(
     null,
   );
+
+  const currentPlanObj = plans.find((p) => p.id === currentPlanId);
+  const isCurrentPlanFree =
+    !currentPlanId ||
+    (currentPlanLevel && currentPlanLevel.toUpperCase() === "FREE") ||
+    (currentPlanObj?.level && currentPlanObj.level.toUpperCase() === "FREE") ||
+    (currentPlanObj &&
+      Number(currentPlanObj.monthlyAmount ?? 0) === 0 &&
+      Number(currentPlanObj.yearlyAmount ?? 0) === 0) ||
+    (currentPlanObj?.name &&
+      currentPlanObj.name.toLowerCase().includes("free"));
 
   const hasAnnualPlans = plans.some(
     (plan) => plan.yearlyAmount !== null && plan.yearlyAmount !== undefined,
@@ -143,10 +155,11 @@ const Plans = () => {
 
     setCurrentPlanId(null);
     setCurrentBillingCycle(null);
-    fetchData();
+    setCurrentPlanLevel(null);
     if (user) {
       setUser({ ...user, has_membership: false });
     }
+    fetchData();
     toast.success("Membership cancelled successfully");
   };
 
@@ -173,6 +186,12 @@ const Plans = () => {
         setCurrentBillingCycle(
           profileResponse.current_subscription.billing_cycle,
         );
+      }
+      const subLevel =
+        profileResponse?.level ||
+        profileResponse?.current_subscription?.plan?.level;
+      if (subLevel) {
+        setCurrentPlanLevel(subLevel);
       }
 
       if (trialResponse?.success && trialResponse?.data?.data) {
@@ -261,7 +280,7 @@ const Plans = () => {
             </motion.div>
           )}
 
-          {currentPlanId ? (
+          {currentPlanId && !isCurrentPlanFree ? (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -462,11 +481,7 @@ const Plans = () => {
                   <Button
                     size="lg"
                     variant={isCurrentPlan ? "destructive" : "outline"}
-                    disabled={
-                      subscribingPlanId !== null ||
-                      isCancelling ||
-                      (!!currentPlanId && !isCurrentPlan)
-                    }
+                    disabled={subscribingPlanId !== null || isCancelling}
                     className={cn(
                       "w-full h-12 rounded-xl text-md font-bold transition-all duration-300",
                       isCurrentPlan
@@ -484,9 +499,10 @@ const Plans = () => {
                       <Loader2 className="w-5 h-5 animate-spin" />
                     ) : isCurrentPlan ? (
                       "Cancel Membership"
-                    ) : !!currentPlanId ? (
-                      "Cancel Current Plan First"
                     ) : (
+                      // : !!currentPlanId && !isCurrentPlanFree ? (
+                      //   "Cancel Current Plan First"
+                      // )
                       "Get Started"
                     )}
                   </Button>
