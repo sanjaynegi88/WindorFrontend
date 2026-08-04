@@ -17,6 +17,7 @@ import { useUser } from "../providers/user-provider";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { getCities, getUserProfile, getReportUsage } from "@/lib/actions";
 import { MapDialog } from "./MapDialog";
+import { toTitleCase } from "@/lib/utils";
 
 export interface AddressData {
   address: string;
@@ -318,7 +319,7 @@ export function AddressForm({
                         .replace(/\b\w/g, (c: any) => c.toUpperCase());
                 return (
                   <SelectItem key={itemKey} value={itemValue}>
-                    {label}
+                    {toTitleCase(label)}
                   </SelectItem>
                 );
               })
@@ -368,10 +369,13 @@ export function AddressForm({
           onChange={(e) => onChange({ ...data, address2: e.target.value })}
         />
 
-        <div className="grid grid-cols-2 gap-[10px] md:gap-[19.8px]">
+        <div className="grid md:grid-cols-2 gap-[10px] md:gap-[19.8px]">
           {/* State */}
-          <Select
-            value={data.state || ""}
+          <SearchableSelect
+            options={states.map((s) => ({ id: s.id, name: s.name }))}
+            value={data.state || data.state_id || ""}
+            placeholder="State"
+            searchPlaceholder="Search state..."
             onValueChange={(val) => {
               setCitySearch("");
               setFetchedCities([]);
@@ -384,18 +388,7 @@ export function AddressForm({
                 other_city: "",
               });
             }}
-          >
-            <SelectTrigger className={triggerClass}>
-              <SelectValue placeholder="State" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-              {states.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
 
           <SearchableSelect
             options={cityOptions.map((c) => ({ id: c.id, name: c.name }))}

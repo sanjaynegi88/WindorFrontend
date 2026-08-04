@@ -25,26 +25,31 @@ import {
 import { type CityOption } from "@/lib/location-utils";
 import { useUser } from "@/components/providers/user-provider";
 
-const projectSchema = z.object({
-  project_name: z.string().min(1, "Project name is required"),
-  project_type: z.string().min(1, "Project type is required"),
-  other: z.string().optional(),
-  date_of_install: z.string().optional(),
-  governing_city_id: z.string().min(1, "City is required"),
-  permit: z.string().optional(),
-  need_permit: z.boolean().optional(),
-  notes: z.string().optional(),
-  contractor_id: z.string().optional(),
-}).superRefine((data, ctx) => {
-  const pType = data.project_type.toUpperCase();
-  if ((pType === "OTHER" || pType === "OTHER_CONTRACTOR") && !data.other?.trim()) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Please specify the project type",
-      path: ["other"],
-    });
-  }
-});
+const projectSchema = z
+  .object({
+    project_name: z.string().min(1, "Project name is required"),
+    project_type: z.string().min(1, "Project type is required"),
+    other: z.string().optional(),
+    date_of_install: z.string().optional(),
+    governing_city_id: z.string().min(1, "City is required"),
+    permit: z.string().optional(),
+    need_permit: z.boolean().optional(),
+    notes: z.string().optional(),
+    contractor_id: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const pType = data.project_type.toUpperCase();
+    if (
+      (pType === "OTHER" || pType === "OTHER_CONTRACTOR") &&
+      !data.other?.trim()
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Please specify the project type",
+        path: ["other"],
+      });
+    }
+  });
 
 type ProjectFormValues = z.infer<typeof projectSchema>;
 
@@ -101,21 +106,31 @@ export function CategorySelection({
   defaultGoverningCityId,
   cities = [],
 }: CategorySelectionProps) {
-  const [projectName, setProjectName] = useState(initialProjectData?.project_name || "");
-  const [projectType, setProjectType] = useState<string>(initialProjectData?.project_type?.toLowerCase() || initialProjectType || "");
-  const [dateOfInstall, setDateOfInstall] = useState<Date | undefined>(
-    initialProjectData?.date_of_install ? parseISO(initialProjectData.date_of_install) : undefined
+  const [projectName, setProjectName] = useState(
+    initialProjectData?.project_name || "",
   );
-  const [governingCity, setGoverningCity] = useState(initialProjectData?.governing_city_id || defaultGoverningCityId || "");
+  const [projectType, setProjectType] = useState<string>(
+    initialProjectData?.project_type?.toLowerCase() || initialProjectType || "",
+  );
+  const [dateOfInstall, setDateOfInstall] = useState<Date | undefined>(
+    initialProjectData?.date_of_install
+      ? parseISO(initialProjectData.date_of_install)
+      : undefined,
+  );
+  const [governingCity, setGoverningCity] = useState(
+    initialProjectData?.governing_city_id || defaultGoverningCityId || "",
+  );
   const [permit, setPermit] = useState(initialProjectData?.permit || "");
   const [notes, setNotes] = useState(initialProjectData?.notes || "");
   const [other, setOther] = useState(initialProjectData?.other || "");
-  const [contractorId, setContractorId] = useState(initialProjectData?.contractor_id || "");
+  const [contractorId, setContractorId] = useState(
+    initialProjectData?.contractor_id || "",
+  );
   const [contractors, setContractors] = useState<
     { id: string; name: string; email: string }[]
   >([]);
   const [visibility, setVisibility] = useState<"public" | "private">(
-    initialProjectData?.visible_status === "private" ? "private" : "public"
+    initialProjectData?.visible_status === "private" ? "private" : "public",
   );
 
   const [componentTypes, setComponentTypes] = useState<ComponentType[]>([]);
@@ -133,20 +148,37 @@ export function CategorySelection({
   const isPropertyOwner = userRole === "property_owner";
 
   const selectedComponentType = componentTypes.find(
-    (t) => t.name.toLowerCase() === projectType
+    (t) => t.name.toLowerCase() === projectType,
   );
   useEffect(() => {
     setProjectName(initialProjectData?.project_name || "");
-    setProjectType(initialProjectData?.project_type?.toLowerCase() || initialProjectType || "");
-    setDateOfInstall(initialProjectData?.date_of_install ? parseISO(initialProjectData.date_of_install) : undefined);
-    setGoverningCity(initialProjectData?.governing_city_id || defaultGoverningCityId || "");
+    setProjectType(
+      initialProjectData?.project_type?.toLowerCase() ||
+        initialProjectType ||
+        "",
+    );
+    setDateOfInstall(
+      initialProjectData?.date_of_install
+        ? parseISO(initialProjectData.date_of_install)
+        : undefined,
+    );
+    setGoverningCity(
+      initialProjectData?.governing_city_id || defaultGoverningCityId || "",
+    );
     setPermit(initialProjectData?.permit || "");
     setNotes(initialProjectData?.notes || "");
     setOther(initialProjectData?.other || "");
     setContractorId(initialProjectData?.contractor_id || "");
-    setVisibility(initialProjectData?.visible_status === "private" ? "private" : "public");
+    setVisibility(
+      initialProjectData?.visible_status === "private" ? "private" : "public",
+    );
     setHasChanges(false);
-  }, [initialProjectData, initialProjectType, defaultGoverningCityId, isPropertyOwner]);
+  }, [
+    initialProjectData,
+    initialProjectType,
+    defaultGoverningCityId,
+    isPropertyOwner,
+  ]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -176,23 +208,30 @@ export function CategorySelection({
             getProjectTypesforPropertyOwner().catch(() => null),
             getComponentType().catch(() => null),
           ]);
-          const ownerTypes: ComponentType[] = (ownerRes?.data?.report_types || []).map((t: any) => ({
+          const ownerTypes: ComponentType[] = (
+            ownerRes?.data?.report_types || []
+          ).map((t: any) => ({
             ...t,
             required_permit: false,
-            isOwnerProjectType: true
+            isOwnerProjectType: true,
           }));
-          const compTypes: ComponentType[] = (compRes?.data?.report_types || []).map((t: any) => {
+          const compTypes: ComponentType[] = (
+            compRes?.data?.report_types || []
+          ).map((t: any) => {
             const nameLower = (t?.name || "").toLowerCase();
             return {
               ...t,
-              required_permit: (nameLower === "doors" || nameLower === "garage_doors") ? false : true,
-              isOwnerProjectType: false
+              required_permit:
+                nameLower === "doors" || nameLower === "garage_doors"
+                  ? false
+                  : true,
+              isOwnerProjectType: false,
             };
           });
 
           const merged = [...ownerTypes, ...compTypes];
           const uniqueNames = new Set<string>();
-          types = merged.filter(t => {
+          types = merged.filter((t) => {
             if (!t?.name) return false;
             const key = t.name.toUpperCase();
             if (uniqueNames.has(key)) return false;
@@ -210,8 +249,11 @@ export function CategorySelection({
             const nameLower = (t?.name || "").toLowerCase();
             return {
               ...t,
-              required_permit: (nameLower === "doors" || nameLower === "garage_doors") ? false : !isPropertyOwner,
-              isOwnerProjectType: isPropertyOwner
+              required_permit:
+                nameLower === "doors" || nameLower === "garage_doors"
+                  ? false
+                  : !isPropertyOwner,
+              isOwnerProjectType: isPropertyOwner,
             };
           });
         }
@@ -244,7 +286,7 @@ export function CategorySelection({
     if (name.toLowerCase() === "other_contractor") {
       return isAdmin ? "OTHER CONTRACTOR" : "OTHER";
     }
-    return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   };
 
   const displayTypes = componentTypes.map((type) => ({
@@ -266,18 +308,21 @@ export function CategorySelection({
 
   const compareWithInitial = (next: any) => {
     if (!initialProjectData) return true;
-    return JSON.stringify(next) !== JSON.stringify({
-      project_name: initialProjectData.project_name || "",
-      project_type: initialProjectData.project_type || "",
-      other: initialProjectData.other || "",
-      date_of_install: initialProjectData.date_of_install || "",
-      governing_city_id: initialProjectData.governing_city_id || "",
-      permit: initialProjectData.permit || "",
-      need_permit: initialProjectData.need_permit ?? false,
-      notes: initialProjectData.notes || "",
-      contractor_id: initialProjectData.contractor_id || "",
-      visible_status: initialProjectData.visible_status || "",
-    });
+    return (
+      JSON.stringify(next) !==
+      JSON.stringify({
+        project_name: initialProjectData.project_name || "",
+        project_type: initialProjectData.project_type || "",
+        other: initialProjectData.other || "",
+        date_of_install: initialProjectData.date_of_install || "",
+        governing_city_id: initialProjectData.governing_city_id || "",
+        permit: initialProjectData.permit || "",
+        need_permit: initialProjectData.need_permit ?? false,
+        notes: initialProjectData.notes || "",
+        contractor_id: initialProjectData.contractor_id || "",
+        visible_status: initialProjectData.visible_status || "",
+      })
+    );
   };
 
   useEffect(() => {
@@ -334,7 +379,9 @@ export function CategorySelection({
     }
     setErrors({});
 
-    const isOther = result.data.project_type.toUpperCase() === "OTHER" || result.data.project_type.toUpperCase() === "OTHER_CONTRACTOR";
+    const isOther =
+      result.data.project_type.toUpperCase() === "OTHER" ||
+      result.data.project_type.toUpperCase() === "OTHER_CONTRACTOR";
 
     const body = {
       project_name: result.data.project_name,
@@ -353,7 +400,9 @@ export function CategorySelection({
     const changed = compareWithInitial(body);
     setHasChanges(changed);
 
-    const selectedComp = componentTypes.find(t => t.name.toLowerCase() === projectType.toLowerCase());
+    const selectedComp = componentTypes.find(
+      (t) => t.name.toLowerCase() === projectType.toLowerCase(),
+    );
     const isOwnerProjectType = selectedComp?.isOwnerProjectType || false;
 
     if (!isEditMode) {
@@ -367,7 +416,11 @@ export function CategorySelection({
           }
           toast.success("Project created successfully!");
           setHasChanges(false);
-          onContinue({ type: projectType, projectData: result.data, isOwnerProjectType });
+          onContinue({
+            type: projectType,
+            projectData: result.data,
+            isOwnerProjectType,
+          });
         } catch (error: any) {
           toast.error(error?.message || "Failed to create project");
         } finally {
@@ -379,7 +432,11 @@ export function CategorySelection({
     }
 
     if (!changed) {
-      onContinue({ type: projectType, projectData: { id: projectId }, isOwnerProjectType });
+      onContinue({
+        type: projectType,
+        projectData: { id: projectId },
+        isOwnerProjectType,
+      });
       return;
     }
 
@@ -394,7 +451,11 @@ export function CategorySelection({
         toast.success("Project updated successfully!");
         setHasChanges(false);
         if (action === "save-next") {
-          onContinue({ type: projectType, projectData: result.data, isOwnerProjectType });
+          onContinue({
+            type: projectType,
+            projectData: result.data,
+            isOwnerProjectType,
+          });
         } else if (action === "save") {
           onSaveSuccess?.();
         }
@@ -406,7 +467,6 @@ export function CategorySelection({
     };
     executeEdit();
   };
-
 
   const chevronSvg = (
     <svg
@@ -448,7 +508,9 @@ export function CategorySelection({
           <input
             placeholder="Case Number from your own files"
             value={projectName}
-            onChange={(e) => handleFieldChange(() => setProjectName(e.target.value))}
+            onChange={(e) =>
+              handleFieldChange(() => setProjectName(e.target.value))
+            }
             className={inputClass}
           />
           {fieldError("project_name")}
@@ -458,13 +520,13 @@ export function CategorySelection({
           <p className="text-[14px] md:text-[20px] font-bold md:font-medium text-[#708090] font-asap">
             Project Type
           </p>
-          <div className="flex flex-wrap gap-[15px] md:gap-[40px] justify-between md:justify-start">
+          <div className="grid grid-cols-4 md:flex md:flex-wrap gap-[15px] md:gap-[40px]">
             {loading ? (
-              <div className="flex gap-[15px] md:gap-[60px]">
+              <div className="grid grid-cols-4 md:flex gap-[15px] md:gap-[60px]">
                 {[1, 2, 3].map((i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-[8px] md:gap-[15px]"
+                    className="flex flex-col md:flex-row items-center justify-center md:justify-start gap-[8px] md:gap-[15px]"
                   >
                     <div className="size-[10px] md:size-[26px] rounded-full bg-gray-200 animate-pulse" />
                     <div className="h-4 w-16 md:w-24 bg-gray-200 rounded animate-pulse" />
@@ -475,13 +537,18 @@ export function CategorySelection({
               displayTypes.map((type) => (
                 <label
                   key={type.id}
-                  className={cn("flex flex-col md:flex-row items-center gap-[8px] md:gap-[10px] group", disableProjectType ? "cursor-not-allowed opacity-70" : "cursor-pointer")}
+                  className={cn(
+                    "flex flex-col md:flex-row items-center justify-center md:justify-start gap-[8px] md:gap-[10px] group",
+                    disableProjectType
+                      ? "cursor-not-allowed opacity-70"
+                      : "cursor-pointer",
+                  )}
                 >
                   <div
                     className={cn(
                       "size-[10px] md:size-[26px] rounded-full border border-[rgba(112,128,144,0.4333)] md:border-[rgba(112,128,144,0.3)] flex items-center justify-center transition-all bg-white",
                       projectType === type.id &&
-                      "border-[rgba(112,128,144,0.5)]",
+                        "border-[rgba(112,128,144,0.5)]",
                     )}
                   >
                     {projectType === type.id && (
@@ -493,7 +560,10 @@ export function CategorySelection({
                     className="hidden"
                     name="projectType"
                     checked={projectType === type.id}
-                    onChange={() => !disableProjectType && handleFieldChange(() => setProjectType(type.id))}
+                    onChange={() =>
+                      !disableProjectType &&
+                      handleFieldChange(() => setProjectType(type.id))
+                    }
                     disabled={disableProjectType}
                   />
                   <span
@@ -518,7 +588,9 @@ export function CategorySelection({
             <input
               placeholder="Specify project type"
               value={other}
-              onChange={(e) => handleFieldChange(() => setOther(e.target.value))}
+              onChange={(e) =>
+                handleFieldChange(() => setOther(e.target.value))
+              }
               className={inputClass}
             />
             {errors.other && (
@@ -541,7 +613,9 @@ export function CategorySelection({
         <div>
           <Select
             value={governingCity || ""}
-            onValueChange={(val) => handleFieldChange(() => setGoverningCity(val))}
+            onValueChange={(val) =>
+              handleFieldChange(() => setGoverningCity(val))
+            }
           >
             <SelectTrigger className={triggerClass}>
               <SelectValue placeholder="Governing City" />
@@ -559,7 +633,12 @@ export function CategorySelection({
 
         {isAdmin && (
           <div>
-            <Select value={contractorId} onValueChange={(value) => handleFieldChange(() => setContractorId(value))}>
+            <Select
+              value={contractorId}
+              onValueChange={(value) =>
+                handleFieldChange(() => setContractorId(value))
+              }
+            >
               <SelectTrigger className="w-full border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] rounded-[6px] md:rounded-[10px]">
                 <SelectValue placeholder="Contractor" />
               </SelectTrigger>
@@ -616,7 +695,9 @@ export function CategorySelection({
                     className="hidden"
                     name="visibility"
                     checked={visibility === option}
-                    onChange={() => handleFieldChange(() => setVisibility(option))}
+                    onChange={() =>
+                      handleFieldChange(() => setVisibility(option))
+                    }
                   />
                   <span
                     className={cn(
@@ -643,14 +724,14 @@ export function CategorySelection({
                 <Button
                   onClick={() => handleSubmit("save")}
                   disabled={submitting}
-                  className="flex-1 h-[52px] md:h-[77px] bg-[#1CA7A6] hover:bg-[#199695] text-white font-bold rounded-[10px] text-[18px] md:text-[24px] shadow-none font-asap disabled:opacity-60"
+                  className="md:flex-1 h-12 text-base cursor-pointer bg-[#1CA7A6] hover:bg-[#199695] text-white font-bold rounded-[10px] text-[18px] md:text-[24px] shadow-none font-asap disabled:opacity-60"
                 >
                   {submitting ? "Saving..." : "Save"}
                 </Button>
                 <Button
                   onClick={() => handleSubmit("save-next")}
                   disabled={submitting}
-                  className="flex-1 h-[52px] md:h-[77px] border border-[#1CA7A6] bg-white text-[#1CA7A6] hover:bg-[#1CA7A6]/5 font-bold rounded-[10px] text-[18px] md:text-[24px] shadow-none font-asap disabled:opacity-60"
+                  className="md:flex-1 h-12 text-base cursor-pointer border border-[#1CA7A6] bg-white text-[#1CA7A6] hover:bg-[#1CA7A6]/5 font-bold rounded-[10px] text-[18px] md:text-[24px] shadow-none font-asap disabled:opacity-60"
                 >
                   {submitting ? "Saving..." : "Save & Next"}
                 </Button>
@@ -659,7 +740,7 @@ export function CategorySelection({
               <Button
                 onClick={() => handleSubmit("next")}
                 disabled={submitting}
-                className="w-full h-[52px] md:h-[77px] bg-[#1CA7A6] hover:bg-[#199695] text-white font-bold rounded-[10px] text-[18px] md:text-[24px] shadow-none font-asap disabled:opacity-60"
+                className="md:flex-1 h-12 text-base cursor-pointer bg-[#1CA7A6] hover:bg-[#199695] text-white font-bold rounded-[10px] text-[18px] md:text-[24px] shadow-none font-asap disabled:opacity-60"
               >
                 {submitting ? "Saving..." : "Next"}
               </Button>
@@ -688,7 +769,6 @@ export function CategorySelection({
           Back
         </button>
       </div>
-
     </div>
   );
 }

@@ -188,15 +188,15 @@ export default function AddedPropertiesPage() {
                 </div>
 
                 {/* Filters and Search */}
-                <div className="bg-white rounded-[20px] shadow-[0px_4px_34px_rgba(31,42,68,0.06)] p-5 md:p-6 space-y-4 md:space-y-0 md:flex md:items-center md:justify-between gap-6 border border-slate-100">
+                <div className="bg-white rounded-[20px] shadow-[0px_4px_34px_rgba(31,42,68,0.06)] p-4 sm:p-5 md:p-6 space-y-4 md:space-y-0 md:flex md:items-center md:justify-between gap-4 md:gap-6 border border-slate-100">
                     {/* Filter Tabs */}
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid grid-cols-4 gap-1.5 sm:gap-2 w-full md:w-auto">
                         {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveFilter(tab)}
                                 className={cn(
-                                    "px-4 py-2 rounded-lg text-xs md:text-sm font-bold uppercase tracking-wider transition-all cursor-pointer",
+                                    "px-1.5 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs md:text-sm font-bold uppercase tracking-wider transition-all cursor-pointer text-center truncate",
                                     activeFilter === tab
                                         ? "bg-[#1CA7A6] text-white shadow-[0px_4px_12px_rgba(28,167,166,0.2)]"
                                         : "bg-slate-50 hover:bg-slate-100 text-[#708090] border border-slate-200/60"
@@ -208,7 +208,7 @@ export default function AddedPropertiesPage() {
                     </div>
 
                     {/* Search Input */}
-                    <div className="relative max-w-sm w-full">
+                    <div className="relative max-w-full md:max-w-sm w-full">
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4.5 text-slate-400" />
                         <Input
                             placeholder="Search by name or address..."
@@ -221,7 +221,104 @@ export default function AddedPropertiesPage() {
 
                 {/* Listing Container */}
                 <div className="bg-white rounded-[20px] shadow-[0px_4px_34px_rgba(31,42,68,0.08)] overflow-hidden border border-slate-100/60">
-                    <div className="overflow-x-auto">
+                    {/* Mobile View - Vertical Cards */}
+                    <div className="block md:hidden divide-y divide-slate-100">
+                        {isLoading ? (
+                            <div className="py-12 text-center text-[#708090] p-4">
+                                <div className="flex flex-col items-center justify-center gap-3">
+                                    <Loader2 className="size-8 animate-spin text-[#1CA7A6]" />
+                                    <p className="text-sm font-semibold uppercase tracking-wider">Loading properties...</p>
+                                </div>
+                            </div>
+                        ) : filteredProperties.length > 0 ? (
+                            filteredProperties.map(property => (
+                                <div key={property.id} className="p-4 sm:p-5 space-y-3 hover:bg-slate-50/50 transition-colors">
+                                    {/* Header: Title & Status */}
+                                    <div className="flex items-start justify-between gap-2.5">
+                                        <div className="space-y-1 min-w-0 flex-1">
+                                            <h3 className="font-bold text-[#1F2A44] text-[16px] leading-snug">
+                                                {property.propertyName}
+                                            </h3>
+                                            <div className="flex items-start gap-1 text-[13px] font-medium text-[#708090]">
+                                                <MapPin className="size-3.5 text-slate-400 shrink-0 mt-0.5" />
+                                                <span>{property.address}, {property.cityStateZip}</span>
+                                            </div>
+                                        </div>
+                                        <span className={cn(
+                                            "shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border",
+                                            property.status === 'APPROVED' && "bg-emerald-50 text-emerald-600 border-emerald-200/50",
+                                            property.status === 'PENDING' && "bg-amber-50 text-amber-600 border-amber-200/50 animate-pulse",
+                                            property.status === 'REJECTED' && "bg-rose-50 text-rose-600 border-rose-200/50"
+                                        )}>
+                                            {property.status === 'APPROVED' && <ShieldCheck className="size-3" />}
+                                            {property.status === 'PENDING' && <Clock className="size-3" />}
+                                            {property.status === 'REJECTED' && <Ban className="size-3" />}
+                                            {property.status}
+                                        </span>
+                                    </div>
+
+                                    {/* Submitter & Date Info */}
+                                    <div className="grid grid-cols-2 gap-2 pt-2.5 border-t border-slate-100 text-xs">
+                                        <div>
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#708090] block">Submitted By</span>
+                                            <p className="font-semibold text-[#1F2A44] truncate">{property.contractorName}</p>
+                                            <p className="text-[11px] text-[#708090] truncate">{property.contractorEmail}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#708090] block">Date Added</span>
+                                            <p className="font-semibold text-[#1F2A44]">
+                                                {property.dateAdded ? new Date(property.dateAdded).toLocaleDateString(undefined, {
+                                                    year: 'numeric',
+                                                    month: 'short',
+                                                    day: 'numeric'
+                                                }) : 'N/A'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Card Actions */}
+                                    <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-slate-100">
+                                        <button
+                                            onClick={() => setSelectedProperty(property)}
+                                            className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer"
+                                        >
+                                            <Eye className="size-3.5" />
+                                            <span>View Details</span>
+                                        </button>
+                                        {isAdmin && property.status === 'PENDING' && (
+                                            <>
+                                                <button
+                                                    onClick={() => handleApproveClick(property)}
+                                                    className="inline-flex items-center justify-center gap-1 py-2 px-3.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200/50 text-xs font-bold transition-all cursor-pointer"
+                                                >
+                                                    <Check className="size-3.5 font-extrabold" />
+                                                    <span>Approve</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => handleRejectClick(property)}
+                                                    className="inline-flex items-center justify-center gap-1 py-2 px-3.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/50 text-xs font-bold transition-all cursor-pointer"
+                                                >
+                                                    <X className="size-3.5" />
+                                                    <span>Reject</span>
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="py-12 text-center text-[#708090] p-4">
+                                <div className="flex flex-col items-center justify-center gap-2">
+                                    <MapPin className="size-8 opacity-40" />
+                                    <p className="text-sm font-bold uppercase tracking-wider">No properties found</p>
+                                    <p className="text-xs font-medium">Try adjusting your filters or search query.</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Desktop View - Table */}
+                    <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-slate-50/75 border-b border-slate-100 text-[#708090] text-xs font-bold uppercase tracking-wider">

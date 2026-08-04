@@ -82,7 +82,7 @@ export default function ComponentDetail({
     if (role === "insurance_company") {
       getReportUsage()
         .then((res) => setReportUsage(res.data))
-        .catch(() => { });
+        .catch(() => {});
     }
   }, [role]);
 
@@ -101,21 +101,27 @@ export default function ComponentDetail({
       });
   }, [componentId]);
 
-  const isOwnerOfProperty = role === "property_owner" && !!componentData?.property_owner?.email && user?.email === componentData.property_owner.email;
-  const showAddProject = role === "admin" || role === "contractor" || role === "manufacturer" || (role === 'property_owner' && isOwnerOfProperty);
+  const isOwnerOfProperty =
+    role === "property_owner" &&
+    !!componentData?.property_owner?.email &&
+    user?.email === componentData.property_owner.email;
+  const showAddProject =
+    role === "admin" ||
+    role === "contractor" ||
+    role === "manufacturer" ||
+    (role === "property_owner" && isOwnerOfProperty);
   const hasReportApi = !!componentData?.has_report;
 
   const showGenerateOption =
-    hasReportApi && (
-      (role === "property_owner" && (isOwnerOfProperty || purchased)) ||
+    hasReportApi &&
+    ((role === "property_owner" && (isOwnerOfProperty || purchased)) ||
       role === "admin" ||
       role === "city_inspector" ||
-      (role === "contractor" && (purchased)) ||
+      (role === "contractor" && purchased) ||
       (role === "manufacturer" && purchased) ||
       (role === "realtor" && purchased) ||
       (role === "insurance_company" &&
-        (purchased || (reportUsage && reportUsage.remaining > 0)))
-    );
+        (purchased || (reportUsage && reportUsage.remaining > 0))));
 
   const showBuyOption =
     hasReportApi &&
@@ -131,15 +137,8 @@ export default function ComponentDetail({
   const downloadReport = async () => {
     setIsGenerating(true);
     try {
-      const url = await generatePdfReport(
-        componentId,
-        undefined,
-        user?.role,
-      );
-      await downloadPdfFromUrl(
-        url,
-        `property-report-${componentId}.pdf`
-      );
+      const url = await generatePdfReport(componentId, undefined, user?.role);
+      await downloadPdfFromUrl(url, `property-report-${componentId}.pdf`);
       toast.success("Report downloaded successfully");
       setPurchased(true);
     } catch (err: any) {
@@ -159,7 +158,8 @@ export default function ComponentDetail({
         setIsGenerating(false);
         return;
       }
-      const checkoutUrl = response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
+      const checkoutUrl =
+        response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
       if (checkoutUrl) {
         localStorage.setItem("pending_report_id", componentId);
         localStorage.setItem("pending_report_type", "single");
@@ -180,11 +180,11 @@ export default function ComponentDetail({
     address: componentData?.address ?? "N/A",
     location: [
       componentData?.city_name ??
-      componentData?.city?.name ??
-      componentData?.city,
+        componentData?.city?.name ??
+        componentData?.city,
       componentData?.state_name ??
-      componentData?.state?.name ??
-      componentData?.state,
+        componentData?.state?.name ??
+        componentData?.state,
       componentData?.zip,
     ]
       .filter(Boolean)
@@ -298,15 +298,17 @@ export default function ComponentDetail({
                   Property Street View
                 </a>
               )}
-              {hasReport && componentData?.latitude && componentData?.longitude && (
-                <Link
-                  href={`/dashboard?view=map&lat=${componentData.latitude}&lng=${componentData.longitude}&id=${componentId}`}
-                  className="flex items-center gap-2 h-10 px-6 rounded-full bg-white hover:bg-gray-100 text-[#1F2A44] font-bold text-[12px] md:text-[14px] uppercase tracking-widest transition-all shadow-lg border border-gray-200/50 hover:scale-105"
-                >
-                  <Map className="size-4 text-[#1CA7A6]" />
-                  Open in Map
-                </Link>
-              )}
+              {hasReport &&
+                componentData?.latitude &&
+                componentData?.longitude && (
+                  <Link
+                    href={`/properties?view=map&lat=${componentData.latitude}&lng=${componentData.longitude}&id=${componentId}`}
+                    className="flex items-center gap-2 h-10 px-6 rounded-full bg-white hover:bg-gray-100 text-[#1F2A44] font-bold text-[12px] md:text-[14px] uppercase tracking-widest transition-all shadow-lg border border-gray-200/50 hover:scale-105"
+                  >
+                    <Map className="size-4 text-[#1CA7A6]" />
+                    Open in Map
+                  </Link>
+                )}
             </div>
           </div>
           <div className="pt-6 md:pt-[43px]">
@@ -323,7 +325,10 @@ export default function ComponentDetail({
                 currentUserId={user?.id}
                 propertyName={property.address}
                 propertyOwnerEmail={componentData?.property_owner?.email}
-                hasComponents={Array.isArray(componentData?.components) && componentData.components.length > 0}
+                hasComponents={
+                  Array.isArray(componentData?.components) &&
+                  componentData.components.length > 0
+                }
                 onBack={() => setShowProjects(false)}
               />
             ) : showReports ? (

@@ -282,56 +282,48 @@ export default function MyProjectList() {
                     isLocked ? null : (
                       <>
                         {property.id && actualProjectId && (projectStatus === 'DRAFT' || isAdmin) && (
-                          <>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const noInstallation = !hasInstallation;
-                                router.push(`/properties/edit/${property.id}?projectId=${actualProjectId}${noInstallation ? '&noInstallation=true' : ''}`);
-                              }}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1CA7A6]/10 hover:bg-[#1CA7A6]/20 text-[#1CA7A6] font-bold text-xs uppercase tracking-widest transition-colors cursor-pointer border border-[#1CA7A6]/20 font-asap"
-                            >
-                              <Edit2 className="size-3.5" />
-                              <span className="hidden sm:inline">Edit</span>
-                              <span className="sm:hidden">Edit</span>
-                            </button>
-                          </>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const noInstallation = !hasInstallation;
+                              router.push(`/properties/edit/${property.id}?projectId=${actualProjectId}${noInstallation ? '&noInstallation=true' : ''}`);
+                            }}
+                            className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-[#1CA7A6]/10 hover:bg-[#1CA7A6]/20 text-[#1CA7A6] font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors cursor-pointer border border-[#1CA7A6]/20 font-asap shrink-0"
+                          >
+                            <Edit2 className="size-3 sm:size-3.5" />
+                            <span>Edit</span>
+                          </button>
                         )}
                         {property.id && actualProjectId && hasInstallation && projectStatus === 'DRAFT' && (
-                          <>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setProjectToConfirm({ id: actualProjectId, name: projectName, hasReport, propertyId: property.id });
-                                setConfirmDialogOpen(true);
-                              }}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1CA7A6]/10 hover:bg-[#1CA7A6]/20 text-[#1CA7A6] font-bold text-xs uppercase tracking-widest transition-colors cursor-pointer border border-[#1CA7A6]/20 font-asap">
-                              <CheckCircle2 className="size-3.5" />
-                              <span className="hidden sm:inline">Confirm</span>
-                              <span className="sm:hidden">Confirm</span>
-                            </button>
-                          </>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProjectToConfirm({ id: actualProjectId, name: projectName, hasReport, propertyId: property.id });
+                              setConfirmDialogOpen(true);
+                            }}
+                            className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-[#1CA7A6]/10 hover:bg-[#1CA7A6]/20 text-[#1CA7A6] font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors cursor-pointer border border-[#1CA7A6]/20 font-asap shrink-0"
+                          >
+                            <CheckCircle2 className="size-3 sm:size-3.5" />
+                            <span>Confirm</span>
+                          </button>
                         )}
-                        {
-                          actualProjectId && hasInstallation && hasReport && projectStatus === 'COMPLETE' && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleGenerateReport(actualProjectId, projectName);
-                              }}
-                              disabled={isAnyDownloading}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1CA7A6]/10 hover:bg-[#1CA7A6]/20 text-[#1CA7A6] font-bold text-xs uppercase tracking-widest transition-colors disabled:opacity-50 cursor-pointer border border-[#1CA7A6]/20 font-asap"
-                            >
-                              {generatingReports[actualProjectId] ? (
-                                <Loader2 className="size-3.5 animate-spin" />
-                              ) : (
-                                <Download className="size-3.5" />
-                              )}
-                              <span className="hidden sm:inline">Download Report</span>
-                              <span className="sm:hidden">Download</span>
-                            </button>
-                          )
-                        }
+                        {actualProjectId && hasInstallation && hasReport && projectStatus === 'COMPLETE' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleGenerateReport(actualProjectId, projectName);
+                            }}
+                            disabled={isAnyDownloading}
+                            className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-[#1CA7A6]/10 hover:bg-[#1CA7A6]/20 text-[#1CA7A6] font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors disabled:opacity-50 cursor-pointer border border-[#1CA7A6]/20 font-asap shrink-0"
+                          >
+                            {generatingReports[actualProjectId] ? (
+                              <Loader2 className="size-3 sm:size-3.5 animate-spin" />
+                            ) : (
+                              <Download className="size-3 sm:size-3.5" />
+                            )}
+                            <span>Download</span>
+                          </button>
+                        )}
                         {actualProjectId && projectStatus === 'DRAFT' && (
                           <button
                             onClick={(e) => {
@@ -339,23 +331,23 @@ export default function MyProjectList() {
                               setProjectToDelete({ id: actualProjectId, name: projectName });
                               setDeleteDialogOpen(true);
                             }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs uppercase tracking-widest transition-colors cursor-pointer border border-red-200/60 font-asap"
+                            className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-red-50 hover:bg-red-100 text-red-600 font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors cursor-pointer border border-red-200/60 font-asap shrink-0"
                           >
-                            <Trash2 className="size-3.5" />
-                            <span className="hidden sm:inline">Delete</span>
-                            <span className="sm:hidden">Delete</span>
+                            <Trash2 className="size-3 sm:size-3.5" />
+                            <span>Delete</span>
                           </button>
                         )}
-                      </>)
+                      </>
+                    )
                   }
                   isExpanded={isExpanded}
                   onToggle={() => toggleProjectExpanded(projectId)}
                   className="shadow-[0px_2px_10px_rgba(31,42,68,0.06)]"
                 >
-                  <div className="">
+                  <div>
                     <div className="overflow-hidden rounded-t-[12px] border border-[#E8EDF2]">
                       <div
-                        className={`relative min-h-45 overflow-hidden ${allImages.length > 0 ? 'cursor-pointer' : ''}`}
+                        className={`relative min-h-[140px] sm:min-h-[180px] overflow-hidden ${allImages.length > 0 ? 'cursor-pointer' : ''}`}
                         onClick={() => { router.push(`/property-details/${property.id}`) }}
                       >
                         <AwsImage
@@ -363,22 +355,22 @@ export default function MyProjectList() {
                           alt="Project cover"
                           className="absolute inset-0 w-full h-full object-cover"
                         />
-                        <div className="absolute inset-0 bg-black/50" />
-                        <div className="relative flex h-full flex-col justify-end gap-2 p-4 sm:p-5">
-                          <p className="text-[16px] font-bold uppercase tracking-wide text-white font-inter">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                        <div className="relative flex h-full flex-col justify-end gap-1 p-3.5 sm:p-5">
+                          <p className="text-[15px] sm:text-[18px] font-bold uppercase tracking-wide text-white font-inter">
                             {property?.property_name || ""}
                           </p>
-                          <p className="text-[13px] text-white/90 font-asap">
+                          <p className="text-[12px] sm:text-[13px] text-white/90 font-asap">
                             {property?.address || property?.address2 || ""}
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="rounded-b-[12px] border border-[#E8EDF2] bg-white p-4 sm:p-5">
-                      <div className="gap-4">
+                    <div className="rounded-b-[12px] border border-[#E8EDF2] bg-white p-3.5 sm:p-5">
+                      <div className="space-y-4">
                         <div className="space-y-3">
-                          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
                             {[
                               { label: 'Project Name', value: projectName },
                               { label: 'Client Name (Full Name)', value: clientName },
@@ -390,7 +382,7 @@ export default function MyProjectList() {
                                 <p className="text-[10px] font-semibold uppercase tracking-widest text-[#B0BEC5] font-inter">
                                   {item.label}
                                 </p>
-                                <p className="mt-1 text-[12px] font-medium text-[#1F2A44] font-asap break-all">
+                                <p className="mt-0.5 text-[12px] font-medium text-[#1F2A44] font-asap break-all">
                                   {item.value}
                                 </p>
                               </div>
@@ -398,9 +390,10 @@ export default function MyProjectList() {
                           </div>
 
                           {!hasInstallation ? (
-                            <div className="flex flex-col items-center justify-center h-full border border-[#E8EDF2] py-5">
-                              <h1>No Installation Found</h1>
+                            <div className="flex flex-col items-center justify-center h-full border border-[#E8EDF2] py-5 rounded-lg">
+                              <h1 className="text-sm font-semibold text-[#708090]">No Installation Found</h1>
                               <Button
+                                className="mt-2 h-9 text-xs font-bold"
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   handleAddInstallation(project);
@@ -415,12 +408,12 @@ export default function MyProjectList() {
                                 <p className="text-[10px] font-semibold uppercase tracking-widest text-[#B0BEC5] font-inter">
                                   Description
                                 </p>
-                                <p className="mt-1 text-[13px] font-medium text-[#1F2A44] font-asap leading-6">
+                                <p className="mt-1 text-[12px] sm:text-[13px] font-medium text-[#1F2A44] font-asap leading-relaxed">
                                   {detail.description || 'No description available'}
                                 </p>
                               </div>
                               <div className="space-y-3">
-                                <div className="grid gap-3 sm:grid-cols-2  md:grid-cols-3 lg:grid-cols-4">
+                                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
                                   {[
                                     { label: 'Install Date', value: projectDateLabel || 'N/A' },
                                     { label: 'Brand', value: detail.brand || 'N/A' },
@@ -435,7 +428,7 @@ export default function MyProjectList() {
                                       <p className="text-[10px] font-semibold uppercase tracking-widest text-[#B0BEC5] font-inter">
                                         {item.label}
                                       </p>
-                                      <p className="mt-1 text-[12px] font-medium text-[#1F2A44] font-asap">
+                                      <p className="mt-0.5 text-[12px] font-medium text-[#1F2A44] font-asap">
                                         {item.value}
                                       </p>
                                     </div>

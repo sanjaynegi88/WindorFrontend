@@ -1,6 +1,17 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { ChevronLeft, Send, Loader2, FileText, Download, Eye, AlertCircle, CheckCircle2, Clock, Ban } from "lucide-react";
+import {
+  ChevronLeft,
+  Send,
+  Loader2,
+  FileText,
+  Download,
+  Eye,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  Ban,
+} from "lucide-react";
 import { cn, toPascalCase, getResourceFileUrl } from "@/lib/utils";
 import { Comments } from "./comment";
 import { postComments, getPermitsForProperty } from "@/lib/actions";
@@ -82,9 +93,9 @@ export const ProjectDefaultView = ({
       );
     }
 
-    const status = item.status?.toUpperCase() || 'PENDING';
+    const status = item.status?.toUpperCase() || "PENDING";
 
-    if (status === 'VERIFIED') {
+    if (status === "VERIFIED") {
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#EBFBEE] text-[#2B8A3E] border border-[#D3F9D8]">
           <CheckCircle2 className="size-3" />
@@ -93,7 +104,7 @@ export const ProjectDefaultView = ({
       );
     }
 
-    if (status === 'REJECTED') {
+    if (status === "REJECTED") {
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#FFF5F5] text-[#C92A2A] border border-[#FFE3E3]">
           <AlertCircle className="size-3" />
@@ -128,12 +139,12 @@ export const ProjectDefaultView = ({
     setPosting(false);
 
     if (!result.success) {
-      toast.error(result.message || 'Failed to post comment');
+      toast.error(result.message || "Failed to post comment");
       return;
     }
 
-    toast.success('Comment posted');
-    setCommentText('');
+    toast.success("Comment posted");
+    setCommentText("");
     setRefreshKey((k) => k + 1);
   };
 
@@ -213,7 +224,8 @@ export const ProjectDefaultView = ({
               Permits & Documents
             </h3>
             <p className="text-[13px] md:text-[14px] text-[#708090] leading-relaxed font-asap">
-              View and download permit documents uploaded for this property's installations.
+              View and download permit documents uploaded for this property's
+              installations.
             </p>
           </div>
 
@@ -256,35 +268,49 @@ export const ProjectDefaultView = ({
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs text-[#708090] font-asap">
                         {item.uploader_role && (
                           <div>
-                            <span className="font-semibold text-[#1F2A44]/75">Uploaded By: </span>
+                            <span className="font-semibold text-[#1F2A44]/75">
+                              Uploaded By:{" "}
+                            </span>
                             {toPascalCase(item.uploader_role)}
                           </div>
                         )}
                         {item.uploaded_at && (
                           <div>
-                            <span className="font-semibold text-[#1F2A44]/75">Uploaded At: </span>
-                            {new Date(item.uploaded_at).toLocaleDateString("en-US", {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            })}
+                            <span className="font-semibold text-[#1F2A44]/75">
+                              Uploaded At:{" "}
+                            </span>
+                            {new Date(item.uploaded_at).toLocaleDateString(
+                              "en-US",
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              },
+                            )}
                           </div>
                         )}
                         {item.verified_at && (
                           <div>
-                            <span className="font-semibold text-[#1F2A44]/75">Verified At: </span>
-                            {new Date(item.verified_at).toLocaleDateString("en-US", {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            })}
+                            <span className="font-semibold text-[#1F2A44]/75">
+                              Verified At:{" "}
+                            </span>
+                            {new Date(item.verified_at).toLocaleDateString(
+                              "en-US",
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              },
+                            )}
                           </div>
                         )}
                       </div>
 
                       {item.notes && (
                         <p className="text-xs text-[#708090] bg-[#F8FAFC] border border-[#F1F5F9] rounded-lg p-2 mt-1 leading-relaxed font-asap">
-                          <span className="font-semibold text-[#1F2A44]/75">Notes: </span>
+                          <span className="font-semibold text-[#1F2A44]/75">
+                            Notes:{" "}
+                          </span>
                           "{item.notes}"
                         </p>
                       )}
@@ -305,7 +331,12 @@ export const ProjectDefaultView = ({
                             <Eye className="size-3.5" />
                             View
                           </Button>
-                          {/* <a href={fileUrl} download target="_blank" rel="noopener noreferrer">
+                          <a
+                            href={fileUrl}
+                            download
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
                             <Button
                               size="sm"
                               variant="ghost"
@@ -314,7 +345,7 @@ export const ProjectDefaultView = ({
                               <Download className="size-3.5" />
                               Download
                             </Button>
-                          </a> */}
+                          </a>
                         </div>
                       )}
                     </div>

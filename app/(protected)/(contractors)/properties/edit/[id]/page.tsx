@@ -2,9 +2,7 @@
 
 import { useState, useEffect, use, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
 import { toast } from "sonner";
-import { MobileHeader } from "@/components/layouts/global";
 import { InstallationForm } from "@/components/property-wizard/InstallationForm";
 import {
   AddressForm,
@@ -867,16 +865,11 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
 
   return (
     <div className="bg-[#FFFFFF] md:bg-[#1F2A44] md:min-h-screen flex flex-col flex-1">
-      <MobileHeader variant="overlay" sticky={false} />
-
       <div
         className={`relative z-10 flex flex-col flex-1 items-center w-full mt-0`}
       >
-        <div className="absolute top-[-30px] md:top-[-50px] bottom-0 md:bottom-20 left-0 w-full bg-white opacity-30 rounded-t-[40px] md:rounded-t-[50px] pointer-events-none" />
-        <div className="absolute top-[-15px] md:top-[-25px] bottom-0 md:bottom-20 left-0 w-full bg-white opacity-30 rounded-t-[40px] md:rounded-t-[50px] pointer-events-none" />
-
         <div
-          className={`w-full bg-white shadow-[0px_4px_34px_rgba(31,42,68,0.1)] md:shadow-none px-6 pt-10 pb-[100px] md:p-[80px] flex-1 md:min-h-[781px] relative mt-0`}
+          className={`w-full bg-white px-6 pt-10 md:p-20 flex-1 md:min-h-[781px] relative mt-0`}
         >
           <div className="max-w-[1170px] mx-auto relative w-full">
             {/* ── Loading ── */}
@@ -884,7 +877,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
               <div className="flex flex-col items-center justify-center py-32 gap-4 text-[#708090]">
                 <Loader2 className="size-10 animate-spin text-[#1CA7A6]" />
                 <span className="font-medium text-[16px] font-asap">
-                  Loading property…
+                  Loading…
                 </span>
               </div>
             )}

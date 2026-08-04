@@ -13,7 +13,6 @@ import { PropertyAddressPhotos } from "@/components/property-wizard/PropertyAddr
 import { CategoryImageUpload } from "@/components/property-wizard/CategoryImageUpload";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MobileHeader } from "@/components/layouts/global";
 import { Suspense } from "react";
 
 import {
@@ -517,7 +516,11 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
         setStep("PHOTOS");
       } else if (nextStep === "SAVE") {
         clearPropertyFlow();
-        router.push("/added-properties");
+        if (user.role === "admin") {
+          router.push("/properties");
+        } else {
+          router.push("/added-properties");
+        }
       }
     } catch (error: any) {
       console.error("Failed to save property:", error);
@@ -611,11 +614,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
     }
 
     const apiType = type === "garage_doors" ? "garage-doors" : type;
-    const isOwnerProject =
-      user.role === "property_owner" ||
-      isOwnerProjectType ||
-      type === "windows and doors" ||
-      type === "WINDOWS AND DOORS";
+    const isOwnerProject = user.role === "property_owner" || isOwnerProjectType;
     const installationResult = isOwnerProject
       ? await postPropertyOwnerInstallations(tempPropertyId, payload)
       : await postInstallation(tempPropertyId, apiType, payload);
@@ -784,12 +783,11 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
   if (isInitializingProperty && tempPropertyId) {
     return (
       <div className="bg-[#FFFFFF] md:bg-[#1F2A44] md:min-h-screen flex flex-col flex-1 items-center justify-center px-6">
-        <MobileHeader variant="overlay" sticky={false} />
         <div className="flex flex-col items-center justify-center gap-4 rounded-[20px] bg-white px-8 py-10 shadow-[0px_4px_34px_rgba(31,42,68,0.1)] text-center">
           <div className="size-12 rounded-full border-4 border-[#1CA7A6]/20 border-t-[#1CA7A6] animate-spin" />
           <div>
             <h2 className="text-[20px] font-semibold text-[#1F2A44]">
-              Loading Project Form
+              Loading Form
             </h2>
             <p className="mt-2 text-sm text-[#708090]">Please wait.......</p>
           </div>
@@ -800,16 +798,11 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
 
   return (
     <div className="bg-[#FFFFFF] md:bg-[#1F2A44] md:min-h-screen flex flex-col flex-1">
-      <MobileHeader variant="overlay" sticky={false} />
-
       <div
         className={`relative z-10 flex flex-col flex-1 items-center w-full mt-0`}
       >
-        <div className="absolute top-[-30px] md:top-[-50px] bottom-0 md:bottom-20 left-0 w-full bg-white opacity-30 rounded-t-[40px] md:rounded-t-[50px] pointer-events-none block" />
-        <div className="absolute top-[-15px] md:top-[-25px] bottom-0 md:bottom-20 left-0 w-full bg-white opacity-30 rounded-t-[40px] md:rounded-t-[50px] pointer-events-none block" />
-
         <div
-          className={`w-full bg-white shadow-[0px_4px_34px_rgba(31,42,68,0.1)] md:shadow-none px-6 pt-10 pb-[100px] md:p-[80px] flex-1 md:min-h-[781px] relative mt-0`}
+          className={`w-full bg-white px-6 pt-10 md:p-20 flex-1 md:min-h-[781px] relative mt-0`}
         >
           <div className="max-w-[1170px] mx-auto relative w-full">
             {step === "ADDRESS" && (
@@ -834,7 +827,11 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
                 propertyId={tempPropertyId ?? ""}
                 onSave={() => {
                   clearPropertyFlow();
-                  router.push("/added-properties");
+                  if (user.role === "admin") {
+                    router.push("/properties");
+                  } else {
+                    router.push("/added-properties");
+                  }
                 }}
                 onBack={() => setStep("ADDRESS")}
               />
