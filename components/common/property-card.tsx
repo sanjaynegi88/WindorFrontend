@@ -296,7 +296,7 @@ export function PropertyCard({
                 {propertyName}
               </h3> */}
             </div>
-            <div className="shrink-0 absolute right-[32px] z-10">
+            <div className="shrink-0 absolute right-14 md:right-[32px] z-10">
               {showActionButtons &&
               canAddNewProject &&
               !(isAdmin || isCityInspector) ? (

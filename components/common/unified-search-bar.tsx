@@ -204,7 +204,9 @@ export function UnifiedSearchBar({
                 aria-expanded={openState}
                 className="h-[39px] md:h-[65px] w-full justify-between rounded-[10px] border-[rgba(28,167,166,0.25)] bg-white text-[#708090] font-medium px-4 md:px-6 focus:ring-[#22a699]/20 text-[13px] md:text-[20px] font-asap shadow-none hover:bg-white"
               >
-                <span className="truncate">{selectedStateName}</span>
+                <span className="truncate">
+                  {toTitleCase(selectedStateName)}
+                </span>
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50 text-[#1CA7A6]" />
               </Button>
             </PopoverTrigger>
@@ -272,7 +274,9 @@ export function UnifiedSearchBar({
                 aria-expanded={openCity}
                 className="h-[39px] md:h-[65px] w-full justify-between rounded-[10px] border-[rgba(28,167,166,0.25)] bg-white text-[#708090] font-medium px-4 md:px-6 focus:ring-[#22a699]/20 text-[13px] md:text-[20px] font-asap shadow-none hover:bg-white"
               >
-                <span className="truncate">{selectedCityName}</span>
+                <span className="truncate">
+                  {toTitleCase(selectedCityName)}
+                </span>
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50 text-[#1CA7A6]" />
               </Button>
             </PopoverTrigger>

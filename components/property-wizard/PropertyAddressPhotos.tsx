@@ -2,10 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { ChevronLeft, X, ImageIcon, Loader2 } from "lucide-react";
+import { ChevronLeft, X, ImageIcon, Loader2, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadPropertyImages, getPropertyById } from "@/lib/actions";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 interface PropertyAddressPhotosProps {
   address: string;
@@ -31,8 +38,10 @@ export function PropertyAddressPhotos({
   });
   const [uploading, setUploading] = useState(false);
   const [loadingExisting, setLoadingExisting] = useState(false);
+  const [activePickerTarget, setActivePickerTarget] = useState<string | null>(null);
 
-  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const galleryInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const cameraInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     if (!propertyId || propertyId === "") return;
@@ -94,11 +103,44 @@ export function PropertyAddressPhotos({
     setPhotos((prev) => ({ ...prev, [id]: { file, preview } }));
   };
 
+  const triggerFileInput = (id: string) => {
+    const isMobile =
+      typeof window !== "undefined" &&
+      window.matchMedia("(pointer: coarse)").matches;
+
+    if (isMobile) {
+      setActivePickerTarget(id);
+    } else {
+      galleryInputRefs.current[id]?.click();
+    }
+  };
+
+  const handleSelectCamera = () => {
+    if (activePickerTarget) {
+      const targetId = activePickerTarget;
+      setActivePickerTarget(null);
+      setTimeout(() => {
+        cameraInputRefs.current[targetId]?.click();
+      }, 100);
+    }
+  };
+
+  const handleSelectGallery = () => {
+    if (activePickerTarget) {
+      const targetId = activePickerTarget;
+      setActivePickerTarget(null);
+      setTimeout(() => {
+        galleryInputRefs.current[targetId]?.click();
+      }, 100);
+    }
+  };
+
   const handleRemove = (id: string) => {
     const prev = photos[id];
     if (prev.preview) URL.revokeObjectURL(prev.preview);
     setPhotos((p) => ({ ...p, [id]: { file: null, preview: null } }));
-    if (inputRefs.current[id]) inputRefs.current[id]!.value = "";
+    if (galleryInputRefs.current[id]) galleryInputRefs.current[id]!.value = "";
+    if (cameraInputRefs.current[id]) cameraInputRefs.current[id]!.value = "";
   };
 
   const handleSave = async () => {
@@ -173,13 +215,25 @@ export function PropertyAddressPhotos({
                 {item.label}
               </span>
 
-              {/* Hidden file input */}
+              {/* Hidden file input for Gallery */}
               <input
                 ref={(el) => {
-                  inputRefs.current[item.id] = el;
+                  galleryInputRefs.current[item.id] = el;
                 }}
                 type="file"
                 accept="image/*"
+                className="hidden"
+                onChange={(e) => handleFileChange(item.id, e)}
+              />
+
+              {/* Hidden file input for Camera */}
+              <input
+                ref={(el) => {
+                  cameraInputRefs.current[item.id] = el;
+                }}
+                type="file"
+                accept="image/*"
+                capture="environment"
                 className="hidden"
                 onChange={(e) => handleFileChange(item.id, e)}
               />
@@ -209,7 +263,7 @@ export function PropertyAddressPhotos({
                       </button>
                       <button
                         type="button"
-                        onClick={() => inputRefs.current[item.id]?.click()}
+                        onClick={() => triggerFileInput(item.id)}
                         className="text-[#1CA7A6] text-[12px] md:text-[14px] font-bold hover:opacity-80 transition-opacity shrink-0"
                       >
                         Change
@@ -230,7 +284,7 @@ export function PropertyAddressPhotos({
                       </button>
                       <button
                         type="button"
-                        onClick={() => inputRefs.current[item.id]?.click()}
+                        onClick={() => triggerFileInput(item.id)}
                         className="text-[#1CA7A6] text-[12px] md:text-[14px] font-bold hover:opacity-80 transition-opacity"
                       >
                         Change
@@ -242,7 +296,7 @@ export function PropertyAddressPhotos({
                 <button
                   type="button"
                   className="flex-1 h-[46px] md:h-[70px] bg-[rgba(112,128,144,0.2)] hover:bg-[rgba(112,128,144,0.3)] transition-colors rounded-[6px] flex items-center justify-center gap-2 text-[16px] md:text-[24px] font-bold text-[#1F2A44] font-asap shadow-none"
-                  onClick={() => inputRefs.current[item.id]?.click()}
+                  onClick={() => triggerFileInput(item.id)}
                 >
                   <ImageIcon className="size-5 md:size-6 opacity-60" />
                   Take & Upload
@@ -275,6 +329,43 @@ export function PropertyAddressPhotos({
           Back
         </button>
       </div>
+
+      {/* Upload Option Popup Dialog for Mobile */}
+      <Dialog
+        open={!!activePickerTarget}
+        onOpenChange={(open) => !open && setActivePickerTarget(null)}
+      >
+        <DialogContent className="max-w-[90vw] sm:max-w-[400px] rounded-[20px] p-6 bg-white shadow-2xl font-asap border border-slate-100">
+          <DialogHeader className="text-center space-y-2 mb-4">
+            <DialogTitle className="text-xl font-extrabold text-[#1F2A44] uppercase tracking-tight text-center">
+              Upload Photo
+            </DialogTitle>
+            <DialogDescription className="text-sm font-medium text-[#708090] text-center">
+              Choose how you would like to upload your image:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 gap-3">
+            <button
+              type="button"
+              onClick={handleSelectCamera}
+              className="flex items-center justify-center gap-3 w-full h-[52px] bg-[#1CA7A6] hover:bg-[#189695] text-white font-bold rounded-xl text-base shadow-md transition-all active:scale-[0.98] cursor-pointer"
+            >
+              <Camera className="size-5" />
+              <span>Take Photo (Camera)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSelectGallery}
+              className="flex items-center justify-center gap-3 w-full h-[52px] bg-slate-100 hover:bg-slate-200 text-[#1F2A44] font-bold rounded-xl text-base transition-all active:scale-[0.98] cursor-pointer border border-slate-200/60"
+            >
+              <ImageIcon className="size-5 text-[#1CA7A6]" />
+              <span>Choose from Gallery</span>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

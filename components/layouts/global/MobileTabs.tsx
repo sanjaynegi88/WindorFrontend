@@ -113,6 +113,14 @@ export function MobileTabs() {
       });
     }
 
+    if (role === "admin" || role === "contractor") {
+      options.push({
+        name: "Added Properties",
+        href: "/added-properties",
+        icon: Building2,
+      });
+    }
+
     // Inspector Routes
     if (role === "city_inspector" && !user?.user?.sub_account) {
       options.push({ name: "Staff", href: "/city-users", icon: Users });

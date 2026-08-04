@@ -163,21 +163,23 @@ export default function ProjectList() {
             <h2 className="text-2xl md:text-4xl font-black text-[#1e293b] tracking-tighter uppercase font-asap">
               Properties
             </h2>
-            <Button
-              onClick={handleGenerateTop10}
-              disabled={isGeneratingTop10}
-              className="h-9 md:h-11 px-4 md:px-6 rounded-[10px] bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs md:text-sm uppercase tracking-widest gap-2 shadow-none"
-            >
-              {isGeneratingTop10 ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <FileText className="size-4" />
-              )}
-              <span className="hidden sm:inline">
-                Generate reports (max 10)
-              </span>
-              <span className="sm:hidden">Top 10</span>
-            </Button>
+            {role !== "contractor" && (
+              <Button
+                onClick={handleGenerateTop10}
+                disabled={isGeneratingTop10}
+                className="h-9 md:h-11 px-4 md:px-6 rounded-[10px] bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs md:text-sm uppercase tracking-widest gap-2 shadow-none"
+              >
+                {isGeneratingTop10 ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <FileText className="size-4" />
+                )}
+                <span className="hidden sm:inline">
+                  Generate reports (max 10)
+                </span>
+                <span className="sm:hidden">Top 10</span>
+              </Button>
+            )}
           </div>
         </div>
 

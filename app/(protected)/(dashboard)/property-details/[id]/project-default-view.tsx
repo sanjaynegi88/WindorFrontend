@@ -322,7 +322,7 @@ export const ProjectDefaultView = ({
 
                       {hasFile && (
                         <div className="flex items-center gap-2">
-                          <Button
+                          {/* <Button
                             size="sm"
                             variant="primary"
                             onClick={() => window.open(fileUrl, "_blank")}
@@ -330,7 +330,7 @@ export const ProjectDefaultView = ({
                           >
                             <Eye className="size-3.5" />
                             View
-                          </Button>
+                          </Button> */}
                           <a
                             href={fileUrl}
                             download
