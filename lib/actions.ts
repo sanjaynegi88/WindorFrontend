@@ -2635,3 +2635,28 @@ export async function getPropertyTypes(): Promise<ActionResult> {
     }
     return { success: true, data: response.data };
 }
+
+export async function createSetupIntent(): Promise<ActionResult<{ clientSecret: string; customerId?: string }>> {
+    const response = await fetchApi({
+        url: '/api/stripe/create-setup-intent',
+        method: 'POST',
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to create setup intent') };
+    }
+    const data = response.data?.data || response.data;
+    return { success: true, data };
+}
+
+export async function savePaymentMethod(paymentMethodId: string): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: '/api/stripe/save-payment-method',
+        method: 'POST',
+        data: { paymentMethodId },
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to save payment method') };
+    }
+    return { success: true, data: response.data };
+}
+

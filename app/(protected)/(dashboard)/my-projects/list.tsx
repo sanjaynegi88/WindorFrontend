@@ -1,48 +1,78 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { Content } from '@/components/layouts/crm/components/content';
-import { ExpandableProjectCard } from '@/components/common/expandable-project-card';
-import { getMyProjects, generateContractorProjectPdfReport, confirmProject, deleteProject } from '@/lib/actions';
-import { ChevronLeft, ChevronRight, Loader2, X, Download, Edit2, CheckCircle2, Search, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
-import { downloadPdfFromUrl, getErrorMessage, toPascalCase } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useRouter } from 'next/navigation';
-import { useDebounce } from '@/hooks/use-debounce';
-import { ConfirmDialog } from '@/components/confirm-dialog';
-import { AwsImage } from '@/components/common/aws-image';
-import { useUser } from '@/components/providers/user-provider';
+import { useEffect, useState } from "react";
+import { Content } from "@/components/layouts/crm/components/content";
+import { ExpandableProjectCard } from "@/components/common/expandable-project-card";
+import {
+  getMyProjects,
+  generateContractorProjectPdfReport,
+  confirmProject,
+  deleteProject,
+} from "@/lib/actions";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  X,
+  Download,
+  Edit2,
+  CheckCircle2,
+  Search,
+  Trash2,
+} from "lucide-react";
+import { toast } from "sonner";
+import { downloadPdfFromUrl, getErrorMessage, toPascalCase } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useRouter } from "next/navigation";
+import { useDebounce } from "@/hooks/use-debounce";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { AwsImage } from "@/components/common/aws-image";
+import { useUser } from "@/components/providers/user-provider";
 
 export default function MyProjectList() {
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
+  const [expandedProjects, setExpandedProjects] = useState<
+    Record<string, boolean>
+  >({});
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  const [generatingReports, setGeneratingReports] = useState<Record<string, boolean>>({});
+  const [generatingReports, setGeneratingReports] = useState<
+    Record<string, boolean>
+  >({});
   const isAnyDownloading = Object.values(generatingReports).some(Boolean);
   const router = useRouter();
   const user = useUser();
   const role = user?.role?.toLowerCase() || "";
   const isAdmin = role === "admin";
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [projectToDelete, setProjectToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [projectToDelete, setProjectToDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [projectToConfirm, setProjectToConfirm] = useState<{ id: string; name: string; hasReport?: boolean; propertyId?: string } | null>(null);
+  const [projectToConfirm, setProjectToConfirm] = useState<{
+    id: string;
+    name: string;
+    hasReport?: boolean;
+    propertyId?: string;
+  } | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const handleGenerateReport = async (projectId: string, projectName: string) => {
+  const handleGenerateReport = async (
+    projectId: string,
+    projectName: string,
+  ) => {
     setGeneratingReports((prev) => ({ ...prev, [projectId]: true }));
     try {
       const url = await generateContractorProjectPdfReport(projectId);
@@ -50,8 +80,8 @@ export default function MyProjectList() {
       await downloadPdfFromUrl(url, filename);
       toast.success(`Report downloaded successfully`);
     } catch (error: any) {
-      console.error('Download report error:', error);
-      toast.error(getErrorMessage(error, 'Failed to download report'));
+      console.error("Download report error:", error);
+      toast.error(getErrorMessage(error, "Failed to download report"));
     } finally {
       setGeneratingReports((prev) => ({ ...prev, [projectId]: false }));
     }
@@ -65,7 +95,12 @@ export default function MyProjectList() {
     }
 
     try {
-      const response = await getMyProjects(pageNum, 9, debouncedSearchQuery, isAdmin);
+      const response = await getMyProjects(
+        pageNum,
+        9,
+        debouncedSearchQuery,
+        isAdmin,
+      );
       console.log(response);
       const normalizedProjects = Array.isArray(response)
         ? response
@@ -83,7 +118,7 @@ export default function MyProjectList() {
 
       setHasMore(normalizedProjects.length >= 9);
     } catch (error) {
-      console.error('Failed to load projects:', error);
+      console.error("Failed to load projects:", error);
       if (!append) {
         setProjects([]);
       }
@@ -108,11 +143,15 @@ export default function MyProjectList() {
     if (!projectToConfirm) return;
     setIsConfirming(true);
     try {
-      const response = await confirmProject(projectToConfirm.id, projectToConfirm.hasReport, projectToConfirm.propertyId);
+      const response = await confirmProject(
+        projectToConfirm.id,
+        projectToConfirm.hasReport,
+        projectToConfirm.propertyId,
+      );
       if (!response?.success) {
-        toast.error(response?.message || 'Failed to confirm project');
+        toast.error(response?.message || "Failed to confirm project");
       } else {
-        toast.success('Project confirmed successfully');
+        toast.success("Project confirmed successfully");
 
         setProjects((prevProjects) =>
           prevProjects.map((p) => {
@@ -124,10 +163,14 @@ export default function MyProjectList() {
               };
             }
             return p;
-          })
+          }),
         );
 
-        const freshProjectsRes = await getMyProjects(1, page * 9, debouncedSearchQuery);
+        const freshProjectsRes = await getMyProjects(
+          1,
+          page * 9,
+          debouncedSearchQuery,
+        );
         const normalized = Array.isArray(freshProjectsRes)
           ? freshProjectsRes
           : Array.isArray(freshProjectsRes?.data)
@@ -138,8 +181,8 @@ export default function MyProjectList() {
         setProjects(normalized);
       }
     } catch (error) {
-      console.error('Error confirming project:', error);
-      toast.error('Failed to confirm project');
+      console.error("Error confirming project:", error);
+      toast.error("Failed to confirm project");
     } finally {
       setIsConfirming(false);
       setConfirmDialogOpen(false);
@@ -153,19 +196,19 @@ export default function MyProjectList() {
     try {
       const response = await deleteProject(projectToDelete.id);
       if (!response?.success) {
-        toast.error(response?.message || 'Failed to delete project');
+        toast.error(response?.message || "Failed to delete project");
       } else {
-        toast.success('Project deleted successfully');
+        toast.success("Project deleted successfully");
         setProjects((prevProjects) =>
           prevProjects.filter((p) => {
             const pid = p.id ?? p.project_id ?? p._id;
             return String(pid) !== String(projectToDelete.id);
-          })
+          }),
         );
       }
     } catch (error) {
-      console.error('Error deleting project:', error);
-      toast.error('Failed to delete project');
+      console.error("Error deleting project:", error);
+      toast.error("Failed to delete project");
     } finally {
       setIsDeleting(false);
       setDeleteDialogOpen(false);
@@ -189,7 +232,7 @@ export default function MyProjectList() {
             endIcon={
               searchQuery.length > 0 ? (
                 <button
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => setSearchQuery("")}
                   className="text-[#B0BEC5] hover:text-[#1F2A44] transition-colors cursor-pointer"
                 >
                   <X className="size-5" />
@@ -208,26 +251,46 @@ export default function MyProjectList() {
         ) : projects.length > 0 ? (
           <div className="space-y-4">
             {projects.map((project) => {
-              const projectId = String(project.id ?? project.project_id ?? project._id ?? project.project_name ?? 'project');
+              const projectId = String(
+                project.id ??
+                  project.project_id ??
+                  project._id ??
+                  project.project_name ??
+                  "project",
+              );
               const isExpanded = Boolean(expandedProjects[projectId]);
-              const projectName = project.project_name || project.name || project.title || 'Untitled project';
-              const projectType = project.project_type || project.type || 'Project';
-              const projectStatus = project.is_confirmed ? 'COMPLETE' : 'DRAFT';
-              const projectDateLabel = project.date_of_install || project.install_date
-                ? new Date(project.date_of_install || project.install_date).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
-                })
-                : null;
+              const projectName =
+                project.project_name ||
+                project.name ||
+                project.title ||
+                "Untitled project";
+              const projectType =
+                project.project_type || project.type || "Project";
+              const projectStatus = project.is_confirmed ? "COMPLETE" : "DRAFT";
+              const projectDateLabel =
+                project.date_of_install || project.install_date
+                  ? new Date(
+                      project.date_of_install || project.install_date,
+                    ).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })
+                  : null;
               const hasReport = project.property?.has_report || false;
               const isLocked = project?.is_locked_by_cancellation || false;
               const hasInstallation = project.details !== null;
               const normalizeImageUrl = (value: any) => {
                 if (!value) return null;
-                if (typeof value === 'string') return value;
-                if (typeof value === 'object') {
-                  return value.image_url || value.thumbnail_url || value.url || value.src || null;
+                if (typeof value === "string") return value;
+                if (typeof value === "object") {
+                  return (
+                    value.image_url ||
+                    value.thumbnail_url ||
+                    value.url ||
+                    value.src ||
+                    null
+                  );
                 }
                 return null;
               };
@@ -235,100 +298,155 @@ export default function MyProjectList() {
               const apiImages = [
                 project.property?.front_image,
                 project.property?.other_image,
-                ...(Array.isArray(project.property?.images) ? project.property.images : []),
-                ...(Array.isArray(project.images) ? project.images : [])
+                ...(Array.isArray(project.property?.images)
+                  ? project.property.images
+                  : []),
+                ...(Array.isArray(project.images) ? project.images : []),
               ]
                 .map((image) => normalizeImageUrl(image))
                 .filter((image): image is string => Boolean(image));
 
               const allImages = [...apiImages];
-              const projectImage = apiImages.length > 0
-                ? apiImages[0]
-                : '/assets/prop_placeholder.png';
-              const detail = (project.details && typeof project.details === 'object' ? project.details : {}) as Record<string, any>;
-              const property = project.property ?? {};
-              const propertyAddress = property.address || property.street_address || property.address_line_1 || project.address || 'N/A';
-              const stateName = property.state?.name || property.state_name || property.state?.state_name || project.state_name || 'N/A';
-              const ownerEmail = property.property_owner?.email || property.owner_email || project.owner_email || property.owner?.user?.email || 'N/A';
-              const ownerObj = property.property_owner || project.property?.property_owner;
-              const ownerUserObj = ownerObj;
-              const clientName = ownerUserObj
-                ? `${ownerUserObj.first_name || ''} ${ownerUserObj.last_name || ''}`.trim() || ownerUserObj.name || ownerUserObj.email || 'N/A'
-                : (property.owner_email || project.owner_email || 'N/A');
+              const projectImage =
+                apiImages.length > 0
+                  ? apiImages[0]
+                  : "/assets/prop_placeholder.png";
 
-              const actualProjectId = project.id ?? project.project_id ?? project._id;
+              const detail = (
+                project.details && typeof project.details === "object"
+                  ? project.details
+                  : {}
+              ) as Record<string, any>;
+              const property = project.property ?? {};
+              const propertyAddress =
+                property.address ||
+                property.street_address ||
+                property.address_line_1 ||
+                project.address ||
+                "N/A";
+              const stateName =
+                property.state?.name ||
+                property.state_name ||
+                property.state?.state_name ||
+                project.state_name ||
+                "N/A";
+              const ownerEmail =
+                property.property_owner?.email ||
+                property.owner_email ||
+                project.owner_email ||
+                property.owner?.user?.email ||
+                "N/A";
+              const ownerObj =
+                property.property_owner || project.property?.property_owner;
+              const ownerUserObj = ownerObj;
+              const frontImage =
+                property?.front_image || "/assets/prop_placeholder.png";
+              const clientName = ownerUserObj
+                ? `${ownerUserObj.first_name || ""} ${ownerUserObj.last_name || ""}`.trim() ||
+                  ownerUserObj.name ||
+                  ownerUserObj.email ||
+                  "N/A"
+                : property.owner_email || project.owner_email || "N/A";
+
+              const actualProjectId =
+                project.id ?? project.project_id ?? project._id;
               const handleAddInstallation = (project: any) => {
-                router.push(`/properties/edit/${property.id}?projectId=${actualProjectId}&noInstallation=true`);
+                router.push(
+                  `/properties/edit/${property.id}?projectId=${actualProjectId}&noInstallation=true`,
+                );
               };
 
               return (
                 <ExpandableProjectCard
                   key={projectId}
                   title={projectName}
-                  subtitle={`${propertyAddress} • Client: ${clientName}${projectDateLabel ? ` • ${projectDateLabel}` : ''}`}
+                  subtitle={`${propertyAddress} • Client: ${clientName}${projectDateLabel ? ` • ${projectDateLabel}` : ""}`}
                   badges={[
                     {
                       label: toPascalCase(projectType),
-                      className: 'bg-[rgba(28,167,166,0.08)] text-[#1CA7A6] border-[#1CA7A6]',
+                      className:
+                        "bg-[rgba(28,167,166,0.08)] text-[#1CA7A6] border-[#1CA7A6]",
                     },
                     {
                       label: projectStatus,
-                      className: projectStatus === 'COMPLETE'
-                        ? 'bg-[rgba(67,160,71,0.1)] text-[#43A047] border-[#43A047]'
-                        : 'bg-[rgba(112,128,144,0.1)] text-[#708090] border-[#708090]',
+                      className:
+                        projectStatus === "COMPLETE"
+                          ? "bg-[rgba(67,160,71,0.1)] text-[#43A047] border-[#43A047]"
+                          : "bg-[rgba(112,128,144,0.1)] text-[#708090] border-[#708090]",
                     },
                   ]}
                   action={
                     isLocked ? null : (
                       <>
-                        {property.id && actualProjectId && (projectStatus === 'DRAFT' || isAdmin) && (
+                        {property.id &&
+                          actualProjectId &&
+                          (projectStatus === "DRAFT" || isAdmin) && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const noInstallation = !hasInstallation;
+                                router.push(
+                                  `/properties/edit/${property.id}?projectId=${actualProjectId}${noInstallation ? "&noInstallation=true" : ""}`,
+                                );
+                              }}
+                              className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-[#1CA7A6]/10 hover:bg-[#1CA7A6]/20 text-[#1CA7A6] font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors cursor-pointer border border-[#1CA7A6]/20 font-asap shrink-0"
+                            >
+                              <Edit2 className="size-3 sm:size-3.5" />
+                              <span>Edit</span>
+                            </button>
+                          )}
+                        {property.id &&
+                          actualProjectId &&
+                          hasInstallation &&
+                          projectStatus === "DRAFT" && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setProjectToConfirm({
+                                  id: actualProjectId,
+                                  name: projectName,
+                                  hasReport,
+                                  propertyId: property.id,
+                                });
+                                setConfirmDialogOpen(true);
+                              }}
+                              className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-[#1CA7A6]/10 hover:bg-[#1CA7A6]/20 text-[#1CA7A6] font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors cursor-pointer border border-[#1CA7A6]/20 font-asap shrink-0"
+                            >
+                              <CheckCircle2 className="size-3 sm:size-3.5" />
+                              <span>Confirm</span>
+                            </button>
+                          )}
+                        {actualProjectId &&
+                          hasInstallation &&
+                          hasReport &&
+                          projectStatus === "COMPLETE" && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleGenerateReport(
+                                  actualProjectId,
+                                  projectName,
+                                );
+                              }}
+                              disabled={isAnyDownloading}
+                              className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-[#1CA7A6]/10 hover:bg-[#1CA7A6]/20 text-[#1CA7A6] font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors disabled:opacity-50 cursor-pointer border border-[#1CA7A6]/20 font-asap shrink-0"
+                            >
+                              {generatingReports[actualProjectId] ? (
+                                <Loader2 className="size-3 sm:size-3.5 animate-spin" />
+                              ) : (
+                                <Download className="size-3 sm:size-3.5" />
+                              )}
+                              <span>Download</span>
+                            </button>
+                          )}
+                        {actualProjectId && projectStatus === "DRAFT" && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              const noInstallation = !hasInstallation;
-                              router.push(`/properties/edit/${property.id}?projectId=${actualProjectId}${noInstallation ? '&noInstallation=true' : ''}`);
-                            }}
-                            className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-[#1CA7A6]/10 hover:bg-[#1CA7A6]/20 text-[#1CA7A6] font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors cursor-pointer border border-[#1CA7A6]/20 font-asap shrink-0"
-                          >
-                            <Edit2 className="size-3 sm:size-3.5" />
-                            <span>Edit</span>
-                          </button>
-                        )}
-                        {property.id && actualProjectId && hasInstallation && projectStatus === 'DRAFT' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setProjectToConfirm({ id: actualProjectId, name: projectName, hasReport, propertyId: property.id });
-                              setConfirmDialogOpen(true);
-                            }}
-                            className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-[#1CA7A6]/10 hover:bg-[#1CA7A6]/20 text-[#1CA7A6] font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors cursor-pointer border border-[#1CA7A6]/20 font-asap shrink-0"
-                          >
-                            <CheckCircle2 className="size-3 sm:size-3.5" />
-                            <span>Confirm</span>
-                          </button>
-                        )}
-                        {actualProjectId && hasInstallation && hasReport && projectStatus === 'COMPLETE' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleGenerateReport(actualProjectId, projectName);
-                            }}
-                            disabled={isAnyDownloading}
-                            className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-[#1CA7A6]/10 hover:bg-[#1CA7A6]/20 text-[#1CA7A6] font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors disabled:opacity-50 cursor-pointer border border-[#1CA7A6]/20 font-asap shrink-0"
-                          >
-                            {generatingReports[actualProjectId] ? (
-                              <Loader2 className="size-3 sm:size-3.5 animate-spin" />
-                            ) : (
-                              <Download className="size-3 sm:size-3.5" />
-                            )}
-                            <span>Download</span>
-                          </button>
-                        )}
-                        {actualProjectId && projectStatus === 'DRAFT' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setProjectToDelete({ id: actualProjectId, name: projectName });
+                              setProjectToDelete({
+                                id: actualProjectId,
+                                name: projectName,
+                              });
                               setDeleteDialogOpen(true);
                             }}
                             className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-red-50 hover:bg-red-100 text-red-600 font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors cursor-pointer border border-red-200/60 font-asap shrink-0"
@@ -347,11 +465,13 @@ export default function MyProjectList() {
                   <div>
                     <div className="overflow-hidden rounded-t-[12px] border border-[#E8EDF2]">
                       <div
-                        className={`relative min-h-[140px] sm:min-h-[180px] overflow-hidden ${allImages.length > 0 ? 'cursor-pointer' : ''}`}
-                        onClick={() => { router.push(`/property-details/${property.id}`) }}
+                        className={`relative min-h-[140px] sm:min-h-[180px] overflow-hidden ${allImages.length > 0 ? "cursor-pointer" : ""}`}
+                        onClick={() => {
+                          router.push(`/property-details/${property.id}`);
+                        }}
                       >
                         <AwsImage
-                          src={projectImage}
+                          src={frontImage}
                           alt="Project cover"
                           className="absolute inset-0 w-full h-full object-cover"
                         />
@@ -372,11 +492,17 @@ export default function MyProjectList() {
                         <div className="space-y-3">
                           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
                             {[
-                              { label: 'Project Name', value: projectName },
-                              { label: 'Client Name (Full Name)', value: clientName },
-                              { label: 'Property Address', value: propertyAddress },
-                              { label: 'State Name', value: stateName },
-                              { label: 'Owner Email', value: ownerEmail },
+                              { label: "Project Name", value: projectName },
+                              {
+                                label: "Client Name (Full Name)",
+                                value: clientName,
+                              },
+                              {
+                                label: "Property Address",
+                                value: propertyAddress,
+                              },
+                              { label: "State Name", value: stateName },
+                              { label: "Owner Email", value: ownerEmail },
                             ].map((item) => (
                               <div key={item.label}>
                                 <p className="text-[10px] font-semibold uppercase tracking-widest text-[#B0BEC5] font-inter">
@@ -391,7 +517,9 @@ export default function MyProjectList() {
 
                           {!hasInstallation ? (
                             <div className="flex flex-col items-center justify-center h-full border border-[#E8EDF2] py-5 rounded-lg">
-                              <h1 className="text-sm font-semibold text-[#708090]">No Installation Found</h1>
+                              <h1 className="text-sm font-semibold text-[#708090]">
+                                No Installation Found
+                              </h1>
                               <Button
                                 className="mt-2 h-9 text-xs font-bold"
                                 onClick={(event) => {
@@ -409,20 +537,45 @@ export default function MyProjectList() {
                                   Description
                                 </p>
                                 <p className="mt-1 text-[12px] sm:text-[13px] font-medium text-[#1F2A44] font-asap leading-relaxed">
-                                  {detail.description || 'No description available'}
+                                  {detail.description ||
+                                    "No description available"}
                                 </p>
                               </div>
                               <div className="space-y-3">
                                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
                                   {[
-                                    { label: 'Install Date', value: projectDateLabel || 'N/A' },
-                                    { label: 'Brand', value: detail.brand || 'N/A' },
-                                    { label: 'Material', value: detail.material || 'N/A' },
-                                    { label: 'Contractor', value: detail.installer || 'N/A' },
-                                    { label: 'Supplier', value: detail.supplier || 'N/A' },
-                                    { label: 'Style', value: detail.style || 'N/A' },
-                                    { label: 'Color', value: detail.color || 'N/A' },
-                                    { label: 'Class', value: detail.class_rating || 'N/A' },
+                                    {
+                                      label: "Install Date",
+                                      value: projectDateLabel || "N/A",
+                                    },
+                                    {
+                                      label: "Brand",
+                                      value: detail.brand || "N/A",
+                                    },
+                                    {
+                                      label: "Material",
+                                      value: detail.material || "N/A",
+                                    },
+                                    {
+                                      label: "Contractor",
+                                      value: detail.installer || "N/A",
+                                    },
+                                    {
+                                      label: "Supplier",
+                                      value: detail.supplier || "N/A",
+                                    },
+                                    {
+                                      label: "Style",
+                                      value: detail.style || "N/A",
+                                    },
+                                    {
+                                      label: "Color",
+                                      value: detail.color || "N/A",
+                                    },
+                                    {
+                                      label: "Class",
+                                      value: detail.class_rating || "N/A",
+                                    },
                                   ].map((item) => (
                                     <div key={item.label}>
                                       <p className="text-[10px] font-semibold uppercase tracking-widest text-[#B0BEC5] font-inter">
@@ -464,7 +617,6 @@ export default function MyProjectList() {
                               )}
                             </>
                           )}
-
                         </div>
                       </div>
                     </div>
@@ -526,7 +678,9 @@ export default function MyProjectList() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setCurrentImageIndex((prev) => (prev === 0 ? selectedImages.length - 1 : prev - 1));
+                  setCurrentImageIndex((prev) =>
+                    prev === 0 ? selectedImages.length - 1 : prev - 1,
+                  );
                 }}
                 className="absolute left-2 md:left-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10 cursor-pointer"
               >
@@ -544,7 +698,9 @@ export default function MyProjectList() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setCurrentImageIndex((prev) => (prev === selectedImages.length - 1 ? 0 : prev + 1));
+                  setCurrentImageIndex((prev) =>
+                    prev === selectedImages.length - 1 ? 0 : prev + 1,
+                  );
                 }}
                 className="absolute right-2 md:right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10 cursor-pointer"
               >
@@ -558,7 +714,7 @@ export default function MyProjectList() {
               {selectedImages.map((_, idx) => (
                 <div
                   key={idx}
-                  className={`size-2.5 rounded-full transition-colors ${idx === currentImageIndex ? 'bg-white' : 'bg-white/40'}`}
+                  className={`size-2.5 rounded-full transition-colors ${idx === currentImageIndex ? "bg-white" : "bg-white/40"}`}
                 />
               ))}
             </div>
@@ -570,8 +726,8 @@ export default function MyProjectList() {
         isOpen={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         title="Delete Project"
-        description={`Are you sure you want to delete the project "${projectToDelete?.name || 'this project'}"? This action cannot be undone.`}
-        confirmText={isDeleting ? 'Deleting...' : 'Delete'}
+        description={`Are you sure you want to delete the project "${projectToDelete?.name || "this project"}"? This action cannot be undone.`}
+        confirmText={isDeleting ? "Deleting..." : "Delete"}
         cancelText="Cancel"
         onConfirm={handleDeleteProject}
         variant="destructive"
@@ -581,8 +737,8 @@ export default function MyProjectList() {
         isOpen={confirmDialogOpen}
         onOpenChange={setConfirmDialogOpen}
         title="Confirm Project"
-        description={`Are you sure you want to confirm the project "${projectToConfirm?.name || 'this project'}"? Once confirmed, its details cannot be edited or deleted.`}
-        confirmText={isConfirming ? 'Confirming...' : 'Confirm'}
+        description={`Are you sure you want to confirm the project "${projectToConfirm?.name || "this project"}"? Once confirmed, its details cannot be edited or deleted.`}
+        confirmText={isConfirming ? "Confirming..." : "Confirm"}
         cancelText="Cancel"
         onConfirm={handleConfirmProject}
         variant="primary"

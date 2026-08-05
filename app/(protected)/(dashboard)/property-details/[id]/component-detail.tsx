@@ -46,7 +46,7 @@ export default function ComponentDetail({
   const router = useRouter();
   const { role, user } = useUser();
   const heroImageUrl = useAwsImage(componentData?.front_image);
-  const otherImageUrl = useAwsImage(componentData?.other_image);
+  const otherImageUrl = componentData?.other_image;
   const [activeTab, setActiveTab] = useState("PROJECTS");
   const [showImages, setShowImages] = useState(false);
   const [showProjects, setShowProjects] = useState(false);
