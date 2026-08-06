@@ -122,14 +122,20 @@ function DashboardPageContent() {
   const { searchBy, state, city, state_id, city_id } = filters;
 
   const searchParams = useMemo(
-    () => ({
-      search: searchBy === "all" ? debouncedSearch : "",
-      brandName: searchBy === "brand" ? debouncedSearch : "",
-      color: searchBy === "color" ? debouncedSearch : "",
-      style: searchBy === "style" ? debouncedSearch : "",
-      state_id: state_id || (state !== "all" ? state : ""),
-      city_id: city_id || (city !== "all" ? city : ""),
-    }),
+    () => {
+      const activeStateId =
+        state_id && state_id !== "all" ? state_id : state !== "all" ? state : "";
+      const activeCityId =
+        city_id && city_id !== "all" ? city_id : city !== "all" ? city : "";
+      return {
+        search: searchBy === "all" ? debouncedSearch : "",
+        brandName: searchBy === "brand" ? debouncedSearch : "",
+        color: searchBy === "color" ? debouncedSearch : "",
+        style: searchBy === "style" ? debouncedSearch : "",
+        state_id: activeStateId,
+        city_id: activeCityId,
+      };
+    },
     [debouncedSearch, searchBy, state, city, state_id, city_id],
   );
 
@@ -148,17 +154,23 @@ function DashboardPageContent() {
   const resultsVisible =
     hasMembership && (!isAdmin || !isContractor) && showResults;
 
+  const isCityInspector = role === "city_inspector";
+  const isSearchValid =
+    isCityInspector || viewMode === "map"
+      ? debouncedSearch.trim().length > 0
+      : debouncedSearch.trim().length > 0 &&
+        Boolean(state_id && state_id !== "all") &&
+        Boolean(city_id && city_id !== "all");
+
   useEffect(() => {
-    if (
-      debouncedSearch.trim().length > 0 ||
-      (state_id && state_id !== "all") ||
-      (city_id && city_id !== "all")
-    ) {
+    if (isSearchValid) {
       if (hasMembership) {
         setShowResults(true);
       }
+    } else if (viewMode !== "map") {
+      setShowResults(false);
     }
-  }, [debouncedSearch, state_id, city_id, hasMembership]);
+  }, [isSearchValid, hasMembership, viewMode]);
 
   const handleSearchTriggered = () => {
     if (!hasMembership) {

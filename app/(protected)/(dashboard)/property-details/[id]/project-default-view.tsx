@@ -151,8 +151,8 @@ export const ProjectDefaultView = ({
   return (
     <div className="space-y-[20px] md:space-y-[26px]">
       {/* Tabs */}
-      <div className="relative flex items-center justify-center border-b border-[#D9D9D9] pt-2">
-        <div className="flex gap-4 sm:gap-10 md:gap-[170px] px-4 pb-[15px]">
+      <div className="relative flex  items-center justify-center border-b border-[#D9D9D9] pt-2">
+        <div className="w-full px-4 md:w-auto flex justify-between gap-4 sm:gap-10 md:gap-[170px] pb-[15px]">
           {tabs.map((tab) => (
             <button
               key={tab}

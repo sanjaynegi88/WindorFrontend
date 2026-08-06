@@ -776,8 +776,8 @@ function buildPropertyFilterParams(filters: PropertyFilters): URLSearchParams {
     if (filters.color) params.append('color', filters.color);
     if (filters.state && filters.state !== 'all') params.append('state', filters.state);
     if (filters.city && filters.city !== 'all') params.append('city', filters.city);
-    if (filters.state_id) params.append('state_id', filters.state_id);
-    if (filters.city_id) params.append('city_id', filters.city_id);
+    if (filters.state_id && filters.state_id !== 'all') params.append('state_id', filters.state_id);
+    if (filters.city_id && filters.city_id !== 'all') params.append('city_id', filters.city_id);
     if (filters.zip) params.append('zip', filters.zip);
     if (filters.has_report !== undefined) params.append('has_report', filters.has_report.toString());
     if (filters.property_type) params.append('property_type', filters.property_type);
@@ -797,10 +797,12 @@ export async function getPropertyListAll(filters?: PropertyFilters) {
         const query = buildPropertyFilterParams(cleanFilters).toString();
         if (query) url += `?${query}`;
     }
+
     const response = await fetchApi({
         url,
         method: 'GET',
     });
+
     if (response.type === 'error') {
         throw new Error(normalizeMsg(response.messages, 'Failed to get property list'));
     }
@@ -808,22 +810,31 @@ export async function getPropertyListAll(filters?: PropertyFilters) {
 }
 
 export async function getPropertyLocations(
-    minLat: number,
-    maxLat: number,
-    minLng: number,
-    maxLng: number,
+    minLat?: number,
+    maxLat?: number,
+    minLng?: number,
+    maxLng?: number,
     zoomLevel?: number,
     filters?: PropertyFilters
 ) {
-    let url = `/api/properties/location?minLat=${minLat}&maxLat=${maxLat}&minLng=${minLng}&maxLng=${maxLng}`;
+    let url = '/api/properties/location';
+    const params = new URLSearchParams();
+    if (minLat !== undefined && maxLat !== undefined && minLng !== undefined && maxLng !== undefined) {
+        params.append('minLat', minLat.toString());
+        params.append('maxLat', maxLat.toString());
+        params.append('minLng', minLng.toString());
+        params.append('maxLng', maxLng.toString());
+    }
     if (zoomLevel !== undefined) {
-        url += `&zoomLevel=${zoomLevel}`;
+        params.append('zoomLevel', zoomLevel.toString());
     }
     if (filters) {
-        const query = buildPropertyFilterParams(filters).toString();
-        if (query) {
-            url += `&${query}`;
-        }
+        const filterParams = buildPropertyFilterParams(filters);
+        filterParams.forEach((val, key) => params.append(key, val));
+    }
+    const queryString = params.toString();
+    if (queryString) {
+        url += `?${queryString}`;
     }
     const response = await fetchApi({
         url,
@@ -1308,6 +1319,7 @@ export async function getCities(page: number = 1, limit?: number, id?: string, n
         url,
         method: "GET",
     });
+
     if (response.type === "error") {
         throw new Error(normalizeMsg(response.messages, 'Failed to get city list'));
     }
@@ -2285,7 +2297,7 @@ export async function getprojectListingOfProperty(propertyId: any, projectType?:
     }
     return response.data;
 }
-export async function getMyProjects(page: number = 1, limit: number = 9, search?: string, isAdmin?: boolean) {
+export async function getMyProjects(page: number = 1, limit: number = 9, search?: string, isAdmin?: boolean, isConfirmed?: boolean) {
     const params = new URLSearchParams();
     params.append('page', String(page));
     params.append('limit', String(limit));
@@ -2294,6 +2306,9 @@ export async function getMyProjects(page: number = 1, limit: number = 9, search?
     }
     if (isAdmin) {
         params.append('created_by', 'ADMIN');
+    }
+    if (isConfirmed !== undefined) {
+        params.append('is_confirmed', String(isConfirmed));
     }
     let url = `/api/property-projects/user/properties/full?${params.toString()}`;
     const response = await fetchApi({
@@ -2306,12 +2321,15 @@ export async function getMyProjects(page: number = 1, limit: number = 9, search?
     return response.data;
 }
 
-export async function getAllProjects(page: number = 1, limit: number = 9, search?: string) {
+export async function getAllProjects(page: number = 1, limit: number = 9, search?: string, isConfirmed?: boolean) {
     const params = new URLSearchParams();
     params.append('page', String(page));
     params.append('limit', String(limit));
     if (search) {
         params.append('search', search);
+    }
+    if (isConfirmed !== undefined) {
+        params.append('is_confirmed', String(isConfirmed));
     }
     let url = `/api/property-projects/user/properties/full?${params.toString()}`;
     const response = await fetchApi({

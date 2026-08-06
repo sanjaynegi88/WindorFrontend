@@ -102,8 +102,15 @@ export function UnifiedSearchBar({
           undefined,
           stateId,
         );
-        setCities(Array.isArray(citiesRes) ? citiesRes : citiesRes?.data || []);
-        setCity("all");
+        const fetchedCities = Array.isArray(citiesRes) ? citiesRes : citiesRes?.data || [];
+        setCities(fetchedCities);
+        setCity((prevCity) => {
+          if (prevCity === "all") return "all";
+          const exists = fetchedCities.some(
+            (c: any) => String(c.id) === String(prevCity),
+          );
+          return exists ? prevCity : "all";
+        });
       } catch (error) {
         console.error("Failed to fetch cities:", error);
       }
@@ -126,9 +133,13 @@ export function UnifiedSearchBar({
 
   const isSearchInputDone =
     allowEmptySearch ||
-    search.trim().length > 0 ||
-    (state !== "all" && state !== "") ||
-    (city !== "all" && city !== "");
+    (isCityInspector || isMapView
+      ? search.trim().length > 0
+      : state !== "all" &&
+        state !== "" &&
+        city !== "all" &&
+        city !== "" &&
+        search.trim().length > 0);
   const isSearchDisabled = !isSearchInputDone;
 
   const handleSearchClick = () => {
@@ -176,7 +187,7 @@ export function UnifiedSearchBar({
     }
   };
 
-  const selectedStateObj = states.find((s) => s.id === state);
+  const selectedStateObj = states.find((s) => String(s.id) === String(state));
   const selectedStateName =
     state === "all"
       ? "Select State"
@@ -184,7 +195,7 @@ export function UnifiedSearchBar({
         selectedStateObj?.name ||
         "Select State";
 
-  const selectedCityObj = cities.find((c) => c.id === city);
+  const selectedCityObj = cities.find((c) => String(c.id) === String(city));
   const selectedCityName =
     city === "all"
       ? "City"
@@ -309,12 +320,16 @@ export function UnifiedSearchBar({
                     </CommandItem>
                     {cities.map((c: any) => {
                       const name = c.city_name || c.name || "";
+                      const cityStateId = c.state_id || c.state?.id || c.state_id;
                       return (
                         <CommandItem
                           key={c.id}
                           value={name}
                           onSelect={() => {
                             setCity(c.id);
+                            if (cityStateId) {
+                              setState(String(cityStateId));
+                            }
                             setOpenCity(false);
                           }}
                           className="cursor-pointer text-sm font-asap py-2 rounded-lg"

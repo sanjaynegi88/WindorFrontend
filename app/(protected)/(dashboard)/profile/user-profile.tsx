@@ -829,9 +829,7 @@ export default function UserProfile() {
                     <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                       <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
                         Mobile Phone
-                        {isEditing && (
-                          <label className="text-red-500">*</label>
-                        )}
+                        {isEditing && <label className="text-red-500">*</label>}
                       </Label>
 
                       <div className="md:col-span-2">
@@ -2149,8 +2147,12 @@ export default function UserProfile() {
                               <span className="font-bold text-foreground">
                                 {reportUsage?.propertiesUsed ?? 0}
                               </span>{" "}
-                              <span className="text-muted-foreground">used</span>
-                              <span className="text-muted-foreground/60 mx-1">/</span>
+                              <span className="text-muted-foreground">
+                                used
+                              </span>
+                              <span className="text-muted-foreground/60 mx-1">
+                                /
+                              </span>
                               {reportUsage?.propertiesUnlimited ? (
                                 <span className="font-semibold text-emerald-600 dark:text-emerald-400">
                                   Unlimited
@@ -2160,7 +2162,9 @@ export default function UserProfile() {
                                   <span className="font-bold text-foreground">
                                     {reportUsage?.propertiesProvided ?? 0}
                                   </span>{" "}
-                                  <span className="text-muted-foreground">limit</span>
+                                  <span className="text-muted-foreground">
+                                    limit
+                                  </span>
                                 </>
                               )}
                             </span>
@@ -2178,20 +2182,24 @@ export default function UserProfile() {
                               <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                                 <div
                                   className={`h-full rounded-full transition-all duration-500 ${
-                                    ((reportUsage?.propertiesUsed ?? 0) /
-                                      (reportUsage?.propertiesProvided || 1)) >= 1
+                                    (reportUsage?.propertiesUsed ?? 0) /
+                                      (reportUsage?.propertiesProvided || 1) >=
+                                    1
                                       ? "bg-destructive"
-                                      : ((reportUsage?.propertiesUsed ?? 0) /
-                                          (reportUsage?.propertiesProvided || 1)) >= 0.8
-                                      ? "bg-amber-500"
-                                      : "bg-primary"
+                                      : (reportUsage?.propertiesUsed ?? 0) /
+                                            (reportUsage?.propertiesProvided ||
+                                              1) >=
+                                          0.8
+                                        ? "bg-amber-500"
+                                        : "bg-primary"
                                   }`}
                                   style={{
                                     width: `${Math.min(
                                       100,
                                       ((reportUsage?.propertiesUsed ?? 0) /
-                                        (reportUsage?.propertiesProvided || 1)) *
-                                        100
+                                        (reportUsage?.propertiesProvided ||
+                                          1)) *
+                                        100,
                                     )}%`,
                                   }}
                                 />
@@ -2202,16 +2210,18 @@ export default function UserProfile() {
                                     Math.min(
                                       100,
                                       ((reportUsage?.propertiesUsed ?? 0) /
-                                        (reportUsage?.propertiesProvided || 1)) *
-                                        100
-                                    )
-                                  )}% used
+                                        (reportUsage?.propertiesProvided ||
+                                          1)) *
+                                        100,
+                                    ),
+                                  )}
+                                  % used
                                 </span>
                                 <span>
                                   {Math.max(
                                     0,
                                     (reportUsage?.propertiesProvided ?? 0) -
-                                      (reportUsage?.propertiesUsed ?? 0)
+                                      (reportUsage?.propertiesUsed ?? 0),
                                   )}{" "}
                                   remaining
                                 </span>
@@ -2230,8 +2240,12 @@ export default function UserProfile() {
                               <span className="font-bold text-foreground">
                                 {reportUsage?.projectsUsed ?? 0}
                               </span>{" "}
-                              <span className="text-muted-foreground">used</span>
-                              <span className="text-muted-foreground/60 mx-1">/</span>
+                              <span className="text-muted-foreground">
+                                used
+                              </span>
+                              <span className="text-muted-foreground/60 mx-1">
+                                /
+                              </span>
                               {reportUsage?.projectsUnlimited ? (
                                 <span className="font-semibold text-emerald-600 dark:text-emerald-400">
                                   Unlimited
@@ -2241,7 +2255,9 @@ export default function UserProfile() {
                                   <span className="font-bold text-foreground">
                                     {reportUsage?.projectsProvided ?? 0}
                                   </span>{" "}
-                                  <span className="text-muted-foreground">limit</span>
+                                  <span className="text-muted-foreground">
+                                    limit
+                                  </span>
                                 </>
                               )}
                             </span>
@@ -2259,20 +2275,23 @@ export default function UserProfile() {
                               <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                                 <div
                                   className={`h-full rounded-full transition-all duration-500 ${
-                                    ((reportUsage?.projectsUsed ?? 0) /
-                                      (reportUsage?.projectsProvided || 1)) >= 1
+                                    (reportUsage?.projectsUsed ?? 0) /
+                                      (reportUsage?.projectsProvided || 1) >=
+                                    1
                                       ? "bg-destructive"
-                                      : ((reportUsage?.projectsUsed ?? 0) /
-                                          (reportUsage?.projectsProvided || 1)) >= 0.8
-                                      ? "bg-amber-500"
-                                      : "bg-primary"
+                                      : (reportUsage?.projectsUsed ?? 0) /
+                                            (reportUsage?.projectsProvided ||
+                                              1) >=
+                                          0.8
+                                        ? "bg-amber-500"
+                                        : "bg-primary"
                                   }`}
                                   style={{
                                     width: `${Math.min(
                                       100,
                                       ((reportUsage?.projectsUsed ?? 0) /
                                         (reportUsage?.projectsProvided || 1)) *
-                                        100
+                                        100,
                                     )}%`,
                                   }}
                                 />
@@ -2284,15 +2303,16 @@ export default function UserProfile() {
                                       100,
                                       ((reportUsage?.projectsUsed ?? 0) /
                                         (reportUsage?.projectsProvided || 1)) *
-                                        100
-                                    )
-                                  )}% used
+                                        100,
+                                    ),
+                                  )}
+                                  % used
                                 </span>
                                 <span>
                                   {Math.max(
                                     0,
                                     (reportUsage?.projectsProvided ?? 0) -
-                                      (reportUsage?.projectsUsed ?? 0)
+                                      (reportUsage?.projectsUsed ?? 0),
                                   )}{" "}
                                   remaining
                                 </span>
@@ -2305,38 +2325,6 @@ export default function UserProfile() {
                       <hr className="border-border my-2" />
 
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-muted/30 p-3 rounded-xl border">
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                            Reports Used
-                          </p>
-                          <p className="text-lg font-bold">
-                            {reportUsage?.used ?? 0}
-                          </p>
-                        </div>
-                        <div className="bg-muted/30 p-3 rounded-xl border">
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                            Report Limit
-                          </p>
-                          <p className="text-lg font-bold">
-                            {reportUsage?.limit ?? 0}
-                          </p>
-                        </div>
-                        <div className="bg-muted/30 p-3 rounded-xl border">
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                            Remaining Reports
-                          </p>
-                          <p className="text-lg font-bold">
-                            {reportUsage?.remaining ?? 0}
-                          </p>
-                        </div>
-                        <div className="bg-muted/30 p-3 rounded-xl border">
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                            Base Limit
-                          </p>
-                          <p className="text-lg font-bold">
-                            {reportUsage?.baseLimit ?? 0}
-                          </p>
-                        </div>
                         <div className="col-span-2 bg-muted/30 p-3 rounded-xl border flex items-center justify-between">
                           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0">
                             Purchased Reports

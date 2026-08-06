@@ -260,7 +260,10 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
         });
 
         const searchProjectId = searchParams.get("projectId");
-        if (searchProjectId) {
+        const editAddressParam = searchParams.get("editAddress") === "true";
+        if (editAddressParam) {
+          setStep("EDIT_ADDRESS");
+        } else if (searchProjectId) {
           const matchedProj = prop?.projects?.find(
             (p: any) =>
               String(p.id ?? p.project_id ?? p._id) === searchProjectId,
@@ -306,6 +309,10 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
   }, [propertyId, searchParams, role]);
 
   useEffect(() => {
+    if (searchParams.get("editAddress") === "true") {
+      setStep("EDIT_ADDRESS");
+      return;
+    }
     if (role && role !== "admin" && step === "SELECT" && property) {
       const projects = property.projects ?? [];
       const searchProjectId = searchParams.get("projectId");

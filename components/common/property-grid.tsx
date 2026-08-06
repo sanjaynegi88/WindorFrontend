@@ -15,10 +15,16 @@ interface PropertyGridProps {
   showDetail?: boolean;
   isPropertyOwner?: boolean;
   onOpenInMap?: (lat: number, lng: number, id: string) => void;
+  onDeleteProperty?: (id: string) => void;
 }
 
-export function PropertyGrid({ searchParams, redirectUrl, showActionButtons, showDetail, isPropertyOwner, onOpenInMap }: PropertyGridProps) {
+export function PropertyGrid({ searchParams, redirectUrl, showActionButtons, showDetail, isPropertyOwner, onOpenInMap, onDeleteProperty }: PropertyGridProps) {
   const [properties, setProperties] = useState<any[]>([]);
+
+  const handlePropertyDeleted = (deletedId: string) => {
+    setProperties((prev) => prev.filter((p) => p.id !== deletedId));
+    onDeleteProperty?.(deletedId);
+  };
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
@@ -125,6 +131,7 @@ export function PropertyGrid({ searchParams, redirectUrl, showActionButtons, sho
                 latitude={prop.latitude ? Number(prop.latitude) : undefined}
                 longitude={prop.longitude ? Number(prop.longitude) : undefined}
                 onOpenInMap={onOpenInMap}
+                onDelete={handlePropertyDeleted}
               />
             );
           })}

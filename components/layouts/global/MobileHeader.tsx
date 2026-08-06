@@ -131,7 +131,7 @@ export function MobileHeader({
                 <div className="flex items-center gap-1.5 cursor-pointer select-none outline-none">
                   <Avatar
                     className={cn(
-                      "h-[34px] w-[34px] border shrink-0",
+                      "h-[34px] w-[34px] shrink-0",
                       styles.avatarBorder,
                     )}
                   >

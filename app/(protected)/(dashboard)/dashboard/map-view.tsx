@@ -104,27 +104,41 @@ export default function MapView({
   } | null>(null);
 
   const fetchDataForBounds = async (
-    bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number },
+    bounds?: { minLat: number; maxLat: number; minLng: number; maxLng: number },
     zoomLevel?: number,
   ) => {
     const requestId = ++activeRequestRef.current;
+    setLoading(true);
     try {
       const { city, ...restParams } = searchParams || {};
       const activeCityId =
         searchParams?.city_id || (city && city !== "all" ? city : undefined);
+      const activeStateId =
+        searchParams?.state_id && searchParams.state_id !== "all"
+          ? searchParams.state_id
+          : undefined;
 
+      const hasActiveSearch = Boolean(
+        searchParams?.search?.trim() ||
+          searchParams?.brandName?.trim() ||
+          searchParams?.color?.trim() ||
+          searchParams?.style?.trim()
+      );
+
+      // If text/component search is active, don't restrict to current viewport bounds
       const result = await getPropertyLocations(
-        bounds.minLat,
-        bounds.maxLat,
-        bounds.minLng,
-        bounds.maxLng,
+        hasActiveSearch ? undefined : bounds?.minLat,
+        hasActiveSearch ? undefined : bounds?.maxLat,
+        hasActiveSearch ? undefined : bounds?.minLng,
+        hasActiveSearch ? undefined : bounds?.maxLng,
         zoomLevel,
         {
           ...restParams,
           ...(activeCityId ? { city_id: activeCityId } : {}),
+          ...(activeStateId ? { state_id: activeStateId } : {}),
         },
       );
-      console.log("resssss", result);
+
       if (requestId !== activeRequestRef.current) return;
 
       let dataList: any[] = [];
@@ -138,31 +152,33 @@ export default function MapView({
         }
       }
 
-      const mappedMarkers: MarkerData[] = (
-        await Promise.all(
-          dataList
-            .filter((p: any) => p.latitude && p.longitude)
-            .map(async (p: any) => {
-              const frontImage = p.front_image
-                ? await getWorkingAwsImageUrl(p.front_image)
-                : null;
-              return {
-                id: p.id,
-                lat: Number(p.latitude),
-                lng: Number(p.longitude),
-                title: p.address || "Property",
-                description:
-                  `${p.city_name || p.city?.name || ""} ${p.state_name || p.state || ""}`.trim(),
-                front_image: frontImage,
-                street_view_link: p.street_view_link,
-                reportStatus: getMarkerReportStatus(p),
-              };
-            }),
-        )
-      ).filter((m: MarkerData) => m.reportStatus !== "none");
+      const mappedMarkers: MarkerData[] = await Promise.all(
+        dataList
+          .filter((p: any) => p.latitude && p.longitude)
+          .map(async (p: any) => {
+            const frontImage = p.front_image
+              ? await getWorkingAwsImageUrl(p.front_image)
+              : null;
+            return {
+              id: p.id,
+              lat: Number(p.latitude),
+              lng: Number(p.longitude),
+              title: p.address || "Property",
+              description:
+                `${p.city_name || p.city?.name || ""} ${p.state_name || p.state || ""}`.trim(),
+              front_image: frontImage,
+              street_view_link: p.street_view_link,
+              reportStatus: getMarkerReportStatus(p),
+            };
+          }),
+      );
 
       if (requestId !== activeRequestRef.current) return;
       setMarkers(mappedMarkers);
+
+      if (hasActiveSearch && mappedMarkers.length > 0 && !focusCenter) {
+        setShouldFitBounds(true);
+      }
     } catch (error) {
       console.error("Failed to fetch properties for bounds:", error);
     } finally {
@@ -172,19 +188,36 @@ export default function MapView({
     }
   };
 
+  const searchParamsString = JSON.stringify(searchParams);
+
   useEffect(() => {
     if (focusCenter) {
-      setLoading(false);
+      const delta = 0.05;
+      const focusBounds = {
+        minLat: focusCenter.lat - delta,
+        maxLat: focusCenter.lat + delta,
+        minLng: focusCenter.lng - delta,
+        maxLng: focusCenter.lng + delta,
+      };
+      fetchDataForBounds(focusBounds);
       return;
     }
 
-    const hasFilters = !!(searchParams && Object.keys(searchParams).length > 0);
-    setShouldFitBounds(hasFilters);
+    const hasActiveSearch = Boolean(
+      searchParams?.search?.trim() ||
+        searchParams?.brandName?.trim() ||
+        searchParams?.color?.trim() ||
+        searchParams?.style?.trim() ||
+        (searchParams?.city_id && searchParams.city_id !== "all") ||
+        (searchParams?.state_id && searchParams.state_id !== "all"),
+    );
 
-    if (currentBoundsRef.current) {
-      fetchDataForBounds(currentBoundsRef.current);
+    if (hasActiveSearch && !focusCenter) {
+      setShouldFitBounds(true);
     }
-  }, [searchParams, reportUsage, focusCenter]);
+
+    fetchDataForBounds(currentBoundsRef.current || undefined);
+  }, [searchParamsString, reportUsage, focusCenter]);
 
   useEffect(() => {
     const resolveCenterLocation = async () => {
@@ -260,7 +293,17 @@ export default function MapView({
   ) => {
     currentBoundsRef.current = bounds;
     setShouldFitBounds(false);
-    await fetchDataForBounds(bounds, zoomLevel);
+
+    const hasActiveSearch = Boolean(
+      searchParams?.search?.trim() ||
+        searchParams?.brandName?.trim() ||
+        searchParams?.color?.trim() ||
+        searchParams?.style?.trim(),
+    );
+
+    if (!hasActiveSearch) {
+      await fetchDataForBounds(bounds, zoomLevel);
+    }
   };
 
   return (
@@ -287,6 +330,9 @@ export default function MapView({
         onClose={() => {
           setIsSidebarOpen(false);
           setSelectedPropertyId(null);
+          if (onFocusCleared) {
+            onFocusCleared();
+          }
         }}
       />
     </Card>

@@ -21,7 +21,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { downloadPdfFromUrl, getErrorMessage, toPascalCase } from "@/lib/utils";
+import { downloadPdfFromUrl, getErrorMessage, toPascalCase, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
@@ -30,9 +30,18 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { AwsImage } from "@/components/common/aws-image";
 import { useUser } from "@/components/providers/user-provider";
 
+type TabType = 'all' | 'completed' | 'draft';
+
+const getIsConfirmedParam = (tab: TabType): boolean | undefined => {
+  if (tab === 'completed') return true;
+  if (tab === 'draft') return false;
+  return undefined;
+};
+
 export default function MyProjectList() {
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>('all');
   const [expandedProjects, setExpandedProjects] = useState<
     Record<string, boolean>
   >({});
@@ -87,7 +96,7 @@ export default function MyProjectList() {
     }
   };
 
-  const fetchProjects = async (pageNum: number, append: boolean = false) => {
+  const fetchProjects = async (pageNum: number, append: boolean = false, currentTab: TabType = activeTab) => {
     if (pageNum === 1 && !append) {
       setLoading(true);
     } else if (append) {
@@ -95,11 +104,13 @@ export default function MyProjectList() {
     }
 
     try {
+      const isConfirmed = getIsConfirmedParam(currentTab);
       const response = await getMyProjects(
         pageNum,
         9,
         debouncedSearchQuery,
         isAdmin,
+        isConfirmed,
       );
       console.log(response);
       const normalizedProjects = Array.isArray(response)
@@ -129,8 +140,8 @@ export default function MyProjectList() {
   };
   useEffect(() => {
     setPage(1);
-    fetchProjects(1, false);
-  }, [debouncedSearchQuery]);
+    fetchProjects(1, false, activeTab);
+  }, [debouncedSearchQuery, activeTab]);
 
   const toggleProjectExpanded = (projectId: string) => {
     setExpandedProjects((prev) => ({
@@ -170,6 +181,8 @@ export default function MyProjectList() {
           1,
           page * 9,
           debouncedSearchQuery,
+          isAdmin,
+          getIsConfirmedParam(activeTab),
         );
         const normalized = Array.isArray(freshProjectsRes)
           ? freshProjectsRes
@@ -223,24 +236,54 @@ export default function MyProjectList() {
           My Projects
         </h1>
 
-        <div className="relative w-full max-w-[480px]">
-          <Input
-            placeholder="Search projects..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            startIcon={<Search className="size-5" />}
-            endIcon={
-              searchQuery.length > 0 ? (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
+          <div className="relative w-full sm:max-w-[480px]">
+            <Input
+              placeholder="Search projects..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              startIcon={<Search className="size-5" />}
+              endIcon={
+                searchQuery.length > 0 ? (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="text-[#B0BEC5] hover:text-[#1F2A44] transition-colors cursor-pointer"
+                  >
+                    <X className="size-5" />
+                  </button>
+                ) : null
+              }
+              className="h-[52px] w-full rounded-xl border border-[#E8EDF2] focus:border-[#1CA7A6] focus:ring-1 focus:ring-[#1CA7A6] font-asap text-[15px] font-medium placeholder:text-[#B0BEC5] text-[#1F2A44]"
+            />
+          </div>
+
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#F0F4F8] border border-[#E8EDF2] self-start sm:self-auto">
+            {[
+              { id: "all", label: "All" },
+              { id: "completed", label: "Completed" },
+              { id: "draft", label: "Draft" },
+            ].map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
                 <button
-                  onClick={() => setSearchQuery("")}
-                  className="text-[#B0BEC5] hover:text-[#1F2A44] transition-colors cursor-pointer"
+                  key={tab.id}
+                  onClick={() => {
+                    if (activeTab !== tab.id) {
+                      setActiveTab(tab.id as TabType);
+                    }
+                  }}
+                  className={cn(
+                    "px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all font-asap cursor-pointer",
+                    isActive
+                      ? "bg-[#1CA7A6] text-white shadow-xs"
+                      : "text-[#708090] hover:text-[#1F2A44] hover:bg-white/60"
+                  )}
                 >
-                  <X className="size-5" />
+                  {tab.label}
                 </button>
-              ) : null
-            }
-            className="h-[52px] w-full rounded-xl border border-[#E8EDF2] focus:border-[#1CA7A6] focus:ring-1 focus:ring-[#1CA7A6] font-asap text-[15px] font-medium placeholder:text-[#B0BEC5] text-[#1F2A44]"
-          />
+              );
+            })}
+          </div>
         </div>
 
         {loading ? (

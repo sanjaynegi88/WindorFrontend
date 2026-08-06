@@ -64,6 +64,7 @@ interface PropertyCardProps {
   latitude?: number;
   longitude?: number;
   onOpenInMap?: (lat: number, lng: number, id: string) => void;
+  onDelete?: (id: string) => void;
 }
 
 export function PropertyCard({
@@ -83,6 +84,7 @@ export function PropertyCard({
   latitude,
   longitude,
   onOpenInMap,
+  onDelete,
 }: PropertyCardProps) {
   const { user, role } = useUser();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -170,13 +172,15 @@ export function PropertyCard({
     setShowDeleteDialog(false);
     setIsGenerating(true);
     try {
-      const resposne = await deleteProperty(id);
-      if (!resposne.success) {
-        toast.error(resposne.message);
+      const response = await deleteProperty(id);
+      if (!response.success) {
+        toast.error(response.message);
         return;
       }
       toast.success("Property deleted successfully");
-      setPurchased(true);
+      if (onDelete) {
+        onDelete(id);
+      }
       router.refresh();
 
       if (user?.role === "insurance_company") {
@@ -209,15 +213,14 @@ export function PropertyCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40 rounded-xl">
-                {hasReport && (
+                {hasReport && latitude && longitude && (
                   <DropdownMenuItem
                     onClick={() => {
-                      if (latitude && longitude && onOpenInMap) {
+                      if (onOpenInMap) {
                         onOpenInMap(latitude, longitude, propertyId);
                       }
                     }}
                     className="gap-2 cursor-pointer py-2"
-                    disabled={!latitude || !longitude}
                   >
                     <MapPin className="size-3.5" />
                     <span className="text-xs font-bold">Open in Map</span>
@@ -390,17 +393,17 @@ export function PropertyCard({
                     <FileUp className="size-5 text-[#1CA7A6]" />
                   </button>
                 )}
-              {hasReport && showActionButtons && (
+              {hasReport && latitude && longitude && showActionButtons && (
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (latitude && longitude && onOpenInMap) {
+                    if (onOpenInMap) {
                       onOpenInMap(latitude, longitude, propertyId);
                     }
                   }}
-                  disabled={!latitude || !longitude}
-                  className="flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="flex items-center gap-2 cursor-pointer"
+                  title="Open in Map"
                 >
                   <MapPin className="size-5 text-[#1CA7A6] tracking-[0.2em] group/link" />
                 </button>

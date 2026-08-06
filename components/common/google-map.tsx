@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 import { MarkerClusterer, Renderer } from "@googlemaps/markerclusterer";
+import { MapPin, RotateCcw } from "lucide-react";
 
 interface MarkerData {
   id: string;
@@ -116,7 +117,16 @@ const customClusterRenderer: Renderer = {
     div.style.border = "3px solid #ffffff";
     div.style.boxShadow = "0 4px 10px rgba(0, 0, 0, 0.25)";
     div.style.fontFamily = "system-ui, -apple-system, sans-serif";
+    div.style.cursor = "pointer";
+    div.style.transition = "transform 0.15s ease-in-out";
     div.innerText = String(count);
+
+    div.addEventListener("mouseenter", () => {
+      div.style.transform = "scale(1.15)";
+    });
+    div.addEventListener("mouseleave", () => {
+      div.style.transform = "scale(1)";
+    });
 
     const AdvancedMarkerElement =
       google.maps.marker && google.maps.marker.AdvancedMarkerElement
@@ -172,10 +182,10 @@ export default function GoogleMap({
   }, [onFocusCleared]);
 
   useEffect(() => {
-    if (shouldFitBounds) {
+    if (shouldFitBounds || markers) {
       lastFetchedRef.current = null;
     }
-  }, [shouldFitBounds]);
+  }, [shouldFitBounds, markers]);
 
   useEffect(() => {
     if (defaultCenter || focusedMarkerId) {
@@ -292,7 +302,7 @@ export default function GoogleMap({
 
         if (
           currentZoom !== undefined &&
-          currentZoom >= 8 &&
+          currentZoom >= 1 &&
           center &&
           onViewportChangeRef.current
         ) {
@@ -471,13 +481,24 @@ export default function GoogleMap({
           map: mapInstanceRef.current,
           markers: newMarkers,
           renderer: customClusterRenderer,
+          onClusterClick: (event: any, cluster: any, map: any) => {
+            if (cluster.bounds) {
+              skipNextViewportFetchRef.current = true;
+              map.fitBounds(cluster.bounds);
+            }
+          },
         });
       } else {
         markerClusterRef.current.addMarkers(newMarkers);
       }
 
-      // Fit map to markers if requested
-      if (shouldFitBounds && markers.length > 0 && mapInstanceRef.current) {
+      // Fit map to markers if requested (only if no specific focused marker)
+      if (
+        shouldFitBounds &&
+        !focusedMarkerId &&
+        markers.length > 0 &&
+        mapInstanceRef.current
+      ) {
         skipNextViewportFetchRef.current = true;
         if (markers.length === 1) {
           const singleMarker = markers[0];
@@ -510,9 +531,6 @@ export default function GoogleMap({
             }
             if (onMarkerClick) {
               onMarkerClick(markerData.id);
-            }
-            if (onFocusClearedRef.current) {
-              onFocusClearedRef.current();
             }
           }, 300);
         }
@@ -549,6 +567,43 @@ export default function GoogleMap({
           </svg>
           <span>Updating properties...</span>
         </div>
+      )}
+
+      {!loading && markers.length === 0 && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-background/95 backdrop-blur border border-border px-4 py-2 rounded-full shadow-lg z-10 flex items-center gap-2 text-xs font-semibold text-muted-foreground animate-in fade-in slide-in-from-top-2">
+          <MapPin className="size-4 text-[#1CA7A6] shrink-0" />
+          <span>No properties found in this area or search.</span>
+        </div>
+      )}
+
+      {markers.length > 0 && (
+        <button
+          type="button"
+          onClick={() => {
+            if (mapInstanceRef.current) {
+              if (markers.length === 1) {
+                mapInstanceRef.current.panTo({
+                  lat: markers[0].lat,
+                  lng: markers[0].lng,
+                });
+                mapInstanceRef.current.setZoom(17.5);
+              } else {
+                const bounds = new google.maps.LatLngBounds();
+                markers.forEach((m) =>
+                  bounds.extend({ lat: m.lat, lng: m.lng }),
+                );
+                mapInstanceRef.current.fitBounds(bounds);
+              }
+            }
+            if (onFocusClearedRef.current) {
+              onFocusClearedRef.current();
+            }
+          }}
+          className="absolute bottom-6 right-6 bg-[#1F2A44] hover:bg-[#1a212c] text-white text-xs font-bold uppercase tracking-wider px-3.5 py-2.5 rounded-xl shadow-xl transition-all flex items-center gap-2 z-10 cursor-pointer border border-white/10"
+        >
+          <RotateCcw className="size-3.5 text-[#1CA7A6]" />
+          Recenter Map ({markers.length})
+        </button>
       )}
 
       {zoom < 12 && (

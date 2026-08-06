@@ -38,7 +38,9 @@ export function PropertyAddressPhotos({
   });
   const [uploading, setUploading] = useState(false);
   const [loadingExisting, setLoadingExisting] = useState(false);
-  const [activePickerTarget, setActivePickerTarget] = useState<string | null>(null);
+  const [activePickerTarget, setActivePickerTarget] = useState<string | null>(
+    null,
+  );
 
   const galleryInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const cameraInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -193,7 +195,7 @@ export function PropertyAddressPhotos({
     <div className="w-full max-w-[1170px] mx-auto space-y-[20px] md:space-y-[45px] animate-in fade-in slide-in-from-bottom-4 duration-500 font-asap px-[20px] md:px-0">
       <div className="text-center space-y-[10px] md:space-y-[15px]">
         <h2 className="text-[24px] md:text-[36px] font-bold text-[#1F2A44] uppercase leading-tight md:leading-[41px]">
-          {address || "8175 RIVERDALE DR NW"}
+          {address || ""}
         </h2>
         <p className="text-[#1CA7A6] font-medium text-[20px] md:text-[30px] leading-tight md:leading-[34px]">
           Enter New Photos

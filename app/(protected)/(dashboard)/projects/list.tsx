@@ -68,17 +68,22 @@ export default function ProjectList() {
     isAdmin ||
     Boolean(user?.has_membership ?? user?.hasMembership ?? hasMembershipCookie);
 
+  const isCityInspector = role === "city_inspector";
+  const isSearchValid = isCityInspector
+    ? debouncedSearch.trim().length > 0
+    : debouncedSearch.trim().length > 0 &&
+      Boolean(state_id && state_id !== "all") &&
+      Boolean(city_id && city_id !== "all");
+
   useEffect(() => {
-    if (
-      debouncedSearch.trim().length > 0 ||
-      (state_id && state_id !== "all") ||
-      (city_id && city_id !== "all")
-    ) {
+    if (isSearchValid) {
       if (hasMembership) {
         setShowResults(true);
       }
+    } else {
+      setShowResults(false);
     }
-  }, [debouncedSearch, state_id, city_id, hasMembership]);
+  }, [isSearchValid, hasMembership]);
 
   const handleGenerateTop10 = async () => {
     if (!user) {

@@ -23,6 +23,7 @@ import {
   FileText,
   FileDownIcon,
   User,
+  HouseIcon,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -268,6 +269,7 @@ export function Navbar() {
     { name: "Membership", href: "/admin/membership", icon: ClipboardList },
     { name: "Property Types", href: "/admin/property-types", icon: Building2 },
     { name: "Roles", href: "/admin/roles", icon: ShieldUser },
+    { name: "Property List", href: "/admin/property-list", icon: HouseIcon },
     {
       name: "Project Image Category",
       href: "/admin/image-category",
