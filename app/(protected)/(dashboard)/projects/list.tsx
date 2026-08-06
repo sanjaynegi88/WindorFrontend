@@ -8,7 +8,6 @@ import {
 import { Content } from "@/components/layouts/crm/components/content";
 import { useUser } from "@/components/providers/user-provider";
 import { Button } from "@/components/ui/button";
-import { useDebounce } from "@/hooks/use-debounce";
 import { checkoutReports, generateMultipleReports } from "@/lib/actions";
 import { ChevronLeft, FileText, Loader2 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
@@ -25,32 +24,32 @@ export default function ProjectList() {
     city_id: "",
   });
 
-  const debouncedSearch = useDebounce(filters.search, 300);
-  const { searchBy, state, city, state_id, city_id } = filters;
+  const [appliedFilters, setAppliedFilters] = useState(filters);
 
-  const searchParams = useMemo(
-    () => ({
-      search: searchBy === "all" ? debouncedSearch : "",
-      brandName: searchBy === "brand" ? debouncedSearch : "",
-      color: searchBy === "color" ? debouncedSearch : "",
-      style: searchBy === "style" ? debouncedSearch : "",
+  const searchParams = useMemo(() => {
+    const { search, searchBy, state, city, state_id, city_id } = appliedFilters;
+    return {
+      search: searchBy === "all" ? search : "",
+      brandName: searchBy === "brand" ? search : "",
+      color: searchBy === "color" ? search : "",
+      style: searchBy === "style" ? search : "",
       state_id: state_id || (state !== "all" ? state : ""),
       city_id: city_id || (city !== "all" ? city : ""),
-    }),
-    [debouncedSearch, searchBy, state, city, state_id, city_id],
-  );
+    };
+  }, [appliedFilters]);
 
-  const reportFilters = useMemo(
-    () => ({
-      search: debouncedSearch,
-      brandName: searchBy === "brand" ? debouncedSearch : "",
-      color: searchBy === "color" ? debouncedSearch : "",
-      style: searchBy === "style" ? debouncedSearch : "",
+  const reportFilters = useMemo(() => {
+    const { search, searchBy, state_id, city_id } = appliedFilters;
+    return {
+      search,
+      brandName: searchBy === "brand" ? search : "",
+      color: searchBy === "color" ? search : "",
+      style: searchBy === "style" ? search : "",
       state_id: state_id,
       city_id: city_id,
-    }),
-    [debouncedSearch, searchBy, state_id, city_id],
-  );
+    };
+  }, [appliedFilters]);
+
   const { user } = useUser();
   const role = user?.role?.toLowerCase() || "";
   const isAdminOrInspector = role === "admin" || role === "city_inspector";
@@ -67,23 +66,6 @@ export default function ProjectList() {
   const hasMembership =
     isAdmin ||
     Boolean(user?.has_membership ?? user?.hasMembership ?? hasMembershipCookie);
-
-  const isCityInspector = role === "city_inspector";
-  const isSearchValid = isCityInspector
-    ? debouncedSearch.trim().length > 0
-    : debouncedSearch.trim().length > 0 &&
-      Boolean(state_id && state_id !== "all") &&
-      Boolean(city_id && city_id !== "all");
-
-  useEffect(() => {
-    if (isSearchValid) {
-      if (hasMembership) {
-        setShowResults(true);
-      }
-    } else {
-      setShowResults(false);
-    }
-  }, [isSearchValid, hasMembership]);
 
   const handleGenerateTop10 = async () => {
     if (!user) {
@@ -129,7 +111,7 @@ export default function ProjectList() {
     }
   };
 
-  const handleSearchTriggered = () => {
+  const handleSearchTriggered = (newFilters?: typeof filters) => {
     if (!hasMembership) {
       toast.error(
         "Active membership is required to search properties. Please purchase a membership plan.",
@@ -137,6 +119,8 @@ export default function ProjectList() {
       setShowResults(false);
       return;
     }
+    const targetFilters = newFilters || filters;
+    setAppliedFilters(targetFilters);
     setShowResults(true);
   };
 
@@ -159,6 +143,7 @@ export default function ProjectList() {
         <UnifiedSearchBar
           showSearchButton={true}
           onChange={setFilters}
+          onSearch={handleSearchTriggered}
           onSearchTriggered={handleSearchTriggered}
           allowEmptySearch={false}
         />

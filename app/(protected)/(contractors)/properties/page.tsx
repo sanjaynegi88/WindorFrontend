@@ -10,7 +10,6 @@ import { FileText, List, Loader2, Map } from "lucide-react";
 import { generateMultipleReports, checkoutReports } from "@/lib/actions";
 import { useUser } from "@/components/providers/user-provider";
 import { useSearchParams } from "next/navigation";
-import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "sonner";
 import type { SearchScope } from "@/components/common/unified-search-bar";
 import { PdfGenerationLoader } from "@/components/common/pdf-generation-loader";
@@ -60,51 +59,40 @@ function PropertyPageContent() {
     city_id: "",
   });
 
-  const debouncedSearch = useDebounce(filters.search, 300);
-  const { searchBy, state, city, state_id, city_id } = filters;
+  const [appliedFilters, setAppliedFilters] = useState(filters);
 
   const role = user?.role?.toLowerCase() || "";
   const isAdminOrInspector = role === "admin" || role === "city_inspector";
-  const isCityInspector = role === "city_inspector";
-  const isMapView = viewMode === "map";
-  const isSearchValid =
-    isCityInspector || isMapView
-      ? debouncedSearch.trim().length > 0
-      : debouncedSearch.trim().length > 0 &&
-        Boolean(state_id && state_id !== "all") &&
-        Boolean(city_id && city_id !== "all");
 
-  useEffect(() => {
-    if (isSearchValid) {
-      setShowResults(true);
-    } else if (viewMode !== "map") {
-      setShowResults(false);
-    }
-  }, [isSearchValid, viewMode]);
-
-  const searchParams = useMemo(
-    () => ({
-      search: searchBy === "all" ? debouncedSearch : "",
-      brandName: searchBy === "brand" ? debouncedSearch : "",
-      color: searchBy === "color" ? debouncedSearch : "",
-      style: searchBy === "style" ? debouncedSearch : "",
+  const searchParams = useMemo(() => {
+    const { search, searchBy, state, city, state_id, city_id } = appliedFilters;
+    return {
+      search: searchBy === "all" ? search : "",
+      brandName: searchBy === "brand" ? search : "",
+      color: searchBy === "color" ? search : "",
+      style: searchBy === "style" ? search : "",
       state_id: state_id || (state !== "all" ? state : ""),
       city_id: city_id || (city !== "all" ? city : ""),
-    }),
-    [debouncedSearch, searchBy, state, city, state_id, city_id],
-  );
+    };
+  }, [appliedFilters]);
 
-  const reportFilters = useMemo(
-    () => ({
-      search: debouncedSearch,
-      brandName: searchBy === "brand" ? debouncedSearch : "",
-      color: searchBy === "color" ? debouncedSearch : "",
-      style: searchBy === "style" ? debouncedSearch : "",
+  const reportFilters = useMemo(() => {
+    const { search, searchBy, state_id, city_id } = appliedFilters;
+    return {
+      search,
+      brandName: searchBy === "brand" ? search : "",
+      color: searchBy === "color" ? search : "",
+      style: searchBy === "style" ? search : "",
       state_id: state_id,
       city_id: city_id,
-    }),
-    [debouncedSearch, searchBy, state_id, city_id],
-  );
+    };
+  }, [appliedFilters]);
+
+  const handleSearchTriggered = (newFilters?: typeof filters) => {
+    const targetFilters = newFilters || filters;
+    setAppliedFilters(targetFilters);
+    setShowResults(true);
+  };
 
   const handleGenerateTop10 = async () => {
     if (!user) {
@@ -156,7 +144,8 @@ function PropertyPageContent() {
         <UnifiedSearchBar
           showSearchButton={true}
           onChange={setFilters}
-          onSearchTriggered={() => setShowResults(true)}
+          onSearch={handleSearchTriggered}
+          onSearchTriggered={handleSearchTriggered}
           isMapView={viewMode === "map"}
         />
 

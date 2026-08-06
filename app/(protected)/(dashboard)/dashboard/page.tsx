@@ -30,7 +30,6 @@ import MapView from "./map-view";
 import { useUser } from "@/components/providers/user-provider";
 import { ScreenLoader } from "@/components/common/screen-loader";
 import { PdfGenerationLoader } from "@/components/common/pdf-generation-loader";
-import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "sonner";
 import { cn, downloadPdfFromUrl } from "@/lib/utils";
 import type { SearchScope } from "@/components/common/unified-search-bar";
@@ -118,61 +117,40 @@ function DashboardPageContent() {
     city_id: "",
   });
 
-  const debouncedSearch = useDebounce(filters.search, 300);
-  const { searchBy, state, city, state_id, city_id } = filters;
+  const [appliedFilters, setAppliedFilters] = useState(filters);
 
-  const searchParams = useMemo(
-    () => {
-      const activeStateId =
-        state_id && state_id !== "all" ? state_id : state !== "all" ? state : "";
-      const activeCityId =
-        city_id && city_id !== "all" ? city_id : city !== "all" ? city : "";
-      return {
-        search: searchBy === "all" ? debouncedSearch : "",
-        brandName: searchBy === "brand" ? debouncedSearch : "",
-        color: searchBy === "color" ? debouncedSearch : "",
-        style: searchBy === "style" ? debouncedSearch : "",
-        state_id: activeStateId,
-        city_id: activeCityId,
-      };
-    },
-    [debouncedSearch, searchBy, state, city, state_id, city_id],
-  );
+  const searchParams = useMemo(() => {
+    const { search, searchBy, state, city, state_id, city_id } = appliedFilters;
+    const activeStateId =
+      state_id && state_id !== "all" ? state_id : state !== "all" ? state : "";
+    const activeCityId =
+      city_id && city_id !== "all" ? city_id : city !== "all" ? city : "";
+    return {
+      search: searchBy === "all" ? search : "",
+      brandName: searchBy === "brand" ? search : "",
+      color: searchBy === "color" ? search : "",
+      style: searchBy === "style" ? search : "",
+      state_id: activeStateId,
+      city_id: activeCityId,
+    };
+  }, [appliedFilters]);
 
-  const reportFilters = useMemo(
-    () => ({
-      search: debouncedSearch,
-      brandName: searchBy === "brand" ? debouncedSearch : "",
-      color: searchBy === "color" ? debouncedSearch : "",
-      style: searchBy === "style" ? debouncedSearch : "",
+  const reportFilters = useMemo(() => {
+    const { search, searchBy, state_id, city_id } = appliedFilters;
+    return {
+      search,
+      brandName: searchBy === "brand" ? search : "",
+      color: searchBy === "color" ? search : "",
+      style: searchBy === "style" ? search : "",
       state_id: state_id,
       city_id: city_id,
-    }),
-    [debouncedSearch, searchBy, state_id, city_id],
-  );
+    };
+  }, [appliedFilters]);
 
   const resultsVisible =
     hasMembership && (!isAdmin || !isContractor) && showResults;
 
-  const isCityInspector = role === "city_inspector";
-  const isSearchValid =
-    isCityInspector || viewMode === "map"
-      ? debouncedSearch.trim().length > 0
-      : debouncedSearch.trim().length > 0 &&
-        Boolean(state_id && state_id !== "all") &&
-        Boolean(city_id && city_id !== "all");
-
-  useEffect(() => {
-    if (isSearchValid) {
-      if (hasMembership) {
-        setShowResults(true);
-      }
-    } else if (viewMode !== "map") {
-      setShowResults(false);
-    }
-  }, [isSearchValid, hasMembership, viewMode]);
-
-  const handleSearchTriggered = () => {
+  const handleSearchTriggered = (newFilters?: typeof filters) => {
     if (!hasMembership) {
       toast.error(
         "Active membership is required to search properties. Please purchase a membership plan.",
@@ -180,6 +158,8 @@ function DashboardPageContent() {
       setShowResults(false);
       return;
     }
+    const targetFilters = newFilters || filters;
+    setAppliedFilters(targetFilters);
     setShowResults(true);
   };
 
@@ -661,6 +641,7 @@ function DashboardPageContent() {
             <UnifiedSearchBar
               showSearchButton={true}
               onChange={setFilters}
+              onSearch={handleSearchTriggered}
               onSearchTriggered={handleSearchTriggered}
               isMapView={viewMode === "map"}
             />

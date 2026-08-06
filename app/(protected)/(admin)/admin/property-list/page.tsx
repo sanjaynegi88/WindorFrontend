@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
 import {
   getStates,
@@ -45,7 +45,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { useDebounce } from "@/hooks/use-debounce";
 import {
   AddressForm,
   AddressData,
@@ -62,6 +61,7 @@ interface StateItem {
   name: string;
   abbreviation?: string;
   city_count?: number;
+  property_count?: number;
 }
 
 interface CityItem {
@@ -118,7 +118,9 @@ function EditPropertyModal({
 
   const [states, setStates] = useState<StateOption[]>([]);
   const [cities, setCities] = useState<CityOption[]>([]);
-  const [propertyOwners, setPropertyOwners] = useState<PropertyOwnerOption[]>([]);
+  const [propertyOwners, setPropertyOwners] = useState<PropertyOwnerOption[]>(
+    [],
+  );
   const [propertyTypes, setPropertyTypes] = useState<PropertyTypeOption[]>([]);
 
   useEffect(() => {
@@ -129,13 +131,14 @@ function EditPropertyModal({
       setLoading(true);
       setActiveTab("address");
       try {
-        const [res, statesRes, citiesRes, ownersRes, typesRes] = await Promise.all([
-          getPropertyDetail(propertyId).catch(() => null),
-          getStates(1, 1000).catch(() => []),
-          getCities().catch(() => []),
-          getPropertyOwners().catch(() => []),
-          getPropertyTypes().catch(() => []),
-        ]);
+        const [res, statesRes, citiesRes, ownersRes, typesRes] =
+          await Promise.all([
+            getPropertyDetail(propertyId).catch(() => null),
+            getStates(1, 1000).catch(() => []),
+            getCities().catch(() => []),
+            getPropertyOwners().catch(() => []),
+            getPropertyTypes().catch(() => []),
+          ]);
 
         if (!isMounted) return;
 
@@ -154,24 +157,24 @@ function EditPropertyModal({
         const rawPropertyTypes: any[] = Array.isArray(typesRes)
           ? typesRes
           : Array.isArray((typesRes as any)?.data)
-          ? (typesRes as any).data
-          : Array.isArray((typesRes as any)?.data?.data)
-          ? (typesRes as any).data.data
-          : [];
+            ? (typesRes as any).data
+            : Array.isArray((typesRes as any)?.data?.data)
+              ? (typesRes as any).data.data
+              : [];
 
         setStates(
           rawStates.map((s) => ({
             id: String(s.id),
             name: s.state_name || s.name,
             abbreviation: s.abbreviation,
-          }))
+          })),
         );
         setCities(
           rawCities.map((c) => ({
             id: String(c.id),
             name: c.city_name || c.name,
             state_id: c.state_id ? String(c.state_id) : undefined,
-          }))
+          })),
         );
         setPropertyOwners(
           rawOwners.map((o: any) => ({
@@ -179,7 +182,7 @@ function EditPropertyModal({
             first_name: o.first_name,
             last_name: o.last_name,
             email: o.email,
-          }))
+          })),
         );
         const mappedTypes = rawPropertyTypes.map((pt: any, idx: number) => ({
           id: pt.id ? String(pt.id) : pt.category || `pt-${idx}`,
@@ -189,7 +192,7 @@ function EditPropertyModal({
 
         if (
           !mappedTypes.some(
-            (t: any) => t.category === "OTHER" || t.id === "OTHER"
+            (t: any) => t.category === "OTHER" || t.id === "OTHER",
           )
         ) {
           mappedTypes.push({
@@ -201,10 +204,16 @@ function EditPropertyModal({
 
         setPropertyTypes(mappedTypes);
 
-        const propTypeId = prop?.property_type_id || prop?.property_type?.id || "";
-        const propTypeCategory = prop?.property_type_category || prop?.property_type?.category || "";
-        const otherPropType = prop?.other_property_type || prop?.other_property_type_name || "";
-        const isOtherProp = propTypeCategory === "OTHER" || propTypeId === "OTHER" || !!otherPropType;
+        const propTypeId =
+          prop?.property_type_id || prop?.property_type?.id || "";
+        const propTypeCategory =
+          prop?.property_type_category || prop?.property_type?.category || "";
+        const otherPropType =
+          prop?.other_property_type || prop?.other_property_type_name || "";
+        const isOtherProp =
+          propTypeCategory === "OTHER" ||
+          propTypeId === "OTHER" ||
+          !!otherPropType;
 
         setAddressData({
           address: prop?.address || "",
@@ -213,7 +222,8 @@ function EditPropertyModal({
           property_type_category: isOtherProp ? "OTHER" : propTypeCategory,
           other_property_type: otherPropType,
           initial_other_property_type: otherPropType,
-          initial_property_type_id: propTypeId && propTypeId !== "OTHER" ? propTypeId : undefined,
+          initial_property_type_id:
+            propTypeId && propTypeId !== "OTHER" ? propTypeId : undefined,
           property_name: prop?.property_name || "",
           city_id: prop?.city_id || "",
           city: prop?.city_name || "",
@@ -252,22 +262,28 @@ function EditPropertyModal({
       let finalPropertyTypeId: string | null = null;
       if (isOtherType) {
         const hasChangedOtherText =
-          addressData.other_property_type !== addressData.initial_other_property_type;
+          addressData.other_property_type !==
+          addressData.initial_other_property_type;
         if (!hasChangedOtherText && addressData.initial_property_type_id) {
           finalPropertyTypeId = addressData.initial_property_type_id;
         } else {
           finalPropertyTypeId = null;
         }
       } else {
-        finalPropertyTypeId = addressData.property_type_id || addressData.property_type || null;
+        finalPropertyTypeId =
+          addressData.property_type_id || addressData.property_type || null;
       }
 
       const res = await updateProperties(propertyId, {
         address: addressData.address,
         address2: addressData.address2,
         property_type_id: finalPropertyTypeId,
-        property_type_category: isOtherType ? "OTHER" : addressData.property_type_category || null,
-        other_property_type: isOtherType ? addressData.other_property_type || null : null,
+        property_type_category: isOtherType
+          ? "OTHER"
+          : addressData.property_type_category || null,
+        other_property_type: isOtherType
+          ? addressData.other_property_type || null
+          : null,
         property_name: addressData.property_name,
         city_id: addressData.city_id || null,
         other_city: addressData.other_city || null,
@@ -358,7 +374,9 @@ function EditPropertyModal({
                   propertyTypes={propertyTypes}
                   isEdit
                   onBack={() => onOpenChange(false)}
-                  hasSavedImages={!!property?.front_image || !!property?.other_image}
+                  hasSavedImages={
+                    !!property?.front_image || !!property?.other_image
+                  }
                 />
               )}
 
@@ -394,7 +412,7 @@ export default function PropertyListPage() {
 
   // Search & Pagination
   const [searchQuery, setSearchQuery] = useState("");
-  const debouncedSearch = useDebounce(searchQuery, 300);
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -406,22 +424,50 @@ export default function PropertyListPage() {
   const [properties, setProperties] = useState<PropertyItem[]>([]);
 
   // Deletion modal
-  const [propertyToDelete, setPropertyToDelete] = useState<PropertyItem | null>(null);
+  const [propertyToDelete, setPropertyToDelete] = useState<PropertyItem | null>(
+    null,
+  );
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Edit Modal State
   const [editPropertyId, setEditPropertyId] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
+  // Computed total property counts for breadcrumbs
+  const totalStatesProperties = useMemo(() => {
+    return states.reduce((acc, s) => acc + (s.property_count || 0), 0);
+  }, [states]);
+
+  const totalSelectedStateProperties = useMemo(() => {
+    if (
+      selectedState?.property_count !== undefined &&
+      selectedState?.property_count !== null
+    ) {
+      return selectedState.property_count;
+    }
+    return cities.reduce((acc, c) => acc + (c.property_count || 0), 0);
+  }, [selectedState, cities]);
+
+  const totalSelectedCityProperties = useMemo(() => {
+    if (
+      selectedCity?.property_count !== undefined &&
+      selectedCity?.property_count !== null
+    ) {
+      return selectedCity.property_count;
+    }
+    return properties.length;
+  }, [selectedCity, properties]);
+
   // Reset pagination & search when level changes
   useEffect(() => {
     setSearchQuery("");
+    setAppliedSearch("");
   }, [level]);
 
   useEffect(() => {
     setPage(1);
     fetchData(1, false);
-  }, [level, selectedState?.id, selectedCity?.id, debouncedSearch]);
+  }, [level, selectedState?.id, selectedCity?.id, appliedSearch]);
 
   const fetchData = async (pageNum: number, append: boolean = false) => {
     try {
@@ -431,12 +477,16 @@ export default function PropertyListPage() {
       const limit = 15;
 
       if (level === "state") {
-        const response = await getStates(pageNum, limit, debouncedSearch || undefined);
+        const response = await getStates(
+          pageNum,
+          limit,
+          appliedSearch || undefined,
+        );
         const data = Array.isArray(response)
           ? response
           : Array.isArray(response?.data)
-          ? response.data
-          : [];
+            ? response.data
+            : [];
 
         const mappedStates: StateItem[] = data.map((item: any) => {
           const rawCityCount =
@@ -447,11 +497,26 @@ export default function PropertyListPage() {
             item._count?.cities ??
             item.total_cities;
 
+          const rawPropertyCount =
+            item.property_count ??
+            item.properties_count ??
+            item.propertyCount ??
+            item.properties_cnt ??
+            item._count?.properties ??
+            item.total_properties;
+
           return {
             id: String(item.id),
             name: item.state_name || item.name || "Unknown State",
             abbreviation: item.abbreviation || "",
-            city_count: rawCityCount !== undefined && rawCityCount !== null ? Number(rawCityCount) : undefined,
+            city_count:
+              rawCityCount !== undefined && rawCityCount !== null
+                ? Number(rawCityCount)
+                : undefined,
+            property_count:
+              rawPropertyCount !== undefined && rawPropertyCount !== null
+                ? Number(rawPropertyCount)
+                : undefined,
           };
         });
 
@@ -461,22 +526,21 @@ export default function PropertyListPage() {
           setStates(mappedStates);
         }
         setHasMore(mappedStates.length === limit);
-
       } else if (level === "city") {
         if (!selectedState?.id) return;
         const response = await getCities(
           pageNum,
           limit,
           undefined,
-          debouncedSearch || undefined,
+          appliedSearch || undefined,
           selectedState.id,
-          true
+          true,
         );
         const data = Array.isArray(response)
           ? response
           : Array.isArray(response?.data)
-          ? response.data
-          : [];
+            ? response.data
+            : [];
 
         const mappedCities: CityItem[] = data.map((item: any) => {
           const rawPropertyCount =
@@ -493,7 +557,10 @@ export default function PropertyListPage() {
             state_id: String(item.state_id || selectedState.id),
             state_name: selectedState.name,
             zip: item.zip || item.zip_code || "",
-            property_count: rawPropertyCount !== undefined && rawPropertyCount !== null ? Number(rawPropertyCount) : undefined,
+            property_count:
+              rawPropertyCount !== undefined && rawPropertyCount !== null
+                ? Number(rawPropertyCount)
+                : undefined,
           };
         });
 
@@ -503,13 +570,12 @@ export default function PropertyListPage() {
           setCities(mappedCities);
         }
         setHasMore(mappedCities.length === limit);
-
       } else if (level === "property") {
         if (!selectedState?.id || !selectedCity?.id) return;
         const response = await getPropertyListAll({
           state_id: selectedState.id,
           city_id: selectedCity.id,
-          search: debouncedSearch || undefined,
+          search: appliedSearch || undefined,
           page: pageNum,
           limit: limit,
         });
@@ -517,12 +583,13 @@ export default function PropertyListPage() {
         const data = Array.isArray(response)
           ? response
           : Array.isArray(response?.data)
-          ? response.data
-          : [];
+            ? response.data
+            : [];
 
         const mappedProps: PropertyItem[] = data.map((item: any) => ({
           id: String(item.id),
-          property_name: item.property_name || item.address || "Untitled Property",
+          property_name:
+            item.property_name || item.address || "Untitled Property",
           address: item.address || item.property_name || "",
           city_name: item.city_name || item.city?.name || selectedCity.name,
           state_name: item.state_name || item.state?.name || selectedState.name,
@@ -577,7 +644,9 @@ export default function PropertyListPage() {
       const response = await deleteProperty(propertyToDelete.id);
       if (response?.success) {
         toast.success("Property deleted successfully");
-        setProperties((prev) => prev.filter((p) => p.id !== propertyToDelete.id));
+        setProperties((prev) =>
+          prev.filter((p) => p.id !== propertyToDelete.id),
+        );
       } else {
         toast.error(response?.message || "Failed to delete property");
       }
@@ -620,69 +689,101 @@ export default function PropertyListPage() {
 
       {/* Breadcrumb Navigation Bar */}
       <div className="flex items-center gap-2 text-xs md:text-sm font-bold uppercase tracking-wider bg-slate-50 p-3.5 rounded-xl border border-slate-200 overflow-x-auto">
-        <button
-          onClick={() => {
-            setSelectedState(null);
-            setSelectedCity(null);
-            setLevel("state");
-          }}
-          className={`flex items-center gap-1.5 transition-colors ${
-            level === "state"
-              ? "text-[#1CA7A6] font-black"
-              : "text-gray-500 hover:text-[#1CA7A6]"
-          }`}
-        >
-          <Building className="size-4" />
-          States
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => {
+              setSelectedState(null);
+              setSelectedCity(null);
+              setLevel("state");
+            }}
+            className={`flex items-center gap-1.5 transition-colors ${
+              level === "state"
+                ? "text-[#1CA7A6] font-black"
+                : "text-gray-500 hover:text-[#1CA7A6]"
+            }`}
+          >
+            <Building className="size-4" />
+            States
+          </button>
+        </div>
 
         {selectedState && (
           <>
             <ChevronRight className="size-4 text-gray-400 shrink-0" />
-            <button
-              onClick={() => {
-                setSelectedCity(null);
-                setLevel("city");
-              }}
-              className={`flex items-center gap-1.5 transition-colors ${
-                level === "city"
-                  ? "text-[#1CA7A6] font-black"
-                  : "text-gray-500 hover:text-[#1CA7A6]"
-              }`}
-            >
-              <Building2 className="size-4" />
-              {selectedState.name}
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => {
+                  setSelectedCity(null);
+                  setLevel("city");
+                }}
+                className={`flex items-center gap-1.5 transition-colors ${
+                  level === "city"
+                    ? "text-[#1CA7A6] font-black"
+                    : "text-gray-500 hover:text-[#1CA7A6]"
+                }`}
+              >
+                <Building2 className="size-4" />
+                {selectedState.name}
+              </button>
+              {level === "city" && (
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
+                  {totalSelectedStateProperties}{" "}
+                  {totalSelectedStateProperties === 1
+                    ? "Property"
+                    : "Properties"}
+                </span>
+              )}
+            </div>
           </>
         )}
 
         {selectedCity && level === "property" && (
           <>
             <ChevronRight className="size-4 text-gray-400 shrink-0" />
-            <span className="text-[#1CA7A6] font-black flex items-center gap-1.5 truncate">
-              <MapPin className="size-4" />
-              {selectedCity.name} (Properties)
-            </span>
+            <div className="flex items-center gap-2 shrink-0 truncate">
+              <span className="text-[#1CA7A6] font-black flex items-center gap-1.5 truncate">
+                <MapPin className="size-4" />
+                {selectedCity.name} (Properties)
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
+                {totalSelectedCityProperties}{" "}
+                {totalSelectedCityProperties === 1 ? "Property" : "Properties"}
+              </span>
+            </div>
           </>
         )}
       </div>
 
       {/* Search Input Bar */}
-      <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-        <Input
-          type="text"
-          placeholder={
-            level === "state"
-              ? "Search state..."
-              : level === "city"
-              ? `Search city in ${selectedState?.name || "state"}...`
-              : `Search properties in ${selectedCity?.name || "city"}...`
-          }
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 h-11 rounded-xl border-gray-300 focus:border-[#1CA7A6] focus:ring-[#1CA7A6]/20 font-medium"
-        />
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+          <Input
+            type="text"
+            placeholder={
+              level === "state"
+                ? "Search state..."
+                : level === "city"
+                  ? `Search city in ${selectedState?.name || "state"}...`
+                  : `Search properties in ${selectedCity?.name || "city"}...`
+            }
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                setAppliedSearch(searchQuery);
+              }
+            }}
+            className="pl-10 h-11 rounded-xl border-gray-300 focus:border-[#1CA7A6] focus:ring-[#1CA7A6]/20 font-medium"
+          />
+        </div>
+        <Button
+          onClick={() => setAppliedSearch(searchQuery)}
+          className="h-15 px-5 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-widest gap-1.5 shrink-0"
+        >
+          <Search className="size-4" />
+          <span className="text-[12px]">Search</span>
+        </Button>
       </div>
 
       {/* Content Section */}
@@ -718,17 +819,23 @@ export default function PropertyListPage() {
                         {stateItem.name}
                       </h3>
 
-                      {stateItem.city_count !== undefined && stateItem.city_count !== null && (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
-                          {stateItem.city_count} {stateItem.city_count === 1 ? "City" : "Cities"}
-                        </span>
-                      )}
+                      {stateItem.city_count !== undefined &&
+                        stateItem.city_count !== null && (
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
+                            {stateItem.city_count}{" "}
+                            {stateItem.city_count === 1 ? "City" : "Cities"}
+                          </span>
+                        )}
 
-                      {stateItem.abbreviation && (
-                        <span className="text-xs font-bold text-gray-400 w-full">
-                          Code: {stateItem.abbreviation}
-                        </span>
-                      )}
+                      {stateItem.property_count !== undefined &&
+                        stateItem.property_count !== null && (
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
+                            {stateItem.property_count}{" "}
+                            {stateItem.property_count === 1
+                              ? "Property"
+                              : "Properties"}
+                          </span>
+                        )}
                     </div>
 
                     <div className="shrink-0">
@@ -772,15 +879,20 @@ export default function PropertyListPage() {
                           {cityItem.name}
                         </h3>
 
-                        {cityItem.property_count !== undefined && cityItem.property_count !== null && (
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
-                            {cityItem.property_count} {cityItem.property_count === 1 ? "Property" : "Properties"}
-                          </span>
-                        )}
+                        {cityItem.property_count !== undefined &&
+                          cityItem.property_count !== null && (
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
+                              {cityItem.property_count}{" "}
+                              {cityItem.property_count === 1
+                                ? "Property"
+                                : "Properties"}
+                            </span>
+                          )}
                       </div>
 
                       <p className="text-xs font-bold text-gray-400 mt-0.5">
-                        State: {selectedState?.name} {cityItem.zip ? `| Zip: ${cityItem.zip}` : ""}
+                        State: {selectedState?.name}{" "}
+                        {cityItem.zip ? `| Zip: ${cityItem.zip}` : ""}
                       </p>
                     </div>
 
@@ -806,7 +918,8 @@ export default function PropertyListPage() {
               {properties.length === 0 ? (
                 <div className="text-center py-16 bg-gray-50 rounded-[2rem] border border-dashed">
                   <p className="text-gray-400 font-black uppercase tracking-widest text-base">
-                    No properties found in {selectedCity?.name}, {selectedState?.name}.
+                    No properties found in {selectedCity?.name},{" "}
+                    {selectedState?.name}.
                   </p>
                 </div>
               ) : (
@@ -869,7 +982,6 @@ export default function PropertyListPage() {
             </div>
           )}
 
-          {/* Load More Button */}
           {hasMore && (
             <div className="flex justify-center pt-4">
               <Button
