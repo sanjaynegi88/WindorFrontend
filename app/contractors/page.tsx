@@ -41,6 +41,7 @@ import {
   getContractorDirectory,
   getServiceProvided,
   getCities,
+  getStates,
   deleteContractorProfile,
 } from "@/lib/actions";
 import { toast } from "sonner";
@@ -70,6 +71,7 @@ export default function ContractorDirectoryPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("ALL");
+  const [selectedState, setSelectedState] = useState("ALL");
   const [selectedCity, setSelectedCity] = useState("ALL");
   const [selectedContractor, setSelectedContractor] = useState<any | null>(
     null,
@@ -79,6 +81,7 @@ export default function ContractorDirectoryPage() {
   const [services, setServices] = useState<{ id: string; name: string }[]>([
     { id: "ALL", name: "ALL" },
   ]);
+  const [states, setStates] = useState<{ id: string; name: string }[]>([]);
   const [cities, setCities] = useState<{ id: string; name: string }[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -132,16 +135,36 @@ export default function ContractorDirectoryPage() {
   }, []);
 
   useEffect(() => {
+    const fetchStates = async () => {
+      try {
+        const response = await getStates(1, 1000);
+        const raw: any[] = Array.isArray(response) ? response : response?.data || [];
+        setStates(
+          raw.map((s: any) => ({
+            id: String(s.id),
+            name: s.state_name || s.name,
+          })),
+        );
+      } catch (error) {
+        console.error("Failed to fetch states:", error);
+      }
+    };
+    fetchStates();
+  }, []);
+
+  useEffect(() => {
     const fetchCities = async () => {
       try {
-        const response = await getCities();
+        const stateId = selectedState === "ALL" ? undefined : selectedState;
+        const response = await getCities(1, 1000, undefined, undefined, stateId);
         setCities(response.data || []);
       } catch (error) {
         console.error("Failed to fetch cities:", error);
       }
     };
+    setSelectedCity("ALL");
     fetchCities();
-  }, []);
+  }, [selectedState]);
 
   useEffect(() => {
     const fetchContractors = async () => {
@@ -287,6 +310,25 @@ export default function ContractorDirectoryPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-bold text-[#1F2A44] uppercase tracking-widest mb-6 flex items-center gap-2">
+                  <MapPin className="size-4 text-[#1CA7A6]" />
+                  Filter by State
+                </h3>
+                <select
+                  value={selectedState}
+                  onChange={(e) => setSelectedState(e.target.value)}
+                  className="w-full px-5 py-3 rounded-xl text-sm font-bold border border-gray-100 bg-white text-gray-500 hover:border-[#1CA7A6]/30 hover:text-[#1CA7A6] shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1CA7A6]/20"
+                >
+                  <option value="ALL">All States</option>
+                  {states.map((state) => (
+                    <option key={state.id} value={state.id}>
+                      {toTitleCase(state.name)}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
 import { useUser } from "@/components/providers/user-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,7 +54,7 @@ export default function AddedPropertiesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<
     "ALL" | "PENDING" | "APPROVED" | "REJECTED"
-  >("PENDING");
+  >("ALL");
 
   // States for Modals
   const [selectedProperty, setSelectedProperty] = useState<MockProperty | null>(
@@ -164,26 +163,21 @@ export default function AddedPropertiesPage() {
       console.log(res);
 
       if (res.success) {
-        if (type === "REJECT") {
-          setProperties((prev) => prev.filter((p) => p.id !== propertyId));
-          toast.success("Property rejected");
-        } else {
-          const uiStatus = "APPROVED";
-          setProperties((prev) =>
-            prev.map((p) =>
-              p.id === propertyId
-                ? {
-                    ...p,
-                    status: uiStatus,
-                    raw: { ...p.raw, approval_status: uiStatus },
-                  }
-                : p,
-            ),
-          );
-          toast.success(
-            "Property request has been approved successfully!",
-          );
-        }
+        const uiStatus = type === "APPROVE" ? "APPROVED" : "REJECTED";
+        setProperties((prev) =>
+          prev.map((p) =>
+            p.id === propertyId
+              ? {
+                  ...p,
+                  status: uiStatus,
+                  raw: { ...p.raw, approval_status: uiStatus },
+                }
+              : p,
+          ),
+        );
+        toast.success(
+          `Property request has been ${type.toLowerCase()}d successfully!`,
+        );
       } else {
         toast.error(res.message || `Failed to update property status`);
       }
@@ -245,8 +239,10 @@ export default function AddedPropertiesPage() {
           <div className="grid grid-cols-4 gap-1.5 sm:gap-2 w-full md:w-auto">
             {(
               [
+                { label: "ALL", value: "ALL" },
                 { label: "New", value: "PENDING" },
                 { label: "Approved", value: "APPROVED" },
+                { label: "Rejected", value: "REJECTED" },
               ] as const
             ).map((tab) => (
               <button
@@ -290,116 +286,110 @@ export default function AddedPropertiesPage() {
                 </div>
               </div>
             ) : filteredProperties.length > 0 ? (
-              <AnimatePresence mode="popLayout">
-                {filteredProperties.map((property) => (
-                  <motion.div
-                    key={property.id}
-                    layout
-                    initial={{ opacity: 1 }}
-                    exit={{ opacity: 0, height: 0, scale: 0.95, overflow: "hidden" }}
-                    transition={{ duration: 0.25 }}
-                    className="p-4 sm:p-5 space-y-3 hover:bg-slate-50/50 transition-colors"
-                  >
-                    {/* Header: Title & Status */}
-                    <div className="flex items-start justify-between gap-2.5">
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <h3 className="font-bold text-[#1F2A44] text-[16px] leading-snug">
-                          {property.propertyName}
-                        </h3>
-                        <div className="flex items-start gap-1 text-[13px] font-medium text-[#708090]">
-                          <MapPin className="size-3.5 text-slate-400 shrink-0 mt-0.5" />
-                          <span>
-                            {property.address}, {property.cityStateZip}
-                          </span>
-                        </div>
-                      </div>
-                      <span
-                        className={cn(
-                          "shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border",
-                          property.status === "APPROVED" &&
-                            "bg-emerald-50 text-emerald-600 border-emerald-200/50",
-                          property.status === "PENDING" &&
-                            "bg-amber-50 text-amber-600 border-amber-200/50 animate-pulse",
-                          property.status === "REJECTED" &&
-                            "bg-rose-50 text-rose-600 border-rose-200/50",
-                        )}
-                      >
-                        {property.status === "APPROVED" && (
-                          <ShieldCheck className="size-3" />
-                        )}
-                        {property.status === "PENDING" && (
-                          <Clock className="size-3" />
-                        )}
-                        {property.status === "REJECTED" && (
-                          <Ban className="size-3" />
-                        )}
-                        {property.status}
-                      </span>
-                    </div>
-
-                    {/* Submitter & Date Info */}
-                    <div className="grid grid-cols-2 gap-2 pt-2.5 border-t border-slate-100 text-xs">
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#708090] block">
-                          Submitted By
+              filteredProperties.map((property) => (
+                <div
+                  key={property.id}
+                  className="p-4 sm:p-5 space-y-3 hover:bg-slate-50/50 transition-colors"
+                >
+                  {/* Header: Title & Status */}
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <h3 className="font-bold text-[#1F2A44] text-[16px] leading-snug">
+                        {property.propertyName}
+                      </h3>
+                      <div className="flex items-start gap-1 text-[13px] font-medium text-[#708090]">
+                        <MapPin className="size-3.5 text-slate-400 shrink-0 mt-0.5" />
+                        <span>
+                          {property.address}, {property.cityStateZip}
                         </span>
-                        <p className="font-semibold text-[#1F2A44] truncate">
-                          {property.contractorName}
-                        </p>
-                        <p className="text-[11px] text-[#708090] truncate">
-                          {property.contractorEmail}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#708090] block">
-                          Date Added
-                        </span>
-                        <p className="font-semibold text-[#1F2A44]">
-                          {property.dateAdded
-                            ? new Date(property.dateAdded).toLocaleDateString(
-                                undefined,
-                                {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                },
-                              )
-                            : "N/A"}
-                        </p>
                       </div>
                     </div>
-
-                    {/* Card Actions */}
-                    <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-slate-100">
-                      <button
-                        onClick={() => setSelectedProperty(property)}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer"
-                      >
-                        <Eye className="size-3.5" />
-                        <span>View Details</span>
-                      </button>
-                      {isAdmin && property.status === "PENDING" && (
-                        <>
-                          <button
-                            onClick={() => handleApproveClick(property)}
-                            className="inline-flex items-center justify-center gap-1 py-2 px-3.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200/50 text-xs font-bold transition-all cursor-pointer"
-                          >
-                            <Check className="size-3.5 font-extrabold" />
-                            <span>Approve</span>
-                          </button>
-                          <button
-                            onClick={() => handleRejectClick(property)}
-                            className="inline-flex items-center justify-center gap-1 py-2 px-3.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/50 text-xs font-bold transition-all cursor-pointer"
-                          >
-                            <X className="size-3.5" />
-                            <span>Reject</span>
-                          </button>
-                        </>
+                    <span
+                      className={cn(
+                        "shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border",
+                        property.status === "APPROVED" &&
+                          "bg-emerald-50 text-emerald-600 border-emerald-200/50",
+                        property.status === "PENDING" &&
+                          "bg-amber-50 text-amber-600 border-amber-200/50 animate-pulse",
+                        property.status === "REJECTED" &&
+                          "bg-rose-50 text-rose-600 border-rose-200/50",
                       )}
+                    >
+                      {property.status === "APPROVED" && (
+                        <ShieldCheck className="size-3" />
+                      )}
+                      {property.status === "PENDING" && (
+                        <Clock className="size-3" />
+                      )}
+                      {property.status === "REJECTED" && (
+                        <Ban className="size-3" />
+                      )}
+                      {property.status}
+                    </span>
+                  </div>
+
+                  {/* Submitter & Date Info */}
+                  <div className="grid grid-cols-2 gap-2 pt-2.5 border-t border-slate-100 text-xs">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#708090] block">
+                        Submitted By
+                      </span>
+                      <p className="font-semibold text-[#1F2A44] truncate">
+                        {property.contractorName}
+                      </p>
+                      <p className="text-[11px] text-[#708090] truncate">
+                        {property.contractorEmail}
+                      </p>
                     </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#708090] block">
+                        Date Added
+                      </span>
+                      <p className="font-semibold text-[#1F2A44]">
+                        {property.dateAdded
+                          ? new Date(property.dateAdded).toLocaleDateString(
+                              undefined,
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              },
+                            )
+                          : "N/A"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Card Actions */}
+                  <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-slate-100">
+                    <button
+                      onClick={() => setSelectedProperty(property)}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer"
+                    >
+                      <Eye className="size-3.5" />
+                      <span>View Details</span>
+                    </button>
+                    {isAdmin && property.status === "PENDING" && (
+                      <>
+                        <button
+                          onClick={() => handleApproveClick(property)}
+                          className="inline-flex items-center justify-center gap-1 py-2 px-3.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200/50 text-xs font-bold transition-all cursor-pointer"
+                        >
+                          <Check className="size-3.5 font-extrabold" />
+                          <span>Approve</span>
+                        </button>
+                        <button
+                          onClick={() => handleRejectClick(property)}
+                          className="inline-flex items-center justify-center gap-1 py-2 px-3.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/50 text-xs font-bold transition-all cursor-pointer"
+                        >
+                          <X className="size-3.5" />
+                          <span>Reject</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))
             ) : (
               <div className="py-12 text-center text-[#708090] p-4">
                 <div className="flex flex-col items-center justify-center gap-2">
@@ -443,116 +433,110 @@ export default function AddedPropertiesPage() {
                     </td>
                   </tr>
                 ) : filteredProperties.length > 0 ? (
-                  <AnimatePresence mode="popLayout">
-                    {filteredProperties.map((property) => (
-                      <motion.tr
-                        key={property.id}
-                        layout
-                        initial={{ opacity: 1 }}
-                        exit={{ opacity: 0, height: 0, scale: 0.98 }}
-                        transition={{ duration: 0.25 }}
-                        className="hover:bg-slate-50/40 transition-colors group"
-                      >
-                        {/* Property Info */}
-                        <td className="py-5 px-6">
-                          <div className="space-y-1">
-                            <h3 className="font-bold text-[#1F2A44] text-[15px] md:text-[17px] group-hover:text-[#1CA7A6] transition-colors leading-tight">
-                              {property.propertyName}
-                            </h3>
-                            <div className="flex items-center gap-1 text-[13px] font-medium text-[#708090]">
-                              <MapPin className="size-3.5 text-slate-400 shrink-0" />
-                              <span>
-                                {property.address}, {property.cityStateZip}
-                              </span>
-                            </div>
+                  filteredProperties.map((property) => (
+                    <tr
+                      key={property.id}
+                      className="hover:bg-slate-50/40 transition-colors group"
+                    >
+                      {/* Property Info */}
+                      <td className="py-5 px-6">
+                        <div className="space-y-1">
+                          <h3 className="font-bold text-[#1F2A44] text-[15px] md:text-[17px] group-hover:text-[#1CA7A6] transition-colors leading-tight">
+                            {property.propertyName}
+                          </h3>
+                          <div className="flex items-center gap-1 text-[13px] font-medium text-[#708090]">
+                            <MapPin className="size-3.5 text-slate-400 shrink-0" />
+                            <span>
+                              {property.address}, {property.cityStateZip}
+                            </span>
                           </div>
-                        </td>
+                        </div>
+                      </td>
 
-                        {/* Submitter */}
-                        <td className="py-5 px-6">
-                          <div className="space-y-0.5">
-                            <p className="font-semibold text-sm text-[#1F2A44]">
-                              {property.contractorName}
-                            </p>
-                            <p className="text-[12px] text-[#708090] font-normal">
-                              {property.contractorEmail}
-                            </p>
-                          </div>
-                        </td>
+                      {/* Submitter */}
+                      <td className="py-5 px-6">
+                        <div className="space-y-0.5">
+                          <p className="font-semibold text-sm text-[#1F2A44]">
+                            {property.contractorName}
+                          </p>
+                          <p className="text-[12px] text-[#708090] font-normal">
+                            {property.contractorEmail}
+                          </p>
+                        </div>
+                      </td>
 
-                        {/* Date */}
-                        <td className="py-5 px-6 text-sm font-semibold text-[#708090]">
-                          {property.dateAdded
-                            ? new Date(property.dateAdded).toLocaleDateString(
-                                undefined,
-                                {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                },
-                              )
-                            : "N/A"}
-                        </td>
+                      {/* Date */}
+                      <td className="py-5 px-6 text-sm font-semibold text-[#708090]">
+                        {property.dateAdded
+                          ? new Date(property.dateAdded).toLocaleDateString(
+                              undefined,
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              },
+                            )
+                          : "N/A"}
+                      </td>
 
-                        {/* Status Badge */}
-                        <td className="py-5 px-6">
-                          <span
-                            className={cn(
-                              "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border",
-                              property.status === "APPROVED" &&
-                                "bg-emerald-50 text-emerald-600 border-emerald-200/50",
-                              property.status === "PENDING" &&
-                                "bg-amber-50 text-amber-600 border-amber-200/50 animate-pulse",
-                              property.status === "REJECTED" &&
-                                "bg-rose-50 text-rose-600 border-rose-200/50",
-                            )}
+                      {/* Status Badge */}
+                      <td className="py-5 px-6">
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border",
+                            property.status === "APPROVED" &&
+                              "bg-emerald-50 text-emerald-600 border-emerald-200/50",
+                            property.status === "PENDING" &&
+                              "bg-amber-50 text-amber-600 border-amber-200/50 animate-pulse",
+                            property.status === "REJECTED" &&
+                              "bg-rose-50 text-rose-600 border-rose-200/50",
+                          )}
+                        >
+                          {property.status === "APPROVED" && (
+                            <ShieldCheck className="size-3.5" />
+                          )}
+                          {property.status === "PENDING" && (
+                            <Clock className="size-3.5" />
+                          )}
+                          {property.status === "REJECTED" && (
+                            <Ban className="size-3.5" />
+                          )}
+                          {property.status}
+                        </span>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-5 px-6 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setSelectedProperty(property)}
+                            className="inline-flex items-center justify-center p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/40 transition-all cursor-pointer hover:scale-105"
+                            title="View Details"
                           >
-                            {property.status === "APPROVED" && (
-                              <ShieldCheck className="size-3.5" />
-                            )}
-                            {property.status === "PENDING" && (
-                              <Clock className="size-3.5" />
-                            )}
-                            {property.status === "REJECTED" && (
-                              <Ban className="size-3.5" />
-                            )}
-                            {property.status}
-                          </span>
-                        </td>
-
-                        {/* Actions */}
-                        <td className="py-5 px-6 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => setSelectedProperty(property)}
-                              className="inline-flex items-center justify-center p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/40 transition-all cursor-pointer hover:scale-105"
-                              title="View Details"
-                            >
-                              <Eye className="size-4" />
-                            </button>
-                            {isAdmin && property.status === "PENDING" && (
-                              <>
-                                <button
-                                  onClick={() => handleApproveClick(property)}
-                                  className="inline-flex items-center justify-center p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200/40 transition-all cursor-pointer hover:scale-105"
-                                  title="Approve Property"
-                                >
-                                  <Check className="size-4 font-extrabold" />
-                                </button>
-                                <button
-                                  onClick={() => handleRejectClick(property)}
-                                  className="inline-flex items-center justify-center p-2 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/40 transition-all cursor-pointer hover:scale-105"
-                                  title="Reject Property"
-                                >
-                                  <X className="size-4" />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </motion.tr>
-                    ))}
-                  </AnimatePresence>
+                            <Eye className="size-4" />
+                          </button>
+                          {isAdmin && property.status === "PENDING" && (
+                            <>
+                              <button
+                                onClick={() => handleApproveClick(property)}
+                                className="inline-flex items-center justify-center p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200/40 transition-all cursor-pointer hover:scale-105"
+                                title="Approve Property"
+                              >
+                                <Check className="size-4 font-extrabold" />
+                              </button>
+                              <button
+                                onClick={() => handleRejectClick(property)}
+                                className="inline-flex items-center justify-center p-2 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/40 transition-all cursor-pointer hover:scale-105"
+                                title="Reject Property"
+                              >
+                                <X className="size-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 ) : (
                   <tr>
                     <td
