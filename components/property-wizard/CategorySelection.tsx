@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, toTitleCase } from "@/lib/utils";
 
 import { format, parseISO } from "date-fns";
 import {
@@ -12,6 +12,7 @@ import {
   editProject,
   getUserList,
   getProjectTypesforPropertyOwner,
+  getCities,
 } from "@/lib/actions";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -27,7 +28,7 @@ import { useUser } from "@/components/providers/user-provider";
 
 const projectSchema = z
   .object({
-    project_name: z.string().min(1, "Project name is required"),
+    project_name: z.string().min(1, "Case Number is required"),
     project_type: z.string().min(1, "Project type is required"),
     other: z.string().optional(),
     date_of_install: z.string().optional(),
@@ -56,6 +57,7 @@ type ProjectFormValues = z.infer<typeof projectSchema>;
 interface CategorySelectionProps {
   address: string;
   propertyId: string;
+  stateId?: string;
   onContinue: (data: any) => void;
   onBack: () => void;
   onSaveSuccess?: () => void;
@@ -95,6 +97,7 @@ const triggerClass =
 export function CategorySelection({
   address,
   propertyId,
+  stateId,
   onContinue,
   onBack,
   onSaveSuccess,
@@ -106,9 +109,42 @@ export function CategorySelection({
   defaultGoverningCityId,
   cities = [],
 }: CategorySelectionProps) {
+  const [stateCities, setStateCities] = useState<CityOption[]>(cities);
   const [projectName, setProjectName] = useState(
     initialProjectData?.project_name || "",
   );
+
+  useEffect(() => {
+    let isMounted = true;
+    if (stateId) {
+      getCities(undefined, undefined, undefined, undefined, stateId)
+        .then((res) => {
+          if (!isMounted) return;
+          const rawCities: any[] = Array.isArray(res) ? res : res?.data || [];
+          const formatted = rawCities.map((c) => ({
+            id: String(c.id),
+            name: c.city_name || c.name,
+            state_id: c.state_id ? String(c.state_id) : undefined,
+          }));
+          setStateCities(formatted);
+        })
+        .catch((err) => {
+          console.error("Failed to load cities for state:", err);
+          if (cities && cities.length > 0) {
+            const filtered = cities.filter(
+              (c) => !c.state_id || String(c.state_id) === String(stateId),
+            );
+            if (isMounted) setStateCities(filtered.length > 0 ? filtered : cities);
+          }
+        });
+    } else {
+      setStateCities(cities);
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [stateId, cities]);
   const [projectType, setProjectType] = useState<string>(
     initialProjectData?.project_type?.toLowerCase() || initialProjectType || "",
   );
@@ -397,6 +433,8 @@ export function CategorySelection({
       ...(isPropertyOwner ? { visible_status: visibility } : {}),
     };
 
+    console.log("selected city id", governingCity);
+
     const changed = compareWithInitial(body);
     setHasChanges(changed);
 
@@ -621,9 +659,9 @@ export function CategorySelection({
               <SelectValue placeholder="Governing City" />
             </SelectTrigger>
             <SelectContent className="rounded-xl">
-              {cities.map((c) => (
+              {(stateCities.length > 0 ? stateCities : cities).map((c) => (
                 <SelectItem key={c.id} value={c.id}>
-                  {c.name}
+                  {toTitleCase(c.name)}
                 </SelectItem>
               ))}
             </SelectContent>

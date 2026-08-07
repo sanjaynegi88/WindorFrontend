@@ -418,6 +418,14 @@ export default function PropertyListPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  // Pagination API state
+  const [paginationInfo, setPaginationInfo] = useState<{
+    total?: number;
+    page?: number;
+    totalPages?: number;
+    total_properties?: number;
+  }>({});
+
   // Data lists
   const [states, setStates] = useState<StateItem[]>([]);
   const [cities, setCities] = useState<CityItem[]>([]);
@@ -435,10 +443,16 @@ export default function PropertyListPage() {
 
   // Computed total property counts for breadcrumbs
   const totalStatesProperties = useMemo(() => {
+    if (paginationInfo.total_properties !== undefined && level === "state") {
+      return paginationInfo.total_properties;
+    }
     return states.reduce((acc, s) => acc + (s.property_count || 0), 0);
-  }, [states]);
+  }, [states, paginationInfo, level]);
 
   const totalSelectedStateProperties = useMemo(() => {
+    if (paginationInfo.total_properties !== undefined && level === "city") {
+      return paginationInfo.total_properties;
+    }
     if (
       selectedState?.property_count !== undefined &&
       selectedState?.property_count !== null
@@ -446,9 +460,15 @@ export default function PropertyListPage() {
       return selectedState.property_count;
     }
     return cities.reduce((acc, c) => acc + (c.property_count || 0), 0);
-  }, [selectedState, cities]);
+  }, [selectedState, cities, paginationInfo, level]);
 
   const totalSelectedCityProperties = useMemo(() => {
+    if (paginationInfo.total_properties !== undefined && level === "property") {
+      return paginationInfo.total_properties;
+    }
+    if (paginationInfo.total !== undefined && level === "property") {
+      return paginationInfo.total;
+    }
     if (
       selectedCity?.property_count !== undefined &&
       selectedCity?.property_count !== null
@@ -456,7 +476,7 @@ export default function PropertyListPage() {
       return selectedCity.property_count;
     }
     return properties.length;
-  }, [selectedCity, properties]);
+  }, [selectedCity, properties, paginationInfo, level]);
 
   // Reset pagination & search when level changes
   useEffect(() => {
@@ -482,6 +502,32 @@ export default function PropertyListPage() {
           limit,
           appliedSearch || undefined,
         );
+        const pagination =
+          response?.pagination ||
+          response?.data?.pagination ||
+          (response?.total !== undefined ? response : undefined);
+
+        if (pagination) {
+          setPaginationInfo({
+            total:
+              pagination.total !== undefined
+                ? Number(pagination.total)
+                : undefined,
+            page:
+              pagination.page !== undefined
+                ? Number(pagination.page)
+                : undefined,
+            totalPages:
+              pagination.totalPages !== undefined
+                ? Number(pagination.totalPages)
+                : undefined,
+            total_properties:
+              pagination.total_properties !== undefined
+                ? Number(pagination.total_properties)
+                : undefined,
+          });
+        }
+
         const data = Array.isArray(response)
           ? response
           : Array.isArray(response?.data)
@@ -525,7 +571,11 @@ export default function PropertyListPage() {
         } else {
           setStates(mappedStates);
         }
-        setHasMore(mappedStates.length === limit);
+        setHasMore(
+          pagination?.totalPages
+            ? pageNum < pagination.totalPages
+            : mappedStates.length === limit,
+        );
       } else if (level === "city") {
         if (!selectedState?.id) return;
         const response = await getCities(
@@ -536,6 +586,32 @@ export default function PropertyListPage() {
           selectedState.id,
           true,
         );
+        const pagination =
+          response?.pagination ||
+          response?.data?.pagination ||
+          (response?.total !== undefined ? response : undefined);
+
+        if (pagination) {
+          setPaginationInfo({
+            total:
+              pagination.total !== undefined
+                ? Number(pagination.total)
+                : undefined,
+            page:
+              pagination.page !== undefined
+                ? Number(pagination.page)
+                : undefined,
+            totalPages:
+              pagination.totalPages !== undefined
+                ? Number(pagination.totalPages)
+                : undefined,
+            total_properties:
+              pagination.total_properties !== undefined
+                ? Number(pagination.total_properties)
+                : undefined,
+          });
+        }
+
         const data = Array.isArray(response)
           ? response
           : Array.isArray(response?.data)
@@ -569,7 +645,11 @@ export default function PropertyListPage() {
         } else {
           setCities(mappedCities);
         }
-        setHasMore(mappedCities.length === limit);
+        setHasMore(
+          pagination?.totalPages
+            ? pageNum < pagination.totalPages
+            : mappedCities.length === limit,
+        );
       } else if (level === "property") {
         if (!selectedState?.id || !selectedCity?.id) return;
         const response = await getPropertyListAll({
@@ -579,6 +659,31 @@ export default function PropertyListPage() {
           page: pageNum,
           limit: limit,
         });
+        const pagination =
+          response?.pagination ||
+          response?.data?.pagination ||
+          (response?.total !== undefined ? response : undefined);
+
+        if (pagination) {
+          setPaginationInfo({
+            total:
+              pagination.total !== undefined
+                ? Number(pagination.total)
+                : undefined,
+            page:
+              pagination.page !== undefined
+                ? Number(pagination.page)
+                : undefined,
+            totalPages:
+              pagination.totalPages !== undefined
+                ? Number(pagination.totalPages)
+                : undefined,
+            total_properties:
+              pagination.total_properties !== undefined
+                ? Number(pagination.total_properties)
+                : undefined,
+          });
+        }
 
         const data = Array.isArray(response)
           ? response
@@ -602,7 +707,11 @@ export default function PropertyListPage() {
         } else {
           setProperties(mappedProps);
         }
-        setHasMore(mappedProps.length === limit);
+        setHasMore(
+          pagination?.totalPages
+            ? pageNum < pagination.totalPages
+            : mappedProps.length === limit,
+        );
       }
     } catch (error) {
       console.error(`Failed to fetch ${level} data:`, error);
@@ -705,6 +814,17 @@ export default function PropertyListPage() {
             <Building className="size-4" />
             States
           </button>
+          {level === "state" &&
+            (paginationInfo.total_properties !== undefined ||
+              totalStatesProperties > 0) && (
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
+                {paginationInfo.total_properties ?? totalStatesProperties}{" "}
+                {(paginationInfo.total_properties ?? totalStatesProperties) ===
+                1
+                  ? "Property"
+                  : "Properties"}
+              </span>
+            )}
         </div>
 
         {selectedState && (

@@ -24,6 +24,7 @@ import {
   FileDownIcon,
   User,
   HouseIcon,
+  VerifiedIcon,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -35,6 +36,7 @@ import Image from "next/image";
 import { useUser } from "@/components/providers/user-provider";
 import { useNotifications } from "@/components/providers/notification-provider";
 import { getUserProfile, signout } from "@/lib/actions";
+import VerificationList from "@/app/(protected)/(inspector)/verification/verification-list";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -184,7 +186,6 @@ export function Navbar() {
             submenu: [
               { name: "View Properties", href: "/properties" },
               { name: "Enter new Property", href: "/properties/new" },
-              { name: "Added Property list", href: "/added-properties" },
             ],
           },
           {
@@ -270,6 +271,11 @@ export function Navbar() {
     { name: "Property Types", href: "/admin/property-types", icon: Building2 },
     { name: "Roles", href: "/admin/roles", icon: ShieldUser },
     { name: "Property List", href: "/admin/property-list", icon: HouseIcon },
+    {
+      name: "Property Approval list",
+      href: "/added-properties",
+      icon: VerifiedIcon,
+    },
     {
       name: "Project Image Category",
       href: "/admin/image-category",

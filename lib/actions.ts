@@ -44,12 +44,6 @@ export type ActionResult<T = any> =
     | { success: true; data: T }
     | { success: false; message: string };
 
-/**
- * Generic API fetch utility
- * - Handles base URL and token authentication
- * - Automatically parses JSON responses
- * - Provides standardized success/error response format
- */
 export async function fetchApi<T = any>({
     url,
     data,
@@ -59,7 +53,10 @@ export async function fetchApi<T = any>({
     responseType = 'json',
     timeout,
 }: FetchApiParams): Promise<FetchApiResponse<T>> {
+    const actionStartTime = Date.now();
     const _url = API_URL + url;
+    console.log(`\n⏱️ [1. Action Start] ${method} ${_url} | ${new Date().toLocaleTimeString()}`);
+
     const cookieStore = await cookies();
     let token = cookieStore.get('auth-token')?.value;
     const refreshTokenValue = cookieStore.get('refresh-token')?.value;
@@ -70,10 +67,12 @@ export async function fetchApi<T = any>({
 
     // Helper function to make the actual request
     async function makeRequest() {
+        const fetchStartTime = Date.now();
+        console.log(`⏱️ [2. Backend Fetch Sent] ${method} ${_url} | Cookie setup: ${fetchStartTime - actionStartTime}ms`);
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
         try {
-            return await fetch(_url, {
+            const res = await fetch(_url, {
                 method,
                 headers: {
                     ...(!isFormData && { 'Content-Type': 'application/json' }),
@@ -86,6 +85,9 @@ export async function fetchApi<T = any>({
                 cache: 'no-store',
                 signal: controller.signal,
             });
+            const fetchEndTime = Date.now();
+            console.log(`⏱️ [3. Backend Response Recv] ${method} ${_url} | HTTP ${res.status} | Backend API Time: ${fetchEndTime - fetchStartTime}ms`);
+            return res;
         } finally {
             clearTimeout(timer);
         }
@@ -94,12 +96,6 @@ export async function fetchApi<T = any>({
     try {
         // First attempt
         let response = await makeRequest();
-
-
-        console.log("status", response.status);
-        console.log("content-length", response.headers.get("content-length"));
-        console.log("content-type", response.headers.get("content-type"));
-        console.log("transfer-encoding", response.headers.get("transfer-encoding"));
 
         // If Unauthorized and we have a refresh token, try to refresh
         if (response.status === 401 && refreshTokenValue && isAuth) {
@@ -127,19 +123,14 @@ export async function fetchApi<T = any>({
             const errorData = await response.json().catch(() => ({}));
             const rawMsg = errorData?.message || errorData?.error || errorData?.errors || `Fetch failed: ${response.status} ${response.statusText}`;
             const normalizedMsg = Array.isArray(rawMsg) ? rawMsg.join(', ') : typeof rawMsg === 'object' && rawMsg !== null ? JSON.stringify(rawMsg) : String(rawMsg);
+            console.log(`⏱️ [4. Action Complete] ${method} ${_url} | Total Time: ${Date.now() - actionStartTime}ms (ERROR)\n`);
             return { status: response.status, data: null, type: 'error', messages: normalizedMsg };
         }
 
         // Handle different response types
         let responseData;
         if (responseType === 'blob') {
-            console.log("Starting blob conversion...");
-
             responseData = await response.blob();
-
-            console.log("Blob conversion complete");
-            console.log("Blob size:", responseData.size);
-            console.log("Blob type:", responseData.type);
         } else if (responseType === 'text') {
             responseData = await response.text();
         } else {
@@ -148,6 +139,7 @@ export async function fetchApi<T = any>({
             if (contentType.includes('application/json')) {
                 responseData = await response.json();
             } else {
+                console.log(`⏱️ [4. Action Complete] ${method} ${_url} | Total Time: ${Date.now() - actionStartTime}ms (NON-JSON)\n`);
                 return {
                     status: response.status,
                     data: null,
@@ -157,6 +149,8 @@ export async function fetchApi<T = any>({
             }
         }
 
+        console.log(`⏱️ [4. Action Complete] ${method} ${_url} | Total Time: ${Date.now() - actionStartTime}ms\n`);
+
         return {
             status: response.status,
             data: responseData,
@@ -165,6 +159,7 @@ export async function fetchApi<T = any>({
         };
     } catch (e: any) {
         const isAbort = e?.name === 'AbortError';
+        console.log(`⏱️ [4. Action Complete] ${method} ${_url} | Total Time: ${Date.now() - actionStartTime}ms (EXCEPTION)\n`);
         return {
             status: isAbort ? 408 : 500,
             data: null,

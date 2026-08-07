@@ -242,10 +242,21 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           }));
         }
 
-        const [property, citiesRes] = await Promise.all([
-          getPropertyById(tempPropertyId),
-          getCities(),
-        ]);
+        const property = await getPropertyById(tempPropertyId);
+        const propertyPayload = property?.data ?? property;
+        const propStateId =
+          propertyPayload?.state_id ||
+          propertyPayload?.state?.id ||
+          addressData.state ||
+          addressData.state_id;
+
+        const citiesRes = await getCities(
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          propStateId || undefined,
+        );
         if (!isMounted) return;
 
         const rawCities: any[] = Array.isArray(citiesRes)
@@ -258,8 +269,6 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
             state_id: c.state_id ? String(c.state_id) : undefined,
           })),
         );
-
-        const propertyPayload = property?.data ?? property;
         const reportFlag =
           propertyPayload?.has_report === true ||
           propertyPayload?.has_report === "true";
@@ -416,6 +425,34 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
     }
     loadLocationData();
   }, []);
+
+  useEffect(() => {
+    const currentStateId = addressData.state || addressData.state_id;
+    if (!currentStateId) return;
+
+    let isMounted = true;
+    getCities(undefined, undefined, undefined, undefined, currentStateId)
+      .then((citiesRes) => {
+        if (!isMounted) return;
+        const rawCities: any[] = Array.isArray(citiesRes)
+          ? citiesRes
+          : (citiesRes as any)?.data || [];
+        setCities(
+          rawCities.map((c) => ({
+            id: String(c.id),
+            name: c.city_name || c.name,
+            state_id: c.state_id ? String(c.state_id) : undefined,
+          })),
+        );
+      })
+      .catch((err) => {
+        console.error("Failed to fetch cities for state:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [addressData.state, addressData.state_id, step]);
 
   const { validateMembership } = useMembershipGuard();
 
@@ -841,6 +878,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
               <CategorySelection
                 address={addressData.property_name}
                 propertyId={tempPropertyId || ""}
+                stateId={addressData.state || addressData.state_id}
                 defaultGoverningCityId={addressData.city_id}
                 cities={cities}
                 onContinue={handleProjectCreate}

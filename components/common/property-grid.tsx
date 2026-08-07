@@ -44,12 +44,15 @@ export function PropertyGrid({ searchParams, redirectUrl, showActionButtons, sho
     try {
       if (append) setLoadingMore(true);
       else setLoading(true);
-      const response = await getPropertyListAll({
+      const cleanFilterParams: any = {
         ...searchParams,
         page: pageNum,
         limit: 9,
-        isPropertyOwner,
-      });
+      };
+      if (isPropertyOwner) {
+        cleanFilterParams.isPropertyOwner = isPropertyOwner;
+      }
+      const response = await getPropertyListAll(cleanFilterParams);
 
       const newData = response?.data || [];
       if (append) {

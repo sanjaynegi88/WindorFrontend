@@ -159,17 +159,26 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
     const load = async () => {
       setLoadingProperty(true);
       try {
-        const [res, statesRes, citiesRes, ownersRes, typesRes] =
+        const propRes = await getPropertyDetail(propertyId);
+        const prop = propRes?.data ?? propRes;
+        console.log(prop);
+        setProperty(prop);
+
+        const propStateId = prop?.state_id || prop?.state?.id;
+
+        const [statesRes, citiesRes, ownersRes, typesRes] =
           await Promise.all([
-            getPropertyDetail(propertyId),
             getStates(1, 1000),
-            getCities(),
+            getCities(
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              propStateId || undefined,
+            ),
             role === "admin" ? getPropertyOwners() : Promise.resolve([]),
             getPropertyTypes(),
           ]);
-        const prop = res?.data ?? res;
-        console.log(prop);
-        setProperty(prop);
 
         const rawStates: any[] = Array.isArray(statesRes)
           ? statesRes
@@ -1079,6 +1088,12 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                 <CategorySelection
                   address={property?.address || ""}
                   propertyId={propertyId}
+                  stateId={
+                    property?.state_id ||
+                    property?.state?.id ||
+                    addressData.state ||
+                    addressData.state_id
+                  }
                   initialProjectType={
                     selectedProject
                       ? toPascalCase(selectedProject.project_type || "")
