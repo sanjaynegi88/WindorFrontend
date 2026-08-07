@@ -41,7 +41,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CitySelect } from "@/components/city-zip-selector";
+import { CitySelect, StateSelect } from "@/components/city-zip-selector";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -457,6 +457,7 @@ export default function EditUserPage({
       if (values.companyEmail)
         formData.append("companyEmail", values.companyEmail);
       if (values.websiteUrl) formData.append("websiteUrl", values.websiteUrl);
+      if (values.state_id) formData.append("state_id", values.state_id);
       if (values.city_id) formData.append("city_id", values.city_id);
       if (values.mobilePhone)
         formData.append("mobilePhone", values.mobilePhone);
@@ -476,12 +477,15 @@ export default function EditUserPage({
       if (values.companyAddress)
         formData.append("companyAddress", values.companyAddress);
       if (values.websiteUrl) formData.append("websiteUrl", values.websiteUrl);
+      if (values.state_id) formData.append("state_id", values.state_id);
+      if (values.city_id) formData.append("city_id", values.city_id);
       if (values.mobilePhone)
         formData.append("mobilePhone", values.mobilePhone);
       if (values.companyPhone)
         formData.append("companyPhone", values.companyPhone);
       if (values.title) formData.append("title", values.title);
     } else if (group === "inspector") {
+      if (values.state_id) formData.append("state_id", values.state_id);
       if (values.city_id) formData.append("city_id", values.city_id);
       if (values.cityOfficial)
         formData.append("cityOfficial", values.cityOfficial);
@@ -801,35 +805,16 @@ export default function EditUserPage({
                                     </FormItem>
                                   )}
                                 />
-                                <FormField
-                                  control={form.control}
+                                <StateSelect
                                   name="state_id"
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormLabel>State</FormLabel>
-                                      <Select
-                                        value={field.value}
-                                        onValueChange={(val) => {
-                                          field.onChange(val);
-                                          form.setValue("city_id", "");
-                                        }}
-                                      >
-                                        <FormControl>
-                                          <SelectTrigger className="h-11 bg-muted/20 focus:bg-background transition-all">
-                                            <SelectValue placeholder="Select a state" />
-                                          </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                          {states.map((s) => (
-                                            <SelectItem key={s.id} value={s.id}>
-                                              {s.name}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
+                                  label="State"
+                                  valueType="id"
+                                  placeholder="Select a state"
+                                  className="h-11 bg-muted/20 focus:bg-background transition-all"
+                                  onSelectState={(st) => {
+                                    form.setValue("state_id", st.id);
+                                    form.setValue("city_id", "");
+                                  }}
                                 />
                                 <CitySelect
                                   name="city_id"
@@ -1025,11 +1010,24 @@ export default function EditUserPage({
                                     </FormItem>
                                   )}
                                 />
+                                <StateSelect
+                                  name="state_id"
+                                  label="State"
+                                  valueType="id"
+                                  placeholder="Select a state"
+                                  className="h-11 bg-muted/20 focus:bg-background transition-all"
+                                  onSelectState={(st) => {
+                                    form.setValue("state_id", st.id);
+                                    form.setValue("city_id", "");
+                                  }}
+                                />
                                 <CitySelect
                                   name="city_id"
                                   label="City"
                                   valueType="id"
                                   placeholder="Select a city"
+                                  stateValue={form.watch("state_id")}
+                                  syncState={true}
                                 />
                                 <FormField
                                   control={form.control}
@@ -1151,42 +1149,49 @@ export default function EditUserPage({
                                     </FormItem>
                                   )}
                                 />
-                                <FormField
-                                  control={form.control}
-                                  name="companyPhone"
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormLabel>Company Phone</FormLabel>
-                                      <FormControl>
-                                        <Input
-                                          placeholder="Company (10 digits)"
-                                          {...field}
-                                          className="h-11 bg-muted/20 focus:bg-background transition-all"
-                                          maxLength={10}
-                                          inputMode="numeric"
-                                          onChange={(e) => {
-                                            const digits = e.target.value
-                                              .replace(/\D/g, "")
-                                              .slice(0, 10);
-                                            field.onChange(digits);
-                                          }}
-                                        />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
+                                <StateSelect
+                                  name="state_id"
+                                  label="State"
+                                  valueType="id"
+                                  placeholder="Select a state"
+                                  className="h-11 bg-muted/20 focus:bg-background transition-all"
+                                  onSelectState={(st) => {
+                                    form.setValue("state_id", st.id);
+                                    form.setValue("city_id", "");
+                                  }}
+                                />
+                                <CitySelect
+                                  name="city_id"
+                                  label="City"
+                                  valueType="id"
+                                  placeholder="Select a city"
+                                  stateValue={form.watch("state_id")}
+                                  syncState={true}
                                 />
                               </>
                             )}
 
                             {group === "inspector" && (
                               <>
-                                <CitySelect
-                                  name="city_id"
-                                  label="City"
-                                  valueType="id"
-                                  placeholder="Select a city"
-                                />
+                                 <StateSelect
+                                   name="state_id"
+                                   label="State"
+                                   valueType="id"
+                                   placeholder="Select a state"
+                                   className="h-11 bg-muted/20 focus:bg-background transition-all"
+                                   onSelectState={(st) => {
+                                     form.setValue("state_id", st.id);
+                                     form.setValue("city_id", "");
+                                   }}
+                                 />
+                                 <CitySelect
+                                   name="city_id"
+                                   label="City"
+                                   valueType="id"
+                                   placeholder="Select a city"
+                                   stateValue={form.watch("state_id")}
+                                   syncState={true}
+                                 />
                                 <FormField
                                   control={form.control}
                                   name="cityOfficial"

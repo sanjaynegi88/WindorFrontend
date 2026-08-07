@@ -60,7 +60,7 @@ import {
 import { ChangePasswordForm } from "@/components/forms/change-password-form";
 import { formatDistanceToNow } from "date-fns";
 import { useUser } from "@/components/providers/user-provider";
-import { CitySelect } from "@/components/city-zip-selector";
+import { CitySelect, StateSelect } from "@/components/city-zip-selector";
 import { ServiceSelect } from "@/components/service-select";
 import {
   Select,
@@ -453,19 +453,17 @@ export default function UserProfile() {
         .then((res) => setServices(Array.isArray(res?.data) ? res.data : []))
         .catch(() => {});
     }
-    if (role === "property_owner" || role === "realtor") {
-      getStates(1, 1000)
-        .then((res) => {
-          const raw: any[] = Array.isArray(res) ? res : res?.data || [];
-          setStates(
-            raw.map((s: any) => ({
-              id: String(s.id),
-              name: s.state_name || s.name,
-            })),
-          );
-        })
-        .catch(() => {});
-    }
+    getStates(1, 1000)
+      .then((res) => {
+        const raw: any[] = Array.isArray(res) ? res : res?.data || [];
+        setStates(
+          raw.map((s: any) => ({
+            id: String(s.id),
+            name: s.state_name || s.name,
+          })),
+        );
+      })
+      .catch(() => {});
   }, [role]);
 
   useEffect(() => {
@@ -1114,6 +1112,46 @@ export default function UserProfile() {
                       </div>
                       <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
                         <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest pt-2">
+                          State
+                        </Label>
+                        <div className="md:col-span-2">
+                          {!isEditing ? (
+                            <p className="text-sm font-bold">
+                              {states.find((s) => s.id === user?.state_id)
+                                ?.name ||
+                                user?.state_id ||
+                                "Not provided"}
+                            </p>
+                          ) : (
+                            <FormField
+                              control={form.control}
+                              name="state_id"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <div className="[&_button]:h-11 [&_button]:rounded-xl [&_button]:bg-muted/30 [&_button]:border-input [&_button]:shadow-none">
+                                      <StateSelect
+                                        disabled={isSubAccount}
+                                        value={field.value || ""}
+                                        valueType="id"
+                                        placeholder="Select State"
+                                        onSelectState={(st) => {
+                                          field.onChange(st.id);
+                                          setSelectedStateId(st.id);
+                                          form.setValue("city_id", "");
+                                        }}
+                                      />
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+                        </div>
+                      </div>
+                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest pt-2">
                           City
                           {isEditing && (
                             <label className="text-red-500">*</label>
@@ -1135,6 +1173,7 @@ export default function UserProfile() {
                                       <CitySelect
                                         disabled={isSubAccount}
                                         value={field.value || ""}
+                                        stateValue={selectedStateId}
                                         valueType="id"
                                         placeholder="Select city"
                                         onSelectCity={(city) => {
@@ -1284,28 +1323,21 @@ export default function UserProfile() {
                               name="state_id"
                               render={({ field }) => (
                                 <FormItem>
-                                  <Select
-                                    disabled={isSubAccount}
-                                    value={field.value || ""}
-                                    onValueChange={(val) => {
-                                      field.onChange(val);
-                                      setSelectedStateId(val);
-                                      form.setValue("city_id", "");
-                                    }}
-                                  >
-                                    <FormControl>
-                                      <SelectTrigger className="h-11 rounded-xl bg-muted/30 border-input shadow-none">
-                                        <SelectValue placeholder="Select State" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {states.map((s) => (
-                                        <SelectItem key={s.id} value={s.id}>
-                                          {s.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
+                                  <FormControl>
+                                    <div className="[&_button]:h-11 [&_button]:rounded-xl [&_button]:bg-muted/30 [&_button]:border-input [&_button]:shadow-none">
+                                      <StateSelect
+                                        disabled={isSubAccount}
+                                        value={field.value || ""}
+                                        valueType="id"
+                                        placeholder="Select State"
+                                        onSelectState={(st) => {
+                                          field.onChange(st.id);
+                                          setSelectedStateId(st.id);
+                                          form.setValue("city_id", "");
+                                        }}
+                                      />
+                                    </div>
+                                  </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -1678,12 +1710,132 @@ export default function UserProfile() {
                           )}
                         </div>
                       </div>
+                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest pt-2">
+                          State
+                        </Label>
+                        <div className="md:col-span-2">
+                          {!isEditing ? (
+                            <p className="text-sm font-bold">
+                              {states.find((s) => s.id === user?.state_id)
+                                ?.name ||
+                                user?.state_id ||
+                                "Not provided"}
+                            </p>
+                          ) : (
+                            <FormField
+                              control={form.control}
+                              name="state_id"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <div className="[&_button]:h-11 [&_button]:rounded-xl [&_button]:bg-muted/30 [&_button]:border-input [&_button]:shadow-none">
+                                      <StateSelect
+                                        disabled={isSubAccount}
+                                        value={field.value || ""}
+                                        valueType="id"
+                                        placeholder="Select State"
+                                        onSelectState={(st) => {
+                                          field.onChange(st.id);
+                                          setSelectedStateId(st.id);
+                                          form.setValue("city_id", "");
+                                        }}
+                                      />
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+                        </div>
+                      </div>
+                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest pt-2">
+                          City
+                        </Label>
+                        <div className="md:col-span-2">
+                          {!isEditing ? (
+                            <p className="text-sm font-bold">
+                              {selectedCityName || "Not provided"}
+                            </p>
+                          ) : (
+                            <FormField
+                              control={form.control}
+                              name="city_id"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <div className="[&_button]:h-11 [&_button]:rounded-xl [&_button]:bg-muted/30 [&_button]:border-input [&_button]:shadow-none">
+                                      <CitySelect
+                                        disabled={isSubAccount}
+                                        value={field.value || ""}
+                                        stateValue={selectedStateId}
+                                        valueType="id"
+                                        placeholder="Select city"
+                                        onSelectCity={(city) => {
+                                          field.onChange(city.id);
+                                          setSelectedCityName(city.name);
+                                        }}
+                                      />
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+                        </div>
+                      </div>
                     </>
                   )}
 
                   {/* ── City Inspector fields ── */}
                   {role === "city_inspector" && (
                     <>
+                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest pt-2">
+                          State
+                        </Label>
+                        <div className="md:col-span-2">
+                          {!isEditing ? (
+                            <p className="text-sm font-bold">
+                              {states.find((s) => s.id === user?.state_id)
+                                ?.name ||
+                                user?.state_id ||
+                                "Not provided"}
+                            </p>
+                          ) : (
+                            <FormField
+                              control={form.control}
+                              name="state_id"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <div className="[&_button]:h-11 [&_button]:rounded-xl [&_button]:bg-muted/30 [&_button]:border-input [&_button]:shadow-none">
+                                      <StateSelect
+                                        disabled={
+                                          isSubAccount ||
+                                          role === "city_inspector"
+                                        }
+                                        value={field.value || ""}
+                                        valueType="id"
+                                        placeholder="Select State"
+                                        onSelectState={(st) => {
+                                          field.onChange(st.id);
+                                          setSelectedStateId(st.id);
+                                          form.setValue("city_id", "");
+                                        }}
+                                      />
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+                        </div>
+                      </div>
                       <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
                         <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest pt-2">
                           City
@@ -1707,6 +1859,7 @@ export default function UserProfile() {
                                           role === "city_inspector"
                                         }
                                         value={field.value || ""}
+                                        stateValue={selectedStateId}
                                         valueType="id"
                                         placeholder="Select city"
                                         onSelectCity={(city) => {

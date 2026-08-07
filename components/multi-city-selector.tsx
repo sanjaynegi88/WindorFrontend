@@ -23,11 +23,15 @@ interface MultiCitySelectorProps {
   selectedCities: string[];
   selectedCityDetails?: { id: string; name: string }[];
   onCitiesChange: (cities: string[]) => void;
+  stateId?: string;
+  disabled?: boolean;
 }
 export function MultiCitySelector({
   selectedCities,
   onCitiesChange,
   selectedCityDetails,
+  stateId,
+  disabled,
 }: MultiCitySelectorProps) {
   const [cities, setCities] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -42,7 +46,7 @@ export function MultiCitySelector({
     async function fetchCities() {
       try {
         setLoading(true);
-        const response = await getCities(1, 50, undefined, searchValue);
+        const response = await getCities(1, 50, undefined, searchValue, stateId);
         if (active) setCities(response.data || []);
       } catch (error) {
         console.error("Failed to load cities:", error);
@@ -59,7 +63,7 @@ export function MultiCitySelector({
       active = false;
       clearTimeout(timer);
     };
-  }, [searchValue]);
+  }, [searchValue, stateId]);
 
   const handleSelect = (cityId: string) => {
     const city = cities.find((c) => c.id === cityId);

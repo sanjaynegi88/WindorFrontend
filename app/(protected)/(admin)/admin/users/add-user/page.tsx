@@ -36,7 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CitySelect } from "@/components/city-zip-selector";
+import { CitySelect, StateSelect } from "@/components/city-zip-selector";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Content } from "@/components/layouts/crm/components/content";
@@ -125,6 +125,7 @@ const contractorSchema = z.object({
     .refine((value) => !value || /^\d{10}$/.test(value), {
       message: "Company phone must be exactly 10 digits",
     }),
+  state_id: z.string().optional(),
   city_id: z.string().optional(),
   serviceTypes: z.array(z.string()).optional(),
   other_service: z.string().optional(),
@@ -143,10 +144,13 @@ const insuranceSchema = z.object({
     .refine((value) => !value || /^\d{10}$/.test(value), {
       message: "Company phone must be exactly 10 digits",
     }),
+  state_id: z.string().optional(),
+  city_id: z.string().optional(),
   title: z.string().min(1, "Title is required"),
 });
 
 const inspectorSchema = z.object({
+  state_id: z.string().optional(),
   city_id: z.string().min(1, "City is required"),
   cityOfficial: z.string().min(1, "City official name is required"),
   cityAddress: z.string().min(1, "City address is required"),
@@ -245,61 +249,31 @@ function PropertyForm({
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
+        <StateSelect
           name="state_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>State</FormLabel>
-              <Select
-                value={field.value}
-                onValueChange={(val) => {
-                  field.onChange(val);
-                  setSelectedStateId(val);
-                  form.setValue("city_id", "");
-                }}
-              >
-                <FormControl>
-                  <SelectTrigger className={inputCls}>
-                    <SelectValue placeholder="Select a state" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {states.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
+          label="State"
+          valueType="id"
+          placeholder="Select a state"
+          onSelectState={(state) => {
+            form.setValue("state_id", state.id);
+            setSelectedStateId(state.id);
+            form.setValue("city_id", "");
+          }}
         />
-        <FormField
-          control={form.control}
+        <CitySelect
           name="city_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>City</FormLabel>
-              <FormControl>
-                <CitySelect
-                  value={field.value}
-                  stateValue={selectedStateId}
-                  valueType="id"
-                  onSelectCity={(city) => {
-                    field.onChange(city.id);
-                    if (!selectedStateId && city.state_id) {
-                      form.setValue("state_id", city.state_id);
-                      setSelectedStateId(city.state_id);
-                    }
-                  }}
-                  syncState={true}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          label="City"
+          stateValue={selectedStateId}
+          valueType="id"
+          placeholder="Select a city"
+          onSelectCity={(city) => {
+            form.setValue("city_id", String(city.id));
+            if (!selectedStateId && city.state_id) {
+              form.setValue("state_id", String(city.state_id));
+              setSelectedStateId(String(city.state_id));
+            }
+          }}
+          syncState={true}
         />
         <FormField
           control={form.control}
@@ -379,6 +353,7 @@ function ContractorForm({
       serviceTypes: [],
       other_service: "",
       licenseNumber: "",
+      state_id: "",
       city_id: "",
       companyEmail: "",
       company_name: "",
@@ -586,6 +561,8 @@ function InsuranceForm({
       websiteUrl: "",
       mobilePhone: "",
       companyPhone: "",
+      state_id: "",
+      city_id: "",
       title: "",
     },
   });
@@ -717,6 +694,24 @@ function InsuranceForm({
             )}
           />
         </div>
+        <StateSelect
+          name="state_id"
+          label="State"
+          valueType="id"
+          placeholder="Select a state"
+          onSelectState={(st) => {
+            form.setValue("state_id", st.id);
+            form.setValue("city_id", "");
+          }}
+        />
+        <CitySelect
+          name="city_id"
+          label="City"
+          valueType="id"
+          stateValue={form.watch("state_id")}
+          placeholder="Select a city"
+          syncState={true}
+        />
         <FormButtons onBack={onBack} loading={loading} />
       </form>
     </Form>
@@ -736,6 +731,7 @@ function InspectorForm({
   const form = useForm<InspectorValues>({
     resolver: zodResolver(inspectorSchema),
     defaultValues: {
+      state_id: "",
       city_id: "",
       cityOfficial: "",
       cityAddress: "",
@@ -746,11 +742,23 @@ function InspectorForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+        <StateSelect
+          name="state_id"
+          label="State"
+          valueType="id"
+          placeholder="Select a state"
+          onSelectState={(st) => {
+            form.setValue("state_id", st.id);
+            form.setValue("city_id", "");
+          }}
+        />
         <CitySelect
           name="city_id"
           label="City"
           valueType="id"
+          stateValue={form.watch("state_id")}
           placeholder="Select a city"
+          syncState={true}
         />
         <FormField
           control={form.control}

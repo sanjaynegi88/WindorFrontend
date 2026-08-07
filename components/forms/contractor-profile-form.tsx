@@ -31,6 +31,7 @@ import {
 import { ArrowRight, Building2, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { MultiCitySelector } from "@/components/multi-city-selector";
+import { StateSelect } from "@/components/state-select";
 import { useRouter } from "next/navigation";
 import { toPascalCase } from "@/lib/utils";
 import { ServiceSelect } from "@/components/service-select";
@@ -65,6 +66,7 @@ export function ContractorProfileForm({
 }: ContractorProfileFormProps) {
   const isEditMode = !!profileId && !!initialData;
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedStateId, setSelectedStateId] = useState<string>("");
   const [services, setServices] = useState<
     { id: string; service_name: string }[]
   >([]);
@@ -197,6 +199,16 @@ export function ContractorProfileForm({
             </CardHeader>
 
             <CardContent className="p-8 space-y-6">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase">Filter Cities by State</Label>
+                <StateSelect
+                  value={selectedStateId}
+                  onChange={(val) => setSelectedStateId(val)}
+                  placeholder="Select state to filter cities"
+                  className="h-12 bg-white border border-[rgba(112,128,144,0.23)] rounded-[6px]"
+                />
+              </div>
+
               <FormField
                 control={form.control}
                 name="selected_cities"
@@ -210,6 +222,7 @@ export function ContractorProfileForm({
                         selectedCities={field.value}
                         selectedCityDetails={initialData?.cityDetails || []}
                         onCitiesChange={field.onChange}
+                        stateId={selectedStateId}
                       />
                     </FormControl>
                     <FormMessage />
