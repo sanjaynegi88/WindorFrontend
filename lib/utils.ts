@@ -90,7 +90,39 @@ export async function downloadPdfFromUrl(url: string, filename: string) {
     throw new Error(errorMessage);
   }
 
-  const blob = await response.blob();
+  const contentType = response.headers.get('content-type') || '';
+  
+  let finalResponse = response;
+  
+  // If the backend returned JSON with a downloadUrl, we need to fetch the actual file
+  if (contentType.includes('application/json')) {
+    try {
+      const data = await response.json();
+      if (data && data.downloadUrl) {
+        finalResponse = await fetch(data.downloadUrl, {
+          method: 'GET',
+          credentials: 'same-origin',
+          cache: 'no-store',
+          headers: {
+            Accept: 'application/pdf',
+          },
+        });
+        
+        if (!finalResponse.ok) {
+          throw new Error(`Failed to secure download PDF (${finalResponse.status})`);
+        }
+      } else {
+        throw new Error('Download URL not found in server response');
+      }
+    } catch (err: any) {
+      if (err.message.includes('Failed to secure download')) {
+        throw err;
+      }
+      throw new Error('Failed to parse download URL from server');
+    }
+  }
+
+  const blob = await finalResponse.blob();
   const blobUrl = URL.createObjectURL(blob);
 
   try {
