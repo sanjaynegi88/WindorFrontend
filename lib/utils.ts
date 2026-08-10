@@ -101,8 +101,22 @@ export async function downloadPdfFromUrl(url: string, filename: string) {
       if (data && data.downloadUrl) {
         // Since the downloadUrl redirects to S3 (which might not have CORS enabled),
         // we use a native browser navigation to trigger the download instead of fetch.
+        
+        let targetPath = data.downloadUrl;
+        try {
+          // If the backend returned an absolute URL on a different host/port (e.g., internal IP),
+          // we extract just the path so the browser uses the current origin and sends cookies correctly.
+          const parsedUrl = new URL(data.downloadUrl);
+          targetPath = parsedUrl.pathname + parsedUrl.search;
+        } catch (e) {
+          // URL parsing failed (likely already a relative path), use as is
+        }
+        
+        // Clean up any double slashes (e.g., //api/reports/... -> /api/reports/...)
+        targetPath = targetPath.replace(/\/\//g, '/');
+
         const link = document.createElement('a');
-        link.href = data.downloadUrl;
+        link.href = targetPath;
         link.download = filename;
         link.style.display = 'none';
         document.body.appendChild(link);
