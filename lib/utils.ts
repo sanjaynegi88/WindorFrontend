@@ -99,25 +99,20 @@ export async function downloadPdfFromUrl(url: string, filename: string) {
     try {
       const data = await response.json();
       if (data && data.downloadUrl) {
-        finalResponse = await fetch(data.downloadUrl, {
-          method: 'GET',
-          credentials: 'same-origin',
-          cache: 'no-store',
-          headers: {
-            Accept: 'application/pdf',
-          },
-        });
-        
-        if (!finalResponse.ok) {
-          throw new Error(`Failed to secure download PDF (${finalResponse.status})`);
-        }
+        // Since the downloadUrl redirects to S3 (which might not have CORS enabled),
+        // we use a native browser navigation to trigger the download instead of fetch.
+        const link = document.createElement('a');
+        link.href = data.downloadUrl;
+        link.download = filename;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return; // Exit early since we handled the download natively
       } else {
         throw new Error('Download URL not found in server response');
       }
     } catch (err: any) {
-      if (err.message.includes('Failed to secure download')) {
-        throw err;
-      }
       throw new Error('Failed to parse download URL from server');
     }
   }
