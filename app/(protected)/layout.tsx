@@ -12,6 +12,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import AuthGuard from "../../components/AuthGuard";
 import { CardRequiredModal } from "@/components/modals/card-required-modal";
+import { ConversionPopupModal } from "@/components/modals/conversion-popup-modal";
 
 export default function CrmLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -20,6 +21,7 @@ export default function CrmLayout({ children }: { children: React.ReactNode }) {
     <AuthGuard>
       <SyncEngineProvider>
         <CardRequiredModal />
+        <ConversionPopupModal />
         <div className="flex flex-col min-h-screen w-full bg-[#FFFFFF] md:bg-[#F8FBFF]">
           <MobileHeader />
           <Navbar />

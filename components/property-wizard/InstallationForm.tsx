@@ -25,6 +25,7 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { toast } from 'sonner';
 import { DynamicFeaturesTable } from '../common/dynamic-features-table';
 import { getBrands, getImageCategory } from '@/lib/actions';
+import { transformBrandsToOptions } from '@/lib/mock-brands';
 import { useUser } from '../providers/user-provider';
 
 
@@ -461,7 +462,7 @@ export function InstallationForm({
                                         <FormLabel className="font-semibold text-foreground">Manufacturer/Brand</FormLabel>
                                         <FormControl>
                                             <SearchableSelect
-                                                options={brands.map((b) => ({ id: b.id, name: b.name }))}
+                                                options={transformBrandsToOptions(brands)}
                                                 value={field.value ?? ''}
                                                 onValueChange={field.onChange}
                                                 placeholder="Select manufacturer/brand"

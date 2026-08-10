@@ -7,15 +7,8 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
-import { CitySelect } from '@/components/city-zip-selector';
+import { CitySelect, StateSelect } from '@/components/city-zip-selector';
 import { getStates } from '@/lib/actions';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 const inputCls =
   'h-[65px] px-[19px] border-[rgba(112,128,144,0.23)] rounded-[6px] text-[20px] leading-[23px] font-medium text-[#1F2A44] bg-white placeholder:text-[#1F2A44]/50 font-asap';
@@ -44,17 +37,7 @@ interface Step2PropertyFormProps {
 }
 
 export function Step2PropertyForm({ onBack, onSubmit, loading }: Step2PropertyFormProps) {
-  const [states, setStates] = useState<{ id: string; name: string }[]>([]);
   const [selectedStateId, setSelectedStateId] = useState('');
-
-  useEffect(() => {
-    getStates(1, 1000)
-      .then((res) => {
-        const raw: any[] = Array.isArray(res) ? res : res?.data || [];
-        setStates(raw.map((s: any) => ({ id: String(s.id), name: s.state_name || s.name })));
-      })
-      .catch(() => { });
-  }, []);
 
   const form = useForm<Step2PropertyValues>({
     resolver: zodResolver(step2PropertySchema),
@@ -103,28 +86,21 @@ export function Step2PropertyForm({ onBack, onSubmit, loading }: Step2PropertyFo
           {/* State */}
           <FormField control={form.control} name="state_id" render={({ field }) => (
             <FormItem>
-              <Select
-                value={field.value}
-                onValueChange={(val) => {
-                  field.onChange(val);
-                  setSelectedStateId(val);
-                  // Clear city when state changes
-                  form.setValue('city_id', '');
-                }}
-              >
-                <FormControl>
-                  <SelectTrigger className={triggerCls}>
-                    <SelectValue placeholder="State" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent className="rounded-xl">
-                  {states.map((s) => (
-                    <SelectItem key={s.id} value={s.id} className="text-[18px] font-asap">
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FormControl>
+                <div className={`[&_button]:h-[65px] [&_button]:rounded-[6px] [&_button]:border-[rgba(112,128,144,0.23)] [&_button]:text-[20px] [&_button]:font-asap [&_button]:font-medium [&_button]:text-[#708090] [&_button]:shadow-none [&_button]:bg-white`}>
+                  <StateSelect
+                    name="state_id"
+                    value={field.value}
+                    valueType="id"
+                    placeholder="State"
+                    onSelectState={(st) => {
+                      field.onChange(st.id);
+                      setSelectedStateId(st.id);
+                      form.setValue('city_id', '');
+                    }}
+                  />
+                </div>
+              </FormControl>
               <FormMessage className={errCls} />
             </FormItem>
           )} />
@@ -134,8 +110,9 @@ export function Step2PropertyForm({ onBack, onSubmit, loading }: Step2PropertyFo
               <FormControl>
                 <div className={`[&_button]:h-[65px] [&_button]:rounded-[6px] [&_button]:border-[rgba(112,128,144,0.23)] [&_button]:text-[20px] [&_button]:font-asap [&_button]:font-medium [&_button]:text-[#708090] [&_button]:shadow-none [&_button]:bg-white`}>
                   <CitySelect
+                    name="city_id"
                     value={field.value}
-                    stateValue={selectedStateId}
+                    stateValue={form.watch('state_id') || selectedStateId}
                     valueType="id"
                     placeholder="City"
                     onSelectCity={(city) => {

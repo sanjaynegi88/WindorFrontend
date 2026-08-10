@@ -13,12 +13,13 @@ import Image from 'next/image';
 const EXCLUDED_ROLES = ['ADMIN', 'CITY_INSPECTOR'];
 
 // Role group helpers — same logic as register page
-const CONTRACTOR_ROLES = ['CONTRACTOR', 'MANUFACTURER'];
-const PROPERTY_ROLES = ['PROPERTY_OWNER', 'REALTOR'];
+const CONTRACTOR_ROLES = ['CONTRACTOR', 'MANUFACTURER', 'DISTRIBUTOR'];
+const PROPERTY_ROLES = ['PROPERTY_OWNER', 'HOMEOWNER', 'REALTOR', 'PROPERTY'];
 
 function getRoleGroup(roleName: string): 'contractor' | 'property' | null {
-  if (CONTRACTOR_ROLES.includes(roleName)) return 'contractor';
-  if (PROPERTY_ROLES.includes(roleName)) return 'property';
+  const upper = (roleName || '').toUpperCase();
+  if (CONTRACTOR_ROLES.some((r) => upper.includes(r))) return 'contractor';
+  if (PROPERTY_ROLES.some((r) => upper.includes(r))) return 'property';
   return null;
 }
 
@@ -127,6 +128,7 @@ export default function SelectRolePage() {
     if (values.websiteUrl) payload.websiteUrl = values.websiteUrl;
     if (values.licenseNumber) payload.licenseNumber = values.licenseNumber;
     if (values.companyPhone) payload.companyPhone = values.companyPhone;
+    if (values.state_id) payload.state_id = values.state_id;
     if (values.city_id) payload.city_id = values.city_id;
     if (values.serviceTypes?.length) payload.serviceTypes = values.serviceTypes;
     if (values.other_service) payload.other_service = values.other_service;
@@ -140,6 +142,9 @@ export default function SelectRolePage() {
     };
     if (values.ownerDateStart) payload.ownerDateStart = values.ownerDateStart;
     if (values.ownerDateEnd) payload.ownerDateEnd = values.ownerDateEnd;
+    if (values.state_id) payload.state_id = values.state_id;
+    if (values.city_id) payload.city_id = values.city_id;
+    if (values.zip) payload.zip = values.zip;
     submitRole(payload);
   }
 

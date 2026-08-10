@@ -129,7 +129,20 @@ const Plans = () => {
         }
         document.cookie =
           "has-membership=true; path=/; max-age=" + 30 * 24 * 60 * 60;
-        toast.success("Free membership activated successfully!");
+
+        const isFree =
+          selectedPlan?.level?.toUpperCase() === "FREE" ||
+          (Number(selectedPlan?.monthlyAmount ?? 0) === 0 &&
+            Number(selectedPlan?.yearlyAmount ?? 0) === 0) ||
+          selectedPlan?.name?.toLowerCase().includes("free");
+
+        const successMsg =
+          response.message ||
+          (isFree
+            ? "Free membership activated successfully!"
+            : "Subscription activated successfully!");
+
+        toast.success(successMsg);
         localStorage.removeItem("pending_level");
         window.location.replace("/dashboard");
       } else {

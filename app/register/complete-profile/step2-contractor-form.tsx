@@ -13,7 +13,7 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
-import { CitySelect } from "@/components/city-zip-selector";
+import { CitySelect, StateSelect } from "@/components/city-zip-selector";
 import { toast } from "sonner";
 import { getServiceProvided } from "@/lib/actions";
 import { cn, toPascalCase } from "@/lib/utils";
@@ -41,6 +41,7 @@ const step2ContractorSchema = z.object({
     .refine((value) => !value || /^\d{10}$/.test(value), {
       message: "Company phone must be exactly 10 digits",
     }),
+  state_id: z.string().optional(),
   city_id: z.string().optional(),
   serviceTypes: z.array(z.string()).optional(),
   other_service: z.string().optional(),
@@ -73,6 +74,7 @@ export function Step2ContractorForm({
       companyEmail: "",
       mobilePhone: "",
       companyPhone: "",
+      state_id: "",
       city_id: "",
       serviceTypes: [],
       other_service: "",
@@ -212,13 +214,27 @@ export function Step2ContractorForm({
               )}
             />
 
-            <CitySelect
-              name="city_id"
-              valueType="id"
-              placeholder="Select a city"
-              className="border-[rgba(112,128,144,0.23)]"
-              syncState={false}
-            />
+            <div className={`[&_button]:h-[65px] [&_button]:rounded-[6px] [&_button]:border-[rgba(112,128,144,0.23)] [&_button]:text-[20px] [&_button]:font-asap [&_button]:font-medium [&_button]:text-[#708090] [&_button]:shadow-none [&_button]:bg-white`}>
+              <StateSelect
+                name="state_id"
+                valueType="id"
+                placeholder="Select a state"
+                onSelectState={(st) => {
+                  form.setValue("state_id", st.id);
+                  form.setValue("city_id", "");
+                }}
+              />
+            </div>
+
+            <div className={`[&_button]:h-[65px] [&_button]:rounded-[6px] [&_button]:border-[rgba(112,128,144,0.23)] [&_button]:text-[20px] [&_button]:font-asap [&_button]:font-medium [&_button]:text-[#708090] [&_button]:shadow-none [&_button]:bg-white`}>
+              <CitySelect
+                name="city_id"
+                valueType="id"
+                placeholder="Select a city"
+                stateValue={form.watch("state_id")}
+                syncState={true}
+              />
+            </div>
 
             <ServiceSelect
               name="serviceTypes"

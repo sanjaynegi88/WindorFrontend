@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { useEffect, useState } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter
-} from '@/components/ui/dialog';
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -19,34 +19,39 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { createBrand, updateBrand, getComponentTypes, getProjectTypesforPropertyOwner } from '@/lib/actions';
-import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
-import { toPascalCase } from '@/lib/utils';
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import {
+  createBrand,
+  updateBrand,
+  getComponentTypes,
+  getProjectTypesforPropertyOwner,
+} from "@/lib/actions";
+import { toast } from "sonner";
+import { Loader2, Plus, Minus } from "lucide-react";
+import { toPascalCase } from "@/lib/utils";
 
 const brandSchema = z.object({
-  name: z.string().min(1, 'Brand name is required'),
-  description: z.string().min(1, 'Description is required'),
-  category: z.string().min(1, 'Category is required'),
+  name: z.string().min(1, "Manufacturer name is required"),
+  description: z.string().optional(),
+  category: z.string().min(1, "Category is required"),
+  sub_brands: z
+    .array(
+      z.object({
+        name: z.string(),
+      }),
+    )
+    .optional(),
 });
-
-interface Brand {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-}
 
 interface BrandFormDialogProps {
   isOpen: boolean;
@@ -55,7 +60,12 @@ interface BrandFormDialogProps {
   onSuccess: () => void;
 }
 
-export function BrandFormDialog({ isOpen, onClose, brand, onSuccess }: BrandFormDialogProps) {
+export function BrandFormDialog({
+  isOpen,
+  onClose,
+  brand,
+  onSuccess,
+}: BrandFormDialogProps) {
   const [loading, setLoading] = useState(false);
   const [componentTypes, setComponentTypes] = useState<{ name: string }[]>([]);
 
@@ -64,7 +74,7 @@ export function BrandFormDialog({ isOpen, onClose, brand, onSuccess }: BrandForm
       try {
         const [response, response1] = await Promise.all([
           getComponentTypes().catch(() => null),
-          getProjectTypesforPropertyOwner().catch(() => null)
+          getProjectTypesforPropertyOwner().catch(() => null),
         ]);
 
         const compTypes = response?.data?.report_types || [];
@@ -72,7 +82,7 @@ export function BrandFormDialog({ isOpen, onClose, brand, onSuccess }: BrandForm
 
         const merged = [...compTypes, ...ownerTypes];
         const uniqueNames = new Set<string>();
-        const combined = merged.filter(t => {
+        const combined = merged.filter((t) => {
           if (!t?.name) return false;
           const key = t.name.toUpperCase();
           if (uniqueNames.has(key)) return false;
@@ -82,7 +92,7 @@ export function BrandFormDialog({ isOpen, onClose, brand, onSuccess }: BrandForm
 
         setComponentTypes(combined);
       } catch (error) {
-        console.error('Failed to fetch component types:', error);
+        console.error("Failed to fetch component types:", error);
       }
     };
     fetchComponentTypes();
@@ -91,25 +101,39 @@ export function BrandFormDialog({ isOpen, onClose, brand, onSuccess }: BrandForm
   const form = useForm<z.infer<typeof brandSchema>>({
     resolver: zodResolver(brandSchema),
     defaultValues: {
-      name: '',
-      description: '',
-      category: '',
+      name: "",
+      description: "",
+      category: "",
+      sub_brands: [],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "sub_brands",
   });
 
   useEffect(() => {
     if (isOpen) {
       if (brand) {
+        const existingSubBrands = Array.isArray(brand.sub_brands)
+          ? brand.sub_brands.map((sb: any) => ({
+              name: typeof sb === "string" ? sb : sb?.name || "",
+            }))
+          : [];
+
         form.reset({
-          name: brand.name || '',
-          description: brand.description || '',
-          category: brand.category || '',
+          name: brand.name || "",
+          description: brand.description || "",
+          category: brand.category || "",
+          sub_brands: existingSubBrands,
         });
       } else {
         form.reset({
-          name: '',
-          description: '',
-          category: '',
+          name: "",
+          description: "",
+          category: "",
+          sub_brands: [],
         });
       }
     }
@@ -117,41 +141,64 @@ export function BrandFormDialog({ isOpen, onClose, brand, onSuccess }: BrandForm
 
   const onSubmit = async (values: z.infer<typeof brandSchema>) => {
     setLoading(true);
+    const subBrandNames = (values.sub_brands || [])
+      .map((sb) => sb.name.trim())
+      .filter((name) => name.length > 0);
+
+    const payload = {
+      name: values.name,
+      description: values.description,
+      category: values.category,
+      sub_brands: subBrandNames,
+    };
+
     const result = brand
-      ? await updateBrand(brand.id, values)
-      : await createBrand(values as any);
+      ? await updateBrand(brand.id, payload)
+      : await createBrand(payload as any);
+
     setLoading(false);
     if (!result.success) {
-      toast.error(result.message || 'Something went wrong');
+      toast.error(result.message || "Something went wrong");
       return;
     }
-    toast.success(brand ? 'Brand updated successfully' : 'Brand created successfully');
+    toast.success(
+      brand ? "Brand updated successfully" : "Brand created successfully",
+    );
     onSuccess();
     onClose();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] rounded-2xl">
-
+      <DialogContent className="sm:max-w-[500px] rounded-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{brand ? 'Edit Brand' : 'Add New Brand'}</DialogTitle>
+          <DialogTitle>{brand ? "Edit Brand" : "Add New Brand"}</DialogTitle>
           <DialogDescription>
-            {brand ? 'Update the details of the brand.' : 'Enter details for the new product manufacturer brand.'}
+            {brand
+              ? "Update the details of the brand."
+              : "Enter details for the new product manufacturer brand."}
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
-
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-5 py-2"
+          >
             <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="font-semibold text-foreground">Brand Name</FormLabel>
+                  <FormLabel className="font-semibold text-foreground">
+                    Manufacturer
+                  </FormLabel>
                   <FormControl>
-                    <Input placeholder="Name of the brand" className="rounded-xl h-11" {...field} />
+                    <Input
+                      placeholder="Name of the Manufacturer"
+                      className="rounded-xl h-11"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -163,7 +210,9 @@ export function BrandFormDialog({ isOpen, onClose, brand, onSuccess }: BrandForm
               name="category"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="font-semibold text-foreground">Category</FormLabel>
+                  <FormLabel className="font-semibold text-foreground">
+                    Category
+                  </FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger className="rounded-xl h-11">
@@ -188,11 +237,13 @@ export function BrandFormDialog({ isOpen, onClose, brand, onSuccess }: BrandForm
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="font-semibold text-foreground">Description</FormLabel>
+                  <FormLabel className="font-semibold text-foreground">
+                    Description
+                  </FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder="Enter manufacturer details..."
-                      className="min-h-[120px] rounded-xl"
+                      className="min-h-[90px] rounded-xl"
                       {...field}
                     />
                   </FormControl>
@@ -201,7 +252,65 @@ export function BrandFormDialog({ isOpen, onClose, brand, onSuccess }: BrandForm
               )}
             />
 
-            <DialogFooter className="pt-2 gap-3 sm:gap-0">
+            {/* Sub-Brands Table/List Section */}
+            <div className="space-y-3 pt-1">
+              <div className="flex items-center justify-between">
+                <FormLabel className="font-semibold text-foreground">
+                  Brands
+                </FormLabel>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => append({ name: "" })}
+                  className="h-8 text-xs gap-1 rounded-lg border-primary/40 text-primary hover:bg-primary/5"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add Brand
+                </Button>
+              </div>
+
+              {fields.length === 0 ? (
+                <div className="text-xs text-muted-foreground italic bg-muted/20 p-3 rounded-xl border border-dashed border-border/60 text-center">
+                  No brands added. Click "+ Add Brand" to add brands.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
+                  {fields.map((fieldItem, index) => (
+                    <div key={fieldItem.id} className="flex items-center gap-2">
+                      <FormField
+                        control={form.control}
+                        name={`sub_brands.${index}.name`}
+                        render={({ field }) => (
+                          <FormItem className="flex-1 space-y-0">
+                            <FormControl>
+                              <Input
+                                placeholder={`Sub-brand #${index + 1} (e.g. name-${index + 1})`}
+                                className="rounded-xl h-10 text-sm"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => remove(index)}
+                        className="h-10 w-10 text-destructive hover:bg-destructive/10 hover:text-destructive rounded-xl shrink-0"
+                        title="Remove row"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="pt-4 gap-3 sm:gap-0">
               <Button
                 type="button"
                 variant="outline"
@@ -220,12 +329,13 @@ export function BrandFormDialog({ isOpen, onClose, brand, onSuccess }: BrandForm
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Saving...
                   </>
+                ) : brand ? (
+                  "Update Brand"
                 ) : (
-                  brand ? 'Update Brand' : 'Create Brand'
+                  "Create Brand"
                 )}
               </Button>
             </DialogFooter>
-
           </form>
         </Form>
       </DialogContent>

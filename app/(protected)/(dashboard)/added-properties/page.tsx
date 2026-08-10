@@ -16,6 +16,7 @@ import {
   MapPin,
   Eye,
   Loader2,
+  Plus,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -54,7 +55,7 @@ export default function AddedPropertiesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<
     "ALL" | "PENDING" | "APPROVED" | "REJECTED"
-  >("ALL");
+  >("PENDING");
 
   // States for Modals
   const [selectedProperty, setSelectedProperty] = useState<MockProperty | null>(
@@ -151,6 +152,33 @@ export default function AddedPropertiesPage() {
       propertyId: property.id,
       propertyName: property.propertyName,
     });
+  };
+
+  const handleAddProject = (property: MockProperty) => {
+    const propertyId = property.id;
+    const stateId =
+      property.raw?.state_id ||
+      property.raw?.state?.id ||
+      property.raw?.state?.state_id ||
+      "";
+    const cityId =
+      property.raw?.city_id ||
+      property.raw?.city?.id ||
+      property.raw?.city?.city_id ||
+      "";
+    const propertyName =
+      property.propertyName ||
+      property.raw?.property_name ||
+      property.raw?.name ||
+      "";
+
+    const params = new URLSearchParams();
+    if (propertyId) params.set("propertyId", String(propertyId));
+    if (stateId) params.set("stateId", String(stateId));
+    if (cityId) params.set("cityId", String(cityId));
+    if (propertyName) params.set("propertyName", propertyName);
+
+    router.push(`/properties/new?${params.toString()}`);
   };
 
   const handleConfirmAction = async () => {
@@ -369,6 +397,15 @@ export default function AddedPropertiesPage() {
                       <Eye className="size-3.5" />
                       <span>View Details</span>
                     </button>
+                    {!isAdmin && property.status !== "REJECTED" && (
+                      <button
+                        onClick={() => handleAddProject(property)}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white text-xs font-bold transition-all cursor-pointer"
+                      >
+                        <Plus className="size-3.5" />
+                        <span>Add Project</span>
+                      </button>
+                    )}
                     {isAdmin && property.status === "PENDING" && (
                       <>
                         <button
@@ -515,6 +552,16 @@ export default function AddedPropertiesPage() {
                           >
                             <Eye className="size-4" />
                           </button>
+                          {!isAdmin && property.status !== "REJECTED" && (
+                            <button
+                              onClick={() => handleAddProject(property)}
+                              className="inline-flex items-center justify-center py-2 px-3 rounded-lg bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white text-xs font-bold transition-all cursor-pointer hover:scale-105 gap-1.5"
+                              title="Add Project"
+                            >
+                              <Plus className="size-3.5" />
+                              <span>Add Project</span>
+                            </button>
+                          )}
                           {isAdmin && property.status === "PENDING" && (
                             <>
                               <button

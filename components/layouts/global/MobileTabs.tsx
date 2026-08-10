@@ -22,6 +22,7 @@ import {
   Images,
   DollarSign,
   UsersRound,
+  HomeIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/components/providers/user-provider";
@@ -177,6 +178,11 @@ export function MobileTabs() {
         name: "Admin Logs",
         href: "/admin/admin-logs",
         icon: History,
+      });
+      options.push({
+        name: "Property List",
+        href: "/admin/property-list",
+        icon: HomeIcon,
       });
     }
 

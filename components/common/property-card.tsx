@@ -4,7 +4,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   ArrowRight,
   MoreVertical,
-  Edit2,
   FileText,
   ShoppingCart,
   ShieldCheck,
@@ -226,17 +225,7 @@ export function PropertyCard({
                     <span className="text-xs font-bold">Open in Map</span>
                   </DropdownMenuItem>
                 )}
-                {isAdmin && (
-                  <DropdownMenuItem
-                    asChild
-                    className="gap-2 cursor-pointer py-2"
-                  >
-                    <Link href={`/properties/edit/${propertyId}`}>
-                      <Edit2 className="size-3.5" />
-                      <span className="text-xs font-bold">Edit</span>
-                    </Link>
-                  </DropdownMenuItem>
-                )}
+
                 {canVerify && (
                   <DropdownMenuItem
                     onClick={() => setIsVerifySidebarOpen(true)}

@@ -51,6 +51,11 @@ type Step =
 function NewPropertyForm({ initialStep }: PropertyAddProps) {
   const searchParams = useSearchParams();
   const initialPropertyId = searchParams.get("propertyId");
+  const paramStateId =
+    searchParams.get("stateId") || searchParams.get("state_id");
+  const paramCityId = searchParams.get("cityId") || searchParams.get("city_id");
+  const paramPropertyName =
+    searchParams.get("propertyName") || searchParams.get("property_name");
 
   const flow = searchParams.get("flow");
 
@@ -143,7 +148,9 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
     }
     return false;
   });
-  const [existingPropertyName, setExistingPropertyName] = useState<string>("");
+  const [existingPropertyName, setExistingPropertyName] = useState<string>(
+    () => paramPropertyName || "",
+  );
   const [states, setStates] = useState<StateOption[]>([]);
   const [cities, setCities] = useState<CityOption[]>([]);
   const [propertyOwners, setPropertyOwners] = useState<PropertyOwnerOption[]>(
@@ -184,9 +191,10 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           address: "",
           address2: "",
           property_type: "",
-          city_id: "",
+          city_id: paramCityId || "",
           city: "",
-          state: "",
+          state: paramStateId || "",
+          state_id: paramStateId || "",
           zip: "",
           property_name: storedName,
           property_owner_id: "",
@@ -199,11 +207,12 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
       address: "",
       address2: "",
       property_type: "",
-      city_id: "",
+      city_id: paramCityId || "",
       city: "",
-      state: "",
+      state: paramStateId || "",
+      state_id: paramStateId || "",
       zip: "",
-      property_name: "",
+      property_name: paramPropertyName || "",
       property_owner_id: "",
       latitude: 40.67,
       longitude: -73.94,
@@ -247,6 +256,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
         const propStateId =
           propertyPayload?.state_id ||
           propertyPayload?.state?.id ||
+          paramStateId ||
           addressData.state ||
           addressData.state_id;
 
@@ -273,7 +283,10 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           propertyPayload?.has_report === true ||
           propertyPayload?.has_report === "true";
         const propertyName =
-          propertyPayload?.property_name || propertyPayload?.name || "";
+          propertyPayload?.property_name ||
+          propertyPayload?.name ||
+          paramPropertyName ||
+          "";
 
         setHasExistingReport(reportFlag);
         setExistingPropertyName(propertyName);
@@ -292,9 +305,10 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
               propertyPayload.property_type_id ||
               propertyPayload.property_type?.id ||
               "",
-            city_id: propertyPayload.city_id || "",
+            city_id: propertyPayload.city_id || paramCityId || "",
             city: propertyPayload.city_name || propertyPayload.city?.name || "",
-            state: propertyPayload.state_id || "",
+            state: propertyPayload.state_id || paramStateId || "",
+            state_id: propertyPayload.state_id || paramStateId || "",
             zip: propertyPayload.zip || "",
             property_name: propertyName,
             property_owner_id: propertyPayload.property_owner_id || "",
@@ -317,6 +331,16 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
         }
       } catch (error) {
         console.error("Failed to load property summary:", error);
+        if (paramPropertyName || paramStateId || paramCityId) {
+          if (paramPropertyName) setExistingPropertyName(paramPropertyName);
+          setAddressData((prev) => ({
+            ...prev,
+            property_name: paramPropertyName || prev.property_name,
+            state: paramStateId || prev.state,
+            state_id: paramStateId || prev.state_id,
+            city_id: paramCityId || prev.city_id,
+          }));
+        }
       } finally {
         if (isMounted) {
           setIsInitializingProperty(false);
@@ -876,10 +900,17 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
 
             {step === "PROJECT" && (
               <CategorySelection
-                address={addressData.property_name}
+                address={addressData.property_name || existingPropertyName}
                 propertyId={tempPropertyId || ""}
-                stateId={addressData.state || addressData.state_id}
-                defaultGoverningCityId={addressData.city_id}
+                stateId={
+                  addressData.state ||
+                  addressData.state_id ||
+                  paramStateId ||
+                  ""
+                }
+                defaultGoverningCityId={
+                  addressData.city_id || paramCityId || ""
+                }
                 cities={cities}
                 onContinue={handleProjectCreate}
                 onBack={() =>
@@ -1032,7 +1063,9 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
                     disabled={submitting}
                     className="w-full h-[52px] md:h-[77px] bg-[#1F2A44] hover:bg-[#1a212c] disabled:opacity-60 text-white font-bold rounded-[10px] text-[18px] md:text-[24px] font-asap transition-colors flex items-center justify-center gap-3 cursor-pointer"
                   >
-                    {submitting ? "Submitting..." : "Go to Homepage"}
+                    {submitting
+                      ? "Submitting..."
+                      : "Save as Draft & Go to Home"}
                   </button>
                 </div>
 

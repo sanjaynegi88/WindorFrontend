@@ -55,7 +55,7 @@ export async function fetchApi<T = any>({
 }: FetchApiParams): Promise<FetchApiResponse<T>> {
     const actionStartTime = Date.now();
     const _url = API_URL + url;
-    console.log(`\n⏱️ [1. Action Start] ${method} ${_url} | ${new Date().toLocaleTimeString()}`);
+   // console.log(`\n⏱️ [1. Action Start] ${method} ${_url} | ${new Date().toLocaleTimeString()}`);
 
     const cookieStore = await cookies();
     let token = cookieStore.get('auth-token')?.value;
@@ -68,7 +68,7 @@ export async function fetchApi<T = any>({
     // Helper function to make the actual request
     async function makeRequest() {
         const fetchStartTime = Date.now();
-        console.log(`⏱️ [2. Backend Fetch Sent] ${method} ${_url} | Cookie setup: ${fetchStartTime - actionStartTime}ms`);
+       // console.log(`⏱️ [2. Backend Fetch Sent] ${method} ${_url} | Cookie setup: ${fetchStartTime - actionStartTime}ms`);
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
         try {
@@ -86,7 +86,7 @@ export async function fetchApi<T = any>({
                 signal: controller.signal,
             });
             const fetchEndTime = Date.now();
-            console.log(`⏱️ [3. Backend Response Recv] ${method} ${_url} | HTTP ${res.status} | Backend API Time: ${fetchEndTime - fetchStartTime}ms`);
+           // console.log(`⏱️ [3. Backend Response Recv] ${method} ${_url} | HTTP ${res.status} | Backend API Time: ${fetchEndTime - fetchStartTime}ms`);
             return res;
         } finally {
             clearTimeout(timer);
@@ -123,7 +123,7 @@ export async function fetchApi<T = any>({
             const errorData = await response.json().catch(() => ({}));
             const rawMsg = errorData?.message || errorData?.error || errorData?.errors || `Fetch failed: ${response.status} ${response.statusText}`;
             const normalizedMsg = Array.isArray(rawMsg) ? rawMsg.join(', ') : typeof rawMsg === 'object' && rawMsg !== null ? JSON.stringify(rawMsg) : String(rawMsg);
-            console.log(`⏱️ [4. Action Complete] ${method} ${_url} | Total Time: ${Date.now() - actionStartTime}ms (ERROR)\n`);
+           // console.log(`⏱️ [4. Action Complete] ${method} ${_url} | Total Time: ${Date.now() - actionStartTime}ms (ERROR)\n`);
             return { status: response.status, data: null, type: 'error', messages: normalizedMsg };
         }
 
@@ -139,7 +139,7 @@ export async function fetchApi<T = any>({
             if (contentType.includes('application/json')) {
                 responseData = await response.json();
             } else {
-                console.log(`⏱️ [4. Action Complete] ${method} ${_url} | Total Time: ${Date.now() - actionStartTime}ms (NON-JSON)\n`);
+               // console.log(`⏱️ [4. Action Complete] ${method} ${_url} | Total Time: ${Date.now() - actionStartTime}ms (NON-JSON)\n`);
                 return {
                     status: response.status,
                     data: null,
@@ -149,7 +149,7 @@ export async function fetchApi<T = any>({
             }
         }
 
-        console.log(`⏱️ [4. Action Complete] ${method} ${_url} | Total Time: ${Date.now() - actionStartTime}ms\n`);
+      //  console.log(`⏱️ [4. Action Complete] ${method} ${_url} | Total Time: ${Date.now() - actionStartTime}ms\n`);
 
         return {
             status: response.status,
@@ -159,7 +159,7 @@ export async function fetchApi<T = any>({
         };
     } catch (e: any) {
         const isAbort = e?.name === 'AbortError';
-        console.log(`⏱️ [4. Action Complete] ${method} ${_url} | Total Time: ${Date.now() - actionStartTime}ms (EXCEPTION)\n`);
+      //  console.log(`⏱️ [4. Action Complete] ${method} ${_url} | Total Time: ${Date.now() - actionStartTime}ms (EXCEPTION)\n`);
         return {
             status: isAbort ? 408 : 500,
             data: null,
@@ -875,6 +875,18 @@ export async function updateUserProfile(body: any): Promise<ActionResult> {
     return { success: true, data: response.data?.data ?? response.data };
 }
 
+export async function acknowledgeConversionToast(): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: "/api/subscriptions/acknowledge-toast",
+        method: "POST",
+    });
+    if (response.type === "error") {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to acknowledge conversion toast') };
+    }
+    return { success: true, data: response.data?.data ?? response.data };
+}
+
+
 export async function getUserList(page: number = 1, limit: number = 10, role?: string, search?: string) {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (role) params.append('role', role);
@@ -942,12 +954,11 @@ export async function getBrands(page: number = 1, limit: number = 10, category?:
         }
         return response.data;
     } catch (error) {
-
         throw error;
     }
 }
 
-export async function createBrand(body: { brand_name: string; description: string; is_active?: boolean }): Promise<ActionResult> {
+export async function createBrand(body: { name?: string; brand_name?: string; category?: string; description?: string; sub_brands?: string[]; is_active?: boolean }): Promise<ActionResult> {
     const response = await fetchApi({
         url: "/api/brands",
         method: "POST",
@@ -959,7 +970,7 @@ export async function createBrand(body: { brand_name: string; description: strin
     return { success: true, data: response.data };
 }
 
-export async function updateBrand(id: string, body: { brand_name?: string; description?: string; is_active?: boolean }): Promise<ActionResult> {
+export async function updateBrand(id: string, body: { name?: string; brand_name?: string; category?: string; description?: string; sub_brands?: string[]; is_active?: boolean }): Promise<ActionResult> {
     const response = await fetchApi({
         url: `/api/brands/${id}`,
         method: "PUT",
@@ -2533,6 +2544,7 @@ export async function getAddedPropertiesListing(params?: { page?: number; limit?
         url: `/api/properties/approvals/listing?${query}`,
         method: 'GET',
     });
+    
     if (response.type === 'error') {
         return { success: false, message: normalizeMsg(response.messages, 'Failed to fetch added properties') };
     }
@@ -2550,6 +2562,17 @@ export async function updatePropertyApproval(propertyId: string, status: 'APPROV
         method: 'PUT',
         data,
     });
+
+    const targetPropertyId = propertyId;
+        if (targetPropertyId) {
+            try {
+                await postReport(targetPropertyId);
+            } catch (err) {
+                console.error('Failed to auto-generate report on project confirm:', err);
+            }
+        }
+
+    
     if (response.type === 'error') {
         return { success: false, message: normalizeMsg(response.messages, `Failed to ${status.toLowerCase()} property`) };
     }

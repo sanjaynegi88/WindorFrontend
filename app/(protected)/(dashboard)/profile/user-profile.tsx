@@ -259,6 +259,8 @@ export default function UserProfile() {
   const [logsLoading, setLogsLoading] = useState(false);
   const router = useRouter();
   const { user: contextUser, setUser: setContextUser } = useUser();
+  console.log(user);
+  const [contractorProfileId, setContractorProfileId] = useState(null);
   const [purchaseUsersOpen, setPurchaseUsersOpen] = useState(false);
   const [purchaseUserCount, setPurchaseUserCount] = useState(1);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
@@ -300,8 +302,11 @@ export default function UserProfile() {
     role === "contractor" &&
     (user as any)?.is_directory === false &&
     (effectivelevel === "GOLD" || effectivelevel === "SILVER");
+  const showEditContractorProfile =
+    role === "contractor" && (user as any)?.is_directory === true;
 
   const showPurchasebtn = role === "contractor" && !isSubAccount;
+
   const handleAddContractorProfile = () => {
     localStorage.setItem("pending_level", effectivelevel);
     router.push("/profile-setup");
@@ -363,7 +368,7 @@ export default function UserProfile() {
     async function fetchProfile() {
       try {
         const data = await getUserProfile();
-
+        console.log("api response", data.directory_id);
         setUser({
           ...data,
           companyAddress: data.form_details?.companyAddress ?? null,
@@ -2122,6 +2127,29 @@ export default function UserProfile() {
                   </Button>
                 </div>
               )}
+              {/* {showEditContractorProfile && (
+                <div className="px-4 md:px-8 py-6 flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/10 shadow-sm">
+                      <Building2 className="size-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">Contractor Profile</p>
+                      <p className="text-xs text-muted-foreground font-medium">
+                        Add your business to the contractor directory
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleAddContractorProfile}
+                    size="sm"
+                    className="rounded-xl font-bold text-[10px] uppercase tracking-wider h-9 px-4"
+                  >
+                    Edit Profile
+                  </Button>
+                </div>
+              )} */}
               {showPurchasebtn && (
                 <div className="px-4 md:px-8 py-6 flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center gap-4">

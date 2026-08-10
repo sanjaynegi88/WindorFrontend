@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import Image from "next/image";
 import {
   getStates,
@@ -26,6 +26,8 @@ import {
   ArrowLeft,
   Building,
   Building2,
+  X,
+  Sparkles,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -115,6 +117,8 @@ function EditPropertyModal({
     property_name: "",
     property_owner_id: "",
   });
+
+  const initialAddressRef = useRef<AddressData | null>(null);
 
   const [states, setStates] = useState<StateOption[]>([]);
   const [cities, setCities] = useState<CityOption[]>([]);
@@ -215,7 +219,7 @@ function EditPropertyModal({
           propTypeId === "OTHER" ||
           !!otherPropType;
 
-        setAddressData({
+        const initialData: AddressData = {
           address: prop?.address || "",
           address2: prop?.address2 || "",
           property_type_id: isOtherProp ? propTypeId || "OTHER" : propTypeId,
@@ -233,7 +237,10 @@ function EditPropertyModal({
           property_owner_id: prop?.property_owner_id || "",
           latitude: prop?.latitude ? Number(prop.latitude) : undefined,
           longitude: prop?.longitude ? Number(prop.longitude) : undefined,
-        });
+        };
+
+        setAddressData(initialData);
+        initialAddressRef.current = initialData;
       } catch (err: any) {
         toast.error(err?.message || "Failed to load property details");
       } finally {
@@ -247,9 +254,31 @@ function EditPropertyModal({
     };
   }, [open, propertyId]);
 
-  const handleSaveAddress = async (e: React.FormEvent, nextStep?: string) => {
-    e.preventDefault();
-    if (!propertyId) return;
+  const hasAddressChanged = () => {
+    if (!initialAddressRef.current) return false;
+    const init = initialAddressRef.current;
+    const curr = addressData;
+
+    return (
+      (curr.address || "") !== (init.address || "") ||
+      (curr.address2 || "") !== (init.address2 || "") ||
+      (curr.property_type_id || "") !== (init.property_type_id || "") ||
+      (curr.property_type_category || "") !== (init.property_type_category || "") ||
+      (curr.other_property_type || "") !== (init.other_property_type || "") ||
+      (curr.property_name || "") !== (init.property_name || "") ||
+      (curr.city_id || "") !== (init.city_id || "") ||
+      (curr.other_city || "") !== (init.other_city || "") ||
+      (curr.state || "") !== (init.state || "") ||
+      (curr.zip || "") !== (init.zip || "") ||
+      (curr.property_owner_id || "") !== (init.property_owner_id || "") ||
+      curr.latitude !== init.latitude ||
+      curr.longitude !== init.longitude
+    );
+  };
+
+  const handleSaveAddress = async (e?: React.FormEvent, nextStep?: string) => {
+    if (e) e.preventDefault();
+    if (!propertyId) return false;
 
     setSaving(true);
     try {
@@ -296,67 +325,91 @@ function EditPropertyModal({
 
       if (!res?.success) {
         toast.error(res?.message || "Failed to update property address");
-        return;
+        return false;
       }
 
+      initialAddressRef.current = { ...addressData };
       toast.success("Property address updated successfully");
       if (nextStep === "IMAGES") {
         setActiveTab("photos");
-      } else {
+      } else if (nextStep === "CLOSE") {
         onSuccess();
         onOpenChange(false);
       }
+      return true;
     } catch (err: any) {
       toast.error(err?.message || "Failed to save address");
+      return false;
     } finally {
       setSaving(false);
     }
   };
 
+  const handleTabSwitch = async (targetTab: "address" | "photos") => {
+    if (targetTab === activeTab || saving) return;
+
+    if (activeTab === "address" && targetTab === "photos") {
+      if (hasAddressChanged()) {
+        await handleSaveAddress(undefined, "IMAGES");
+      } else {
+        setActiveTab("photos");
+      }
+    } else {
+      setActiveTab(targetTab);
+    }
+  };
+
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto rounded-[20px] p-6 border-none shadow-2xl">
+      <DialogContent className="w-[95vw] sm:max-w-[900px] max-h-[90vh] overflow-y-auto rounded-[16px] sm:rounded-[24px] p-4 sm:p-6 border-none shadow-2xl bg-white focus:outline-none">
         <DialogHeader className="border-b pb-4">
-          <DialogTitle className="text-xl md:text-2xl font-black text-[#1F2A44] uppercase font-asap tracking-tight">
+          <DialogTitle className="text-lg sm:text-2xl font-black text-[#1F2A44] uppercase font-asap tracking-tight">
             Edit Property
           </DialogTitle>
-          <DialogDescription className="text-sm text-gray-500 font-medium">
+          <DialogDescription className="text-xs sm:text-sm text-gray-500 font-medium">
             Update address information and property photos
           </DialogDescription>
 
-          <div className="flex items-center gap-3 pt-3">
+          {/* Responsive Tab Switcher */}
+          <div className="grid grid-cols-2 gap-2 pt-3 w-full sm:w-auto sm:flex sm:items-center sm:gap-3">
             <Button
               type="button"
+              disabled={saving}
               variant={activeTab === "address" ? "primary" : "outline"}
-              onClick={() => setActiveTab("address")}
-              className={`h-9 px-4 rounded-xl font-bold uppercase tracking-wider text-xs ${
+              onClick={() => handleTabSwitch("address")}
+              className={`h-10 px-3 sm:px-4 rounded-xl font-bold uppercase tracking-wider text-xs w-full sm:w-auto transition-all ${
                 activeTab === "address"
-                  ? "bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white"
-                  : "border-[#1CA7A6] text-[#1CA7A6]"
+                  ? "bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white shadow-sm shadow-[#1CA7A6]/30"
+                  : "border-[#1CA7A6]/50 text-[#1CA7A6] hover:bg-[#1CA7A6]/10"
               }`}
             >
               1. Address Details
             </Button>
             <Button
               type="button"
+              disabled={saving}
               variant={activeTab === "photos" ? "primary" : "outline"}
-              onClick={() => setActiveTab("photos")}
-              className={`h-9 px-4 rounded-xl font-bold uppercase tracking-wider text-xs ${
+              onClick={() => handleTabSwitch("photos")}
+              className={`h-10 px-3 sm:px-4 rounded-xl font-bold uppercase tracking-wider text-xs w-full sm:w-auto transition-all ${
                 activeTab === "photos"
-                  ? "bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white"
-                  : "border-[#1CA7A6] text-[#1CA7A6]"
+                  ? "bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white shadow-sm shadow-[#1CA7A6]/30"
+                  : "border-[#1CA7A6]/50 text-[#1CA7A6] hover:bg-[#1CA7A6]/10"
               }`}
             >
+              {saving && activeTab === "address" ? (
+                <Loader2 className="size-3.5 animate-spin mr-1" />
+              ) : null}
               2. Property Photos
             </Button>
           </div>
         </DialogHeader>
 
-        <div className="py-4">
+        <div className="py-2 sm:py-4">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <Loader2 className="size-8 animate-spin text-[#1CA7A6]" />
-              <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">
+              <p className="text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-wider">
                 Loading property details...
               </p>
             </div>
@@ -768,15 +821,20 @@ export default function PropertyListPage() {
     }
   };
 
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setAppliedSearch("");
+  };
+
   return (
-    <div className="p-4 md:p-8 space-y-6 max-w-[1400px] w-full mx-auto">
+    <div className="p-3.5 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 max-w-[1400px] w-full mx-auto pb-12">
       {/* Header & Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-black text-[#1F2A44] uppercase font-asap tracking-tight">
+      <div className="flex flex-row items-center justify-between gap-3 border-b pb-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-[#1F2A44] uppercase font-asap tracking-tight truncate">
             Property Listing
           </h1>
-          <p className="text-sm font-medium text-gray-500 mt-1">
+          <p className="text-xs sm:text-sm font-medium text-gray-500 mt-0.5 truncate">
             Browse and manage properties by State and City
           </p>
         </div>
@@ -788,36 +846,36 @@ export default function PropertyListPage() {
               if (level === "property") setLevel("city");
               else if (level === "city") setLevel("state");
             }}
-            className="self-start sm:self-auto gap-2 border-[#1CA7A6] text-[#1CA7A6] hover:bg-[#1CA7A6]/10 font-bold uppercase tracking-wider text-xs h-9 px-4 rounded-xl"
+            className="shrink-0 gap-1.5 border-[#1CA7A6] text-[#1CA7A6] hover:bg-[#1CA7A6]/10 font-bold uppercase tracking-wider text-xs h-9 px-3 sm:px-4 rounded-xl transition-all"
           >
             <ArrowLeft className="size-4" />
-            Back
+            <span>Back</span>
           </Button>
         )}
       </div>
 
       {/* Breadcrumb Navigation Bar */}
-      <div className="flex items-center gap-2 text-xs md:text-sm font-bold uppercase tracking-wider bg-slate-50 p-3.5 rounded-xl border border-slate-200 overflow-x-auto">
-        <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-bold uppercase tracking-wider bg-slate-50/80 backdrop-blur p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border border-slate-200 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => {
               setSelectedState(null);
               setSelectedCity(null);
               setLevel("state");
             }}
-            className={`flex items-center gap-1.5 transition-colors ${
+            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-colors ${
               level === "state"
-                ? "text-[#1CA7A6] font-black"
-                : "text-gray-500 hover:text-[#1CA7A6]"
+                ? "text-[#1CA7A6] bg-[#1CA7A6]/10 font-black"
+                : "text-gray-600 hover:text-[#1CA7A6] hover:bg-white"
             }`}
           >
-            <Building className="size-4" />
-            States
+            <Building className="size-4 shrink-0" />
+            <span>States</span>
           </button>
           {level === "state" &&
             (paginationInfo.total_properties !== undefined ||
               totalStatesProperties > 0) && (
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
                 {paginationInfo.total_properties ?? totalStatesProperties}{" "}
                 {(paginationInfo.total_properties ?? totalStatesProperties) ===
                 1
@@ -830,23 +888,25 @@ export default function PropertyListPage() {
         {selectedState && (
           <>
             <ChevronRight className="size-4 text-gray-400 shrink-0" />
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => {
                   setSelectedCity(null);
                   setLevel("city");
                 }}
-                className={`flex items-center gap-1.5 transition-colors ${
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-colors ${
                   level === "city"
-                    ? "text-[#1CA7A6] font-black"
-                    : "text-gray-500 hover:text-[#1CA7A6]"
+                    ? "text-[#1CA7A6] bg-[#1CA7A6]/10 font-black"
+                    : "text-gray-600 hover:text-[#1CA7A6] hover:bg-white"
                 }`}
               >
-                <Building2 className="size-4" />
-                {selectedState.name}
+                <Building2 className="size-4 shrink-0" />
+                <span className="max-w-[120px] sm:max-w-[200px] truncate">
+                  {selectedState.name}
+                </span>
               </button>
               {level === "city" && (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
                   {totalSelectedStateProperties}{" "}
                   {totalSelectedStateProperties === 1
                     ? "Property"
@@ -860,12 +920,14 @@ export default function PropertyListPage() {
         {selectedCity && level === "property" && (
           <>
             <ChevronRight className="size-4 text-gray-400 shrink-0" />
-            <div className="flex items-center gap-2 shrink-0 truncate">
-              <span className="text-[#1CA7A6] font-black flex items-center gap-1.5 truncate">
-                <MapPin className="size-4" />
-                {selectedCity.name} (Properties)
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-[#1CA7A6] font-black flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#1CA7A6]/10 shrink-0">
+                <MapPin className="size-4 shrink-0" />
+                <span className="max-w-[120px] sm:max-w-[200px] truncate">
+                  {selectedCity.name}
+                </span>
               </span>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
                 {totalSelectedCityProperties}{" "}
                 {totalSelectedCityProperties === 1 ? "Property" : "Properties"}
               </span>
@@ -875,9 +937,9 @@ export default function PropertyListPage() {
       </div>
 
       {/* Search Input Bar */}
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" />
           <Input
             type="text"
             placeholder={
@@ -894,15 +956,24 @@ export default function PropertyListPage() {
                 setAppliedSearch(searchQuery);
               }
             }}
-            className="pl-10 h-11 rounded-xl border-gray-300 focus:border-[#1CA7A6] focus:ring-[#1CA7A6]/20 font-medium"
+            className="pl-10 pr-9 h-11 sm:h-12 rounded-xl border-gray-300 focus:border-[#1CA7A6] focus:ring-[#1CA7A6]/20 font-medium text-xs sm:text-sm"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={handleClearSearch}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+            >
+              <X className="size-4" />
+            </button>
+          )}
         </div>
         <Button
           onClick={() => setAppliedSearch(searchQuery)}
-          className="h-15 px-5 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-widest gap-1.5 shrink-0"
+          className="h-11 sm:h-12 px-4 sm:px-6 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-wider gap-1.5 shrink-0 shadow-sm transition-all active:scale-95"
         >
           <Search className="size-4" />
-          <span className="text-[12px]">Search</span>
+          <span className="hidden sm:inline">Search</span>
         </Button>
       </div>
 
@@ -910,7 +981,7 @@ export default function PropertyListPage() {
       {loading && page === 1 ? (
         <div className="space-y-3">
           {[1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="h-[68px] rounded-[10px]" />
+            <Skeleton key={i} className="h-[76px] sm:h-[68px] rounded-[14px]" />
           ))}
         </div>
       ) : (
@@ -919,50 +990,72 @@ export default function PropertyListPage() {
           {level === "state" && (
             <div className="space-y-3">
               {states.length === 0 ? (
-                <div className="text-center py-16 bg-gray-50 rounded-[2rem] border border-dashed">
-                  <p className="text-gray-400 font-black uppercase tracking-widest text-base">
+                <div className="text-center py-12 sm:py-16 bg-gray-50 rounded-[1.5rem] sm:rounded-[2rem] border border-dashed p-6 space-y-3">
+                  <Building className="size-10 text-gray-300 mx-auto" />
+                  <p className="text-gray-400 font-bold uppercase tracking-widest text-sm sm:text-base">
                     No states found.
                   </p>
+                  {appliedSearch && (
+                    <Button
+                      variant="outline"
+                      onClick={handleClearSearch}
+                      className="text-xs font-bold border-[#1CA7A6] text-[#1CA7A6]"
+                    >
+                      Clear Search Filter
+                    </Button>
+                  )}
                 </div>
               ) : (
                 states.map((stateItem) => (
                   <div
                     key={stateItem.id}
-                    className="flex items-center gap-3 md:gap-4 px-4 md:px-6 py-3 md:py-4 bg-white border border-[#1CA7A6] rounded-[10px] hover:shadow-md transition-all"
+                    className="group relative bg-white border border-slate-200 hover:border-[#1CA7A6] rounded-[14px] p-3.5 sm:p-4 hover:shadow-md transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
                   >
-                    <div className="shrink-0 p-2.5 bg-[#1CA7A6]/10 rounded-full text-[#1CA7A6]">
-                      <Building className="size-6" />
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="shrink-0 p-2.5 sm:p-3 bg-[#1CA7A6]/10 text-[#1CA7A6] rounded-xl group-hover:bg-[#1CA7A6] group-hover:text-white transition-colors duration-200">
+                        <Building className="size-5 sm:size-6" />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm sm:text-base font-black text-[#1e293b] uppercase tracking-tight font-asap truncate">
+                            {stateItem.name}
+                          </h3>
+
+                          {stateItem.abbreviation && (
+                            <span className="text-xs font-bold text-gray-400 uppercase">
+                              ({stateItem.abbreviation})
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                          {stateItem.city_count !== undefined &&
+                            stateItem.city_count !== null && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-[#1CA7A6] border border-[#1CA7A6]/20 font-asap shrink-0">
+                                {stateItem.city_count}{" "}
+                                {stateItem.city_count === 1 ? "City" : "Cities"}
+                              </span>
+                            )}
+
+                          {stateItem.property_count !== undefined &&
+                            stateItem.property_count !== null && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-[#1CA7A6] border border-[#1CA7A6]/20 font-asap shrink-0">
+                                {stateItem.property_count}{" "}
+                                {stateItem.property_count === 1
+                                  ? "Property"
+                                  : "Properties"}
+                              </span>
+                            )}
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="flex-1 min-w-0 flex items-center gap-3 flex-wrap">
-                      <h3 className="text-sm md:text-base font-black text-[#1e293b] uppercase tracking-tight font-asap truncate">
-                        {stateItem.name}
-                      </h3>
-
-                      {stateItem.city_count !== undefined &&
-                        stateItem.city_count !== null && (
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
-                            {stateItem.city_count}{" "}
-                            {stateItem.city_count === 1 ? "City" : "Cities"}
-                          </span>
-                        )}
-
-                      {stateItem.property_count !== undefined &&
-                        stateItem.property_count !== null && (
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
-                            {stateItem.property_count}{" "}
-                            {stateItem.property_count === 1
-                              ? "Property"
-                              : "Properties"}
-                          </span>
-                        )}
-                    </div>
-
-                    <div className="shrink-0">
+                    <div className="flex items-center justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto">
                       <Button
                         size="sm"
                         onClick={() => handleSelectState(stateItem)}
-                        className="h-8 md:h-9 px-3 md:px-4 rounded-lg bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-widest gap-1.5"
+                        className="w-full sm:w-auto h-9 px-4 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95"
                       >
                         <Eye className="size-3.5" />
                         <span>View Cities</span>
@@ -978,49 +1071,61 @@ export default function PropertyListPage() {
           {level === "city" && (
             <div className="space-y-3">
               {cities.length === 0 ? (
-                <div className="text-center py-16 bg-gray-50 rounded-[2rem] border border-dashed">
-                  <p className="text-gray-400 font-black uppercase tracking-widest text-base">
+                <div className="text-center py-12 sm:py-16 bg-gray-50 rounded-[1.5rem] sm:rounded-[2rem] border border-dashed p-6 space-y-3">
+                  <MapPin className="size-10 text-gray-300 mx-auto" />
+                  <p className="text-gray-400 font-bold uppercase tracking-widest text-sm sm:text-base">
                     No cities found for {selectedState?.name}.
                   </p>
+                  {appliedSearch && (
+                    <Button
+                      variant="outline"
+                      onClick={handleClearSearch}
+                      className="text-xs font-bold border-[#1CA7A6] text-[#1CA7A6]"
+                    >
+                      Clear Search Filter
+                    </Button>
+                  )}
                 </div>
               ) : (
                 cities.map((cityItem) => (
                   <div
                     key={cityItem.id}
-                    className="flex items-center gap-3 md:gap-4 px-4 md:px-6 py-3 md:py-4 bg-white border border-[#1CA7A6] rounded-[10px] hover:shadow-md transition-all"
+                    className="group relative bg-white border border-slate-200 hover:border-[#1CA7A6] rounded-[14px] p-3.5 sm:p-4 hover:shadow-md transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
                   >
-                    <div className="shrink-0 p-2.5 bg-[#1CA7A6]/10 rounded-full text-[#1CA7A6]">
-                      <MapPin className="size-6" />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <h3 className="text-sm md:text-base font-black text-[#1e293b] uppercase tracking-tight font-asap truncate">
-                          {cityItem.name}
-                        </h3>
-
-                        {cityItem.property_count !== undefined &&
-                          cityItem.property_count !== null && (
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
-                              {cityItem.property_count}{" "}
-                              {cityItem.property_count === 1
-                                ? "Property"
-                                : "Properties"}
-                            </span>
-                          )}
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="shrink-0 p-2.5 sm:p-3 bg-[#1CA7A6]/10 text-[#1CA7A6] rounded-xl group-hover:bg-[#1CA7A6] group-hover:text-white transition-colors duration-200">
+                        <MapPin className="size-5 sm:size-6" />
                       </div>
 
-                      <p className="text-xs font-bold text-gray-400 mt-0.5">
-                        State: {selectedState?.name}{" "}
-                        {cityItem.zip ? `| Zip: ${cityItem.zip}` : ""}
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm sm:text-base font-black text-[#1e293b] uppercase tracking-tight font-asap truncate">
+                            {cityItem.name}
+                          </h3>
+
+                          {cityItem.property_count !== undefined &&
+                            cityItem.property_count !== null && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-[#1CA7A6] border border-[#1CA7A6]/20 font-asap shrink-0">
+                                {cityItem.property_count}{" "}
+                                {cityItem.property_count === 1
+                                  ? "Property"
+                                  : "Properties"}
+                              </span>
+                            )}
+                        </div>
+
+                        <p className="text-xs font-semibold text-gray-400 mt-0.5">
+                          State: {selectedState?.name}{" "}
+                          {cityItem.zip ? `| Zip: ${cityItem.zip}` : ""}
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="shrink-0">
+                    <div className="flex items-center justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto">
                       <Button
                         size="sm"
                         onClick={() => handleSelectCity(cityItem)}
-                        className="h-8 md:h-9 px-3 md:px-4 rounded-lg bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-widest gap-1.5"
+                        className="w-full sm:w-auto h-9 px-4 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95"
                       >
                         <Eye className="size-3.5" />
                         <span>View Properties</span>
@@ -1036,64 +1141,71 @@ export default function PropertyListPage() {
           {level === "property" && (
             <div className="space-y-3">
               {properties.length === 0 ? (
-                <div className="text-center py-16 bg-gray-50 rounded-[2rem] border border-dashed">
-                  <p className="text-gray-400 font-black uppercase tracking-widest text-base">
+                <div className="text-center py-12 sm:py-16 bg-gray-50 rounded-[1.5rem] sm:rounded-[2rem] border border-dashed p-6 space-y-3">
+                  <Building2 className="size-10 text-gray-300 mx-auto" />
+                  <p className="text-gray-400 font-bold uppercase tracking-widest text-sm sm:text-base">
                     No properties found in {selectedCity?.name},{" "}
                     {selectedState?.name}.
                   </p>
+                  {appliedSearch && (
+                    <Button
+                      variant="outline"
+                      onClick={handleClearSearch}
+                      className="text-xs font-bold border-[#1CA7A6] text-[#1CA7A6]"
+                    >
+                      Clear Search Filter
+                    </Button>
+                  )}
                 </div>
               ) : (
                 properties.map((prop) => (
                   <div
                     key={prop.id}
-                    className="flex items-center gap-3 md:gap-4 px-4 md:px-6 py-3 md:py-4 bg-white border border-[#1CA7A6] rounded-[10px] hover:shadow-md transition-all"
+                    className="group relative bg-white border border-slate-200 hover:border-[#1CA7A6] rounded-[14px] p-3.5 sm:p-4 hover:shadow-md transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
                   >
-                    <div className="shrink-0">
-                      <Image
-                        src="/assets/home-icon.png"
-                        alt="property"
-                        width={36}
-                        height={36}
-                        className="md:hidden"
-                      />
-                      <Image
-                        src="/assets/home-icon.png"
-                        alt="property"
-                        width={44}
-                        height={44}
-                        className="hidden md:block"
-                      />
+                    <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                      <div className="shrink-0 p-2 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center">
+                        <Image
+                          src="/assets/home-icon.png"
+                          alt="property"
+                          width={36}
+                          height={36}
+                          className="sm:w-[40px] sm:h-[40px] object-contain"
+                        />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm sm:text-base font-black text-[#1e293b] uppercase tracking-tight font-asap truncate">
+                          {prop.address}
+                        </h3>
+                        <p className="flex items-center gap-1 text-xs sm:text-sm font-semibold text-gray-500 mt-0.5 flex-wrap">
+                          <MapPin className="size-3.5 text-[#1CA7A6] shrink-0" />
+                          <span className="truncate">
+                            {prop.city_name}
+                            {prop.city_name && prop.state_name ? ", " : ""}
+                            {prop.state_name} {prop.zip}
+                          </span>
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm md:text-base font-black text-[#1e293b] uppercase tracking-tight font-asap truncate">
-                        {prop.address}
-                      </h3>
-                      <p className="flex items-center gap-1 text-xs md:text-sm font-bold text-gray-400 mt-0.5">
-                        <MapPin className="size-3 shrink-0" />
-                        {prop.city_name}
-                        {prop.city_name && prop.state_name ? ", " : ""}
-                        {prop.state_name} {prop.zip}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto">
                       <Button
                         size="sm"
                         onClick={() => handleOpenEditModal(prop.id)}
-                        className="h-8 md:h-9 px-3 md:px-4 rounded-lg bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-widest gap-1.5"
+                        className="flex-1 sm:flex-none h-9 px-3.5 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
                       >
                         <Edit className="size-3.5" />
-                        <span className="hidden sm:inline">Edit</span>
+                        <span>Edit</span>
                       </Button>
 
                       <Button
                         size="sm"
                         onClick={() => setPropertyToDelete(prop)}
-                        className="h-8 md:h-9 px-3 md:px-4 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold text-xs uppercase tracking-widest gap-1.5"
+                        className="flex-1 sm:flex-none h-9 px-3.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all"
                       >
                         <Trash2 className="size-3.5" />
-                        <span className="hidden sm:inline">Delete</span>
+                        <span>Delete</span>
                       </Button>
                     </div>
                   </div>
@@ -1108,7 +1220,7 @@ export default function PropertyListPage() {
                 variant="ghost"
                 onClick={handleLoadMore}
                 disabled={loadingMore}
-                className="gap-2 font-black uppercase tracking-widest text-[#1CA7A6] hover:bg-[#1CA7A6]/10 h-10 px-6 rounded-xl"
+                className="gap-2 font-black uppercase tracking-widest text-[#1CA7A6] hover:bg-[#1CA7A6]/10 h-10 px-6 rounded-xl transition-all"
               >
                 {loadingMore && <Loader2 className="size-4 animate-spin" />}
                 Load More
@@ -1133,12 +1245,12 @@ export default function PropertyListPage() {
         open={!!propertyToDelete}
         onOpenChange={(open) => !open && setPropertyToDelete(null)}
       >
-        <AlertDialogContent className="sm:max-w-[425px] rounded-[20px] border-none shadow-[0px_4px_34px_rgba(31,42,68,0.1)]">
+        <AlertDialogContent className="w-[95vw] max-w-[425px] rounded-[20px] border-none shadow-2xl p-5 sm:p-6 bg-white">
           <AlertDialogHeader className="space-y-3">
-            <AlertDialogTitle className="text-xl md:text-2xl font-black text-[#1F2A44] uppercase tracking-tight font-asap">
+            <AlertDialogTitle className="text-xl sm:text-2xl font-black text-[#1F2A44] uppercase tracking-tight font-asap">
               Delete Property
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-sm text-gray-600 font-medium leading-relaxed">
+            <AlertDialogDescription className="text-xs sm:text-sm text-gray-600 font-medium leading-relaxed">
               Are you sure you want to delete{" "}
               <span className="font-bold text-[#1F2A44]">
                 "{propertyToDelete?.address}"
@@ -1146,17 +1258,17 @@ export default function PropertyListPage() {
               ? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 sm:gap-2 mt-4">
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-2 mt-4">
             <AlertDialogCancel
               disabled={isDeleting}
-              className="h-11 rounded-xl font-bold uppercase tracking-widest border-2 hover:bg-gray-50"
+              className="h-11 w-full sm:w-auto rounded-xl font-bold uppercase tracking-wider border-2 hover:bg-gray-50 text-xs"
             >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeletePropertyConfirm}
               disabled={isDeleting}
-              className="h-11 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black uppercase tracking-widest gap-2"
+              className="h-11 w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white rounded-xl font-black uppercase tracking-wider gap-2 text-xs"
             >
               {isDeleting && <Loader2 className="size-4 animate-spin" />}
               Delete

@@ -501,10 +501,23 @@ function ContractorForm({
               )}
             />
           </div>
+          <StateSelect
+            name="state_id"
+            label="State"
+            valueType="id"
+            placeholder="Select a state"
+            onSelectState={(st) => {
+              form.setValue("state_id", st.id);
+              form.setValue("city_id", "");
+            }}
+          />
           <CitySelect
             name="city_id"
+            label="City"
             valueType="id"
+            stateValue={form.watch("state_id")}
             placeholder="Select a city"
+            syncState={true}
           />
           <FormField
             control={form.control}

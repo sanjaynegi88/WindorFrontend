@@ -134,7 +134,8 @@ export function CategorySelection({
             const filtered = cities.filter(
               (c) => !c.state_id || String(c.state_id) === String(stateId),
             );
-            if (isMounted) setStateCities(filtered.length > 0 ? filtered : cities);
+            if (isMounted)
+              setStateCities(filtered.length > 0 ? filtered : cities);
           }
         });
     } else {
@@ -433,7 +434,7 @@ export function CategorySelection({
       ...(isPropertyOwner ? { visible_status: visibility } : {}),
     };
 
-    console.log("selected city id", governingCity);
+    //console.log("selected city id", governingCity);
 
     const changed = compareWithInitial(body);
     setHasChanges(changed);

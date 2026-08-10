@@ -21,7 +21,12 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { downloadPdfFromUrl, getErrorMessage, toPascalCase, cn } from "@/lib/utils";
+import {
+  downloadPdfFromUrl,
+  getErrorMessage,
+  toPascalCase,
+  cn,
+} from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
@@ -30,18 +35,18 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { AwsImage } from "@/components/common/aws-image";
 import { useUser } from "@/components/providers/user-provider";
 
-type TabType = 'all' | 'completed' | 'draft';
+type TabType = "all" | "completed" | "draft";
 
 const getIsConfirmedParam = (tab: TabType): boolean | undefined => {
-  if (tab === 'completed') return true;
-  if (tab === 'draft') return false;
+  if (tab === "completed") return true;
+  if (tab === "draft") return false;
   return undefined;
 };
 
 export default function MyProjectList() {
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>('all');
+  const [activeTab, setActiveTab] = useState<TabType>("all");
   const [expandedProjects, setExpandedProjects] = useState<
     Record<string, boolean>
   >({});
@@ -96,7 +101,11 @@ export default function MyProjectList() {
     }
   };
 
-  const fetchProjects = async (pageNum: number, append: boolean = false, currentTab: TabType = activeTab) => {
+  const fetchProjects = async (
+    pageNum: number,
+    append: boolean = false,
+    currentTab: TabType = activeTab,
+  ) => {
     if (pageNum === 1 && !append) {
       setLoading(true);
     } else if (append) {
@@ -276,7 +285,7 @@ export default function MyProjectList() {
                     "px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all font-asap cursor-pointer",
                     isActive
                       ? "bg-[#1CA7A6] text-white shadow-xs"
-                      : "text-[#708090] hover:text-[#1F2A44] hover:bg-white/60"
+                      : "text-[#708090] hover:text-[#1F2A44] hover:bg-white/60",
                   )}
                 >
                   {tab.label}
@@ -393,6 +402,8 @@ export default function MyProjectList() {
 
               const actualProjectId =
                 project.id ?? project.project_id ?? project._id;
+
+              console.log("actualProjectId", actualProjectId);
               const handleAddInstallation = (project: any) => {
                 router.push(
                   `/properties/edit/${property.id}?projectId=${actualProjectId}&noInstallation=true`,

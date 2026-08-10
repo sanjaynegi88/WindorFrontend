@@ -36,7 +36,6 @@ import { toPascalCase } from "@/lib/utils";
 
 type InstallationType = "roofing" | "siding" | "window_door" | string;
 type EditStep =
-  | "SELECT"
   | "EDIT_ADDRESS"
   | "EDIT_PROJECT"
   | "EDIT_INSTALLATION"
@@ -111,7 +110,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
 
   const [property, setProperty] = useState<any>(null);
   const [loadingProperty, setLoadingProperty] = useState(true);
-  const [step, setStep] = useState<EditStep>("SELECT");
+  const [step, setStep] = useState<EditStep>("EDIT_PROJECT");
   const [selectedComponent, setSelectedComponent] = useState<Component | null>(
     null,
   );
@@ -166,19 +165,18 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
 
         const propStateId = prop?.state_id || prop?.state?.id;
 
-        const [statesRes, citiesRes, ownersRes, typesRes] =
-          await Promise.all([
-            getStates(1, 1000),
-            getCities(
-              undefined,
-              undefined,
-              undefined,
-              undefined,
-              propStateId || undefined,
-            ),
-            role === "admin" ? getPropertyOwners() : Promise.resolve([]),
-            getPropertyTypes(),
-          ]);
+        const [statesRes, citiesRes, ownersRes, typesRes] = await Promise.all([
+          getStates(1, 1000),
+          getCities(
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            propStateId || undefined,
+          ),
+          role === "admin" ? getPropertyOwners() : Promise.resolve([]),
+          getPropertyTypes(),
+        ]);
 
         const rawStates: any[] = Array.isArray(statesRes)
           ? statesRes
@@ -272,13 +270,15 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
         const editAddressParam = searchParams.get("editAddress") === "true";
         if (editAddressParam) {
           setStep("EDIT_ADDRESS");
-        } else if (searchProjectId) {
-          const matchedProj = prop?.projects?.find(
-            (p: any) =>
-              String(p.id ?? p.project_id ?? p._id) === searchProjectId,
-          );
-          setSelectedProject(matchedProj || { id: searchProjectId });
+        } else {
+          const matchedProj = searchProjectId
+            ? prop?.projects?.find(
+                (p: any) =>
+                  String(p.id ?? p.project_id ?? p._id) === searchProjectId,
+              )
+            : prop?.projects?.[0];
           if (matchedProj) {
+            setSelectedProject(matchedProj);
             const ownerId =
               prop?.property_owner_id ||
               prop?.property_owner?.id ||
@@ -303,6 +303,8 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                 matchedProj.created_by_email.toLowerCase() ===
                   ownerEmail.toLowerCase());
             setIsOwnerProjectType(isOwner);
+          } else if (searchProjectId) {
+            setSelectedProject({ id: searchProjectId });
           }
           setSelectedComponent(null);
           setNewInstallationType(null);
@@ -322,7 +324,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       setStep("EDIT_ADDRESS");
       return;
     }
-    if (role && role !== "admin" && step === "SELECT" && property) {
+    if (step === "EDIT_PROJECT" && property && !selectedProject) {
       const projects = property.projects ?? [];
       const searchProjectId = searchParams.get("projectId");
       let matchedProj = null;
@@ -331,20 +333,13 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
           (p: any) => String(p.id ?? p.project_id ?? p._id) === searchProjectId,
         );
         setSelectedProject(matchedProj || { id: searchProjectId });
-        setSelectedComponent(null);
-        setNewInstallationType(null);
-        setStep("EDIT_PROJECT");
       } else if (projects.length > 0) {
-        matchedProj = projects[0];
-        setSelectedProject(matchedProj);
-        setSelectedComponent(null);
-        setNewInstallationType(null);
-        setStep("EDIT_PROJECT");
-      } else {
-        setStep("EDIT_PROJECT");
+        setSelectedProject(projects[0]);
       }
+      setSelectedComponent(null);
+      setNewInstallationType(null);
     }
-  }, [role, step, property, searchParams]);
+  }, [step, property, searchParams, selectedProject]);
 
   useEffect(() => {
     const projId =
@@ -584,7 +579,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       if (nextStep === "IMAGES") {
         setStep("EDIT_PHOTOS");
       } else {
-        setStep("SELECT");
+        setStep("EDIT_PROJECT");
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to update address");
@@ -714,7 +709,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       } else {
         setSelectedComponent(null);
         setSelectedProject(null);
-        setStep("SELECT");
+        setStep("EDIT_PROJECT");
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to update installation");
@@ -723,7 +718,6 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
     }
   };
 
-  // Projects with components (installations)
   const projects: any[] = property?.projects ?? [];
 
   const saveNewInstallationBase = async (
@@ -743,7 +737,6 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       install_date: values.installDate,
       supplier: values.supplier,
       installer: values.installer,
-      //manufacturer: values.manufacturer || null,
       ...(values.brand && !isCustomBrand && { brand_id: values.brand }),
       ...(isCustomBrand && {
         other_brand: values.brand.slice("__custom__:".length),
@@ -848,7 +841,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       } else {
         setNewInstallationType(null);
         setSelectedProject(null);
-        setStep("SELECT");
+        setStep("EDIT_PROJECT");
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to add installation");
@@ -898,146 +891,6 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
               </div>
             )}
 
-            {/* ── SELECT ── */}
-            {!loadingProperty &&
-              step === "SELECT" &&
-              property &&
-              role === "admin" && (
-                <div className="w-full max-w-[1170px] mx-auto space-y-[20px] md:space-y-[40px] animate-in fade-in slide-in-from-bottom-4 duration-500 font-asap px-[20px] md:px-0">
-                  <div className="text-center space-y-[10px] md:space-y-[15px]">
-                    <h2 className="text-[24px] md:text-[36px] font-bold text-[#1F2A44] uppercase leading-tight md:leading-[41px]">
-                      {property.address || "Edit Property"}
-                    </h2>
-                    <p className="text-[#1CA7A6] font-medium text-[20px] md:text-[30px] leading-tight md:leading-[34px]">
-                      What would you like to edit?
-                    </p>
-                  </div>
-
-                  <div className="space-y-[12px] md:space-y-[14px]">
-                    {/* Edit Address */}
-                    <button
-                      onClick={() => setStep("EDIT_ADDRESS")}
-                      className="w-full h-[60px] md:h-[77px] flex cursor-pointer items-center justify-between px-6 md:px-8 bg-[#1F2A44] hover:bg-[#1a212c] rounded-[10px] transition-all group font-asap"
-                    >
-                      <div className="flex items-center gap-4">
-                        <MapPin className="size-5 md:size-6 text-white opacity-70" />
-                        <span className="text-[16px] md:text-[22px] font-bold text-white uppercase">
-                          Edit Address
-                        </span>
-                      </div>
-                      <ChevronLeft className="size-5 md:size-6 text-white opacity-60 rotate-180 transition-transform group-hover:translate-x-1" />
-                    </button>
-
-                    {/* Projects */}
-                    {projects.length > 0 && (
-                      <div className="space-y-[10px] md:space-y-[12px]">
-                        <p className="text-[12px] md:text-[14px] font-bold text-[#708090] uppercase tracking-widest px-1">
-                          Projects
-                        </p>
-                        {projects.map((project) => (
-                          <div
-                            key={project.id}
-                            className="w-full h-[60px] md:h-[77px] flex items-center justify-between border border-[rgba(28,167,166,0.3)] hover:border-[#1CA7A6] rounded-[10px] bg-white transition-all group font-asap overflow-hidden"
-                          >
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedProject(project);
-                                const ownerId =
-                                  property?.property_owner_id ||
-                                  property?.property_owner?.id ||
-                                  project.property?.property_owner_id ||
-                                  project.property_owner_id ||
-                                  project.property?.property_owner?.id;
-                                const ownerEmail =
-                                  property?.property_owner_email ||
-                                  property?.property_owner?.email ||
-                                  project.property?.property_owner_email ||
-                                  project.property_owner_email ||
-                                  project.property?.property_owner?.email;
-                                const isOwner =
-                                  project.project_type ===
-                                    "WINDOWS AND DOORS" ||
-                                  project.added_by === "PROPERTY_OWNER" ||
-                                  project.created_by_type ===
-                                    "PROPERTY_OWNER" ||
-                                  (project.created_by &&
-                                    ownerId &&
-                                    project.created_by === ownerId) ||
-                                  (project.created_by_email &&
-                                    ownerEmail &&
-                                    project.created_by_email.toLowerCase() ===
-                                      ownerEmail.toLowerCase());
-                                setIsOwnerProjectType(isOwner);
-                                setSelectedComponent(null);
-                                setNewInstallationType(null);
-                                setStep("EDIT_PROJECT");
-                              }}
-                              className="flex-1 h-full flex cursor-pointer items-center justify-between px-6 md:px-8 hover:bg-[rgba(28,167,166,0.04)] transition-all text-left"
-                            >
-                              <div className="flex items-center gap-4">
-                                <FolderOpen className="size-4 md:size-5 text-[#1CA7A6]" />
-                                <div>
-                                  <span className="text-[16px] md:text-[22px] font-bold text-[#1F2A44] uppercase block">
-                                    {project.project_name}
-                                  </span>
-                                  <span className="text-[11px] md:text-[13px] text-[#708090] font-medium">
-                                    {project.project_type}
-                                    {project.components
-                                      ? ` · ${getTypeLabel(toPascalCase(project.components.component_type))}`
-                                      : " · No installation yet"}
-                                  </span>
-                                </div>
-                              </div>
-                              <ChevronLeft className="size-5 md:size-6 text-[#1CA7A6] rotate-180 transition-transform group-hover:translate-x-1" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setProjectToDelete(project)}
-                              className="h-full px-6 flex items-center justify-center border-l border-[rgba(28,167,166,0.2)] hover:bg-red-50 text-red-500 hover:text-red-700 transition-colors"
-                              title="Delete Project"
-                            >
-                              <Trash2 className="size-5 md:size-6" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <button
-                      onClick={() => {
-                        setSelectedProject(null);
-                        setSelectedComponent(null);
-                        setNewInstallationType(null);
-                        setStep("EDIT_PROJECT");
-                      }}
-                      className="w-full h-[60px] md:h-[77px] flex cursor-pointer items-center justify-between px-6 md:px-8 border-2 border-dashed border-[rgba(28,167,166,0.4)] hover:border-[#1CA7A6] hover:bg-[rgba(28,167,166,0.04)] rounded-[10px] transition-all group font-asap"
-                    >
-                      <div className="flex items-center gap-4">
-                        <FolderOpen className="size-4 md:size-5 text-[#1CA7A6]" />
-                        <span className="text-[16px] md:text-[22px] font-bold text-[#1CA7A6] uppercase">
-                          Add New Project
-                        </span>
-                      </div>
-                      <ChevronLeft className="size-5 md:size-6 text-[#1CA7A6] rotate-180 transition-transform group-hover:translate-x-1" />
-                    </button>
-                  </div>
-
-                  {/* Back */}
-                  <div className="hidden md:flex justify-center pt-8 md:pt-[60px]">
-                    <button
-                      onClick={() => router.back()}
-                      className="flex items-center cursor-pointer gap-[21px] text-[14px] md:text-[18px] font-medium text-[#1CA7A6] uppercase tracking-normal hover:opacity-80 transition-opacity font-asap"
-                    >
-                      <div className="size-[26px] md:size-[32px] rounded-full bg-[rgba(28,167,166,0.25)] flex items-center justify-center">
-                        <ChevronLeft className="size-4 md:size-5" />
-                      </div>
-                      Back
-                    </button>
-                  </div>
-                </div>
-              )}
-
             {/* ── EDIT ADDRESS ── */}
             {!loadingProperty && step === "EDIT_ADDRESS" && (
               <AddressForm
@@ -1050,7 +903,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                 propertyOwners={propertyOwners}
                 propertyTypes={propertyTypes}
                 isEdit
-                onBack={() => setStep("SELECT")}
+                onBack={() => setStep("EDIT_PROJECT")}
                 hasSavedImages={
                   !!property?.front_image || !!property?.other_image
                 }
@@ -1063,7 +916,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                 propertyId={propertyId}
                 onSave={async () => {
                   await refreshProperty();
-                  setStep("SELECT");
+                  setStep("EDIT_PROJECT");
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
                 onBack={() => {
@@ -1147,12 +1000,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                     }
                   }}
                   onBack={() => {
-                    if (role !== "admin") {
-                      router.push("/my-projects");
-                    } else {
-                      setSelectedProject(null);
-                      setStep("SELECT");
-                    }
+                    router.back();
                   }}
                   onSaveSuccess={() => {
                     if (role !== "admin") {
@@ -1178,13 +1026,8 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                   isOwnerProjectType={isOwnerProjectType}
                   onSave={handleInstallationSave}
                   onBack={() => {
-                    if (role !== "admin") {
-                      setStep("EDIT_PROJECT");
-                    } else {
-                      setSelectedComponent(null);
-                      setSelectedProject(null);
-                      setStep("SELECT");
-                    }
+                    setSelectedComponent(null);
+                    setStep("EDIT_PROJECT");
                   }}
                 />
               )}
@@ -1299,7 +1142,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                     }}
                     className="w-full h-[52px] md:h-[77px] border-2 border-[#1F2A44] text-[#1F2A44] font-bold rounded-[10px] text-[18px] md:text-[24px] font-asap hover:bg-[rgba(31,42,68,0.06)] transition-colors"
                   >
-                    Go to Homepage
+                    Save as Draft & Go to Home
                   </button>
                 </div>
 
