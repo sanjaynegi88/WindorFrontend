@@ -67,11 +67,6 @@ interface Component {
   // manufacturer?: string;
 }
 
-function getTypeLabel(type: InstallationType) {
-  if (type === "window_door") return "Window & Door";
-  return type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 function componentToFormValues(comp: Component): any {
   return {
     description: comp.description || "",

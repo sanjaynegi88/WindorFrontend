@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { useFormContext } from "react-hook-form";
 import { cn, toTitleCase } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -306,9 +306,11 @@ export function CitySelect({
 
   const displayValue = selectedCity
     ? toTitleCase(selectedCity.name)
-    : internalValue
-      ? toTitleCase(String(internalValue))
-      : "";
+    : loading
+      ? ""
+      : internalValue && valueType !== "id"
+        ? toTitleCase(String(internalValue))
+        : "";
 
   const handleSelect = (city: any | null) => {
     if (city) {
@@ -351,17 +353,20 @@ export function CitySelect({
       variant="outline"
       role="combobox"
       aria-expanded={open}
-      disabled={disabled}
+      disabled={disabled || loading}
       className={cn(
         "h-[39px] md:h-[65px] rounded-[10px] border-[rgba(28,167,166,0.25)] bg-white text-[#708090] font-medium px-4 md:px-6 focus:ring-[#22a699]/20 text-[13px] md:text-[20px] font-asap transition-all w-full shadow-none flex items-center justify-between",
         !displayValue
           ? "text-[#708090]/60 font-normal"
           : "text-[#708090] font-medium",
-        disabled && "cursor-not-allowed opacity-70",
+        (disabled || loading) && "cursor-not-allowed opacity-70",
         className,
       )}
     >
-      <span className="truncate">{displayValue || placeholder}</span>
+      <span className="truncate flex items-center gap-2">
+        {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />}
+        {displayValue || (loading ? "Loading cities..." : placeholder)}
+      </span>
       <ChevronDown className="h-4 w-4 md:h-6 md:w-6 shrink-0 opacity-50 ml-2" />
     </Button>
   );

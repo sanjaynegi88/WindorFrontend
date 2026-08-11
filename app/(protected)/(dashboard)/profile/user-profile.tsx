@@ -25,6 +25,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 import {
   getUserProfile,
   updateUserProfile,
@@ -35,6 +36,7 @@ import {
   getServiceProvided,
   getCities,
   getReportUsage,
+  updateAutoRenewal,
 } from "@/lib/actions";
 import {
   Camera,
@@ -47,6 +49,8 @@ import {
   History,
   ArrowRight,
   Building2,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { ScreenLoader } from "@/components/common/screen-loader";
 import { useRouter } from "next/navigation";
@@ -57,6 +61,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ChangePasswordForm } from "@/components/forms/change-password-form";
 import { formatDistanceToNow } from "date-fns";
 import { useUser } from "@/components/providers/user-provider";
@@ -218,8 +228,12 @@ interface UserProfileData {
   cityOfficial?: string | null;
   cityAddress?: string | null;
   cityPhone?: string | null;
+  autoRenewalEnabled?: boolean;
+  auto_renewal_enabled?: boolean;
   current_subscription?: {
     status: string;
+    autoRenewalEnabled?: boolean;
+    auto_renewal_enabled?: boolean;
     plan: {
       id: string;
       name: string;
@@ -257,10 +271,34 @@ export default function UserProfile() {
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [recentLogs, setRecentLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [isAutoRenewal, setIsAutoRenewal] = useState<boolean>(false);
+  const [updatingAutoRenewal, setUpdatingAutoRenewal] = useState<boolean>(false);
   const router = useRouter();
   const { user: contextUser, setUser: setContextUser } = useUser();
-  console.log(user);
+
+  const handleToggleAutoRenewal = async (checked: boolean) => {
+    try {
+      setUpdatingAutoRenewal(true);
+      const result = await updateAutoRenewal(checked);
+      if (!result.success) {
+        toast.error(result.message || "Failed to update Auto-Pay setting");
+        return;
+      }
+      setIsAutoRenewal(checked);
+      toast.success(
+        checked
+          ? "Auto-Pay (Auto-renewal) enabled"
+          : "Auto-Pay (Auto-renewal) disabled",
+      );
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update Auto-Pay setting");
+    } finally {
+      setUpdatingAutoRenewal(false);
+    }
+  };
+
   const [contractorProfileId, setContractorProfileId] = useState(null);
+  console.log(contractorProfileId);
   const [purchaseUsersOpen, setPurchaseUsersOpen] = useState(false);
   const [purchaseUserCount, setPurchaseUserCount] = useState(1);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
@@ -273,6 +311,7 @@ export default function UserProfile() {
   const [states, setStates] = useState<{ id: string; name: string }[]>([]);
   const [selectedStateId, setSelectedStateId] = useState("");
   const [selectedCityName, setSelectedCityName] = useState("");
+  const [isCityLoading, setIsCityLoading] = useState(false);
 
   const role = (user?.role ?? user?.roleEntity?.role_name ?? "").toLowerCase();
   const isSubAccount =
@@ -368,7 +407,15 @@ export default function UserProfile() {
     async function fetchProfile() {
       try {
         const data = await getUserProfile();
-        console.log("api response", data.directory_id);
+        const autoRenewFlag =
+          data?.autoRenewalEnabled ??
+          data?.auto_renewal_enabled ??
+          data?.current_subscription?.autoRenewalEnabled ??
+          data?.current_subscription?.auto_renewal_enabled ??
+          data?.user?.autoRenewalEnabled ??
+          false;
+        setIsAutoRenewal(Boolean(autoRenewFlag));
+        setContractorProfileId(data.directory_id);
         setUser({
           ...data,
           companyAddress: data.form_details?.companyAddress ?? null,
@@ -393,6 +440,7 @@ export default function UserProfile() {
 
         const cityId = data.form_details?.city_id || data.user?.city_id;
         if (cityId) {
+          setIsCityLoading(true);
           try {
             const cityRes = await getCities(undefined, undefined, cityId);
             const cityData = cityRes?.data?.[0] ?? cityRes?.data ?? cityRes;
@@ -402,6 +450,8 @@ export default function UserProfile() {
             if (resolvedName) setSelectedCityName(resolvedName);
           } catch {
             console.log("error while fetching city name");
+          } finally {
+            setIsCityLoading(false);
           }
         }
 
@@ -1164,9 +1214,16 @@ export default function UserProfile() {
                         </Label>
                         <div className="md:col-span-2">
                           {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {selectedCityName || "Not provided"}
-                            </p>
+                            isCityLoading ? (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
+                                <Loader2 className="size-4 animate-spin text-primary" />
+                                <span>Loading city...</span>
+                              </div>
+                            ) : (
+                              <p className="text-sm font-bold">
+                                {selectedCityName || "Not provided"}
+                              </p>
+                            )
                           ) : (
                             <FormField
                               control={form.control}
@@ -2127,7 +2184,7 @@ export default function UserProfile() {
                   </Button>
                 </div>
               )}
-              {/* {showEditContractorProfile && (
+              {showEditContractorProfile && (
                 <div className="px-4 md:px-8 py-6 flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/10 shadow-sm">
@@ -2136,20 +2193,22 @@ export default function UserProfile() {
                     <div>
                       <p className="text-sm font-bold">Contractor Profile</p>
                       <p className="text-xs text-muted-foreground font-medium">
-                        Add your business to the contractor directory
+                        Update your business to the contractor directory
                       </p>
                     </div>
                   </div>
                   <Button
                     variant="outline"
-                    onClick={handleAddContractorProfile}
+                    onClick={() => {
+                      router.push(`/profile-setup?edit=${contractorProfileId}`);
+                    }}
                     size="sm"
                     className="rounded-xl font-bold text-[10px] uppercase tracking-wider h-9 px-4"
                   >
                     Edit Profile
                   </Button>
                 </div>
-              )} */}
+              )}
               {showPurchasebtn && (
                 <div className="px-4 md:px-8 py-6 flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
@@ -2540,10 +2599,40 @@ export default function UserProfile() {
                       {user.current_subscription?.plan?.name} <br />
                       <span className="text-primary italic">Plan</span>
                     </h2>
-                    <p className="text-sm text-muted-foreground font-medium mb-10 leading-relaxed max-w-[260px]">
+                    <p className="text-sm text-muted-foreground font-medium mb-6 leading-relaxed max-w-[260px]">
                       {user.current_subscription?.plan?.description ||
                         "You have access to all premium features and exclusive verification reports."}
                     </p>
+
+                    {user.current_subscription?.plan?.level?.toUpperCase() !== "FREE" && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="w-full bg-muted/30 p-4 rounded-2xl border border-border/50 my-4 flex items-center justify-between gap-3 text-left cursor-pointer">
+                              <div className="flex items-center gap-3">
+                                <RefreshCw className={cn("size-4 text-primary", updatingAutoRenewal && "animate-spin")} />
+                                <div>
+                                  <p className="text-xs font-bold text-foreground">Auto-Pay</p>
+                                  <p className="text-[10px] text-muted-foreground">
+                                    {isAutoRenewal ? "Auto-renew active" : "Auto-renew disabled"}
+                                  </p>
+                                </div>
+                              </div>
+                              <Switch
+                                checked={isAutoRenewal}
+                                disabled={updatingAutoRenewal}
+                                onCheckedChange={handleToggleAutoRenewal}
+                                className="data-[state=checked]:bg-primary"
+                              />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs text-center text-xs font-semibold shadow-lg">
+                            Auto-Pay can be enabled or turned off at any time.
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+
                     <Button
                       onClick={() => router.push("/plans")}
                       className="w-full bg-primary hover:bg-primary/90 text-white rounded-2xl h-14 font-black transition-all hover:shadow-[0_10px_30px_rgba(16,185,129,0.3)] active:scale-95 text-xs uppercase tracking-[0.2em]"

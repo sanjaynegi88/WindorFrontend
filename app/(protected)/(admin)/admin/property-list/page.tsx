@@ -554,6 +554,7 @@ export default function PropertyListPage() {
           pageNum,
           limit,
           appliedSearch || undefined,
+          true,
         );
         const pagination =
           response?.pagination ||

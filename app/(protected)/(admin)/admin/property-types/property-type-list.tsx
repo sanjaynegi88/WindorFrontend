@@ -54,6 +54,7 @@ import { getPropertyTypeOptions, deletePropertyType } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { PropertyTypeFormDialog } from './property-type-form-dialog';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { formatDate } from '@/lib/helpers';
 import { toPascalCase } from '@/lib/utils';
 
@@ -69,6 +70,9 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>([]);
   const [editingPropertyType, setEditingPropertyType] = useState<any | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [propertyTypeToDelete, setPropertyTypeToDelete] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -112,19 +116,28 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
     fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
   }, [refreshTrigger, pagination.pageIndex, pagination.pageSize, debouncedSearch]);
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this Property Type?')) {
-      try {
-        const resposne = await deletePropertyType(id);
-        if (!resposne.success) {
-          toast.error(resposne.message);
-          return;
-        }
-        toast.success('Property Type deleted successfully');
-        fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
-      } catch (error: any) {
-        toast.error(error.message || 'Failed to delete Property Type');
+  const handleDeleteClick = (propertyType: any) => {
+    setPropertyTypeToDelete(propertyType);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!propertyTypeToDelete) return;
+    setIsDeleting(true);
+    try {
+      const response = await deletePropertyType(propertyTypeToDelete.id);
+      if (!response.success) {
+        toast.error(response.message || 'Failed to delete Property Type');
+        return;
       }
+      toast.success('Property Type deleted successfully');
+      fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete Property Type');
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setPropertyTypeToDelete(null);
     }
   };
 
@@ -254,7 +267,7 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive cursor-pointer"
-                  onClick={() => handleDelete(row.original.id)}
+                  onClick={() => handleDeleteClick(row.original)}
                 >
                   <Trash2 className="size-3.5 mr-2" />
                   Delete Property Type
@@ -360,6 +373,21 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
         }}
         state={editingPropertyType}
         onSuccess={() => fetchData(pagination.pageIndex + 1, pagination.pageSize)}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Property Type"
+        description={
+          propertyTypeToDelete?.name
+            ? `Are you sure you want to delete "${propertyTypeToDelete.name}"? This action cannot be undone.`
+            : 'Are you sure you want to delete this Property Type? This action cannot be undone.'
+        }
+        confirmText={isDeleting ? 'Deleting...' : 'Delete'}
+        cancelText="Cancel"
+        onConfirm={handleConfirmDelete}
+        variant="destructive"
       />
     </>
   );

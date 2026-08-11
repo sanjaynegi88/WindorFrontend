@@ -33,7 +33,7 @@ import { useState, useEffect } from "react";
 import { MultiCitySelector } from "@/components/multi-city-selector";
 import { StateSelect } from "@/components/state-select";
 import { useRouter } from "next/navigation";
-import { toPascalCase } from "@/lib/utils";
+import { toPascalCase, getAppImageUrl } from "@/lib/utils";
 import { ServiceSelect } from "@/components/service-select";
 
 export interface ContractorProfileInitialData {
@@ -71,13 +71,8 @@ export function ContractorProfileForm({
     { id: string; service_name: string }[]
   >([]);
   const isPremium = membershipLevel === "GOLD";
+  console.log(isPremium);
   const router = useRouter();
-
-  const formatReportType = (value: string) =>
-    value
-      .split("_")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(" ");
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -200,7 +195,9 @@ export function ContractorProfileForm({
 
             <CardContent className="p-8 space-y-6">
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase">Filter Cities by State</Label>
+                <Label className="text-xs font-bold uppercase">
+                  Filter Cities by State
+                </Label>
                 <StateSelect
                   value={selectedStateId}
                   onChange={(val) => setSelectedStateId(val)}
@@ -229,6 +226,66 @@ export function ContractorProfileForm({
                   </FormItem>
                 )}
               />
+
+              {isPremium && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <Label className="text-xs font-bold uppercase">
+                          Company Description
+                        </Label>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Describe your services, specialization, and company background..."
+                            className="min-h-[120px] rounded-xl border border-[rgba(112,128,144,0.23)] font-asap"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="company_logo"
+                    render={({ field: { value, onChange, ...fieldProps } }) => (
+                      <FormItem>
+                        <Label className="text-xs font-bold uppercase">
+                          Company Logo
+                        </Label>
+                        <FormControl>
+                          <div className="space-y-3">
+                            {initialData?.companyLogo && (
+                              <div className="flex items-center gap-3 p-3 bg-muted/20 rounded-xl border border-dashed border-border/60">
+                                <img
+                                  src={getAppImageUrl(initialData.companyLogo)}
+                                  alt="Company Logo"
+                                  className="size-14 object-contain rounded-lg border bg-white"
+                                />
+                                <div className="text-xs text-muted-foreground font-medium">
+                                  Current Company Logo
+                                </div>
+                              </div>
+                            )}
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => onChange(e.target.files)}
+                              className="cursor-pointer rounded-xl h-11"
+                              {...fieldProps}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
             </CardContent>
           </Card>
 

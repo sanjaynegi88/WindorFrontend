@@ -168,21 +168,31 @@ export async function middleware(request: NextRequest) {
   }
 
   if (hasSession && !hasMembership && !isPublicRoute &&
-    !pathname.startsWith('/plans') &&
-    !pathname.startsWith('/dashboard') &&
-    !pathname.startsWith('/subscription/') &&
-    !pathname.startsWith('/purchase/') &&
-    !pathname.startsWith('/profile') &&
-    !pathname.startsWith('/profile-setup') &&
-    !pathname.startsWith('/change-password') &&
-    !pathname.startsWith('/property-details') &&
-    !pathname.startsWith('/reports') &&
     userRole !== 'admin' &&
-    userRole !== 'city_inspector' &&
-    !(userRole === 'insurance_company' && isSubUser) &&
-    !(userRole === 'contractor' && isSubUser)
+    userRole !== 'city_inspector'
   ) {
-    return getResponse('/plans');
+    const isBasicAllowed =
+      pathname.startsWith('/dashboard') ||
+      pathname.startsWith('/profile') ||
+      pathname.startsWith('/profile-setup') ||
+      pathname.startsWith('/change-password') ||
+      pathname.startsWith('/property-details') ||
+      pathname.startsWith('/reports');
+
+    if (isSubUser) {
+      if (!isBasicAllowed) {
+        return getResponse('/dashboard');
+      }
+    } else {
+      const isPlanAllowed =
+        pathname.startsWith('/plans') ||
+        pathname.startsWith('/subscription/') ||
+        pathname.startsWith('/purchase/');
+
+      if (!isBasicAllowed && !isPlanAllowed) {
+        return getResponse('/plans');
+      }
+    }
   }
 
   // RBAC check

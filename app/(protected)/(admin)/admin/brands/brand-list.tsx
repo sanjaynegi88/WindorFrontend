@@ -49,10 +49,23 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { getBrands, deleteBrand } from '@/lib/actions';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  getBrands,
+  deleteBrand,
+  getComponentTypes,
+  getProjectTypesforPropertyOwner,
+} from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { BrandFormDialog } from './brand-form-dialog';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { formatDate } from '@/lib/helpers';
 import { toPascalCase } from '@/lib/utils';
 
@@ -66,16 +79,56 @@ export default function BrandList({ onAddBrand }: { onAddBrand: () => void }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [categories, setCategories] = useState<{ id?: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>([]);
   const [editingBrand, setEditingBrand] = useState<any | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [brandToDelete, setBrandToDelete] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-  const fetchData = async (page: number = 1, limit: number = 10, search?: string) => {
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const [response, response1] = await Promise.all([
+          getComponentTypes().catch(() => null),
+          getProjectTypesforPropertyOwner().catch(() => null),
+        ]);
+
+        const compTypes = response?.data?.report_types || [];
+        const ownerTypes = response1?.data?.report_types || [];
+
+        const merged = [...compTypes, ...ownerTypes];
+        const uniqueNames = new Set<string>();
+        const combined = merged.filter((t: any) => {
+          if (!t?.name) return false;
+          const key = t.name.toUpperCase();
+          if (uniqueNames.has(key)) return false;
+          uniqueNames.add(key);
+          return true;
+        });
+
+        setCategories(combined);
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  const fetchData = async (
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    category?: string
+  ) => {
     setLoading(true);
     try {
-      const response = await getBrands(page, limit, undefined, search);
+      const categoryParam = category && category !== 'all' ? category : undefined;
+      const response = await getBrands(page, limit, categoryParam, search);
       if (response && response.data) {
         setData(response.data);
         if (response.pagination) {
@@ -103,21 +156,34 @@ export default function BrandList({ onAddBrand }: { onAddBrand: () => void }) {
 
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [debouncedSearch]);
+  }, [debouncedSearch, selectedCategory]);
 
   useEffect(() => {
-    fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
-  }, [pagination.pageIndex, pagination.pageSize, debouncedSearch]);
+    fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch, selectedCategory);
+  }, [pagination.pageIndex, pagination.pageSize, debouncedSearch, selectedCategory]);
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this brand?')) {
-      const result = await deleteBrand(id);
+  const handleDeleteClick = (brand: any) => {
+    setBrandToDelete(brand);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!brandToDelete) return;
+    setIsDeleting(true);
+    try {
+      const result = await deleteBrand(brandToDelete.id);
       if (!result.success) {
         toast.error(result.message || 'Failed to delete brand');
         return;
       }
       toast.success('Brand deleted successfully');
-      fetchData(pagination.pageIndex + 1, pagination.pageSize);
+      fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch, selectedCategory);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete brand');
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setBrandToDelete(null);
     }
   };
 
@@ -273,7 +339,7 @@ export default function BrandList({ onAddBrand }: { onAddBrand: () => void }) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive cursor-pointer"
-                  onClick={() => handleDelete(row.original.id)}
+                  onClick={() => handleDeleteClick(row.original)}
                 >
                   <Trash2 className="size-3.5 mr-2" />
                   Delete Brand
@@ -332,14 +398,35 @@ export default function BrandList({ onAddBrand }: { onAddBrand: () => void }) {
             <CardHeading className="w-full sm:w-auto">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
                 <div className="relative w-full sm:w-60">
-                  <Search className="size-4 text-muted-foreground absolute inset-s-3 top-1/2 -translate-y-1/2" />
+                  <Search className="size-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
                   <Input
                     variant="sm"
                     placeholder="Search brands..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="ps-9 w-full"
+                    className="h-8 ps-8 text-xs rounded-[6px] w-full"
                   />
+                </div>
+                <div className="w-full sm:w-52">
+                  <Select
+                    value={selectedCategory}
+                    onValueChange={(val) => setSelectedCategory(val)}
+                  >
+                    <SelectTrigger
+                      size="sm"
+                      className="h-8 text-xs rounded-[6px] w-full bg-white border border-[rgba(112,128,144,0.23)] text-[#1F2A44] font-asap font-medium shadow-none"
+                    >
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {categories.map((c) => (
+                        <SelectItem key={c.name} value={c.name}>
+                          {toPascalCase(c.name)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardHeading>
@@ -372,7 +459,22 @@ export default function BrandList({ onAddBrand }: { onAddBrand: () => void }) {
         isOpen={!!editingBrand}
         onClose={() => setEditingBrand(null)}
         brand={editingBrand as any}
-        onSuccess={() => fetchData(pagination.pageIndex + 1, pagination.pageSize)}
+        onSuccess={() => fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch, selectedCategory)}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Brand"
+        description={
+          brandToDelete?.name
+            ? `Are you sure you want to delete "${brandToDelete.name}"? This action cannot be undone.`
+            : 'Are you sure you want to delete this brand? This action cannot be undone.'
+        }
+        confirmText={isDeleting ? 'Deleting...' : 'Delete'}
+        cancelText="Cancel"
+        onConfirm={handleConfirmDelete}
+        variant="destructive"
       />
     </>
   );

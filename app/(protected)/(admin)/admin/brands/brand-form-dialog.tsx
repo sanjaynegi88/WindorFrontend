@@ -285,7 +285,7 @@ export function BrandFormDialog({
                           <FormItem className="flex-1 space-y-0">
                             <FormControl>
                               <Input
-                                placeholder={`Sub-brand #${index + 1} (e.g. name-${index + 1})`}
+                                placeholder={`Brand Name`}
                                 className="rounded-xl h-10 text-sm"
                                 {...field}
                               />

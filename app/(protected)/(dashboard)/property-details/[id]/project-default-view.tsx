@@ -151,14 +151,14 @@ export const ProjectDefaultView = ({
   return (
     <div className="space-y-[20px] md:space-y-[26px]">
       {/* Tabs */}
-      <div className="relative flex  items-center justify-center border-b border-[#D9D9D9] pt-2">
-        <div className="w-full px-4 md:w-auto flex justify-between gap-4 sm:gap-10 md:gap-[170px] pb-[15px]">
+      <div className="relative flex items-center justify-center border-b border-[#D9D9D9]">
+        <div className="w-full px-2 sm:px-4 md:w-auto flex justify-around sm:justify-center gap-2 sm:gap-8 md:gap-[170px] overflow-x-auto overflow-y-hidden no-scrollbar">
           {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "text-[13px] md:text-[18px] font-medium leading-[21px] uppercase transition-all relative whitespace-nowrap font-asap cursor-pointer",
+                "text-[12px] sm:text-[15px] md:text-[18px] font-medium leading-[21px] uppercase transition-all relative whitespace-nowrap font-asap cursor-pointer px-1 py-3 sm:py-4",
                 activeTab === tab
                   ? "text-[#1CA7A6]"
                   : "text-[#1F2A44] hover:text-[#1CA7A6]",
@@ -166,7 +166,7 @@ export const ProjectDefaultView = ({
             >
               {tab}
               {activeTab === tab && (
-                <div className="absolute bottom-[-16px] left-1/2 -translate-x-1/2 w-[60px] sm:w-[100px] md:w-[233.82px] h-px bg-[#1CA7A6]" />
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#1CA7A6]" />
               )}
             </button>
           ))}
@@ -176,7 +176,7 @@ export const ProjectDefaultView = ({
       {/* Tab Content */}
       {activeTab === "PROJECTS" && (
         <div className="space-y-[20px] md:space-y-[36px]">
-          <div className="space-y-4 px-6 md:px-[76px] text-[#708090] font-normal leading-[18px] text-[12px] md:text-[13px] font-asap">
+          <div className="space-y-4 px-4 md:px-[76px] text-[#708090] font-normal leading-[18px] text-[12px] md:text-[13px] font-asap">
             <p>
               Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
               eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut
@@ -185,20 +185,20 @@ export const ProjectDefaultView = ({
               reprehenderit.
             </p>
           </div>
-          <div className="grid grid-cols-2 md:flex md:justify-center gap-4 md:gap-[39px] px-4">
+          <div className="grid grid-cols-2 md:flex md:justify-center gap-3 sm:gap-4 md:gap-[39px] px-4">
             <div
               onClick={onShowProjects}
-              className="w-full md:w-[239.16px] h-[95.82px] md:h-[136.72px] bg-[#1F2A44] hover:bg-[#1CA7A6] border-2 border-[rgba(255,255,255,0.93)] rounded-[10px] p-4 md:p-6 text-white flex flex-col items-center justify-center shadow-[0px_4px_14px_rgba(31,42,68,0.2)] hover:scale-[1.02] transition-transform cursor-pointer group relative"
+              className="w-full md:w-[239.16px] h-[85px] sm:h-[110px] md:h-[136.72px] bg-[#1F2A44] hover:bg-[#1CA7A6] border-2 border-[rgba(255,255,255,0.93)] rounded-[10px] p-2 sm:p-4 md:p-6 text-white flex flex-col items-center justify-center shadow-[0px_4px_14px_rgba(31,42,68,0.2)] hover:scale-[1.02] transition-transform cursor-pointer group relative text-center"
             >
               {isLoadingTotalCount ? (
-                <Loader2 className="w-6 h-6 animate-spin text-white" />
+                <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin text-white" />
               ) : (
                 <>
-                  <span className="text-[18px] md:text-[24px] font-bold uppercase leading-[24px] md:leading-[30px] font-inter">
+                  <span className="text-[14px] sm:text-[18px] md:text-[24px] font-bold uppercase leading-[20px] md:leading-[30px] font-inter">
                     {totalCount} PROJECTS
                   </span>
                   {totalCount > 5 && (
-                    <span className="text-[14px] md:text-[20px] font-medium uppercase leading-[15px] opacity-80 pt-2 group-hover:opacity-100 font-asap">
+                    <span className="text-[12px] sm:text-[14px] md:text-[20px] font-medium uppercase leading-[15px] opacity-80 pt-1 sm:pt-2 group-hover:opacity-100 font-asap">
                       + More
                     </span>
                   )}
@@ -207,9 +207,9 @@ export const ProjectDefaultView = ({
             </div>
             <div
               onClick={onShowReports}
-              className="w-full md:w-[239.16px] h-[95.82px] md:h-[136.72px] bg-[#1F2A44] hover:bg-[#1CA7A6] border-2 border-[rgba(255,255,255,0.93)] rounded-[10px] p-4 md:p-6 text-white flex flex-col items-center justify-center shadow-[0px_4px_14px_rgba(31,42,68,0.2)] hover:scale-[1.02] transition-transform cursor-pointer"
+              className="w-full md:w-[239.16px] h-[85px] sm:h-[110px] md:h-[136.72px] bg-[#1F2A44] hover:bg-[#1CA7A6] border-2 border-[rgba(255,255,255,0.93)] rounded-[10px] p-2 sm:p-4 md:p-6 text-white flex flex-col items-center justify-center shadow-[0px_4px_14px_rgba(31,42,68,0.2)] hover:scale-[1.02] transition-transform cursor-pointer text-center"
             >
-              <span className="text-[18px] md:text-[24px] font-bold uppercase leading-[24px] md:leading-[30px] font-inter">
+              <span className="text-[14px] sm:text-[18px] md:text-[24px] font-bold uppercase leading-[20px] md:leading-[30px] font-inter">
                 REPORTS
               </span>
             </div>
@@ -418,7 +418,7 @@ export const ProjectDefaultView = ({
       )}
 
       {/* Back Button */}
-      <div className="flex justify-center pt-12 md:pt-[100px] pb-[50px]">
+      <div className="flex justify-center pt-8 md:pt-[100px] pb-8 md:pb-[50px]">
         <button
           onClick={onBack}
           className="flex items-center gap-[21px] group cursor-pointer"

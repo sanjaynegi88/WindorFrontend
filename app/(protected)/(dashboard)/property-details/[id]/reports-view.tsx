@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { Loader2, FileText, ShoppingCart, X, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Loader2,
+  FileText,
+  ShoppingCart,
+  X,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { cn, downloadPdfFromUrl, getErrorMessage } from "@/lib/utils";
 import {
   generatePdfReport,
@@ -51,29 +58,58 @@ export const ReportsView = ({
   const totalProjectsCount = (componentsData?.projects ?? []).length;
   const contractorProjectsCount = (componentsData?.projects ?? []).filter(
     (p: any) => {
-      const ownerId = p.property?.property_owner_id || p.property_owner_id || p.property?.property_owner?.id || componentsData?.property_owner_id || componentsData?.property_owner?.id;
-      const ownerEmail = p.property?.property_owner_email || p.property_owner_email || p.property?.property_owner?.email || componentsData?.property_owner_email || componentsData?.property_owner?.email || propertyOwnerEmail;
+      const ownerId =
+        p.property?.property_owner_id ||
+        p.property_owner_id ||
+        p.property?.property_owner?.id ||
+        componentsData?.property_owner_id ||
+        componentsData?.property_owner?.id;
+      const ownerEmail =
+        p.property?.property_owner_email ||
+        p.property_owner_email ||
+        p.property?.property_owner?.email ||
+        componentsData?.property_owner_email ||
+        componentsData?.property_owner?.email ||
+        propertyOwnerEmail;
       const isOwner =
-        p.created_by_type === 'PROPERTY_OWNER' ||
-        p.added_by === 'PROPERTY_OWNER' ||
+        p.created_by_type === "PROPERTY_OWNER" ||
+        p.added_by === "PROPERTY_OWNER" ||
         (p.created_by && ownerId && p.created_by === ownerId) ||
-        (p.created_by_email && ownerEmail && p.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
+        (p.created_by_email &&
+          ownerEmail &&
+          p.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
       return !isOwner;
-    }
+    },
   ).length;
   const homeownerProjectsCount = (componentsData?.projects ?? []).filter(
     (p: any) => {
-      const ownerId = p.property?.property_owner_id || p.property_owner_id || p.property?.property_owner?.id || componentsData?.property_owner_id || componentsData?.property_owner?.id;
-      const ownerEmail = p.property?.property_owner_email || p.property_owner_email || p.property?.property_owner?.email || componentsData?.property_owner_email || componentsData?.property_owner?.email || propertyOwnerEmail;
+      const ownerId =
+        p.property?.property_owner_id ||
+        p.property_owner_id ||
+        p.property?.property_owner?.id ||
+        componentsData?.property_owner_id ||
+        componentsData?.property_owner?.id;
+      const ownerEmail =
+        p.property?.property_owner_email ||
+        p.property_owner_email ||
+        p.property?.property_owner?.email ||
+        componentsData?.property_owner_email ||
+        componentsData?.property_owner?.email ||
+        propertyOwnerEmail;
       const isOwner =
-        p.created_by_type === 'PROPERTY_OWNER' ||
-        p.added_by === 'PROPERTY_OWNER' ||
+        p.created_by_type === "PROPERTY_OWNER" ||
+        p.added_by === "PROPERTY_OWNER" ||
         (p.created_by && ownerId && p.created_by === ownerId) ||
-        (p.created_by_email && ownerEmail && p.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
+        (p.created_by_email &&
+          ownerEmail &&
+          p.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
       return isOwner;
-    }
+    },
   ).length;
-  const isOwnerOfProperty = role === "property_owner" && !!propertyOwnerEmail && user?.email?.toLowerCase() === propertyOwnerEmail?.toLowerCase();
+  const isOwnerOfProperty =
+    role === "property_owner" &&
+    !!propertyOwnerEmail &&
+    user?.email?.toLowerCase() === propertyOwnerEmail?.toLowerCase();
   const isAdmin = role === "admin";
   const isCityInspector = role === "city_inspector";
   const [isGenerating, setIsGenerating] = useState(false);
@@ -82,9 +118,13 @@ export const ReportsView = ({
   const [purchased, setPurchased] = useState(isPurchased);
 
   const [showAllContractorDialog, setShowAllContractorDialog] = useState(false);
-  const [showContractorProjectsDialog, setShowContractorProjectsDialog] = useState(false);
-  const [showHomeOwnerProjectsDialog, setShowHomeOwnerProjectsDialog] = useState(false);
-  const [generatingProjects, setGeneratingProjects] = useState<Record<string, boolean>>({});
+  const [showContractorProjectsDialog, setShowContractorProjectsDialog] =
+    useState(false);
+  const [showHomeOwnerProjectsDialog, setShowHomeOwnerProjectsDialog] =
+    useState(false);
+  const [generatingProjects, setGeneratingProjects] = useState<
+    Record<string, boolean>
+  >({});
 
   const [contractorProjects, setContractorProjects] = useState<any[]>([]);
   const [homeownerProjects, setHomeownerProjects] = useState<any[]>([]);
@@ -96,32 +136,35 @@ export const ReportsView = ({
   const [isBulkPurchasing, setIsBulkPurchasing] = useState(false);
 
   const [allContractorPurchased, setAllContractorPurchased] = useState<boolean>(
-    componentsData?.is_all_contractor_purchased === true ||
-    false
+    componentsData?.is_all_contractor_purchased === true || false,
   );
   console.log("allContractorPurchased", allContractorPurchased);
   console.log("componentsData", componentsData);
-  const [isGeneratingAllContractor, setIsGeneratingAllContractor] = useState(false);
-  const hasAllContractorAccess = allContractorPurchased || isPurchased || isAdmin || isCityInspector || isOwnerOfProperty;
+  const [isGeneratingAllContractor, setIsGeneratingAllContractor] =
+    useState(false);
+  const hasAllContractorAccess =
+    allContractorPurchased ||
+    isPurchased ||
+    isAdmin ||
+    isCityInspector ||
+    isOwnerOfProperty;
 
   useEffect(() => {
     setAllContractorPurchased(
       componentsData?.all_contractor_purchased === true ||
-      componentsData?.is_all_contractor_purchased === true ||
-      componentsData?.all_contractors_purchased === true ||
-      false
+        componentsData?.is_all_contractor_purchased === true ||
+        componentsData?.all_contractors_purchased === true ||
+        false,
     );
   }, [componentsData]);
 
   const downloadAllContractorReport = async () => {
     setIsGeneratingAllContractor(true);
     try {
-      const url = await generateAllContractorPdfReport(
-        propertyId
-      );
+      const url = await generateAllContractorPdfReport(propertyId);
       await downloadPdfFromUrl(
         url,
-        `all-contractor-projects-report-${propertyId}.pdf`
+        `all-contractor-projects-report-${propertyId}.pdf`,
       );
       toast.success("Report downloaded successfully");
       setAllContractorPurchased(true);
@@ -142,7 +185,8 @@ export const ReportsView = ({
         setIsGeneratingAllContractor(false);
         return;
       }
-      const checkoutUrl = response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
+      const checkoutUrl =
+        response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
       if (checkoutUrl) {
         localStorage.setItem("pending_report_id", propertyId);
         localStorage.setItem("pending_report_type", "all-contractor");
@@ -172,9 +216,13 @@ export const ReportsView = ({
   useEffect(() => {
     if (showContractorProjectsDialog) {
       setLoadingContractor(true);
-      getprojectListingOfProperty(propertyId, undefined, 'CONTRACTOR')
+      getprojectListingOfProperty(propertyId, undefined, "CONTRACTOR")
         .then((res) => {
-          const projects = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+          const projects = Array.isArray(res)
+            ? res
+            : Array.isArray(res?.data)
+              ? res.data
+              : [];
           setContractorProjects(projects);
         })
         .catch((err) => {
@@ -188,9 +236,13 @@ export const ReportsView = ({
   useEffect(() => {
     if (showHomeOwnerProjectsDialog) {
       setLoadingHomeowner(true);
-      getprojectListingOfProperty(propertyId, undefined, 'PROPERTY_OWNER')
+      getprojectListingOfProperty(propertyId, undefined, "PROPERTY_OWNER")
         .then((res) => {
-          const projects = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+          const projects = Array.isArray(res)
+            ? res
+            : Array.isArray(res?.data)
+              ? res.data
+              : [];
           setHomeownerProjects(projects);
         })
         .catch((err) => {
@@ -209,30 +261,26 @@ export const ReportsView = ({
     if (role === "insurance_company") {
       getReportUsage()
         .then((res) => setReportUsage(res.data))
-        .catch(() => { });
+        .catch(() => {});
     }
   }, [role]);
 
   const downloadReport = async (projectType?: string) => {
     setIsGenerating(true);
     try {
-      const url = await generatePdfReport(
-        propertyId,
-        projectType,
-        user?.role,
-      );
+      const url = await generatePdfReport(propertyId, projectType, user?.role);
       await downloadPdfFromUrl(
         url,
         projectType
           ? `property-report-${propertyId}-${projectType}.pdf`
-          : `property-report-${propertyId}.pdf`
+          : `property-report-${propertyId}.pdf`,
       );
       toast.success("Report downloaded successfully");
       setPurchased(true);
       if (user?.role === "insurance_company") {
         getReportUsage()
           .then((res) => setReportUsage(res.data))
-          .catch(() => { });
+          .catch(() => {});
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to download report");
@@ -245,16 +293,15 @@ export const ReportsView = ({
   const hasReportApi = !!componentsData?.has_report;
 
   const showGenerateOption =
-    hasReportApi && (
-      (role === "property_owner" && (isOwnerOfProperty || purchased)) ||
+    hasReportApi &&
+    ((role === "property_owner" && (isOwnerOfProperty || purchased)) ||
       role === "admin" ||
       role === "city_inspector" ||
-      (role === "contractor" && (purchased)) ||
+      (role === "contractor" && purchased) ||
       (role === "manufacturer" && purchased) ||
       (role === "realtor" && purchased) ||
       (role === "insurance_company" &&
-        (purchased || (reportUsage && reportUsage.remaining > 0)))
-    );
+        (purchased || (reportUsage && reportUsage.remaining > 0))));
 
   const showBuyOption =
     hasReportApi &&
@@ -276,7 +323,8 @@ export const ReportsView = ({
         setIsGenerating(false);
         return;
       }
-      const checkoutUrl = response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
+      const checkoutUrl =
+        response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
       if (checkoutUrl) {
         localStorage.setItem("pending_report_id", propertyId);
         localStorage.setItem("pending_report_type", "single");
@@ -291,11 +339,15 @@ export const ReportsView = ({
     }
   };
 
-  const handleGenerateProjectReport = async (projectId: string, projectName: string) => {
+  const handleGenerateProjectReport = async (
+    projectId: string,
+    projectName: string,
+  ) => {
     setGeneratingProjects((prev) => ({ ...prev, [projectId]: true }));
     try {
       const isContractor = contractorProjects.some(
-        (proj: any) => String(proj.id ?? proj.project_id ?? proj._id) === String(projectId)
+        (proj: any) =>
+          String(proj.id ?? proj.project_id ?? proj._id) === String(projectId),
       );
       const url = isContractor
         ? await generateContractorProjectPdfReport(projectId)
@@ -320,13 +372,19 @@ export const ReportsView = ({
         toast.error(response.message);
         return;
       }
-      const checkoutUrl = response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
+      const checkoutUrl =
+        response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
       if (checkoutUrl) {
         const isContractor = contractorProjects.some(
-          (proj: any) => String(proj.id ?? proj.project_id ?? proj._id) === String(projectId)
+          (proj: any) =>
+            String(proj.id ?? proj.project_id ?? proj._id) ===
+            String(projectId),
         );
         localStorage.setItem("pending_report_id", projectId);
-        localStorage.setItem("pending_report_type", isContractor ? "contractor-project" : "project");
+        localStorage.setItem(
+          "pending_report_type",
+          isContractor ? "contractor-project" : "project",
+        );
         localStorage.setItem("pending_report_property_id", propertyId);
         window.location.href = checkoutUrl;
       } else {
@@ -338,7 +396,7 @@ export const ReportsView = ({
               return { ...proj, is_purchased: true, project_purchased: true };
             }
             return proj;
-          })
+          }),
         );
         setHomeownerProjects((prev) =>
           prev.map((proj) => {
@@ -347,7 +405,7 @@ export const ReportsView = ({
               return { ...proj, is_purchased: true, project_purchased: true };
             }
             return proj;
-          })
+          }),
         );
         await handleGenerateProjectReport(projectId, "Project Report");
       }
@@ -365,13 +423,20 @@ export const ReportsView = ({
         toast.error(response.message);
         return;
       }
-      const checkoutUrl = response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
+      const checkoutUrl =
+        response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
       if (checkoutUrl) {
-        const isContractor = projectIds.some(pid =>
-          contractorProjects.some((proj: any) => String(proj.id ?? proj.project_id ?? proj._id) === String(pid))
+        const isContractor = projectIds.some((pid) =>
+          contractorProjects.some(
+            (proj: any) =>
+              String(proj.id ?? proj.project_id ?? proj._id) === String(pid),
+          ),
         );
-        localStorage.setItem("pending_report_id", projectIds.join(','));
-        localStorage.setItem("pending_report_type", isContractor ? "contractor-project" : "project");
+        localStorage.setItem("pending_report_id", projectIds.join(","));
+        localStorage.setItem(
+          "pending_report_type",
+          isContractor ? "contractor-project" : "project",
+        );
         localStorage.setItem("pending_report_property_id", propertyId);
         window.location.href = checkoutUrl;
       } else {
@@ -383,7 +448,7 @@ export const ReportsView = ({
               return { ...proj, is_purchased: true };
             }
             return proj;
-          })
+          }),
         );
         setHomeownerProjects((prev) =>
           prev.map((proj) => {
@@ -392,7 +457,7 @@ export const ReportsView = ({
               return { ...proj, is_purchased: true };
             }
             return proj;
-          })
+          }),
         );
 
         setSelectedContractors([]);
@@ -424,7 +489,8 @@ export const ReportsView = ({
           </div>
         ) : (
           <p className="mt-1 text-[12px] md:text-[13px] text-[#708090] font-asap">
-            Download or purchase individual reports or all contractor reports for this property.
+            Download or purchase individual reports or all contractor reports
+            for this property.
           </p>
         )}
       </div>
@@ -445,7 +511,9 @@ export const ReportsView = ({
                       </h4>
                     </div>
                     <p className="text-[13px] text-[#708090] leading-relaxed max-w-[600px] font-asap">
-                      Download or purchase the complete comprehensive report containing all contractor and homeowner projects on this property.
+                      Download or purchase the complete comprehensive report
+                      containing all contractor and homeowner projects on this
+                      property.
                     </p>
                   </div>
                   <div className="w-full md:w-auto min-w-[240px]">
@@ -455,7 +523,9 @@ export const ReportsView = ({
                         disabled={isGenerating}
                         className="w-full h-12 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-sm uppercase tracking-widest transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-none"
                       >
-                        {isGenerating && <Loader2 className="size-4 animate-spin" />}
+                        {isGenerating && (
+                          <Loader2 className="size-4 animate-spin" />
+                        )}
                         {isGenerating ? "Downloading…" : "Download Full Report"}
                       </Button>
                     ) : (
@@ -493,7 +563,8 @@ export const ReportsView = ({
                     </h4>
                   </div>
                   <p className="text-[13px] text-[#708090] leading-relaxed font-asap">
-                    Access or purchase all contractor projects reports on this property.
+                    Access or purchase all contractor projects reports on this
+                    property.
                   </p>
                 </div>
                 <div className="pt-4">
@@ -513,14 +584,15 @@ export const ReportsView = ({
                         <Loader2 className="size-3 animate-spin" />
                         Downloading...
                       </>
+                    ) : hasAllContractorAccess ? (
+                      "Download"
                     ) : (
-                      hasAllContractorAccess ? "Download" : "Access Reports"
+                      "Access Reports"
                     )}
                   </Button>
                 </div>
               </div>
 
-              {/* Option 2: Individual Contractor Projects */}
               <div className="rounded-[14px] border border-[#E8EDF2] bg-white shadow-[0px_2px_12px_rgba(31,42,68,0.08)] p-6 flex flex-col justify-between min-h-[180px]">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -532,7 +604,8 @@ export const ReportsView = ({
                     </h4>
                   </div>
                   <p className="text-[13px] text-[#708090] leading-relaxed font-asap">
-                    View, purchase, and download reports for individual contractor projects.
+                    View, purchase, and download reports for individual
+                    contractor projects.
                   </p>
                 </div>
                 <div className="pt-4">
@@ -545,7 +618,6 @@ export const ReportsView = ({
                 </div>
               </div>
 
-              {/* Option 3: Home Owner Projects */}
               <div className="rounded-[14px] border border-[#E8EDF2] bg-white shadow-[0px_2px_12px_rgba(31,42,68,0.08)] p-6 flex flex-col justify-between min-h-[180px]">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -557,7 +629,8 @@ export const ReportsView = ({
                     </h4>
                   </div>
                   <p className="text-[13px] text-[#708090] leading-relaxed font-asap">
-                    View, purchase, and download reports for individual homeowner projects.
+                    View, purchase, and download reports for individual
+                    homeowner projects.
                   </p>
                 </div>
                 <div className="pt-4">
@@ -575,11 +648,16 @@ export const ReportsView = ({
       )}
 
       {/* Dialog 1: All Contractor Reports */}
-      <Dialog open={showAllContractorDialog} onOpenChange={setShowAllContractorDialog}>
+      <Dialog
+        open={showAllContractorDialog}
+        onOpenChange={setShowAllContractorDialog}
+      >
         <DialogContent className="sm:max-w-[425px] rounded-[20px] border-none shadow-[0px_4px_34px_rgba(31,42,68,0.1)] p-6">
           <DialogHeader className="space-y-3">
             <DialogTitle className="text-xl md:text-2xl font-black text-[#1F2A44] uppercase tracking-tight font-asap">
-              {hasAllContractorAccess ? "All Contractor Reports" : "Purchase All Contractor Reports"}
+              {hasAllContractorAccess
+                ? "All Contractor Reports"
+                : "Purchase All Contractor Reports"}
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-600 font-medium leading-relaxed">
               {hasAllContractorAccess
@@ -631,14 +709,18 @@ export const ReportsView = ({
       </Dialog>
 
       {/* Dialog 2: Contractor Projects List */}
-      <Dialog open={showContractorProjectsDialog} onOpenChange={setShowContractorProjectsDialog}>
+      <Dialog
+        open={showContractorProjectsDialog}
+        onOpenChange={setShowContractorProjectsDialog}
+      >
         <DialogContent className="sm:max-w-[550px] rounded-[20px] border-none shadow-[0px_4px_34px_rgba(31,42,68,0.1)] p-6 max-h-[85vh] flex flex-col">
           <DialogHeader className="pb-4 border-b">
             <DialogTitle className="text-xl font-black text-[#1F2A44] uppercase tracking-tight font-asap">
               Project Report – Regular
             </DialogTitle>
             <DialogDescription className="text-xs text-gray-500 font-medium">
-              A list of contractor projects on this property. You can purchase or download reports for each project.
+              A list of contractor projects on this property. You can purchase
+              or download reports for each project.
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
@@ -653,10 +735,15 @@ export const ReportsView = ({
               </div>
             ) : (
               contractorProjects.map((project: any) => {
-                const projectId = project.id ?? project.project_id ?? project._id;
+                const projectId =
+                  project.id ?? project.project_id ?? project._id;
                 const isProjectGenerating = !!generatingProjects[projectId];
-                const isProjectPurchased = project.project_purchased === true || project.is_purchased === true;
-                const isSelected = selectedContractors.includes(String(projectId));
+                const isProjectPurchased =
+                  project.project_purchased === true ||
+                  project.is_purchased === true;
+                const isSelected = selectedContractors.includes(
+                  String(projectId),
+                );
                 const projectPrice = project.project_price ?? 29;
 
                 const hasProjectAccess =
@@ -681,7 +768,9 @@ export const ReportsView = ({
                           if (checked) {
                             setSelectedContractors((prev) => [...prev, pidStr]);
                           } else {
-                            setSelectedContractors((prev) => prev.filter((id) => id !== pidStr));
+                            setSelectedContractors((prev) =>
+                              prev.filter((id) => id !== pidStr),
+                            );
                           }
                         }}
                       />
@@ -705,7 +794,12 @@ export const ReportsView = ({
                       <div className="flex items-center gap-2 self-end sm:self-auto">
                         {hasProjectAccess ? (
                           <Button
-                            onClick={() => handleGenerateProjectReport(projectId, project.project_name)}
+                            onClick={() =>
+                              handleGenerateProjectReport(
+                                projectId,
+                                project.project_name,
+                              )
+                            }
                             disabled={isProjectGenerating}
                             className="h-8 px-3 rounded-lg bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-[10px] uppercase tracking-widest gap-1.5 shadow-none"
                           >
@@ -718,7 +812,9 @@ export const ReportsView = ({
                           </Button>
                         ) : (
                           <Button
-                            onClick={() => handlePurchaseProjectReport(projectId)}
+                            onClick={() =>
+                              handlePurchaseProjectReport(projectId)
+                            }
                             className="h-8 px-3 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[10px] uppercase tracking-widest gap-1.5 shadow-none"
                           >
                             <ShoppingCart className="size-3" />
@@ -735,10 +831,14 @@ export const ReportsView = ({
           {selectedContractors.length > 0 && (
             <div className="p-4 bg-muted/40 rounded-xl border border-border flex items-center justify-between mb-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
               <span className="text-xs font-semibold text-[#708090]">
-                {selectedContractors.length} {selectedContractors.length === 1 ? 'project' : 'projects'} selected
+                {selectedContractors.length}{" "}
+                {selectedContractors.length === 1 ? "project" : "projects"}{" "}
+                selected
               </span>
               <Button
-                onClick={() => handlePurchaseMultipleProjects(selectedContractors)}
+                onClick={() =>
+                  handlePurchaseMultipleProjects(selectedContractors)
+                }
                 disabled={isBulkPurchasing}
                 className="h-8 px-4 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[10px] uppercase tracking-widest gap-1.5 shadow-none"
               >
@@ -747,16 +847,23 @@ export const ReportsView = ({
                 ) : (
                   <ShoppingCart className="size-3.5" />
                 )}
-                Pay Selected (${selectedContractors.reduce((total, id) => {
-                  const proj = contractorProjects.find((p) => String(p.id ?? p.project_id ?? p._id) === id);
+                Pay Selected ($
+                {selectedContractors.reduce((total, id) => {
+                  const proj = contractorProjects.find(
+                    (p) => String(p.id ?? p.project_id ?? p._id) === id,
+                  );
                   return total + (proj?.project_price ?? 29);
-                }, 0)})
+                }, 0)}
+                )
               </Button>
             </div>
           )}
           <DialogFooter className="pt-4 border-t">
             <DialogClose asChild>
-              <Button variant="outline" className="h-10 w-full rounded-xl font-bold uppercase tracking-widest border-2">
+              <Button
+                variant="outline"
+                className="h-10 w-full rounded-xl font-bold uppercase tracking-widest border-2"
+              >
                 Close
               </Button>
             </DialogClose>
@@ -765,14 +872,18 @@ export const ReportsView = ({
       </Dialog>
 
       {/* Dialog 3: Home Owner Projects List */}
-      <Dialog open={showHomeOwnerProjectsDialog} onOpenChange={setShowHomeOwnerProjectsDialog}>
+      <Dialog
+        open={showHomeOwnerProjectsDialog}
+        onOpenChange={setShowHomeOwnerProjectsDialog}
+      >
         <DialogContent className="sm:max-w-[550px] rounded-[20px] border-none shadow-[0px_4px_34px_rgba(31,42,68,0.1)] p-6 max-h-[85vh] flex flex-col">
           <DialogHeader className="pb-4 border-b">
             <DialogTitle className="text-xl font-black text-[#1F2A44] uppercase tracking-tight font-asap">
               Project Report – Homeowner
             </DialogTitle>
             <DialogDescription className="text-xs text-gray-500 font-medium">
-              A list of homeowner projects on this property. You can purchase or download reports for each project.
+              A list of homeowner projects on this property. You can purchase or
+              download reports for each project.
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
@@ -787,20 +898,28 @@ export const ReportsView = ({
               </div>
             ) : (
               homeownerProjects.map((project: any) => {
-                const projectId = project.id ?? project.project_id ?? project._id;
+                const projectId =
+                  project.id ?? project.project_id ?? project._id;
                 const isProjectGenerating = !!generatingProjects[projectId];
-                const isProjectPurchased = project.project_purchased === true || project.is_purchased === true;
+                const isProjectPurchased =
+                  project.project_purchased === true ||
+                  project.is_purchased === true;
                 const dateLabel = project.date_of_install
                   ? new Date(project.date_of_install).toLocaleDateString()
                   : project.start_date
                     ? new Date(project.start_date).toLocaleDateString()
                     : "N/A";
-                const isSelected = selectedHomeowners.includes(String(projectId));
+                const isSelected = selectedHomeowners.includes(
+                  String(projectId),
+                );
                 const projectPrice = project.project_price ?? 29;
 
                 const isCreator =
                   project.created_by === user?.id ||
-                  (user?.email && project.createdBy?.email && user.email.toLowerCase() === project.createdBy.email.toLowerCase());
+                  (user?.email &&
+                    project.createdBy?.email &&
+                    user.email.toLowerCase() ===
+                      project.createdBy.email.toLowerCase());
                 const hasProjectAccess =
                   isProjectPurchased ||
                   isPurchased ||
@@ -823,7 +942,9 @@ export const ReportsView = ({
                           if (checked) {
                             setSelectedHomeowners((prev) => [...prev, pidStr]);
                           } else {
-                            setSelectedHomeowners((prev) => prev.filter((id) => id !== pidStr));
+                            setSelectedHomeowners((prev) =>
+                              prev.filter((id) => id !== pidStr),
+                            );
                           }
                         }}
                       />
@@ -850,7 +971,12 @@ export const ReportsView = ({
                       <div className="flex items-center gap-2 self-end sm:self-auto">
                         {hasProjectAccess ? (
                           <Button
-                            onClick={() => handleGenerateProjectReport(projectId, project.project_name)}
+                            onClick={() =>
+                              handleGenerateProjectReport(
+                                projectId,
+                                project.project_name,
+                              )
+                            }
                             disabled={isProjectGenerating}
                             className="h-8 px-3 rounded-lg bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-[10px] uppercase tracking-widest gap-1.5 shadow-none"
                           >
@@ -863,7 +989,9 @@ export const ReportsView = ({
                           </Button>
                         ) : (
                           <Button
-                            onClick={() => handlePurchaseProjectReport(projectId)}
+                            onClick={() =>
+                              handlePurchaseProjectReport(projectId)
+                            }
                             className="h-8 px-3 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[10px] uppercase tracking-widest gap-1.5 shadow-none"
                           >
                             <ShoppingCart className="size-3" />
@@ -880,10 +1008,14 @@ export const ReportsView = ({
           {selectedHomeowners.length > 0 && (
             <div className="p-4 bg-muted/40 rounded-xl border border-border flex items-center justify-between mb-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
               <span className="text-xs font-semibold text-[#708090]">
-                {selectedHomeowners.length} {selectedHomeowners.length === 1 ? 'project' : 'projects'} selected
+                {selectedHomeowners.length}{" "}
+                {selectedHomeowners.length === 1 ? "project" : "projects"}{" "}
+                selected
               </span>
               <Button
-                onClick={() => handlePurchaseMultipleProjects(selectedHomeowners)}
+                onClick={() =>
+                  handlePurchaseMultipleProjects(selectedHomeowners)
+                }
                 disabled={isBulkPurchasing}
                 className="h-8 px-4 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[10px] uppercase tracking-widest gap-1.5 shadow-none"
               >
@@ -892,16 +1024,23 @@ export const ReportsView = ({
                 ) : (
                   <ShoppingCart className="size-3.5" />
                 )}
-                Pay Selected (${selectedHomeowners.reduce((total, id) => {
-                  const proj = homeownerProjects.find((p) => String(p.id ?? p.project_id ?? p._id) === id);
+                Pay Selected ($
+                {selectedHomeowners.reduce((total, id) => {
+                  const proj = homeownerProjects.find(
+                    (p) => String(p.id ?? p.project_id ?? p._id) === id,
+                  );
                   return total + (proj?.project_price ?? 29);
-                }, 0)})
+                }, 0)}
+                )
               </Button>
             </div>
           )}
           <DialogFooter className="pt-4 border-t">
             <DialogClose asChild>
-              <Button variant="outline" className="h-10 w-full rounded-xl font-bold uppercase tracking-widest border-2">
+              <Button
+                variant="outline"
+                className="h-10 w-full rounded-xl font-bold uppercase tracking-widest border-2"
+              >
                 Close
               </Button>
             </DialogClose>
@@ -926,7 +1065,9 @@ export const ReportsView = ({
 
       <PdfGenerationLoader
         isOpen={isGenerating || isBulkPurchasing || isGeneratingAllContractor}
-        message={isBulkPurchasing ? "Processing Purchase..." : "Generating Report..."}
+        message={
+          isBulkPurchasing ? "Processing Purchase..." : "Generating Report..."
+        }
       />
     </div>
   );

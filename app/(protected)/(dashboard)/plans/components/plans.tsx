@@ -9,6 +9,7 @@ import {
   Building2,
   Crown,
   Clock,
+  RefreshCw,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import {
   getUserProfile,
   subscribeToMembership,
   cancelMembership,
+  updateAutoRenewal,
   getFreeTrialStatus,
   type FreeTrialStatusData,
 } from "@/lib/actions";
@@ -28,6 +30,12 @@ import { useUser } from "@/components/providers/user-provider";
 import type { Role } from "@/config/rbac";
 import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // Map RBAC roles to membership targetRole values
 const roleMapping: Record<Role, string> = {
@@ -79,11 +87,37 @@ const Plans = () => {
     null,
   );
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [changePlanDialogOpen, setChangePlanDialogOpen] = useState(false);
+  const [pendingPlanId, setPendingPlanId] = useState<string | null>(null);
   const [trialStatus, setTrialStatus] = useState<FreeTrialStatusData | null>(
     null,
   );
+  const [isAutoRenewal, setIsAutoRenewal] = useState<boolean>(false);
+  const [isUpdatingAutoRenewal, setIsUpdatingAutoRenewal] = useState<boolean>(false);
+
+  const handleToggleAutoRenewal = async (checked: boolean) => {
+    try {
+      setIsUpdatingAutoRenewal(true);
+      const result = await updateAutoRenewal(checked);
+      if (!result.success) {
+        toast.error(result.message || "Failed to update Auto-Pay setting");
+        return;
+      }
+      setIsAutoRenewal(checked);
+      toast.success(
+        checked
+          ? "Auto-Pay (Auto-renewal) enabled"
+          : "Auto-Pay (Auto-renewal) disabled",
+      );
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update Auto-Pay setting");
+    } finally {
+      setIsUpdatingAutoRenewal(false);
+    }
+  };
 
   const currentPlanObj = plans.find((p) => p.id === currentPlanId);
+  const pendingPlanObj = plans.find((p) => p.id === pendingPlanId);
   const isCurrentPlanFree =
     !currentPlanId ||
     (currentPlanLevel && currentPlanLevel.toUpperCase() === "FREE") ||
@@ -99,6 +133,24 @@ const Plans = () => {
   );
 
   const handleToggleBilling = () => setIsAnnual(!isAnnual);
+
+  const handlePlanClick = (plan: IPlanData, isCurrentPlan: boolean) => {
+    if (isCurrentPlan) {
+      setCancelDialogOpen(true);
+      return;
+    }
+
+    const hasActiveSubscription = Boolean(
+      user?.has_membership || (currentPlanId && !isCurrentPlanFree),
+    );
+
+    if (hasActiveSubscription) {
+      setPendingPlanId(plan.id);
+      setChangePlanDialogOpen(true);
+    } else {
+      handleSubscribe(plan.id);
+    }
+  };
 
   const handleSubscribe = async (planId: string) => {
     try {
@@ -120,9 +172,14 @@ const Plans = () => {
         return;
       }
 
-      const response = result.data.data;
-      if (response?.checkout_session?.url) {
-        window.location.href = response.checkout_session.url;
+      const response = result.data?.data || result.data;
+      const checkoutUrl =
+        response?.checkout_session?.url ||
+        response?.url ||
+        result.data?.checkout_session?.url;
+
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
       } else if (response) {
         if (user) {
           setUser({ ...user, has_membership: true });
@@ -137,16 +194,21 @@ const Plans = () => {
           selectedPlan?.name?.toLowerCase().includes("free");
 
         const successMsg =
-          response.message ||
+          response?.message ||
+          (result as any)?.message ||
           (isFree
             ? "Free membership activated successfully!"
             : "Subscription activated successfully!");
 
         toast.success(successMsg);
         localStorage.removeItem("pending_level");
-        window.location.replace("/dashboard");
+        await fetchData();
+
+        setTimeout(() => {
+          window.location.replace("/dashboard");
+        }, 1500);
       } else {
-        toast.error("Failed to create checkout session");
+        toast.error("Failed to process subscription");
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to subscribe to plan");
@@ -206,6 +268,15 @@ const Plans = () => {
       if (subLevel) {
         setCurrentPlanLevel(subLevel);
       }
+
+      const autoRenewFlag =
+        profileResponse?.autoRenewalEnabled ??
+        profileResponse?.auto_renewal_enabled ??
+        profileResponse?.current_subscription?.autoRenewalEnabled ??
+        profileResponse?.current_subscription?.auto_renewal_enabled ??
+        profileResponse?.user?.autoRenewalEnabled ??
+        false;
+      setIsAutoRenewal(Boolean(autoRenewFlag));
 
       if (trialResponse?.success && trialResponse?.data?.data) {
         setTrialStatus(trialResponse.data.data);
@@ -301,7 +372,7 @@ const Plans = () => {
             >
               <p className="text-primary font-semibold flex items-center justify-center gap-2">
                 <Star className="w-5 h-5 fill-primary" />
-                Cancel your current membership first to switch plans.
+                You currently have an active membership plan. Select another plan below to switch your membership.
               </p>
             </motion.div>
           ) : (
@@ -322,31 +393,71 @@ const Plans = () => {
           )}
         </div>
 
-        {hasAnnualPlans && (
-          <div className="flex items-center gap-4 bg-muted/30 p-2 rounded-2xl border border-border/50 backdrop-blur-sm shadow-inner">
-            <span
-              className={cn(
-                "text-sm font-medium transition-colors",
-                !isAnnual ? "text-foreground" : "text-muted-foreground",
-              )}
-            >
-              Monthly
-            </span>
-            <Switch
-              checked={isAnnual}
-              onCheckedChange={handleToggleBilling}
-              className="data-[state=checked]:bg-primary"
-            />
-            <span
-              className={cn(
-                "text-sm font-medium transition-colors",
-                isAnnual ? "text-foreground" : "text-muted-foreground",
-              )}
-            >
-              Annual
-            </span>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center justify-center gap-4">
+          {hasAnnualPlans && (
+            <div className="flex items-center gap-4 bg-muted/30 p-2 px-4 rounded-2xl border border-border/50 backdrop-blur-sm shadow-inner">
+              <span
+                className={cn(
+                  "text-sm font-medium transition-colors",
+                  !isAnnual ? "text-foreground" : "text-muted-foreground",
+                )}
+              >
+                Monthly
+              </span>
+              <Switch
+                checked={isAnnual}
+                onCheckedChange={handleToggleBilling}
+                className="data-[state=checked]:bg-primary"
+              />
+              <span
+                className={cn(
+                  "text-sm font-medium transition-colors",
+                  isAnnual ? "text-foreground" : "text-muted-foreground",
+                )}
+              >
+                Annual
+              </span>
+            </div>
+          )}
+
+          {currentPlanId && !isCurrentPlanFree ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-3 bg-muted/30 p-2 px-4 rounded-2xl border border-border/50 backdrop-blur-sm shadow-inner cursor-pointer">
+                    <RefreshCw className={cn("w-4 h-4 text-primary", isUpdatingAutoRenewal && "animate-spin")} />
+                    <span className="text-sm font-medium text-foreground">
+                      Auto-Pay
+                    </span>
+                    <Switch
+                      checked={isAutoRenewal}
+                      disabled={isUpdatingAutoRenewal}
+                      onCheckedChange={handleToggleAutoRenewal}
+                      className="data-[state=checked]:bg-primary"
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-center text-xs font-semibold shadow-lg">
+                  Auto-Pay can be enabled or turned off at any time.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-2 bg-muted/30 p-2.5 px-4 rounded-2xl border border-border/50 backdrop-blur-sm shadow-inner cursor-help text-xs font-medium text-muted-foreground">
+                    <RefreshCw className="w-4 h-4 text-primary shrink-0" />
+                    <span>Auto-Pay: Enabled by default for new subscriptions</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-center text-xs font-semibold shadow-lg">
+                  Auto-Pay is enabled by default upon subscription and can be disabled anytime in your profile or plan settings after activation.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-stretch">
@@ -501,11 +612,7 @@ const Plans = () => {
                         ? "bg-white text-red-600 border-red-500/20 hover:bg-red-500 hover:text-white"
                         : " hover:bg-white text-white hover:text-[#339FD0]",
                     )}
-                    onClick={() =>
-                      isCurrentPlan
-                        ? setCancelDialogOpen(true)
-                        : handleSubscribe(plan.id)
-                    }
+                    onClick={() => handlePlanClick(plan, isCurrentPlan)}
                   >
                     {subscribingPlanId === plan.id ||
                     (isCancelling && isCurrentPlan) ? (
@@ -513,9 +620,6 @@ const Plans = () => {
                     ) : isCurrentPlan ? (
                       "Cancel Membership"
                     ) : (
-                      // : !!currentPlanId && !isCurrentPlanFree ? (
-                      //   "Cancel Current Plan First"
-                      // )
                       "Get Started"
                     )}
                   </Button>
@@ -538,6 +642,25 @@ const Plans = () => {
         cancelText="Keep Membership"
         variant="destructive"
         onConfirm={handleCancel}
+      />
+
+      <ConfirmDialog
+        isOpen={changePlanDialogOpen}
+        onOpenChange={setChangePlanDialogOpen}
+        title="Change Membership Plan"
+        description={
+          pendingPlanObj
+            ? `Are you sure you want to switch your membership to the "${pendingPlanObj.name}" plan? Your current subscription will be updated.`
+            : "Are you sure you want to change your membership plan? Your current subscription will be updated."
+        }
+        confirmText="Yes, Change Plan"
+        cancelText="Cancel"
+        variant="primary"
+        onConfirm={() => {
+          if (pendingPlanId) {
+            handleSubscribe(pendingPlanId);
+          }
+        }}
       />
     </div>
   );

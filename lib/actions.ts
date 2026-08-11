@@ -1068,6 +1068,18 @@ export async function cancelMembership(): Promise<ActionResult> {
     return { success: true, data: response.data };
 }
 
+export async function updateAutoRenewal(autoRenewalEnabled: boolean): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: '/api/membership-plans/auto-renewal',
+        method: 'PUT',
+        data: { autoRenewalEnabled },
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to update auto-renewal settings') };
+    }
+    return { success: true, data: response.data };
+}
+
 export interface FreeTrialStatusData {
     has_used_free_trial: boolean;
     is_free_trial_active: boolean;
@@ -1484,11 +1496,12 @@ export async function addStaff(body: any): Promise<ActionResult> {
     return { success: true, data: response.data };
 }
 
-export async function getStates(page: number = 1, limit: number = 10, name?: string) {
+export async function getStates(page: number = 1, limit: number = 10, name?: string, property_count?: boolean) {
     const params = new URLSearchParams();
     params.append("page", page.toString());
     params.append("limit", limit.toString());
     if (name) params.append("name", name);
+    if (property_count !== undefined) params.append("property_count", String(property_count));
 
     const response = await fetchApi({
         url: `/api/states?${params.toString()}`,

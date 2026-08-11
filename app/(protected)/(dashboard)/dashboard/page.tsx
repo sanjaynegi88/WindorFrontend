@@ -39,6 +39,9 @@ import Link from "next/link";
 function DashboardPageContent() {
   const router = useRouter();
   const { user } = useUser();
+  const isSubAccount =
+    (user as any)?.user?.sub_account === true ||
+    (user as any)?.sub_account === true;
   const [userProperties, setUserProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
@@ -96,7 +99,6 @@ function DashboardPageContent() {
         setShowResults(true);
       }
 
-      // Clean up search params from the address bar so they don't persist on refresh or page navigation
       const cleanUrl = window.location.pathname;
       window.history.replaceState(null, "", cleanUrl);
     }
@@ -281,12 +283,14 @@ function DashboardPageContent() {
                   )}
                 </div>
               </div>
-              <Link
-                href="/plans"
-                className="shrink-0 px-4 py-2 bg-[#339FD0] hover:bg-[#2887b3] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors shadow-sm"
-              >
-                Upgrade Plan
-              </Link>
+              {!isSubAccount && (
+                <Link
+                  href="/plans"
+                  className="shrink-0 px-4 py-2 bg-[#339FD0] hover:bg-[#2887b3] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors shadow-sm"
+                >
+                  Upgrade Plan
+                </Link>
+              )}
             </div>
           )}
           <div className="w-full flex flex-col lg:flex-row items-center lg:items-start lg:justify-between gap-8 md:gap-12">

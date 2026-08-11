@@ -20,14 +20,14 @@ export const ProjectImagesView = ({
 
   return (
     <div className="space-y-[20px] md:space-y-[41px] font-asap">
-      <div className="relative flex items-center justify-center border-b border-[#D9D9D9] pt-2">
-        <div className="flex gap-4 sm:gap-10 md:gap-[170px] px-4 pb-[15px]">
+      <div className="relative flex items-center justify-center border-b border-[#D9D9D9]">
+        <div className="w-full px-2 sm:px-4 md:w-auto flex justify-around sm:justify-center gap-2 sm:gap-10 md:gap-[170px] overflow-x-auto overflow-y-hidden no-scrollbar">
           {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "text-[13px] md:text-[18px] font-medium leading-[21px] uppercase transition-all relative whitespace-nowrap font-asap",
+                "text-[12px] sm:text-[15px] md:text-[18px] font-medium leading-[21px] uppercase transition-all relative whitespace-nowrap font-asap cursor-pointer px-1 py-3 sm:py-4",
                 activeTab === tab
                   ? "text-[#1CA7A6]"
                   : "text-[#1F2A44] hover:text-[#1CA7A6]",
@@ -35,14 +35,14 @@ export const ProjectImagesView = ({
             >
               {tab}
               {activeTab === tab && (
-                <div className="absolute bottom-[-16px] left-1/2 -translate-x-1/2 w-[60px] sm:w-[100px] md:w-[233px] h-px bg-[#1CA7A6]" />
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#1CA7A6]" />
               )}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:gap-8 md:gap-x-[72px] md:gap-y-[62px] px-4 sm:px-10 md:px-[139px]">
+      <div className="grid grid-cols-2 gap-3 sm:gap-8 md:gap-x-[72px] md:gap-y-[62px] px-3 sm:px-10 md:px-[139px]">
         {images.length > 0 ? (
           images.map((img, i) => (
             <div
@@ -74,7 +74,7 @@ export const ProjectImagesView = ({
       </div>
 
       {/* Back Button */}
-      <div className="flex justify-center pt-12 md:pt-[100px] pb-[50px]">
+      <div className="flex justify-center pt-8 md:pt-[100px] pb-8 md:pb-[50px]">
         <button
           onClick={onBack}
           className="flex items-center gap-[21px] group cursor-pointer"

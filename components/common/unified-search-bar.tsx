@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Check, ChevronsUpDown } from "lucide-react";
+import { Search, Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -76,16 +76,21 @@ export function UnifiedSearchBar({
 
   const [states, setStates] = useState<any[]>([]);
   const [cities, setCities] = useState<any[]>([]);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isCitiesLoading, setIsCitiesLoading] = useState(false);
 
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
+        setIsInitialLoading(true);
         const statesRes = await getStates(1, 1000);
         setStates(Array.isArray(statesRes) ? statesRes : statesRes?.data || []);
         const citiesRes = await getCities();
         setCities(Array.isArray(citiesRes) ? citiesRes : citiesRes?.data || []);
       } catch (error) {
         console.error("Failed to fetch search options:", error);
+      } finally {
+        setIsInitialLoading(false);
       }
     };
     fetchInitialData();
@@ -94,6 +99,7 @@ export function UnifiedSearchBar({
   useEffect(() => {
     const fetchCities = async () => {
       try {
+        setIsCitiesLoading(true);
         const stateId = state !== "all" ? state : undefined;
         const citiesRes = await getCities(
           undefined,
@@ -113,6 +119,8 @@ export function UnifiedSearchBar({
         });
       } catch (error) {
         console.error("Failed to fetch cities:", error);
+      } finally {
+        setIsCitiesLoading(false);
       }
     };
     fetchCities();
@@ -191,15 +199,19 @@ export function UnifiedSearchBar({
   const selectedStateName =
     state === "all"
       ? "Select State"
-      : selectedStateObj?.state_name ||
-        selectedStateObj?.name ||
-        "Select State";
+      : isInitialLoading
+        ? "Loading..."
+        : selectedStateObj?.state_name ||
+          selectedStateObj?.name ||
+          "Select State";
 
   const selectedCityObj = cities.find((c) => String(c.id) === String(city));
   const selectedCityName =
     city === "all"
       ? "City"
-      : selectedCityObj?.city_name || selectedCityObj?.name || "City";
+      : isCitiesLoading
+        ? "Loading..."
+        : selectedCityObj?.city_name || selectedCityObj?.name || "City";
 
   return (
     <div className={`space-y-[10px] md:space-y-[30px] w-full ${className}`}>
@@ -215,7 +227,10 @@ export function UnifiedSearchBar({
                 aria-expanded={openState}
                 className="h-[39px] md:h-[65px] w-full justify-between rounded-[10px] border-[rgba(28,167,166,0.25)] bg-white text-[#708090] font-medium px-4 md:px-6 focus:ring-[#22a699]/20 text-[13px] md:text-[20px] font-asap shadow-none hover:bg-white"
               >
-                <span className="truncate">
+                <span className="truncate flex items-center gap-2">
+                  {isInitialLoading && (
+                    <Loader2 className="h-4 w-4 animate-spin text-[#1CA7A6] shrink-0" />
+                  )}
                   {toTitleCase(selectedStateName)}
                 </span>
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50 text-[#1CA7A6]" />
@@ -228,34 +243,21 @@ export function UnifiedSearchBar({
                   className="h-10 text-sm font-asap"
                 />
                 <CommandList className="max-h-[220px] overflow-y-auto p-1">
-                  <CommandEmpty className="py-2 text-center text-xs text-muted-foreground font-asap">
-                    No state found.
-                  </CommandEmpty>
-                  <CommandGroup>
-                    <CommandItem
-                      value="Select State"
-                      onSelect={() => {
-                        setState("all");
-                        setOpenState(false);
-                      }}
-                      className="cursor-pointer text-sm font-asap py-2 rounded-lg"
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4 text-[#1CA7A6]",
-                          state === "all" ? "opacity-100" : "opacity-0",
-                        )}
-                      />
-                      Select State
-                    </CommandItem>
-                    {states.map((s) => {
-                      const name = s.state_name || s.name || "";
-                      return (
+                  {isInitialLoading ? (
+                    <div className="py-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2 font-asap">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-[#1CA7A6]" />
+                      <span>Loading states...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <CommandEmpty className="py-2 text-center text-xs text-muted-foreground font-asap">
+                        {states.length === 0 ? "0 states available" : "No state found."}
+                      </CommandEmpty>
+                      <CommandGroup>
                         <CommandItem
-                          key={s.id}
-                          value={name}
+                          value="Select State"
                           onSelect={() => {
-                            setState(s.id);
+                            setState("all");
                             setOpenState(false);
                           }}
                           className="cursor-pointer text-sm font-asap py-2 rounded-lg"
@@ -263,14 +265,36 @@ export function UnifiedSearchBar({
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4 text-[#1CA7A6]",
-                              state === s.id ? "opacity-100" : "opacity-0",
+                              state === "all" ? "opacity-100" : "opacity-0",
                             )}
                           />
-                          {name}
+                          Select State
                         </CommandItem>
-                      );
-                    })}
-                  </CommandGroup>
+                        {states.map((s) => {
+                          const name = s.state_name || s.name || "";
+                          return (
+                            <CommandItem
+                              key={s.id}
+                              value={name}
+                              onSelect={() => {
+                                setState(s.id);
+                                setOpenState(false);
+                              }}
+                              className="cursor-pointer text-sm font-asap py-2 rounded-lg"
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4 text-[#1CA7A6]",
+                                  state === s.id ? "opacity-100" : "opacity-0",
+                                )}
+                              />
+                              {name}
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                    </>
+                  )}
                 </CommandList>
               </Command>
             </PopoverContent>
@@ -283,9 +307,13 @@ export function UnifiedSearchBar({
                 variant="outline"
                 role="combobox"
                 aria-expanded={openCity}
-                className="h-[39px] md:h-[65px] w-full justify-between rounded-[10px] border-[rgba(28,167,166,0.25)] bg-white text-[#708090] font-medium px-4 md:px-6 focus:ring-[#22a699]/20 text-[13px] md:text-[20px] font-asap shadow-none hover:bg-white"
+                disabled={isCitiesLoading}
+                className="h-[39px] md:h-[65px] w-full justify-between rounded-[10px] border-[rgba(28,167,166,0.25)] bg-white text-[#708090] font-medium px-4 md:px-6 focus:ring-[#22a699]/20 text-[13px] md:text-[20px] font-asap shadow-none hover:bg-white disabled:opacity-70"
               >
-                <span className="truncate">
+                <span className="truncate flex items-center gap-2">
+                  {isCitiesLoading && (
+                    <Loader2 className="h-4 w-4 animate-spin text-[#1CA7A6] shrink-0" />
+                  )}
                   {toTitleCase(selectedCityName)}
                 </span>
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50 text-[#1CA7A6]" />
@@ -298,38 +326,21 @@ export function UnifiedSearchBar({
                   className="h-10 text-sm font-asap"
                 />
                 <CommandList className="max-h-[220px] overflow-y-auto p-1">
-                  <CommandEmpty className="py-2 text-center text-xs text-muted-foreground font-asap">
-                    No city found.
-                  </CommandEmpty>
-                  <CommandGroup>
-                    <CommandItem
-                      value="City"
-                      onSelect={() => {
-                        setCity("all");
-                        setOpenCity(false);
-                      }}
-                      className="cursor-pointer text-sm font-asap py-2 rounded-lg"
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4 text-[#1CA7A6]",
-                          city === "all" ? "opacity-100" : "opacity-0",
-                        )}
-                      />
-                      City
-                    </CommandItem>
-                    {cities.map((c: any) => {
-                      const name = c.city_name || c.name || "";
-                      const cityStateId = c.state_id || c.state?.id || c.state_id;
-                      return (
+                  {isCitiesLoading ? (
+                    <div className="py-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2 font-asap">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-[#1CA7A6]" />
+                      <span>Loading cities...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <CommandEmpty className="py-2 text-center text-xs text-muted-foreground font-asap">
+                        {cities.length === 0 ? "0 cities available" : "No city found."}
+                      </CommandEmpty>
+                      <CommandGroup>
                         <CommandItem
-                          key={c.id}
-                          value={name}
+                          value="City"
                           onSelect={() => {
-                            setCity(c.id);
-                            if (cityStateId) {
-                              setState(String(cityStateId));
-                            }
+                            setCity("all");
                             setOpenCity(false);
                           }}
                           className="cursor-pointer text-sm font-asap py-2 rounded-lg"
@@ -337,14 +348,40 @@ export function UnifiedSearchBar({
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4 text-[#1CA7A6]",
-                              city === c.id ? "opacity-100" : "opacity-0",
+                              city === "all" ? "opacity-100" : "opacity-0",
                             )}
                           />
-                          {toTitleCase(name)}
+                          City
                         </CommandItem>
-                      );
-                    })}
-                  </CommandGroup>
+                        {cities.map((c: any) => {
+                          const name = c.city_name || c.name || "";
+                          const cityStateId = c.state_id || c.state?.id || c.state_id;
+                          return (
+                            <CommandItem
+                              key={c.id}
+                              value={name}
+                              onSelect={() => {
+                                setCity(c.id);
+                                if (cityStateId) {
+                                  setState(String(cityStateId));
+                                }
+                                setOpenCity(false);
+                              }}
+                              className="cursor-pointer text-sm font-asap py-2 rounded-lg"
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4 text-[#1CA7A6]",
+                                  city === c.id ? "opacity-100" : "opacity-0",
+                                )}
+                              />
+                              {toTitleCase(name)}
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                    </>
+                  )}
                 </CommandList>
               </Command>
             </PopoverContent>

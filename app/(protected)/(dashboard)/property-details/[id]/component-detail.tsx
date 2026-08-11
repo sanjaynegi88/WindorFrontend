@@ -228,30 +228,30 @@ export default function ComponentDetail({
 
   return (
     <div className="min-h-screen bg-linear-to-b from-[#F5FFFF] to-[#FFFFFF] pb-20">
-      <div className="max-w-292.5 mx-auto pt-7 md:pt-14 px-5 md:px-0 space-y-4 md:space-y-6.75">
-        <div className="flex flex-col gap-1 md:gap-1.75">
-          <h1 className="text-[24px] md:text-[36px] font-bold text-[#1F2A44] tracking-normal uppercase leading-tight md:leading-[41px] font-asap">
+      <div className="max-w-292.5 mx-auto pt-4 md:pt-14 px-4 md:px-0 space-y-4 md:space-y-6.75">
+        <div className="flex flex-col gap-2 md:gap-3">
+          <h1 className="text-[20px] sm:text-[28px] md:text-[36px] font-bold text-[#1F2A44] tracking-normal uppercase leading-tight md:leading-[41px] font-asap break-words">
             {componentData?.property_name || property?.address}
           </h1>
-          <div className="flex items-center justify-between">
-            <p className="text-[16px] md:text-[24px] font-normal text-[rgba(112,128,144,0.93)] leading-tight md:leading-[29px] font-inter">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+            <p className="text-[14px] sm:text-[18px] md:text-[24px] font-normal text-[rgba(112,128,144,0.93)] leading-tight md:leading-[29px] font-inter">
               {property.location}
             </p>
-            <div className="flex gap-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               {showAddProject && (
                 <Link
                   href={`/properties/new?propertyId=${property.propertyId}`}
-                  className="flex items-center gap-2 h-10 px-4 rounded-lg bg-secondary-new hover:bg-secondary-new/80 text-white font-bold text-[12px] uppercase tracking-widest transition-colors"
+                  className="flex items-center gap-1.5 sm:gap-2 h-9 sm:h-10 px-3 sm:px-4 rounded-lg bg-secondary-new hover:bg-secondary-new/80 text-white font-bold text-[11px] sm:text-[12px] uppercase tracking-wider sm:tracking-widest transition-colors shrink-0"
                 >
-                  <PlusIcon />
-                  <h1>Add Project</h1>
+                  <PlusIcon className="size-4" />
+                  <span>Add Project</span>
                 </Link>
               )}
               {showGenerateOption && (
                 <Button
                   onClick={downloadReport}
                   disabled={isGenerating}
-                  className="flex items-center gap-2 h-10 px-4 rounded-lg bg-secondary-new hover:bg-secondary-new/80 text-white font-bold text-[12px] uppercase tracking-widest transition-colors"
+                  className="flex items-center gap-1.5 sm:gap-2 h-9 sm:h-10 px-3 sm:px-4 rounded-lg bg-secondary-new hover:bg-secondary-new/80 text-white font-bold text-[11px] sm:text-[12px] uppercase tracking-wider sm:tracking-widest transition-colors shrink-0"
                 >
                   {isGenerating ? (
                     <Loader2 className="size-3.5 animate-spin" />
@@ -264,7 +264,7 @@ export default function ComponentDetail({
               {showBuyOption && (
                 <Button
                   onClick={() => setShowPurchaseDialogTop(true)}
-                  className="flex items-center gap-2 h-10 px-4 rounded-lg bg-secondary-new hover:bg-secondary-new/80 text-white font-bold text-[12px] uppercase tracking-widest transition-colors"
+                  className="flex items-center gap-1.5 sm:gap-2 h-9 sm:h-10 px-3 sm:px-4 rounded-lg bg-secondary-new hover:bg-secondary-new/80 text-white font-bold text-[11px] sm:text-[12px] uppercase tracking-wider sm:tracking-widest transition-colors shrink-0"
                 >
                   Buy Full Report
                 </Button>
@@ -273,8 +273,8 @@ export default function ComponentDetail({
           </div>
         </div>
 
-        <div className="w-full max-w-[1170px] min-h-[500px] md:min-h-[1061px] rounded-[20px] shadow-[0px_4px_34px_rgba(31,42,68,0.1)] bg-white overflow-hidden">
-          <div className="w-full h-[213px] md:h-[418px] relative overflow-hidden">
+        <div className="w-full max-w-[1170px] min-h-auto md:min-h-[1061px] rounded-[16px] sm:rounded-[20px] shadow-[0px_4px_34px_rgba(31,42,68,0.1)] bg-white overflow-hidden">
+          <div className="w-full h-[180px] sm:h-[280px] md:h-[418px] relative overflow-hidden">
             <Image
               src={heroImageSrc || "/assets/prop_placeholder.png"}
               alt={property.address}
@@ -286,15 +286,15 @@ export default function ComponentDetail({
                 setHeroImageSrc("/assets/prop_placeholder.png");
               }}
             />
-            <div className="absolute bottom-9 left-1/2 -translate-x-1/2 flex items-center gap-3.5 z-10 flex-wrap justify-center w-full max-w-[90%]">
+            <div className="absolute bottom-3 sm:bottom-9 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-3.5 z-10 flex-wrap justify-center w-full max-w-[95%] px-2">
               {componentData?.street_view_link && (
                 <a
                   href={componentData.street_view_link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 h-10 px-6 rounded-full bg-white hover:bg-gray-100 text-[#1F2A44] font-bold text-[12px] md:text-[14px] uppercase tracking-widest transition-all shadow-lg border border-gray-200/50 hover:scale-105"
+                  className="flex items-center gap-1.5 sm:gap-2 h-8 sm:h-10 px-3 sm:px-6 rounded-full bg-white hover:bg-gray-100 text-[#1F2A44] font-bold text-[10px] sm:text-[12px] md:text-[14px] uppercase tracking-wider sm:tracking-widest transition-all shadow-lg border border-gray-200/50 hover:scale-105"
                 >
-                  <MapPin className="size-4 text-[#1CA7A6]" />
+                  <MapPin className="size-3.5 sm:size-4 text-[#1CA7A6]" />
                   Property Street View
                 </a>
               )}
@@ -303,15 +303,15 @@ export default function ComponentDetail({
                 componentData?.longitude && (
                   <Link
                     href={`/properties?view=map&lat=${componentData.latitude}&lng=${componentData.longitude}&id=${componentId}`}
-                    className="flex items-center gap-2 h-10 px-6 rounded-full bg-white hover:bg-gray-100 text-[#1F2A44] font-bold text-[12px] md:text-[14px] uppercase tracking-widest transition-all shadow-lg border border-gray-200/50 hover:scale-105"
+                    className="flex items-center gap-1.5 sm:gap-2 h-8 sm:h-10 px-3 sm:px-6 rounded-full bg-white hover:bg-gray-100 text-[#1F2A44] font-bold text-[10px] sm:text-[12px] md:text-[14px] uppercase tracking-wider sm:tracking-widest transition-all shadow-lg border border-gray-200/50 hover:scale-105"
                   >
-                    <Map className="size-4 text-[#1CA7A6]" />
+                    <Map className="size-3.5 sm:size-4 text-[#1CA7A6]" />
                     Open in Map
                   </Link>
                 )}
             </div>
           </div>
-          <div className="pt-6 md:pt-[43px]">
+          <div className="pt-4 sm:pt-6 md:pt-[43px]">
             {showImages ? (
               <ProjectImagesView
                 activeTab={activeImageTab}

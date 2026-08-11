@@ -75,7 +75,15 @@ export function SearchableSelect({
     ? value.slice("__custom__:".length)
     : (options.find((o) => o.id === value)?.name ?? displayValueFallback ?? "");
 
-  const filtered = options.filter((o) => {
+  const uniqueOptions = options.filter(
+    (o, index, self) =>
+      index ===
+      self.findIndex(
+        (t) => t.id === o.id && (t.parentName || "") === (o.parentName || ""),
+      ),
+  );
+
+  const filtered = uniqueOptions.filter((o) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     const nameMatches = o.name.toLowerCase().includes(q);
@@ -83,7 +91,7 @@ export function SearchableSelect({
     if (nameMatches || parentMatches) return true;
     // If this is a header, keep it if any child subBrand matches search query
     if (o.isHeader || o.disabled) {
-      return options.some(
+      return uniqueOptions.some(
         (child) =>
           child.isSubBrand &&
           child.parentName === o.name &&
@@ -151,8 +159,8 @@ export function SearchableSelect({
 
                     return (
                       <CommandItem
-                        key={o.id}
-                        value={o.name}
+                        key={`${o.id}___${o.parentName || ""}`}
+                        value={`${o.id}___${o.parentName || ""}___${o.name}`}
                         onSelect={() => {
                           onValueChange(o.id);
                           handleSearchChange("");

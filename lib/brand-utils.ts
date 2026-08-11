@@ -1,8 +1,6 @@
-// Note: Fallback brands removed as only backend-created brands work during posting.
-
 const BRANDS_CACHE_KEY = 'windor_brands_cache';
 const CACHE_EXPIRY_KEY = 'windor_brands_cache_expiry';
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_DURATION = 24 * 60 * 60 * 1000; 
 const BRANDS_FETCH_STATUS_KEY = 'windor_brands_fetch_status';
 
 export function getBrandsFromCache(category?: string): { id: string; name: string }[] | null {
@@ -42,7 +40,6 @@ export function getOfflineBrands(category?: string): { id: string; name: string 
     return cached;
   }
 
-  // Only use fallback brands if we never successfully fetched from API
   const statusKey = category ? `${BRANDS_FETCH_STATUS_KEY}_${category.toUpperCase()}` : BRANDS_FETCH_STATUS_KEY;
   const fetchStatus = localStorage.getItem(statusKey);
   if (fetchStatus !== 'success') {
@@ -50,20 +47,14 @@ export function getOfflineBrands(category?: string): { id: string; name: string 
     return [];
   }
 
-  // If we previously had success but cache expired, return empty to force refetch
   console.warn(`Brand cache ${category ? `for ${category} ` : ''}expired - need to refetch from API`);
   return [];
 }
 
-/**
- * Fetch brands from API and cache them
- * This should be called when the app starts and user is online
- */
 export async function fetchAndCacheBrands(category?: string): Promise<{ id: string; name: string }[]> {
   if (typeof window === 'undefined') return [];
 
   try {
-    // Dynamic import to avoid circular dependencies
     const { getBrands } = await import('@/lib/actions');
     const response = await getBrands(0, 0, category);
 
@@ -78,19 +69,14 @@ export async function fetchAndCacheBrands(category?: string): Promise<{ id: stri
   } catch (error) {
     console.error(`Failed to fetch brands ${category ? `for ${category} ` : ''}from API:`, error);
 
-    // Mark fetch as failed
     const statusKey = category ? `${BRANDS_FETCH_STATUS_KEY}_${category.toUpperCase()}` : BRANDS_FETCH_STATUS_KEY;
     localStorage.setItem(statusKey, 'failed');
 
-    // Return cached brands if available
     const cached = getBrandsFromCache(category);
     return cached || [];
   }
 }
 
-/**
- * Initialize brand caching - call this when app starts
- */
 export async function initBrandCache(): Promise<void> {
   if (typeof window === 'undefined') return;
 
@@ -99,7 +85,6 @@ export async function initBrandCache(): Promise<void> {
     return;
   }
 
-  // Only fetch if online
   if (navigator.onLine) {
     await fetchAndCacheBrands();
   }
@@ -108,4 +93,87 @@ export async function initBrandCache(): Promise<void> {
 export function isOnline(): boolean {
   if (typeof window === 'undefined') return true;
   return navigator.onLine;
+}
+
+export interface SubBrand {
+  id: string;
+  name: string;
+}
+
+export interface BrandItem {
+  id: string;
+  name: string;
+  category?: string;
+  description?: string | null;
+  sub_brands?: SubBrand[] | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export function transformBrandsToOptions(brands: BrandItem[]): {
+  id: string;
+  name: string;
+  disabled?: boolean;
+  isHeader?: boolean;
+  isSubBrand?: boolean;
+  parentName?: string;
+}[] {
+  const options: {
+    id: string;
+    name: string;
+    disabled?: boolean;
+    isHeader?: boolean;
+    isSubBrand?: boolean;
+    parentName?: string;
+  }[] = [];
+
+  if (!Array.isArray(brands)) return options;
+
+  const seenKeys = new Set<string>();
+
+  brands.forEach((brand) => {
+    if (!brand || !brand.name) return;
+
+    const hasSubBrands = Array.isArray(brand.sub_brands) && brand.sub_brands.length > 0;
+
+    if (!hasSubBrands) {
+      const brandKey = `brand:${brand.id}`;
+      if (!seenKeys.has(brandKey)) {
+        seenKeys.add(brandKey);
+        options.push({
+          id: brand.id,
+          name: brand.name,
+        });
+      }
+    } else {
+      const headerKey = `header:${brand.id}`;
+      if (!seenKeys.has(headerKey)) {
+        seenKeys.add(headerKey);
+        options.push({
+          id: `__header__:${brand.id}`,
+          name: brand.name,
+          disabled: true,
+          isHeader: true,
+        });
+      }
+
+      brand.sub_brands!.forEach((sub: any) => {
+        const subName = typeof sub === "string" ? sub : sub?.name || "";
+        if (subName) {
+          const subKey = `sub:${brand.id}:${subName}`;
+          if (!seenKeys.has(subKey)) {
+            seenKeys.add(subKey);
+            options.push({
+              id: `__custom__:${subName}`,
+              name: subName,
+              isSubBrand: true,
+              parentName: brand.name,
+            });
+          }
+        }
+      });
+    }
+  });
+
+  return options;
 }
