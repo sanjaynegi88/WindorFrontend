@@ -929,9 +929,9 @@ export function InstallationForm({
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
                                 if (!file) return;
-                                if (file.size > 8 * 1024 * 1024) {
+                                if (file.size > 2 * 1024 * 1024) {
                                   toast.error(
-                                    `Image "${file.name}" exceeds the 8MB size limit`,
+                                    `Image "${file.name}" exceeds the 2MB size limit`,
                                   );
                                   e.target.value = "";
                                   return;
@@ -958,7 +958,7 @@ export function InstallationForm({
                         Property Owner Images (Up to 5)
                       </FormLabel>
                       <span className="text-[11px] text-amber-600 font-semibold">
-                        Acceptable size: Max 8MB per image
+                        Acceptable size: Max 2MB per image
                       </span>
                     </div>
 
