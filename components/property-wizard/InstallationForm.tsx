@@ -801,7 +801,7 @@ export function InstallationForm({
                         : "Leave empty to keep the current image."}
                     </span>
                     <span className="text-[11px] text-amber-600 font-semibold">
-                      Acceptable size: Max 8MB per image
+                      Acceptable size: Max 2MB per image
                     </span>
                   </p>
 
