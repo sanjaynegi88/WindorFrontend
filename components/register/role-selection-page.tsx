@@ -18,7 +18,7 @@ interface RoleDetail {
 const ROLE_DETAILS: Record<string, RoleDetail> = {
   contractor: {
     required: ["First Name, Last Name, Email", "Company URL (Verified)", "Company Address, Website URL", "License # (If Applicable)", "Phone # (Mobile), Phone # (Company)", "Type Selection: General, Roofs, Windows, Doors, Garage Doors, Other"],
-    membership: ["Standard - (Free) Limited to 1 property entry", "Silver - Up to 3 properties/month and Max 6 projects or $35/month or $375/year", "Gold - Unlimited annual access $1,395/year", "Additional Users - $25/month per user"],
+    membership: ["Trial - 15-day free membership trial - Unlimited Property Entry - Limited to 1 Project Entry - Limited to 1 Report (Unless paid for), Standard - $65/month or $780/year - Unlimited Property Entry - Limited to 5 Projects Entry - Limited to 5 Reports (member must pay after the 5th Report) - Additional users($25.00 each per month)", "Premium  - $95/month or $1140/year - Unlimited Property Entry - Limited to 10 Projects Entry - Limited to 10 Reports (member must pay after the 10th Report) - Additional users($25.00 each per month)", "Platinum - $225/month or $2700/year - Unlimited Property Entry - Limited to 10 Projects Entry - Limited to 10 Reports (member must pay after the 10th Report) - Additional users($25.00 each per month)"],
     permissions: ["Enter & manage projects for properties (according to plan limits)", "Purchase reports for any property"],
   },
   city_official: {
@@ -28,12 +28,12 @@ const ROLE_DETAILS: Record<string, RoleDetail> = {
   },
   homeowner: {
     required: ["First Name, Last Name, Email", "Property Address", "Phone # (Direct)", "Owner Date Range"],
-    membership: ["Free - 1 Property", "Can purchase additional property reports"],
+    membership: ["Free", "Silver Plan - $9.95/year","Gold Plan - $19.99/year","Can purchase additional property reports"],
     permissions: ["View reports for owned property", "Upload property documents", "Track project history"],
   },
   property_owner: {
     required: ["First Name, Last Name, Email", "Property Address", "Phone # (Direct)", "Owner Date Range"],
-    membership: ["Free - 1 Property", "Can purchase additional property reports"],
+    membership: ["Free","Silver Plan - $9.95/year","Gold Plan - $19.99/year","Can purchase additional property reports"],
     permissions: ["View reports for owned property", "Upload property documents", "Track project history"],
   },
   insurance: {
@@ -43,12 +43,12 @@ const ROLE_DETAILS: Record<string, RoleDetail> = {
   },
   manufacturer: {
     required: ["First Name, Last Name, Email", "Company Address, Website URL", "License # (If Applicable)", "Phone # (Mobile), Phone # (Company)", "Products / Distribution Areas"],
-    membership: ["Standard - (Free) Limited to 1 entry", "Silver - Up to 3 entries/month or $35/month", "Gold - Unlimited annual access $1,395/year"],
+    membership: ["Standard - (Free) Limited to 1 entry", "Silver - Up to 3 entries/month or $25/month or $275/year", "Gold - Unlimited annual access $35/month or $350/year"],
     permissions: ["Enter & manage product installations", "Purchase property reports", "Track distribution activity"],
   },
   realtor: {
     required: ["First Name, Last Name, Email", "Agency Name, Agency Address", "License # (Required)", "Phone # (Direct)", "Website URL"],
-    membership: ["Standard - (Free) Limited to 1 property", "Silver - Up to 5 properties/month or $35/month", "Gold - Unlimited annual access $1,395/year"],
+    membership: ["Silver - $39.95/month or $395.00/year", "Gold - $83.95/month or $835.00/year"],
     permissions: ["View & purchase property reports", "Access full upgrade history for listings", "Share reports with clients"],
   },
 };

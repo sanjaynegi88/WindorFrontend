@@ -16,9 +16,10 @@ interface PropertyGridProps {
   isPropertyOwner?: boolean;
   onOpenInMap?: (lat: number, lng: number, id: string) => void;
   onDeleteProperty?: (id: string) => void;
+  mapSlot?: React.ReactNode;
 }
 
-export function PropertyGrid({ searchParams, redirectUrl, showActionButtons, showDetail, isPropertyOwner, onOpenInMap, onDeleteProperty }: PropertyGridProps) {
+export function PropertyGrid({ searchParams, redirectUrl, showActionButtons, showDetail, isPropertyOwner, onOpenInMap, onDeleteProperty, mapSlot }: PropertyGridProps) {
   const [properties, setProperties] = useState<any[]>([]);
 
   const handlePropertyDeleted = (deletedId: string) => {
@@ -96,10 +97,13 @@ export function PropertyGrid({ searchParams, redirectUrl, showActionButtons, sho
 
   if (properties.length === 0) {
     return (
-      <div className="text-center py-20 bg-gray-50 md:rounded-4xl">
-        <p className="text-gray-400 font-black uppercase tracking-widest text-lg">
-          No properties found.
-        </p>
+      <div className="space-y-6">
+        <div className="text-center py-20 bg-gray-50 md:rounded-4xl">
+          <p className="text-gray-400 font-black uppercase tracking-widest text-lg">
+            No properties found.
+          </p>
+        </div>
+        {mapSlot}
       </div>
     );
   }
@@ -139,6 +143,8 @@ export function PropertyGrid({ searchParams, redirectUrl, showActionButtons, sho
             );
           })}
         </div>
+
+        {mapSlot}
 
         {hasMore && (
           <div className="flex justify-center">

@@ -104,6 +104,7 @@ const propertySchema = z.object({
     .regex(phoneRegex, "Mobile phone must be exactly 10 digits"),
   ownerDateStart: z.string().min(1, "Start date is required"),
   ownerDateEnd: z.string().optional(),
+  present: z.boolean().optional(),
   state_id: z.string().min(1, "State is required"),
   city_id: z.string().min(1, "City is required"),
   zip: z.string().min(1, "Zip code is required"),
@@ -177,6 +178,7 @@ function PropertyForm({
 }) {
   const [states, setStates] = useState<{ id: string; name: string }[]>([]);
   const [selectedStateId, setSelectedStateId] = useState("");
+  const [isPresent, setIsPresent] = useState(false);
 
   useEffect(() => {
     getStates(1, 1000)
@@ -198,6 +200,7 @@ function PropertyForm({
       propertyAddress: "",
       ownerDateStart: "",
       ownerDateEnd: "",
+      present: false,
       mobilePhone: "",
       state_id: "",
       city_id: "",
@@ -315,12 +318,38 @@ function PropertyForm({
               <FormItem>
                 <FormLabel>Owner End Date</FormLabel>
                 <FormControl>
-                  <Input type="date" {...field} className={inputCls} />
+                  <Input
+                    type={isPresent ? "text" : "date"}
+                    disabled={isPresent}
+                    value={isPresent ? "Present" : field.value || ""}
+                    onChange={(e) => field.onChange(e.target.value)}
+                    className={`${inputCls} disabled:bg-muted/40 disabled:opacity-80`}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+        </div>
+        <div className="flex items-center gap-2 mt-2">
+          <Checkbox
+            id="add-user-present-residence"
+            checked={isPresent}
+            onCheckedChange={(checked) => {
+              const isChecked = Boolean(checked);
+              setIsPresent(isChecked);
+              form.setValue("present", isChecked);
+              if (isChecked) {
+                form.setValue("ownerDateEnd", "");
+              }
+            }}
+          />
+          <label
+            htmlFor="add-user-present-residence"
+            className="text-sm font-medium leading-none cursor-pointer select-none"
+          >
+            Present (Currently Residing)
+          </label>
         </div>
         <FormButtons onBack={onBack} loading={loading} />
       </form>

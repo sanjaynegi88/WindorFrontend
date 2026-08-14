@@ -164,15 +164,25 @@ export function MembershipDetailsDialog({ isOpen, onClose, membershipId }: Membe
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {Object.entries(membership.features).map(([key, val]) => {
                         const readableKey = key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                        const isExplicitDisabled = val === false || val === 'false' || val === 'no';
+                        const isIncludedWithoutValue = val === "" || val === null || val === undefined || val === true || val === 'true' || val === 'yes';
+
                         return (
                           <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-muted-foreground/10 transition-colors">
                             <span className="text-xs font-semibold text-muted-foreground">{readableKey}</span>
-                            {typeof val === 'boolean' ? (
+                            {isExplicitDisabled ? (
                               <Badge
-                                variant={val ? "success" : "destructive"}
+                                variant="destructive"
                                 appearance="outline"
                               >
-                                {val ? "Included" : "Excluded"}
+                                Excluded
+                              </Badge>
+                            ) : isIncludedWithoutValue ? (
+                              <Badge
+                                variant="success"
+                                appearance="outline"
+                              >
+                                Included
                               </Badge>
                             ) : typeof val === 'object' && val !== null ? (
                               <span className="text-xs font-bold bg-background px-2 py-1 rounded-md border shadow-sm">

@@ -31,6 +31,7 @@ interface SearchableSelectProps {
   onValueChange: (value: string) => void;
   placeholder?: string;
   searchPlaceholder?: string;
+  emptyMessage?: string;
   loading?: boolean;
   allowCustom?: boolean;
   triggerClassName?: string;
@@ -49,6 +50,7 @@ export function SearchableSelect({
   onValueChange,
   placeholder = "Select an option",
   searchPlaceholder = "Search...",
+  emptyMessage,
   loading = false,
   allowCustom = false,
   triggerClassName,
@@ -73,7 +75,13 @@ export function SearchableSelect({
   const isCustom = value?.startsWith("__custom__:");
   const displayValue = isCustom
     ? value.slice("__custom__:".length)
-    : (options.find((o) => o.id === value)?.name ?? displayValueFallback ?? "");
+    : (options.find(
+        (o) =>
+          o.id === value ||
+          (o.id.startsWith("__header__:") &&
+            o.id.slice("__header__:".length) === value) ||
+          (o.id.startsWith("__subbrand__:") && o.id.split(":")[1] === value),
+      )?.name ?? displayValueFallback ?? "");
 
   const uniqueOptions = options.filter(
     (o, index, self) =>
@@ -207,7 +215,7 @@ export function SearchableSelect({
                   {selectableFiltered.length === 0 &&
                     (!allowCustom || search.trim().length === 0) && (
                       <div className="p-4 text-center text-sm text-[#708090]">
-                        No results found
+                        {emptyMessage || "No results found"}
                       </div>
                     )}
                 </CommandGroup>

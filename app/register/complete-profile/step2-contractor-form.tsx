@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,9 +14,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { CitySelect, StateSelect } from "@/components/city-zip-selector";
-import { toast } from "sonner";
-import { getServiceProvided } from "@/lib/actions";
-import { cn, toPascalCase } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ServiceSelect } from "@/components/service-select";
 
@@ -214,7 +211,9 @@ export function Step2ContractorForm({
               )}
             />
 
-            <div className={`[&_button]:h-[65px] [&_button]:rounded-[6px] [&_button]:border-[rgba(112,128,144,0.23)] [&_button]:text-[20px] [&_button]:font-asap [&_button]:font-medium [&_button]:text-[#708090] [&_button]:shadow-none [&_button]:bg-white`}>
+            <div
+              className={`[&_button]:h-[65px] [&_button]:rounded-[6px] [&_button]:border-[rgba(112,128,144,0.23)] [&_button]:text-[20px] [&_button]:font-asap [&_button]:font-medium [&_button]:text-[#708090] [&_button]:shadow-none [&_button]:bg-white`}
+            >
               <StateSelect
                 name="state_id"
                 valueType="id"
@@ -226,7 +225,9 @@ export function Step2ContractorForm({
               />
             </div>
 
-            <div className={`[&_button]:h-[65px] [&_button]:rounded-[6px] [&_button]:border-[rgba(112,128,144,0.23)] [&_button]:text-[20px] [&_button]:font-asap [&_button]:font-medium [&_button]:text-[#708090] [&_button]:shadow-none [&_button]:bg-white`}>
+            <div
+              className={`[&_button]:h-[65px] [&_button]:rounded-[6px] [&_button]:border-[rgba(112,128,144,0.23)] [&_button]:text-[20px] [&_button]:font-asap [&_button]:font-medium [&_button]:text-[#708090] [&_button]:shadow-none [&_button]:bg-white`}
+            >
               <CitySelect
                 name="city_id"
                 valueType="id"

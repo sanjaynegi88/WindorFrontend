@@ -42,7 +42,7 @@ import {
 
 const featureSchema = z.object({
   name: z.string().min(1, "Name cannot be empty"),
-  value: z.string().min(1, "Value cannot be empty"),
+  value: z.string().nullable().optional(),
 });
 
 const membershipFormSchema = z
@@ -92,7 +92,7 @@ interface MembershipFormProps {
     yearlyAmount: string | any;
     targetRole?: string;
     level?: string;
-    maxReports?: number;
+    maxReports?: number | any;
     maxCities?: number;
     maxProperties?: number;
     maxUsers?: number;
@@ -163,11 +163,7 @@ export function MembershipForm({
   React.useEffect(() => {
     if (isFree) {
       form.setValue("monthlyPrice", "0");
-      form.setValue("yearlyPrice", "0");
-      form.setValue("maxProjects", "0");
-      form.setValue("maxProperties", "0");
-      form.setValue("isUnlimitedProjects", false);
-      form.setValue("isUnlimitedProperties", false);
+      form.setValue("yearlyPrice", "");
     }
   }, [isFree, form]);
 
@@ -178,8 +174,13 @@ export function MembershipForm({
       name: data.name,
       description: data.description,
       monthlyAmount:
-        data.monthlyPrice?.trim() !== "" ? data.monthlyPrice : null,
-      yearlyAmount: data.yearlyPrice?.trim() !== "" ? data.yearlyPrice : null,
+        !data.monthlyPrice || data.monthlyPrice.trim() === ""
+          ? null
+          : data.monthlyPrice,
+      yearlyAmount:
+        !data.yearlyPrice || data.yearlyPrice.trim() === ""
+          ? null
+          : data.yearlyPrice,
       targetRole: data.targetRole,
       features: transformedFeatures,
       isActive: data.status,
@@ -189,6 +190,10 @@ export function MembershipForm({
       requestBody.level = data.level;
       requestBody.maxProjects = data.maxProjects;
       requestBody.isUnlimitedProjects = data.isUnlimitedProjects;
+      requestBody.maxReports = data.maxReports
+        ? parseInt(data.maxReports)
+        : null;
+      requestBody.isUnlimitedAccess = data.isUnlimitedAccess;
     }
 
     if (data.targetRole === "CONTRACTOR" && data.level) {
@@ -199,12 +204,21 @@ export function MembershipForm({
       requestBody.maxUsers = data.maxUsers;
       requestBody.isUnlimitedProperties = data.isUnlimitedProperties;
       requestBody.isUnlimitedProjects = data.isUnlimitedProjects;
-    }
-    if (data.targetRole === "INSURANCE_COMPANY" && data.maxReports) {
-      requestBody.maxReports = parseInt(data.maxReports);
+      requestBody.maxReports = data.maxReports
+        ? parseInt(data.maxReports)
+        : null;
       requestBody.isUnlimitedAccess = data.isUnlimitedAccess;
     }
-    console.log("eee", requestBody);
+    if (data.targetRole === "INSURANCE_COMPANY" && data.maxReports) {
+      requestBody.maxReports = parseInt(data.maxReports!);
+      requestBody.isUnlimitedAccess = data.isUnlimitedAccess;
+    }
+    if (data.targetRole === "REALTOR" && data.maxReports) {
+      requestBody.level = data.level;
+      requestBody.maxReports = parseInt(data.maxReports!);
+      requestBody.isUnlimitedAccess = data.isUnlimitedAccess;
+    }
+
     try {
       if (isEditing && membership) {
         const response = await updateMembership(requestBody, membership.id);
@@ -405,7 +419,8 @@ export function MembershipForm({
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="FREE">Free (No Cost)</SelectItem>
-                            <SelectItem value="STANDARD">Standard</SelectItem>
+                            <SelectItem value="SILVER">Silver</SelectItem>
+                            <SelectItem value="GOLD">Gold</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage className="text-[10px] font-bold" />
@@ -426,7 +441,7 @@ export function MembershipForm({
                             type="number"
                             placeholder="Maximum number of Projects"
                             {...field}
-                            disabled={unlimitedProject || isFree}
+                            disabled={unlimitedProject}
                             className="h-12  border-input focus:bg-background transition-all shadow-none font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         </FormControl>
@@ -445,10 +460,39 @@ export function MembershipForm({
                         <FormControl>
                           <Checkbox
                             checked={field.value}
-                            disabled={isFree}
                             onCheckedChange={field.onChange}
                           />
                         </FormControl>
+                        <FormMessage className="text-[10px] font-bold" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+              {form.watch("targetRole") === "REALTOR" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <FormField
+                    control={form.control}
+                    name="level"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold text-foreground">
+                          Level
+                        </FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="h-12  border-input focus:bg-background transition-all shadow-none font-bold">
+                              <SelectValue placeholder="Select level" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="SILVER">Silver</SelectItem>
+                            <SelectItem value="GOLD">Gold</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage className="text-[10px] font-bold" />
                       </FormItem>
                     )}
@@ -520,7 +564,7 @@ export function MembershipForm({
                             type="number"
                             placeholder="Maximum number of Properties can add"
                             {...field}
-                            disabled={unlimitedProperty || isFree}
+                            disabled={unlimitedProperty}
                             className="h-12  border-input focus:bg-background transition-all shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         </FormControl>
@@ -562,7 +606,7 @@ export function MembershipForm({
                             type="number"
                             placeholder="Maximum number of Projects"
                             {...field}
-                            disabled={unlimitedProject || isFree}
+                            disabled={unlimitedProject}
                             className="h-12  border-input focus:bg-background transition-all shadow-none font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         </FormControl>
@@ -581,7 +625,6 @@ export function MembershipForm({
                         <FormControl>
                           <Checkbox
                             checked={field.value}
-                            disabled={isFree}
                             onCheckedChange={field.onChange}
                           />
                         </FormControl>
@@ -599,7 +642,6 @@ export function MembershipForm({
                         </FormLabel>
                         <FormControl>
                           <Checkbox
-                            disabled={isFree}
                             checked={field.value}
                             onCheckedChange={field.onChange}
                           />
@@ -611,7 +653,10 @@ export function MembershipForm({
                 </div>
               )}
 
-              {form.watch("targetRole") === "INSURANCE_COMPANY" && (
+              {(form.watch("targetRole") === "INSURANCE_COMPANY" ||
+                form.watch("targetRole") === "CONTRACTOR" ||
+                form.watch("targetRole") === "PROPERTY_OWNER" ||
+                form.watch("targetRole") === "REALTOR") && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <FormField
                     control={form.control}
@@ -636,7 +681,10 @@ export function MembershipForm({
                   />
                 </div>
               )}
-              {form.watch("targetRole") === "INSURANCE_COMPANY" && (
+              {(form.watch("targetRole") === "INSURANCE_COMPANY" ||
+                form.watch("targetRole") === "CONTRACTOR" ||
+                form.watch("targetRole") === "PROPERTY_OWNER" ||
+                form.watch("targetRole") === "REALTOR") && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <FormField
                     control={form.control}

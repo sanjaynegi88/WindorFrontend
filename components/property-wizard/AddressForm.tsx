@@ -92,12 +92,10 @@ export function AddressForm({
   const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
 
   const [usageLimitInfo, setUsageLimitInfo] = useState<{
-    isFreePlan: boolean;
     isLimitReached: boolean;
     errorMessage: string | null;
     loading: boolean;
   }>({
-    isFreePlan: false,
     isLimitReached: false,
     errorMessage: null,
     loading: false,
@@ -131,8 +129,6 @@ export function AddressForm({
             : undefined;
         const effectivelevel = (level || subscriptionLevel || "").toUpperCase();
 
-        const isFreePlan = !effectivelevel || effectivelevel === "FREE";
-
         const propertiesUsed = usagePayload?.propertiesUsed ?? 0;
         const propertiesProvided = usagePayload?.propertiesProvided ?? 0;
         const propertiesUnlimited =
@@ -145,16 +141,12 @@ export function AddressForm({
         const isLimitReached = !propertiesUnlimited && remainingLimit <= 0;
 
         let errorMessage = null;
-        if (isFreePlan) {
-          errorMessage =
-            "Your current membership does not include the ability to submit new property addresses. Upgrade your membership to enable this feature.";
-        } else if (isLimitReached) {
+        if (isLimitReached) {
           errorMessage =
             "You have reached your monthly limit of new property submissions for your current membership plan. Your limit will reset on the first day of next month, or you may upgrade your membership to continue submitting properties.";
         }
 
         setUsageLimitInfo({
-          isFreePlan,
           isLimitReached,
           errorMessage,
           loading: false,
@@ -190,6 +182,7 @@ export function AddressForm({
           citySearch || undefined,
           data.state || undefined,
         );
+        //console.log("aaasd", citiesData);
         const rawCities = Array.isArray(citiesData)
           ? citiesData
           : citiesData?.data || [];
@@ -423,7 +416,16 @@ export function AddressForm({
               }
             }}
             placeholder="City"
-            searchPlaceholder="Search city..."
+            searchPlaceholder={
+              !data.state && !data.state_id
+                ? "Select state first..."
+                : "Search city..."
+            }
+            emptyMessage={
+              !data.state && !data.state_id
+                ? "Please select a state first"
+                : "No cities found"
+            }
             loading={loadingCities}
             allowCustom
             searchValue={citySearch}

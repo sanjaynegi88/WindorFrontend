@@ -34,6 +34,7 @@ import { InstallationForm } from "@/components/property-wizard/InstallationForm"
 import { ConfirmSubmitDialog } from "@/components/property-wizard/ConfirmSubmitDialog";
 import { useUser } from "@/components/providers/user-provider";
 import { useMembershipGuard } from "@/hooks/useMembershipGuard";
+import { parseBrandValue } from "@/lib/brand-utils";
 
 interface PropertyAddProps {
   initialStep?: Step;
@@ -160,6 +161,10 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
     { id: string; category?: string; name?: string }[]
   >([]);
   const [hasSavedImages, setHasSavedImages] = useState(false);
+  const [existingPropertyImages, setExistingPropertyImages] = useState<{
+    front: string | null;
+    other: string | null;
+  }>({ front: null, other: null });
 
   const user = useUser();
   const canFetchOwners = user.role === "admin";
@@ -228,6 +233,10 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
     let isMounted = true;
 
     const loadPropertySummary = async () => {
+      const startTime = performance.now();
+      console.log(
+        `[DEBUG] loadPropertySummary STARTED for tempPropertyId=${tempPropertyId}`,
+      );
       setIsInitializingProperty(true);
 
       try {
@@ -251,7 +260,14 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           }));
         }
 
+        const t0 = performance.now();
         const property = await getPropertyById(tempPropertyId);
+        const t1 = performance.now();
+        console.log(
+          `[DEBUG] getPropertyById API response time: ${(t1 - t0).toFixed(2)} ms`,
+          property,
+        );
+
         const propertyPayload = property?.data ?? property;
         const propStateId =
           propertyPayload?.state_id ||
@@ -260,12 +276,18 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           addressData.state ||
           addressData.state_id;
 
+        const t2 = performance.now();
         const citiesRes = await getCities(
           undefined,
           undefined,
           undefined,
           undefined,
           propStateId || undefined,
+        );
+        const t3 = performance.now();
+        console.log(
+          `[DEBUG] getCities API response time: ${(t3 - t2).toFixed(2)} ms`,
+          citiesRes,
         );
         if (!isMounted) return;
 
@@ -291,9 +313,10 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
         setHasExistingReport(reportFlag);
         setExistingPropertyName(propertyName);
         if (propertyPayload) {
-          setHasSavedImages(
-            !!propertyPayload.front_image || !!propertyPayload.other_image,
-          );
+          const frontImg = propertyPayload.front_image || null;
+          const otherImg = propertyPayload.other_image || null;
+          setExistingPropertyImages({ front: frontImg, other: otherImg });
+          setHasSavedImages(!!frontImg || !!otherImg);
           setAddressData({
             address: propertyPayload.address || "",
             address2: propertyPayload.address2 || "",
@@ -330,7 +353,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           }
         }
       } catch (error) {
-        console.error("Failed to load property summary:", error);
+        console.error("[DEBUG] Failed to load property summary:", error);
         if (paramPropertyName || paramStateId || paramCityId) {
           if (paramPropertyName) setExistingPropertyName(paramPropertyName);
           setAddressData((prev) => ({
@@ -342,6 +365,10 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           }));
         }
       } finally {
+        const totalDuration = performance.now() - startTime;
+        console.log(
+          `[DEBUG] loadPropertySummary COMPLETED in ${totalDuration.toFixed(2)} ms`,
+        );
         if (isMounted) {
           setIsInitializingProperty(false);
         }
@@ -356,43 +383,24 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
   }, [tempPropertyId]);
 
   useEffect(() => {
-    if (!tempPropertyId || step !== "ADDRESS") return;
-
-    let isMounted = true;
-    const checkImages = async () => {
-      try {
-        const property = await getPropertyById(tempPropertyId);
-        const propertyPayload = property?.data ?? property;
-        if (propertyPayload && isMounted) {
-          const hasImages =
-            !!propertyPayload.front_image || !!propertyPayload.other_image;
-          setHasSavedImages(hasImages);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    checkImages();
-    return () => {
-      isMounted = false;
-    };
-  }, [tempPropertyId, step]);
-
-  useEffect(() => {
     async function loadLocationData() {
+      const startTime = performance.now();
+      console.log(
+        "[DEBUG] loadLocationData STARTED (fetching states, owners, types)",
+      );
       try {
-        const [statesRes, citiesRes, ownersRes, typesRes] = await Promise.all([
+        const [statesRes, ownersRes, typesRes] = await Promise.all([
           getStates(1, 1000),
-          getCities(),
           canFetchOwners ? getPropertyOwners() : Promise.resolve([]),
           getPropertyTypes(),
         ]);
+        const totalDuration = performance.now() - startTime;
+        console.log(
+          `[DEBUG] loadLocationData Promise.all COMPLETED in ${totalDuration.toFixed(2)} ms`,
+        );
         const rawStates: any[] = Array.isArray(statesRes)
           ? statesRes
           : (statesRes as any)?.data || [];
-        const rawCities: any[] = Array.isArray(citiesRes)
-          ? citiesRes
-          : (citiesRes as any)?.data || [];
         const rawOwners: any[] = Array.isArray(ownersRes)
           ? ownersRes
           : (ownersRes as any)?.data || [];
@@ -408,13 +416,6 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
             id: String(s.id),
             name: s.state_name || s.name,
             abbreviation: s.abbreviation,
-          })),
-        );
-        setCities(
-          rawCities.map((c) => ({
-            id: String(c.id),
-            name: c.city_name || c.name,
-            state_id: c.state_id ? String(c.state_id) : undefined,
           })),
         );
         setPropertyOwners(
@@ -443,7 +444,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
         }
         setPropertyTypes(mappedTypes);
       } catch (error) {
-        console.error("Failed to load location data:", error);
+        console.error("[DEBUG] Failed to load location data:", error);
         toast.error("Failed to load states and cities lists");
       }
     }
@@ -455,7 +456,13 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
     if (!currentStateId) return;
 
     let isMounted = true;
-    getCities(undefined, undefined, undefined, undefined, currentStateId)
+    const response = getCities(
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      currentStateId,
+    )
       .then((citiesRes) => {
         if (!isMounted) return;
         const rawCities: any[] = Array.isArray(citiesRes)
@@ -472,7 +479,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
       .catch((err) => {
         console.error("Failed to fetch cities for state:", err);
       });
-
+    console.log(response);
     return () => {
       isMounted = false;
     };
@@ -628,9 +635,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
 
     const type = selectedTypes[currentTypeIndex];
 
-    const isCustomBrand =
-      typeof values.brand === "string" &&
-      values.brand.startsWith("__custom__:");
+    const { brand_id, other_brand } = parseBrandValue(values.brand);
 
     const payload: any = {
       description: values.description,
@@ -638,10 +643,8 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
       supplier: values.supplier,
       installer: values.installer,
       // manufacturer: values.manufacturer || null,
-      ...(values.brand && !isCustomBrand && { brand_id: values.brand }),
-      ...(isCustomBrand && {
-        other_brand: values.brand.slice("__custom__:".length),
-      }),
+      ...(brand_id && { brand_id }),
+      ...(other_brand && { other_brand }),
       ...(currentProjectId && { project_id: currentProjectId }),
     };
 
@@ -676,6 +679,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
 
     const apiType = type === "garage_doors" ? "garage-doors" : type;
     const isOwnerProject = user.role === "property_owner" || isOwnerProjectType;
+    console.log("payload", payload);
     const installationResult = isOwnerProject
       ? await postPropertyOwnerInstallations(tempPropertyId, payload)
       : await postInstallation(tempPropertyId, apiType, payload);
@@ -842,6 +846,9 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
   };
 
   if (isInitializingProperty && tempPropertyId) {
+    console.log(
+      `[DEBUG] Displaying Loading Form spinner (isInitializingProperty: true, tempPropertyId: ${tempPropertyId})`,
+    );
     return (
       <div className="bg-[#FFFFFF] md:bg-[#1F2A44] md:min-h-screen flex flex-col flex-1 items-center justify-center px-6">
         <div className="flex flex-col items-center justify-center gap-4 rounded-[20px] bg-white px-8 py-10 shadow-[0px_4px_34px_rgba(31,42,68,0.1)] text-center">
@@ -886,6 +893,8 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
               <PropertyAddressPhotos
                 address={addressData.property_name}
                 propertyId={tempPropertyId ?? ""}
+                initialFrontImage={existingPropertyImages.front}
+                initialOtherImage={existingPropertyImages.other}
                 onSave={() => {
                   clearPropertyFlow();
                   if (user.role === "admin") {

@@ -263,7 +263,8 @@ function EditPropertyModal({
       (curr.address || "") !== (init.address || "") ||
       (curr.address2 || "") !== (init.address2 || "") ||
       (curr.property_type_id || "") !== (init.property_type_id || "") ||
-      (curr.property_type_category || "") !== (init.property_type_category || "") ||
+      (curr.property_type_category || "") !==
+        (init.property_type_category || "") ||
       (curr.other_property_type || "") !== (init.other_property_type || "") ||
       (curr.property_name || "") !== (init.property_name || "") ||
       (curr.city_id || "") !== (init.city_id || "") ||
@@ -358,7 +359,6 @@ function EditPropertyModal({
       setActiveTab(targetTab);
     }
   };
-
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -638,6 +638,7 @@ export default function PropertyListPage() {
           undefined,
           appliedSearch || undefined,
           selectedState.id,
+          true,
           true,
         );
         const pagination =

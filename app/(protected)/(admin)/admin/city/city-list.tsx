@@ -52,13 +52,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { getCities, deleteCity, getStates } from "@/lib/actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -119,13 +112,16 @@ export default function CityList({
     setLoading(true);
     try {
       const response = await getCities(
-        page,
+        (page = page),
         limit,
         undefined,
         name || undefined,
         state_id || undefined,
         true,
+        true,
+        true,
       );
+      console.log(response);
       if (response && response.data) {
         setData(response.data);
         if (response.pagination) {

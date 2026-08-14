@@ -35,19 +35,40 @@ function PropertyPageContent() {
     const lng = searchParamsHook.get("lng");
     const id = searchParamsHook.get("id");
 
-    if (view === "map") {
-      setViewMode("map");
+    const urlSearch = searchParamsHook.get("search") || "";
+    const urlSearchBy = (searchParamsHook.get("searchBy") as SearchScope) || "all";
+    const urlStateId = searchParamsHook.get("state_id") || searchParamsHook.get("state") || "";
+    const urlCityId = searchParamsHook.get("city_id") || searchParamsHook.get("city") || "";
+
+    const hasUrlSearchParams = Boolean(
+      urlSearch.trim() ||
+        urlSearchBy !== "all" ||
+        (urlStateId && urlStateId !== "all") ||
+        (urlCityId && urlCityId !== "all"),
+    );
+
+    if (hasUrlSearchParams) {
+      const urlFilters = {
+        search: urlSearch,
+        searchBy: urlSearchBy,
+        state: urlStateId || "all",
+        city: urlCityId || "all",
+        state_id: urlStateId !== "all" ? urlStateId : "",
+        city_id: urlCityId !== "all" ? urlCityId : "",
+      };
+      setFilters(urlFilters);
+      setAppliedFilters(urlFilters);
+      setShowResults(true);
+    } else if (view === "map") {
       setShowResults(true);
     }
+
     if (lat && lng) {
       setMapFocus({ lat: parseFloat(lat), lng: parseFloat(lng) });
     }
     if (id) {
       setMapFocusId(id);
     }
-
-    const cleanUrl = window.location.pathname;
-    window.history.replaceState(null, "", cleanUrl);
   }, [searchParamsHook]);
 
   const [filters, setFilters] = useState({
@@ -92,6 +113,32 @@ function PropertyPageContent() {
     const targetFilters = newFilters || filters;
     setAppliedFilters(targetFilters);
     setShowResults(true);
+
+    const params = new URLSearchParams();
+    if (targetFilters.search) params.set("search", targetFilters.search);
+    if (targetFilters.searchBy && targetFilters.searchBy !== "all") {
+      params.set("searchBy", targetFilters.searchBy);
+    }
+    const activeStateId =
+      targetFilters.state_id && targetFilters.state_id !== "all"
+        ? targetFilters.state_id
+        : targetFilters.state !== "all"
+          ? targetFilters.state
+          : "";
+    const activeCityId =
+      targetFilters.city_id && targetFilters.city_id !== "all"
+        ? targetFilters.city_id
+        : targetFilters.city !== "all"
+          ? targetFilters.city
+          : "";
+    if (activeStateId) params.set("state_id", activeStateId);
+    if (activeCityId) params.set("city_id", activeCityId);
+
+    const queryString = params.toString();
+    const newUrl = queryString
+      ? `${window.location.pathname}?${queryString}`
+      : window.location.pathname;
+    window.history.pushState(null, "", newUrl);
   };
 
   const handleGenerateTop10 = async () => {
@@ -142,11 +189,12 @@ function PropertyPageContent() {
     <Content className="p-0 bg-linear-to-b from-[#F5FFFF] to-[#FFFFFF] min-h-[calc(100vh-80px)] flex flex-col items-center">
       <div className="w-full max-w-[1170px] px-4 py-8 md:py-16 space-y-[20px] md:space-y-[30px]">
         <UnifiedSearchBar
+          initialFilters={appliedFilters}
           showSearchButton={true}
           onChange={setFilters}
           onSearch={handleSearchTriggered}
           onSearchTriggered={handleSearchTriggered}
-          isMapView={viewMode === "map"}
+          isMapView={false}
         />
 
         {showResults && (
@@ -173,55 +221,32 @@ function PropertyPageContent() {
                 </Button>
               )}
             </div>
-            <div className="flex gap-3">
-              <Button
-                onClick={() => setViewMode("list")}
-                className={cn(
-                  "px-4 py-2 rounded-lg text-sm font-medium h-auto transition-all",
-                  viewMode === "list"
-                    ? "bg-[#1F2A44] text-white shadow-sm"
-                    : "bg-muted hover:bg-muted/80 text-muted-foreground",
-                )}
-              >
-                <List className="size-4 mr-2" />
-                List View
-              </Button>
-              <Button
-                onClick={() => setViewMode("map")}
-                className={cn(
-                  "px-4 py-2 rounded-lg text-sm font-medium h-auto transition-all",
-                  viewMode === "map"
-                    ? "bg-[#1F2A44] text-white shadow-sm"
-                    : "bg-muted hover:bg-muted/80 text-muted-foreground",
-                )}
-              >
-                <Map className="size-4 mr-2" />
-                Map View
-              </Button>
-            </div>
-            {viewMode === "list" && (
-              <PropertyGrid
-                searchParams={searchParams}
-                showActionButtons={true}
-                showDetail={true}
-                onOpenInMap={(lat, lng, id) => {
-                  setMapFocus({ lat, lng });
-                  setMapFocusId(id);
-                  setViewMode("map");
-                }}
-              />
-            )}
-            {viewMode === "map" && (
-              <MapView
-                searchParams={searchParams}
-                focusCenter={mapFocus || undefined}
-                focusId={mapFocusId || undefined}
-                onFocusCleared={() => {
-                  setMapFocus(null);
-                  setMapFocusId(null);
-                }}
-              />
-            )}
+            <PropertyGrid
+              searchParams={searchParams}
+              showActionButtons={true}
+              showDetail={true}
+              onOpenInMap={(lat, lng, id) => {
+                setMapFocus({ lat, lng });
+                setMapFocusId(id);
+                const mapElement = document.getElementById("contractor-properties-map-view");
+                if (mapElement) {
+                  mapElement.scrollIntoView({ behavior: "smooth" });
+                }
+              }}
+              mapSlot={
+                <div id="contractor-properties-map-view" className="my-6">
+                  <MapView
+                    searchParams={searchParams}
+                    focusCenter={mapFocus || undefined}
+                    focusId={mapFocusId || undefined}
+                    onFocusCleared={() => {
+                      setMapFocus(null);
+                      setMapFocusId(null);
+                    }}
+                  />
+                </div>
+              }
+            />
           </div>
         )}
       </div>

@@ -40,7 +40,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { CitySelect, StateSelect } from "@/components/city-zip-selector";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
@@ -56,6 +55,7 @@ import { ScreenLoader } from "@/components/common/screen-loader";
 import { toPascalCase } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ServiceSelect } from "@/components/service-select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // ─── Role groups ──────────────────────────────────────────────────────────────
 const PROPERTY_ROLES = ["PROPERTY_OWNER", "REALTOR"];
@@ -96,6 +96,7 @@ const userSchema = z
     propertyAddress: z.string().optional().or(z.literal("")),
     ownerDateStart: z.string().optional().or(z.literal("")),
     ownerDateEnd: z.string().optional().or(z.literal("")),
+    present: z.boolean().optional(),
     mobilePhone: z.string().optional().or(z.literal("")),
     state_id: z.string().optional().or(z.literal("")),
     city_id: z.string().optional().or(z.literal("")),
@@ -275,6 +276,7 @@ export default function EditUserPage({
   const [pendingValues, setPendingValues] = useState<UserFormValues | null>(
     null,
   );
+  const [isPresent, setIsPresent] = useState(false);
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
@@ -291,6 +293,7 @@ export default function EditUserPage({
       propertyAddress: "",
       ownerDateStart: "",
       ownerDateEnd: "",
+      present: false,
       mobilePhone: "",
       state_id: "",
       city_id: "",
@@ -369,6 +372,12 @@ export default function EditUserPage({
           ownerDateEnd: formDetails?.ownerDateEnd
             ? formDetails.ownerDateEnd.split("T")[0]
             : "",
+          present: Boolean(
+            userInfo?.present ??
+              formDetails?.present ??
+              (formDetails?.ownerDateEnd === "Present" ||
+                formDetails?.ownerDateEnd?.toLowerCase() === "present"),
+          ),
           mobilePhone: formDetails?.mobilePhone || "",
           state_id: userInfo?.state_id
             ? String(userInfo.state_id)
@@ -399,6 +408,12 @@ export default function EditUserPage({
         };
 
         form.reset(formData);
+        if (
+          formData.ownerDateEnd === "Present" ||
+          formData.ownerDateEnd?.toLowerCase() === "present"
+        ) {
+          setIsPresent(true);
+        }
       } catch (error: any) {
         console.error("Error fetching user data:", error);
         toast.error(error.message || "Failed to load user data");
@@ -868,15 +883,43 @@ export default function EditUserPage({
                                       <FormLabel>Owner End Date</FormLabel>
                                       <FormControl>
                                         <Input
-                                          type="date"
-                                          {...field}
-                                          className="h-11 bg-muted/20 focus:bg-background transition-all"
+                                          type={isPresent ? "text" : "date"}
+                                          disabled={isPresent}
+                                          value={
+                                            isPresent
+                                              ? "Present"
+                                              : field.value || ""
+                                          }
+                                          onChange={(e) =>
+                                            field.onChange(e.target.value)
+                                          }
+                                          className="h-11 bg-muted/20 focus:bg-background transition-all disabled:bg-muted/40 disabled:opacity-80"
                                         />
                                       </FormControl>
                                       <FormMessage />
                                     </FormItem>
                                   )}
                                 />
+                                <div className="flex items-center gap-2 mt-2 col-span-2">
+                                  <Checkbox
+                                    id="edit-user-present-residence"
+                                    checked={isPresent}
+                                    onCheckedChange={(checked) => {
+                                      const isChecked = Boolean(checked);
+                                      setIsPresent(isChecked);
+                                      form.setValue("present", isChecked);
+                                      if (isChecked) {
+                                        form.setValue("ownerDateEnd", "");
+                                      }
+                                    }}
+                                  />
+                                  <label
+                                    htmlFor="edit-user-present-residence"
+                                    className="text-sm font-medium leading-none cursor-pointer select-none"
+                                  >
+                                    Present (Currently Residing)
+                                  </label>
+                                </div>
                               </>
                             )}
 
@@ -1173,25 +1216,25 @@ export default function EditUserPage({
 
                             {group === "inspector" && (
                               <>
-                                 <StateSelect
-                                   name="state_id"
-                                   label="State"
-                                   valueType="id"
-                                   placeholder="Select a state"
-                                   className="h-11 bg-muted/20 focus:bg-background transition-all"
-                                   onSelectState={(st) => {
-                                     form.setValue("state_id", st.id);
-                                     form.setValue("city_id", "");
-                                   }}
-                                 />
-                                 <CitySelect
-                                   name="city_id"
-                                   label="City"
-                                   valueType="id"
-                                   placeholder="Select a city"
-                                   stateValue={form.watch("state_id")}
-                                   syncState={true}
-                                 />
+                                <StateSelect
+                                  name="state_id"
+                                  label="State"
+                                  valueType="id"
+                                  placeholder="Select a state"
+                                  className="h-11 bg-muted/20 focus:bg-background transition-all"
+                                  onSelectState={(st) => {
+                                    form.setValue("state_id", st.id);
+                                    form.setValue("city_id", "");
+                                  }}
+                                />
+                                <CitySelect
+                                  name="city_id"
+                                  label="City"
+                                  valueType="id"
+                                  placeholder="Select a city"
+                                  stateValue={form.watch("state_id")}
+                                  syncState={true}
+                                />
                                 <FormField
                                   control={form.control}
                                   name="cityOfficial"

@@ -28,6 +28,7 @@ import {
 } from "@/lib/actions";
 import { Loader2, ChevronLeft, MapPin, FolderOpen, Trash2 } from "lucide-react";
 import { ConfirmDeleteDialog } from "@/components/property-wizard/ConfirmDeleteDialog";
+import { parseBrandValue } from "@/lib/brand-utils";
 import { CategoryImageUpload } from "@/components/property-wizard/CategoryImageUpload";
 import { PropertyAddressPhotos } from "@/components/property-wizard/PropertyAddressPhotos";
 import { type StateOption, type CityOption } from "@/lib/location-utils";
@@ -595,20 +596,16 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
     const type = (selectedComponent.component_type || "").toLowerCase();
     setSaving(true);
     try {
-      const isCustomBrand =
-        typeof values.brand === "string" &&
-        values.brand.startsWith("__custom__:");
+      const { brand_id, other_brand } = parseBrandValue(values.brand);
       const payload: any = {
         description: values.description,
         install_date: values.installDate,
         supplier: values.supplier,
         installer: values.installer,
         // manufacturer: values.manufacturer || null,
-        ...(values.brand && !isCustomBrand && { brand_id: values.brand }),
-        ...(isCustomBrand && {
-          other_brand: values.brand.slice("__custom__:".length),
-        }),
-        ...(!values.brand && { brand_id: null, other_brand: null }),
+        ...(brand_id && { brand_id }),
+        ...(other_brand && { other_brand }),
+        ...(!brand_id && !other_brand && { brand_id: null, other_brand: null }),
       };
       if (type === "roofing" || type === "siding") {
         payload.style = values.style;
@@ -704,7 +701,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       } else {
         setSelectedComponent(null);
         setSelectedProject(null);
-        setStep("EDIT_PROJECT");
+        router.push("/dashboard");
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to update installation");
@@ -724,18 +721,14 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       selectedProject?.project_id ??
       selectedProject?._id ??
       localStorage.getItem("current_project_id");
-    const isCustomBrand =
-      typeof values.brand === "string" &&
-      values.brand.startsWith("__custom__:");
+    const { brand_id, other_brand } = parseBrandValue(values.brand);
     const payload: any = {
       description: values.description,
       install_date: values.installDate,
       supplier: values.supplier,
       installer: values.installer,
-      ...(values.brand && !isCustomBrand && { brand_id: values.brand }),
-      ...(isCustomBrand && {
-        other_brand: values.brand.slice("__custom__:".length),
-      }),
+      ...(brand_id && { brand_id }),
+      ...(other_brand && { other_brand }),
       ...(projectId && { project_id: projectId }),
     };
     const type = newInstallationType;

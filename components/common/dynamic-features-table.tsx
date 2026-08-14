@@ -158,27 +158,30 @@ export function DynamicFeaturesTable<T extends FieldValues>({
     );
 }
 
-export const convertFeaturesObjectToArray = (features: Record<string, string | number | boolean>) => {
+export const convertFeaturesObjectToArray = (features: Record<string, string | number | boolean | null | undefined>) => {
+    if (!features) return [];
     return Object.entries(features).map(([key, value]) => ({
         name: key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
-        value: String(value),
+        value: value === null || value === undefined ? '' : String(value),
     }));
 };
 
-export const convertFeaturesArrayToObject = (features: { name: string; value: string }[]) => {
-    return features.reduce((acc, feature) => {
+export const convertFeaturesArrayToObject = (features: { name: string; value?: string | null }[]) => {
+    return (features || []).reduce((acc, feature) => {
+        if (!feature.name) return acc;
         const key = feature.name
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, '_')
             .replace(/(^_|_$)/g, '');
 
-        let parsedValue: string | boolean | number = feature.value;
-        const lowerValue = feature.value.toLowerCase();
+        const strVal = feature.value ?? '';
+        let parsedValue: string | boolean | number = strVal;
+        const lowerValue = strVal.toLowerCase();
 
         if (lowerValue === 'true' || lowerValue === 'yes') parsedValue = true;
         else if (lowerValue === 'false' || lowerValue === 'no') parsedValue = false;
-        else if (!isNaN(Number(feature.value)) && feature.value.trim() !== '') {
-            parsedValue = Number(feature.value);
+        else if (!isNaN(Number(strVal)) && strVal.trim() !== '') {
+            parsedValue = Number(strVal);
         }
 
         acc[key] = parsedValue;

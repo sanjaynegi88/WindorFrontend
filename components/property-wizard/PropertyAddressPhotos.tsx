@@ -17,6 +17,8 @@ import {
 interface PropertyAddressPhotosProps {
   address: string;
   propertyId: string;
+  initialFrontImage?: string | null;
+  initialOtherImage?: string | null;
   onSave: () => void;
   onBack: () => void;
 }
@@ -29,13 +31,15 @@ interface PhotoState {
 export function PropertyAddressPhotos({
   address,
   propertyId,
+  initialFrontImage,
+  initialOtherImage,
   onSave,
   onBack,
 }: PropertyAddressPhotosProps) {
-  const [photos, setPhotos] = useState<Record<string, PhotoState>>({
-    front: { file: null, preview: null },
-    other: { file: null, preview: null },
-  });
+  const [photos, setPhotos] = useState<Record<string, PhotoState>>(() => ({
+    front: { file: null, preview: initialFrontImage || null },
+    other: { file: null, preview: initialOtherImage || null },
+  }));
   const [uploading, setUploading] = useState(false);
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [activePickerTarget, setActivePickerTarget] = useState<string | null>(
@@ -46,13 +50,27 @@ export function PropertyAddressPhotos({
   const cameraInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
+    if (initialFrontImage !== undefined || initialOtherImage !== undefined) {
+      setPhotos({
+        front: { file: null, preview: initialFrontImage || null },
+        other: { file: null, preview: initialOtherImage || null },
+      });
+      return;
+    }
+
     if (!propertyId || propertyId === "") return;
 
     let isMounted = true;
     const fetchExistingImages = async () => {
+      const startTime = performance.now();
+      console.log(
+        `[DEBUG] PropertyAddressPhotos: fetchExistingImages STARTED for propertyId=${propertyId}`,
+      );
       setLoadingExisting(true);
       try {
         const res = await getPropertyById(propertyId);
+        const duration = performance.now() - startTime;
+        //console.log(`[DEBUG] PropertyAddressPhotos: getPropertyById API response time: ${duration.toFixed(2)} ms`);
         const propertyPayload = res?.data ?? res;
         if (propertyPayload && isMounted) {
           setPhotos({
@@ -61,7 +79,10 @@ export function PropertyAddressPhotos({
           });
         }
       } catch (err) {
-        console.error("Failed to fetch existing property images:", err);
+        console.error(
+          "[DEBUG] PropertyAddressPhotos: Failed to fetch existing property images:",
+          err,
+        );
       } finally {
         if (isMounted) {
           setLoadingExisting(false);
@@ -74,7 +95,7 @@ export function PropertyAddressPhotos({
     return () => {
       isMounted = false;
     };
-  }, [propertyId]);
+  }, [propertyId, initialFrontImage, initialOtherImage]);
 
   const hasNewFiles = !!photos.front.file || !!photos.other.file;
   const isAnyImageSaved =
@@ -96,7 +117,7 @@ export function PropertyAddressPhotos({
     if (!file) return;
 
     if (file.size > 8 * 1024 * 1024) {
-      toast.error(`Image "${file.name}" exceeds the 2MB size limit`);
+      toast.error(`Image "${file.name}" exceeds the 8MB size limit`);
       e.target.value = "";
       return;
     }
@@ -156,11 +177,17 @@ export function PropertyAddressPhotos({
     }
 
     setUploading(true);
+    const startTime = performance.now();
+    console.log(`[DEBUG] PropertyAddressPhotos: uploadPropertyImages STARTED`);
     try {
       const response = await uploadPropertyImages(
         propertyId,
         frontFile,
         otherFile,
+      );
+      const duration = performance.now() - startTime;
+      console.log(
+        `[DEBUG] PropertyAddressPhotos: uploadPropertyImages API response time: ${duration.toFixed(2)} ms`,
       );
       if (!response.success) {
         toast.error(response.message);
@@ -169,6 +196,7 @@ export function PropertyAddressPhotos({
       toast.success("Property photos uploaded successfully");
       onSave();
     } catch (error: any) {
+      console.error("[DEBUG] PropertyAddressPhotos: Upload failed:", error);
       toast.error(error?.message || "Failed to upload property photos");
     } finally {
       setUploading(false);
@@ -176,6 +204,9 @@ export function PropertyAddressPhotos({
   };
 
   if (loadingExisting) {
+    console.log(
+      `[DEBUG] PropertyAddressPhotos: Rendering "Loading saved images..." spinner (propertyId=${propertyId})`,
+    );
     return (
       <div className="w-full max-w-[1170px] mx-auto flex flex-col items-center justify-center py-20 gap-4 font-asap">
         <Loader2 className="size-12 animate-spin text-[#1CA7A6]" />
@@ -201,7 +232,7 @@ export function PropertyAddressPhotos({
           Enter New Photos
         </p>
         <p className="text-sm font-semibold text-amber-600">
-          Acceptable size: Max 2MB per image
+          Acceptable size: Max 8MB per image
         </p>
       </div>
 

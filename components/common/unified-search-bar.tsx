@@ -29,23 +29,19 @@ import { cn, toTitleCase } from "@/lib/utils";
 
 export type SearchScope = "all" | "brand" | "color" | "style";
 
+export interface SearchFilterParams {
+  search: string;
+  searchBy: SearchScope;
+  state: string;
+  city: string;
+  state_id: string;
+  city_id: string;
+}
+
 interface UnifiedSearchBarProps {
-  onSearch?: (params: {
-    search: string;
-    searchBy: SearchScope;
-    state: string;
-    city: string;
-    state_id: string;
-    city_id: string;
-  }) => void;
-  onChange?: (params: {
-    search: string;
-    searchBy: SearchScope;
-    state: string;
-    city: string;
-    state_id: string;
-    city_id: string;
-  }) => void;
+  initialFilters?: Partial<SearchFilterParams>;
+  onSearch?: (params: SearchFilterParams) => void;
+  onChange?: (params: SearchFilterParams) => void;
   onSearchTriggered?: () => void;
   showSearchButton?: boolean;
   className?: string;
@@ -54,6 +50,7 @@ interface UnifiedSearchBarProps {
 }
 
 export function UnifiedSearchBar({
+  initialFilters,
   onSearch,
   onChange,
   onSearchTriggered,
@@ -62,14 +59,14 @@ export function UnifiedSearchBar({
   isMapView = false,
   allowEmptySearch = false,
 }: UnifiedSearchBarProps) {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialFilters?.search || "");
   const { user } = useUser();
   const role = user?.role?.toLowerCase() || "";
   const isContractor = role === "contractor";
   const isCityInspector = role === "city_inspector";
-  const [searchBy, setSearchBy] = useState<SearchScope>("all");
-  const [state, setState] = useState("all");
-  const [city, setCity] = useState("all");
+  const [searchBy, setSearchBy] = useState<SearchScope>(initialFilters?.searchBy || "all");
+  const [state, setState] = useState(initialFilters?.state_id || initialFilters?.state || "all");
+  const [city, setCity] = useState(initialFilters?.city_id || initialFilters?.city || "all");
 
   const [openState, setOpenState] = useState(false);
   const [openCity, setOpenCity] = useState(false);
@@ -78,6 +75,32 @@ export function UnifiedSearchBar({
   const [cities, setCities] = useState<any[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isCitiesLoading, setIsCitiesLoading] = useState(false);
+
+  useEffect(() => {
+    if (initialFilters) {
+      if (initialFilters.search !== undefined && initialFilters.search !== search) {
+        setSearch(initialFilters.search);
+      }
+      if (initialFilters.searchBy !== undefined && initialFilters.searchBy !== searchBy) {
+        setSearchBy(initialFilters.searchBy);
+      }
+      const targetState = initialFilters.state_id || initialFilters.state || "all";
+      if (targetState !== state) {
+        setState(targetState);
+      }
+      const targetCity = initialFilters.city_id || initialFilters.city || "all";
+      if (targetCity !== city) {
+        setCity(targetCity);
+      }
+    }
+  }, [
+    initialFilters?.search,
+    initialFilters?.searchBy,
+    initialFilters?.state_id,
+    initialFilters?.state,
+    initialFilters?.city_id,
+    initialFilters?.city,
+  ]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -141,13 +164,9 @@ export function UnifiedSearchBar({
 
   const isSearchInputDone =
     allowEmptySearch ||
-    (isCityInspector || isMapView
-      ? search.trim().length > 0
-      : state !== "all" &&
-        state !== "" &&
-        city !== "all" &&
-        city !== "" &&
-        search.trim().length > 0);
+    search.trim().length > 0 ||
+    (state !== "all" && state !== "") ||
+    (city !== "all" && city !== "");
   const isSearchDisabled = !isSearchInputDone;
 
   const handleSearchClick = () => {

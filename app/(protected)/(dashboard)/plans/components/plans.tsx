@@ -71,6 +71,36 @@ const planIcons: Record<string, any> = {
   Enterprise: Building2,
 };
 
+const PLAN_LEVEL_HIERARCHY: Record<string, number> = {
+  free: 0,
+  standard: 1,
+  silver: 2,
+  gold: 3,
+};
+
+const getPlanLevelRank = (
+  plan?: IPlanData | null,
+  fallbackLevel?: string | null,
+): number => {
+  const rawLevel = (plan?.level || fallbackLevel || plan?.name || "")
+    .toLowerCase()
+    .trim();
+
+  if (rawLevel.includes("free")) return PLAN_LEVEL_HIERARCHY.free;
+  if (rawLevel.includes("gold") || rawLevel.includes("enterprise"))
+    return PLAN_LEVEL_HIERARCHY.gold;
+  if (
+    rawLevel.includes("silver") ||
+    rawLevel.includes("professional") ||
+    rawLevel.includes("pro")
+  )
+    return PLAN_LEVEL_HIERARCHY.silver;
+  if (rawLevel.includes("standard") || rawLevel.includes("starter"))
+    return PLAN_LEVEL_HIERARCHY.standard;
+
+  return PLAN_LEVEL_HIERARCHY.free;
+};
+
 const Plans = () => {
   const router = useRouter();
   const { user, setUser, role } = useUser();
@@ -93,7 +123,8 @@ const Plans = () => {
     null,
   );
   const [isAutoRenewal, setIsAutoRenewal] = useState<boolean>(false);
-  const [isUpdatingAutoRenewal, setIsUpdatingAutoRenewal] = useState<boolean>(false);
+  const [isUpdatingAutoRenewal, setIsUpdatingAutoRenewal] =
+    useState<boolean>(false);
 
   const handleToggleAutoRenewal = async (checked: boolean) => {
     try {
@@ -127,6 +158,8 @@ const Plans = () => {
       Number(currentPlanObj.yearlyAmount ?? 0) === 0) ||
     (currentPlanObj?.name &&
       currentPlanObj.name.toLowerCase().includes("free"));
+
+  const currentRank = getPlanLevelRank(currentPlanObj, currentPlanLevel);
 
   const hasAnnualPlans = plans.some(
     (plan) => plan.yearlyAmount !== null && plan.yearlyAmount !== undefined,
@@ -316,6 +349,10 @@ const Plans = () => {
     );
   }
 
+  const pendingRank = getPlanLevelRank(pendingPlanObj);
+  const isPendingUpgrade = pendingRank > currentRank;
+  const isPendingDowngrade = pendingRank < currentRank;
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 py-8">
       <div className="flex flex-col items-center mb-16 space-y-6">
@@ -372,7 +409,8 @@ const Plans = () => {
             >
               <p className="text-primary font-semibold flex items-center justify-center gap-2">
                 <Star className="w-5 h-5 fill-primary" />
-                You currently have an active membership plan. Select another plan below to switch your membership.
+                You currently have an active membership plan. Select another
+                plan below to switch your membership.
               </p>
             </motion.div>
           ) : (
@@ -425,7 +463,12 @@ const Plans = () => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="flex items-center gap-3 bg-muted/30 p-2 px-4 rounded-2xl border border-border/50 backdrop-blur-sm shadow-inner cursor-pointer">
-                    <RefreshCw className={cn("w-4 h-4 text-primary", isUpdatingAutoRenewal && "animate-spin")} />
+                    <RefreshCw
+                      className={cn(
+                        "w-4 h-4 text-primary",
+                        isUpdatingAutoRenewal && "animate-spin",
+                      )}
+                    />
                     <span className="text-sm font-medium text-foreground">
                       Auto-Pay
                     </span>
@@ -437,7 +480,10 @@ const Plans = () => {
                     />
                   </div>
                 </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-xs text-center text-xs font-semibold shadow-lg">
+                <TooltipContent
+                  side="top"
+                  className="max-w-xs text-center text-xs font-semibold shadow-lg"
+                >
                   Auto-Pay can be enabled or turned off at any time.
                 </TooltipContent>
               </Tooltip>
@@ -448,11 +494,18 @@ const Plans = () => {
                 <TooltipTrigger asChild>
                   <div className="flex items-center gap-2 bg-muted/30 p-2.5 px-4 rounded-2xl border border-border/50 backdrop-blur-sm shadow-inner cursor-help text-xs font-medium text-muted-foreground">
                     <RefreshCw className="w-4 h-4 text-primary shrink-0" />
-                    <span>Auto-Pay: Enabled by default for new subscriptions</span>
+                    <span>
+                      Auto-Pay: Enabled by default for new subscriptions
+                    </span>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-xs text-center text-xs font-semibold shadow-lg">
-                  Auto-Pay is enabled by default upon subscription and can be disabled anytime in your profile or plan settings after activation.
+                <TooltipContent
+                  side="top"
+                  className="max-w-xs text-center text-xs font-semibold shadow-lg"
+                >
+                  Auto-Pay is enabled by default upon subscription and can be
+                  disabled anytime in your profile or plan settings after
+                  activation.
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -473,6 +526,10 @@ const Plans = () => {
               (isAnnual
                 ? currentBillingCycle === "annually"
                 : currentBillingCycle === "monthly");
+
+            const planRank = getPlanLevelRank(plan);
+            const isPlanUpgrade = planRank > currentRank;
+            const isPlanDowngrade = planRank < currentRank;
 
             return (
               <motion.div
@@ -554,16 +611,26 @@ const Plans = () => {
                     )}
 
                     {Object.entries(plan.features).map(([key, value]) => {
+                      const isExplicitFalse =
+                        value === false || value === "false" || value === "no";
                       const isEnabled =
                         typeof value === "object" && value !== null
-                          ? (value as any).enabled
-                          : Boolean(value);
+                          ? Boolean((value as any).enabled)
+                          : !isExplicitFalse;
+
                       const displayValue =
                         typeof value === "object" && value !== null
                           ? (value as any).description
-                          : typeof value !== "boolean"
+                          : typeof value === "string" &&
+                              value.trim() !== "" &&
+                              value !== "true" &&
+                              value !== "false" &&
+                              value !== "yes" &&
+                              value !== "no"
                             ? value
-                            : null;
+                            : typeof value === "number"
+                              ? String(value)
+                              : null;
 
                       return (
                         <div key={key} className="flex items-start gap-2.5">
@@ -619,6 +686,14 @@ const Plans = () => {
                       <Loader2 className="w-5 h-5 animate-spin" />
                     ) : isCurrentPlan ? (
                       "Cancel Membership"
+                    ) : !isCurrentPlanFree ? (
+                      isPlanUpgrade ? (
+                        "Upgrade Plan"
+                      ) : isPlanDowngrade ? (
+                        "Downgrade Plan"
+                      ) : (
+                        "Switch Plan"
+                      )
                     ) : (
                       "Get Started"
                     )}
@@ -647,15 +722,35 @@ const Plans = () => {
       <ConfirmDialog
         isOpen={changePlanDialogOpen}
         onOpenChange={setChangePlanDialogOpen}
-        title="Change Membership Plan"
-        description={
-          pendingPlanObj
-            ? `Are you sure you want to switch your membership to the "${pendingPlanObj.name}" plan? Your current subscription will be updated.`
-            : "Are you sure you want to change your membership plan? Your current subscription will be updated."
+        title={
+          isPendingDowngrade
+            ? "Downgrade Membership Plan"
+            : isPendingUpgrade
+              ? "Upgrade Membership Plan"
+              : "Change Membership Plan"
         }
-        confirmText="Yes, Change Plan"
+        description={
+          isPendingDowngrade
+            ? pendingPlanObj
+              ? `Are you sure you want to downgrade your membership to the "${pendingPlanObj.name}" plan? Please note: No refunds are provided upon downgrading a plan.`
+              : "Are you sure you want to downgrade your membership plan? Please note: No refunds are provided upon downgrading a plan."
+            : isPendingUpgrade
+              ? pendingPlanObj
+                ? `Are you sure you want to upgrade your membership to the "${pendingPlanObj.name}" plan? You will immediately unlock all tier features upon confirmation.`
+                : "Are you sure you want to upgrade your membership plan?"
+              : pendingPlanObj
+                ? `Are you sure you want to switch your membership to the "${pendingPlanObj.name}" plan? Your current subscription will be updated.`
+                : "Are you sure you want to change your membership plan?"
+        }
+        confirmText={
+          isPendingDowngrade
+            ? "Yes, Downgrade Plan"
+            : isPendingUpgrade
+              ? "Yes, Upgrade Plan"
+              : "Yes, Change Plan"
+        }
         cancelText="Cancel"
-        variant="primary"
+        variant={isPendingDowngrade ? "destructive" : "primary"}
         onConfirm={() => {
           if (pendingPlanId) {
             handleSubscribe(pendingPlanId);

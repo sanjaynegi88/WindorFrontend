@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import {
   getPropertyLocations,
-  getStates,
   getCities,
   getReportUsage,
 } from "@/lib/actions";
@@ -221,47 +220,6 @@ export default function MapView({
 
   useEffect(() => {
     const resolveCenterLocation = async () => {
-      if (searchParams?.city_id) {
-        try {
-          const res = await getCities(
-            undefined,
-            undefined,
-            searchParams.city_id,
-          );
-          const cityData = res?.data?.[0] ?? res?.data ?? res;
-          const resolvedName = Array.isArray(cityData)
-            ? cityData[0]?.name
-            : cityData?.name;
-          if (resolvedName) {
-            setCenterCityName(resolvedName);
-            return;
-          }
-        } catch (err) {
-          console.error("[MapView] Failed to resolve selected city name:", err);
-        }
-      }
-
-      if (searchParams?.state_id) {
-        try {
-          const statesRes = await getStates(1, 1000);
-          const statesList = Array.isArray(statesRes)
-            ? statesRes
-            : statesRes?.data || [];
-          const stateObj = statesList.find(
-            (s: any) => s.id === searchParams.state_id,
-          );
-          if (stateObj) {
-            setCenterCityName(stateObj.state_name || stateObj.name);
-            return;
-          }
-        } catch (err) {
-          console.error(
-            "[MapView] Failed to resolve selected state name:",
-            err,
-          );
-        }
-      }
-
       if (role === "city_inspector" && user?.user?.city_id) {
         try {
           const res = await getCities(undefined, undefined, user.user.city_id);
@@ -285,7 +243,7 @@ export default function MapView({
     };
 
     resolveCenterLocation();
-  }, [searchParams?.city_id, searchParams?.state_id, role, user]);
+  }, [role, user]);
 
   const handleViewportChange = async (
     bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number },

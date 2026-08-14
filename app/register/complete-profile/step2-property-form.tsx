@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { CitySelect, StateSelect } from '@/components/city-zip-selector';
+import { Checkbox } from '@/components/ui/checkbox';
 import { getStates } from '@/lib/actions';
 
 const inputCls =
@@ -23,6 +24,7 @@ const step2PropertySchema = z.object({
     .regex(/^\d{10}$/, { message: 'Mobile phone must be exactly 10 digits' }),
   ownerDateStart: z.string().min(1, { message: 'Start date is required' }),
   ownerDateEnd: z.string().optional(),
+  present: z.boolean().optional(),
   state_id: z.string().min(1, { message: 'State is required' }),
   city_id: z.string().min(1, { message: 'City is required' }),
   zip: z.string().min(1, { message: 'Zip code is required' }),
@@ -38,6 +40,7 @@ interface Step2PropertyFormProps {
 
 export function Step2PropertyForm({ onBack, onSubmit, loading }: Step2PropertyFormProps) {
   const [selectedStateId, setSelectedStateId] = useState('');
+  const [isPresent, setIsPresent] = useState(false);
 
   const form = useForm<Step2PropertyValues>({
     resolver: zodResolver(step2PropertySchema),
@@ -46,6 +49,7 @@ export function Step2PropertyForm({ onBack, onSubmit, loading }: Step2PropertyFo
       mobilePhone: '',
       ownerDateStart: '',
       ownerDateEnd: '',
+      present: false,
       state_id: '',
       city_id: '',
       zip: '',
@@ -149,7 +153,7 @@ export function Step2PropertyForm({ onBack, onSubmit, loading }: Step2PropertyFo
           {/* Owner Dates */}
           <div>
             <p className="text-[18px] font-medium text-[#1F2A44] font-asap mb-3">Owner Dates</p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField control={form.control} name="ownerDateStart" render={({ field }) => (
                 <FormItem>
                   <FormControl>
@@ -162,12 +166,38 @@ export function Step2PropertyForm({ onBack, onSubmit, loading }: Step2PropertyFo
               <FormField control={form.control} name="ownerDateEnd" render={({ field }) => (
                 <FormItem>
                   <FormControl>
-                    <Input type="date" {...field} className={`${inputCls} text-[#708090]`} />
+                    <Input
+                      type={isPresent ? "text" : "date"}
+                      disabled={isPresent}
+                      value={isPresent ? "Present" : field.value || ""}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      className={`${inputCls} text-[#708090] disabled:bg-gray-100 disabled:opacity-80`}
+                    />
                   </FormControl>
                   <p className="text-[14px] text-[#708090] font-asap mt-1">End Date</p>
                   <FormMessage className={errCls} />
                 </FormItem>
               )} />
+            </div>
+            <div className="flex items-center gap-2 mt-3">
+              <Checkbox
+                id="present-residence"
+                checked={isPresent}
+                onCheckedChange={(checked) => {
+                  const isChecked = Boolean(checked);
+                  setIsPresent(isChecked);
+                  form.setValue("present", isChecked);
+                  if (isChecked) {
+                    form.setValue("ownerDateEnd", "");
+                  }
+                }}
+              />
+              <label
+                htmlFor="present-residence"
+                className="text-[16px] font-medium text-[#1F2A44] font-asap cursor-pointer select-none"
+              >
+                Present (Currently Residing)
+              </label>
             </div>
           </div>
 

@@ -110,6 +110,36 @@ export interface BrandItem {
   updated_at?: string;
 }
 
+export function parseBrandValue(brandValue?: string | null): {
+  brand_id: string | null;
+  other_brand: string | null;
+} {
+  if (!brandValue || typeof brandValue !== "string") {
+    return { brand_id: null, other_brand: null };
+  }
+
+  if (brandValue.startsWith("__custom__:")) {
+    return {
+      brand_id: null,
+      other_brand: brandValue.slice("__custom__:".length),
+    };
+  }
+
+  if (brandValue.startsWith("__subbrand__:")) {
+    const parts = brandValue.split(":");
+    const brandId = parts[1] || null;
+    return {
+      brand_id: brandId,
+      other_brand: null,
+    };
+  }
+
+  return {
+    brand_id: brandValue,
+    other_brand: null,
+  };
+}
+
 export function transformBrandsToOptions(brands: BrandItem[]): {
   id: string;
   name: string;
@@ -159,12 +189,13 @@ export function transformBrandsToOptions(brands: BrandItem[]): {
 
       brand.sub_brands!.forEach((sub: any) => {
         const subName = typeof sub === "string" ? sub : sub?.name || "";
+        const subBrandId = typeof sub === "object" && sub?.id ? sub.id : brand.id;
         if (subName) {
           const subKey = `sub:${brand.id}:${subName}`;
           if (!seenKeys.has(subKey)) {
             seenKeys.add(subKey);
             options.push({
-              id: `__custom__:${subName}`,
+              id: `__subbrand__:${subBrandId}:${subName}`,
               name: subName,
               isSubBrand: true,
               parentName: brand.name,

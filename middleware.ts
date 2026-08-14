@@ -15,7 +15,6 @@ export async function middleware(request: NextRequest) {
 
   const loginUrl = process.env.NEXT_PUBLIC_LOGIN_URL || '/login';
 
-  // Check if we need to refresh the session
   const hasMetadataCookie = request.cookies.has('user-role') && request.cookies.has('has-membership');
   const needsRefresh = refreshToken && (!authToken || !userRole || !hasMetadataCookie);
 
@@ -31,7 +30,6 @@ export async function middleware(request: NextRequest) {
       });
 
       if (!refreshRes.ok) {
-        // Clear cookies and redirect to login to avoid loops
         const response = NextResponse.redirect(new URL(loginUrl, request.url));
         response.cookies.delete('auth-token');
         response.cookies.delete('refresh-token');
@@ -45,7 +43,6 @@ export async function middleware(request: NextRequest) {
       const idToken = refreshData.tokens.idToken;
       const rotatedRefreshToken = refreshData.tokens.refreshToken || refreshToken;
 
-      // Fetch user profile using the new idToken
       const profileRes = await fetch(`${API_URL}/api/users/profile`, {
         method: 'GET',
         headers: {

@@ -79,6 +79,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn, toPascalCase } from "@/lib/utils";
 
 const profileSchema = z
@@ -112,6 +113,7 @@ const profileSchema = z
     propertyAddress: z.string().optional().or(z.literal("")),
     ownerDateStart: z.string().optional().or(z.literal("")),
     ownerDateEnd: z.string().optional().or(z.literal("")),
+    present: z.boolean().optional(),
     state_id: z.string().optional().or(z.literal("")),
     zip: z.string().optional().or(z.literal("")),
     company_name: z.string().optional().or(z.literal("")),
@@ -222,6 +224,7 @@ interface UserProfileData {
   propertyAddress?: string | null;
   ownerDateStart?: string | null;
   ownerDateEnd?: string | null;
+  present?: boolean | string;
   state_id?: string | null;
   zip?: string | null;
   title?: string | null;
@@ -262,6 +265,19 @@ const actionLabels: Record<string, string> = {
   UPDATE: "Updated",
 };
 
+function parsePresent(value: any, ownerDateEnd?: any): boolean {
+  if (value === true || value === "true" || value === "1" || value === 1) {
+    return true;
+  }
+  if (value === false || value === "false" || value === "0" || value === 0) {
+    return false;
+  }
+  if (ownerDateEnd === "Present" || ownerDateEnd?.toLowerCase() === "present") {
+    return true;
+  }
+  return false;
+}
+
 export default function UserProfile() {
   const [user, setUser] = useState<UserProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -272,7 +288,9 @@ export default function UserProfile() {
   const [recentLogs, setRecentLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [isAutoRenewal, setIsAutoRenewal] = useState<boolean>(false);
-  const [updatingAutoRenewal, setUpdatingAutoRenewal] = useState<boolean>(false);
+  const [updatingAutoRenewal, setUpdatingAutoRenewal] =
+    useState<boolean>(false);
+  const [isPresent, setIsPresent] = useState<boolean>(false);
   const router = useRouter();
   const { user: contextUser, setUser: setContextUser } = useUser();
 
@@ -328,7 +346,8 @@ export default function UserProfile() {
     !isSubAccount &&
     (role === "contractor" ||
       role === "insurance_company" ||
-      role === "property_owner");
+      role === "property_owner" ||
+      role === "realtor");
   const logsRoute = LOGS_ROUTE[role] ?? "/admin/admin-logs";
 
   const level = (user as any)?.level;
@@ -373,6 +392,7 @@ export default function UserProfile() {
       propertyAddress: "",
       ownerDateStart: "",
       ownerDateEnd: "",
+      present: false,
       state_id: "",
       zip: "",
       company_name: "",
@@ -416,6 +436,11 @@ export default function UserProfile() {
           false;
         setIsAutoRenewal(Boolean(autoRenewFlag));
         setContractorProfileId(data.directory_id);
+        const isPres = parsePresent(
+          data.present ?? data.form_details?.present ?? data.user?.present,
+          data.form_details?.ownerDateEnd,
+        );
+        setIsPresent(isPres);
         setUser({
           ...data,
           companyAddress: data.form_details?.companyAddress ?? null,
@@ -428,6 +453,7 @@ export default function UserProfile() {
           propertyAddress: data.form_details?.propertyAddress ?? null,
           ownerDateStart: data.form_details?.ownerDateStart ?? null,
           ownerDateEnd: data.form_details?.ownerDateEnd ?? null,
+          present: isPres,
           state_id: data.user?.state_id ?? null,
           zip: data.user?.zip ?? null,
           title: data.form_details?.title ?? null,
@@ -482,6 +508,7 @@ export default function UserProfile() {
           ownerDateEnd: data.form_details?.ownerDateEnd
             ? data.form_details.ownerDateEnd.split("T")[0]
             : "",
+          present: isPres,
           state_id: stateId,
           zip: data.user?.zip || "",
           title: data.form_details?.title || "",
@@ -531,7 +558,11 @@ export default function UserProfile() {
   }, [hasLogsCard]);
 
   useEffect(() => {
-    if (role === "insurance_company" || role === "contractor") {
+    if (
+      role === "insurance_company" ||
+      role === "contractor" ||
+      role === "realtor"
+    ) {
       setReportUsageLoading(true);
       getReportUsage()
         .then((res) => setReportUsage(res?.data || res))
@@ -618,6 +649,7 @@ export default function UserProfile() {
       "propertyAddress",
       "ownerDateStart",
       "ownerDateEnd",
+      "present",
       "state_id",
       "zip",
       "mobilePhone",
@@ -630,6 +662,9 @@ export default function UserProfile() {
       "mobilePhone",
       "companyPhone",
       "propertyAddress",
+      "ownerDateStart",
+      "ownerDateEnd",
+      "present",
       "state_id",
       "zip",
     ],
@@ -661,7 +696,11 @@ export default function UserProfile() {
         if ((key.endsWith("_id") || key.endsWith("Id")) && value === "") {
           return;
         }
-        formData.append(key, value as string);
+        if (typeof value === "boolean") {
+          formData.append(key, value ? "true" : "false");
+        } else {
+          formData.append(key, value as string);
+        }
       }
     });
 
@@ -686,6 +725,11 @@ export default function UserProfile() {
       updatedData.company_name ??
       updatedData.form_details?.company_name ??
       null;
+    const isPres = parsePresent(
+      updatedData.present ?? updatedData.form_details?.present,
+      updatedData.form_details?.ownerDateEnd,
+    );
+    setIsPresent(isPres);
     setUser({
       ...updatedData,
       companyAddress: updatedData.form_details?.companyAddress ?? null,
@@ -699,6 +743,7 @@ export default function UserProfile() {
       propertyAddress: updatedData.form_details?.propertyAddress ?? null,
       ownerDateStart: updatedData.form_details?.ownerDateStart ?? null,
       ownerDateEnd: updatedData.form_details?.ownerDateEnd ?? null,
+      present: isPres,
       state_id: updatedData.user?.state_id ?? null,
       zip: updatedData.user?.zip ?? null,
       title: updatedData.form_details?.title ?? null,
@@ -1510,9 +1555,15 @@ export default function UserProfile() {
                                   End
                                 </p>
                                 <p className="text-sm font-bold">
-                                  {user?.ownerDateEnd
-                                    ? user.ownerDateEnd.split("T")[0]
-                                    : "Not provided"}
+                                  {isPresent ||
+                                  user?.present ||
+                                  user?.ownerDateEnd === "Present" ||
+                                  user?.ownerDateEnd?.toLowerCase() ===
+                                    "present"
+                                    ? "Present"
+                                    : user?.ownerDateEnd
+                                      ? user.ownerDateEnd.split("T")[0]
+                                      : "Not provided"}
                                 </p>
                               </div>
                             </>
@@ -1549,17 +1600,44 @@ export default function UserProfile() {
                                     </p>
                                     <FormControl>
                                       <Input
-                                        disabled={isSubAccount}
-                                        type="date"
-                                        {...field}
-                                        value={field.value || ""}
-                                        className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
+                                        disabled={isSubAccount || isPresent}
+                                        type={isPresent ? "text" : "date"}
+                                        value={
+                                          isPresent
+                                            ? "Present"
+                                            : field.value || ""
+                                        }
+                                        onChange={(e) =>
+                                          field.onChange(e.target.value)
+                                        }
+                                        className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none disabled:opacity-80"
                                       />
                                     </FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
                               />
+                              <div className="flex items-center gap-2 mt-3 col-span-2">
+                                <Checkbox
+                                  id="profile-present-residence"
+                                  disabled={isSubAccount}
+                                  checked={isPresent}
+                                  onCheckedChange={(checked) => {
+                                    const isChecked = Boolean(checked);
+                                    setIsPresent(isChecked);
+                                    form.setValue("present", isChecked);
+                                    if (isChecked) {
+                                      form.setValue("ownerDateEnd", "");
+                                    }
+                                  }}
+                                />
+                                <label
+                                  htmlFor="profile-present-residence"
+                                  className="text-sm font-medium leading-none cursor-pointer select-none"
+                                >
+                                  Present (Currently Residing)
+                                </label>
+                              </div>
                             </>
                           )}
                         </div>
@@ -2283,7 +2361,7 @@ export default function UserProfile() {
         </div>
 
         <div className="lg:w-[380px] shrink-0 space-y-6">
-          {role === "insurance_company" && (
+          {(role === "insurance_company" || role === "realtor") && (
             <Card className="border shadow-lg rounded-2xl overflow-hidden bg-background">
               <CardHeader className="bg-muted/30 px-5 py-4 border-b flex-row items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -2334,8 +2412,8 @@ export default function UserProfile() {
                             {reportUsage?.baseLimit ?? 0}
                           </p>
                         </div>
-                        <div className="col-span-2 bg-muted/30 p-3 rounded-xl border flex items-center justify-between">
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0">
+                        <div className="bg-muted/30 p-3 rounded-xl border">
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
                             Purchased Reports
                           </p>
                           <p className="text-lg font-bold">
@@ -2565,8 +2643,32 @@ export default function UserProfile() {
                       <hr className="border-border my-2" />
 
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="col-span-2 bg-muted/30 p-3 rounded-xl border flex items-center justify-between">
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0">
+                        <div className="bg-muted/30 p-3 rounded-xl border">
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                            Used
+                          </p>
+                          <p className="text-lg font-bold">
+                            {reportUsage?.used ?? 0}
+                          </p>
+                        </div>
+                        <div className="bg-muted/30 p-3 rounded-xl border">
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                            Remaining
+                          </p>
+                          <p className="text-lg font-bold">
+                            {reportUsage?.remaining ?? 0}
+                          </p>
+                        </div>
+                        <div className="bg-muted/30 p-3 rounded-xl border">
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                            Base Limit
+                          </p>
+                          <p className="text-lg font-bold">
+                            {reportUsage?.baseLimit ?? 0}
+                          </p>
+                        </div>
+                        <div className="bg-muted/30 p-3 rounded-xl border">
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
                             Purchased Reports
                           </p>
                           <p className="text-lg font-bold">
@@ -2604,17 +2706,27 @@ export default function UserProfile() {
                         "You have access to all premium features and exclusive verification reports."}
                     </p>
 
-                    {user.current_subscription?.plan?.level?.toUpperCase() !== "FREE" && (
+                    {user.current_subscription?.plan?.level?.toUpperCase() !==
+                      "FREE" && (
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div className="w-full bg-muted/30 p-4 rounded-2xl border border-border/50 my-4 flex items-center justify-between gap-3 text-left cursor-pointer">
                               <div className="flex items-center gap-3">
-                                <RefreshCw className={cn("size-4 text-primary", updatingAutoRenewal && "animate-spin")} />
+                                <RefreshCw
+                                  className={cn(
+                                    "size-4 text-primary",
+                                    updatingAutoRenewal && "animate-spin",
+                                  )}
+                                />
                                 <div>
-                                  <p className="text-xs font-bold text-foreground">Auto-Pay</p>
+                                  <p className="text-xs font-bold text-foreground">
+                                    Auto-Pay
+                                  </p>
                                   <p className="text-[10px] text-muted-foreground">
-                                    {isAutoRenewal ? "Auto-renew active" : "Auto-renew disabled"}
+                                    {isAutoRenewal
+                                      ? "Auto-renew active"
+                                      : "Auto-renew disabled"}
                                   </p>
                                 </div>
                               </div>
@@ -2626,7 +2738,10 @@ export default function UserProfile() {
                               />
                             </div>
                           </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-xs text-center text-xs font-semibold shadow-lg">
+                          <TooltipContent
+                            side="top"
+                            className="max-w-xs text-center text-xs font-semibold shadow-lg"
+                          >
                             Auto-Pay can be enabled or turned off at any time.
                           </TooltipContent>
                         </Tooltip>

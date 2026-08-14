@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { type CityOption } from "@/lib/location-utils";
 import { useUser } from "@/components/providers/user-provider";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 const projectSchema = z
   .object({
@@ -184,9 +185,6 @@ export function CategorySelection({
   const isAdmin = userRole === "admin";
   const isPropertyOwner = userRole === "property_owner";
 
-  const selectedComponentType = componentTypes.find(
-    (t) => t.name.toLowerCase() === projectType,
-  );
   useEffect(() => {
     setProjectName(initialProjectData?.project_name || "");
     setProjectType(
@@ -650,23 +648,20 @@ export function CategorySelection({
           {fieldError("permit")}
         </div>
         <div>
-          <Select
+          <SearchableSelect
+            options={(stateCities.length > 0 ? stateCities : cities).map(
+              (c) => ({
+                id: c.id,
+                name: toTitleCase(c.name),
+              }),
+            )}
             value={governingCity || ""}
             onValueChange={(val) =>
               handleFieldChange(() => setGoverningCity(val))
             }
-          >
-            <SelectTrigger className={triggerClass}>
-              <SelectValue placeholder="Governing City" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-              {(stateCities.length > 0 ? stateCities : cities).map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {toTitleCase(c.name)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder="Governing City"
+            searchPlaceholder="Search governing city..."
+          />
           {fieldError("governing_city_id")}
         </div>
 
