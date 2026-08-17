@@ -64,13 +64,17 @@ export function CityFormDialog({
   const [loading, setLoading] = useState(false);
   const [states, setStates] = useState<any[]>([]);
   const [isLoadingStates, setIsLoadingStates] = useState(false);
+
   useEffect(() => {
+    if (!isOpen) return;
     const fetchStates = async () => {
       setIsLoadingStates(true);
       try {
-        const response = await getStates();
+        const response = await getStates(1, 1000);
         if (response && response.data) {
           setStates(response.data);
+        } else if (Array.isArray(response)) {
+          setStates(response);
         } else {
           setStates([]);
         }
@@ -82,7 +86,7 @@ export function CityFormDialog({
       }
     };
     fetchStates();
-  }, []);
+  }, [isOpen]);
 
   const form = useForm<z.infer<typeof citySchema>>({
     resolver: zodResolver(citySchema),
@@ -92,13 +96,16 @@ export function CityFormDialog({
       zip_codes: "",
     },
   });
+
   useEffect(() => {
     if (isOpen) {
       if (city) {
         form.reset({
-          name: city.name,
-          state_id: city.state_id,
-          zip_codes: city.zip_codes.join(", "),
+          name: city.name || "",
+          state_id: city.state_id ? String(city.state_id) : "",
+          zip_codes: Array.isArray(city.zip_codes)
+            ? city.zip_codes.join(", ")
+            : city.zip_codes || "",
         });
       } else {
         form.reset({
@@ -186,9 +193,9 @@ export function CityFormDialog({
                   <FormControl>
                     <Select
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      value={field.value || ""}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="h-11 rounded-xl">
                         <SelectValue placeholder="Select a state" />
                       </SelectTrigger>
                       <SelectContent>
@@ -201,8 +208,11 @@ export function CityFormDialog({
                           </div>
                         ) : states.length > 0 ? (
                           states.map((state: any) => (
-                            <SelectItem key={state.id} value={state.id}>
-                              {state.state_name}
+                            <SelectItem
+                              key={state.id}
+                              value={String(state.id)}
+                            >
+                              {state.state_name || state.name}
                             </SelectItem>
                           ))
                         ) : (

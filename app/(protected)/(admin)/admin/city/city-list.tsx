@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   XCircle,
   Plus,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +53,13 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { getCities, deleteCity, getStates } from "@/lib/actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -66,6 +74,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { CityFormDialog } from "./city-form-dialog";
+import { CityViewDialog } from "./city-view-dialog";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/helpers";
 import { toTitleCase } from "@/lib/utils";
@@ -88,6 +97,7 @@ export default function CityList({
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>([]);
   const [editingCity, setEditingCity] = useState<any | null>(null);
+  const [viewingCity, setViewingCity] = useState<any | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -205,6 +215,10 @@ export default function CityList({
     );
   };
 
+  const handleView = (city: any) => {
+    setViewingCity(city);
+  };
+
   const handleEdit = (city: any) => {
     setEditingCity(city);
   };
@@ -306,18 +320,45 @@ export default function CityList({
           />
         ),
         cell: ({ row }) => {
+          const zipCodes: string[] = row.original.zip_codes || [];
+          if (!zipCodes.length) {
+            return (
+              <span className="text-xs text-muted-foreground font-medium">
+                N/A
+              </span>
+            );
+          }
+
+          const hasHugeZip = zipCodes.some(
+            (z: any) => String(z).trim().length >= 6,
+          );
+          const maxVisible = hasHugeZip ? 3 : 4;
+          const visibleZips = zipCodes.slice(0, maxVisible);
+          const remainingCount = zipCodes.length - maxVisible;
+          const fullZipList = zipCodes.join(", ");
+
           return (
-            <div className="flex flex-wrap gap-1 max-w-75">
-              {(row.original.zip_codes || []).map(
-                (zipObj: any, idx: number) => (
-                  <Badge
-                    key={idx}
-                    variant="primary"
-                    className="text-[10px] px-1.5 py-0"
-                  >
-                    {zipObj}
-                  </Badge>
-                ),
+            <div
+              className="flex items-center gap-1 flex-nowrap overflow-hidden max-w-[280px]"
+              title={`Zip Codes: ${fullZipList}`}
+            >
+              {visibleZips.map((zipObj: any, idx: number) => (
+                <Badge
+                  key={idx}
+                  variant="primary"
+                  className="text-[10px] px-1.5 py-0 shrink-0 whitespace-nowrap"
+                >
+                  {zipObj}
+                </Badge>
+              ))}
+              {remainingCount > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="text-[10px] px-1.5 py-0 shrink-0 whitespace-nowrap bg-muted text-muted-foreground hover:bg-muted font-semibold cursor-help"
+                  title={`+${remainingCount} more: ${zipCodes.slice(maxVisible).join(", ")}`}
+                >
+                  +{remainingCount}
+                </Badge>
               )}
             </div>
           );
@@ -368,9 +409,16 @@ export default function CityList({
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                 <DropdownMenuItem
                   className="cursor-pointer"
+                  onClick={() => handleView(row.original)}
+                >
+                  <Eye className="size-3.5 mr-2 text-muted-foreground" />
+                  View Details
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
                   onClick={() => handleEdit(row.original)}
                 >
-                  <Edit className="size-3.5 mr-2" />
+                  <Edit className="size-3.5 mr-2 text-muted-foreground" />
                   Edit City
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -446,20 +494,24 @@ export default function CityList({
                     className="ps-9 w-full"
                   />
                 </div>
-                {/* <Select
-                  value={selectedStateId || 'all'}
-                  onValueChange={(val) => setSelectedStateId(val === 'all' ? '' : val)}
+                <Select
+                  value={selectedStateId || "all"}
+                  onValueChange={(val) =>
+                    setSelectedStateId(val === "all" ? "" : val)
+                  }
                 >
-                  <SelectTrigger className="h-8 w-full sm:w-44 text-xs rounded-lg">
+                  <SelectTrigger size="sm" className="w-full sm:w-44">
                     <SelectValue placeholder="Filter by State" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All States</SelectItem>
                     {stateOptions.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
-                </Select> */}
+                </Select>
               </div>
             </CardHeading>
             <CardToolbar className="w-full sm:w-auto">
@@ -488,6 +540,16 @@ export default function CityList({
           </CardFooter>
         </Card>
       </DataGrid>
+
+      <CityViewDialog
+        isOpen={!!viewingCity}
+        onClose={() => setViewingCity(null)}
+        city={viewingCity}
+        onEdit={(city) => {
+          setViewingCity(null);
+          setEditingCity(city);
+        }}
+      />
 
       <CityFormDialog
         isOpen={isAddDialogOpen || !!editingCity}

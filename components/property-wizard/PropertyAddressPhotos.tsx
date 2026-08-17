@@ -116,7 +116,7 @@ export function PropertyAddressPhotos({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 50 * 1024 * 1024) {
+    if (file.size > 7 * 1024 * 1024) {
       toast.error(`Image "${file.name}" exceeds the 7MB size limit`);
       e.target.value = "";
       return;
@@ -232,7 +232,7 @@ export function PropertyAddressPhotos({
           Enter New Photos
         </p>
         <p className="text-sm font-semibold text-amber-600">
-          Acceptable size: Max 7MB per image
+          Acceptable size: Max 7 per image
         </p>
       </div>
 

@@ -1605,7 +1605,7 @@ export async function uploadPropertOwnerImages(type: string, id: string, files: 
         formData.append('files', file);
     });
 
-    let url = `/api/${toEndpointType(type)}/${id}/property-owner/images`
+    let url = `/api/owner-project/${id}/upload`;
 
     const response = await fetchApi({
         url: url,
@@ -1640,6 +1640,25 @@ export async function updateImagesofPropertyOwnersAdmin(type: string, id: string
 
     if (response.type === 'error') {
         return { success: false, message: normalizeMsg(response.messages, 'Failed to update images') };
+    }
+
+    return { success: true, data: response.data };
+}
+
+export async function uploadOwnerProjectImagesAdmin(id: string, files: File[]): Promise<ActionResult> {
+    const formData = new FormData();
+    files.forEach((file) => {
+        formData.append('files', file);
+    });
+
+    const response = await fetchApi({
+        url: `/api/owner-project/${id}/upload`,
+        method: 'POST',
+        data: formData,
+    });
+
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to upload owner project images') };
     }
 
     return { success: true, data: response.data };
@@ -2154,6 +2173,28 @@ export async function postPropertyOwnerInstallations(id: any, body: any): Promis
     }
     return { success: true, data: response.data };
 }
+
+export async function updatePropertyOwnerInstallation(id: string, body: any): Promise<ActionResult> {
+    const payload = { ...body };
+    const response = await fetchApi({
+        url: `/api/admin/owner-project/${id}`,
+        method: 'PUT',
+        data: payload,
+    });
+    if (response.type === 'error') {
+        const fallbackRes = await fetchApi({
+            url: `/api/owner-project/${id}`,
+            method: 'PUT',
+            data: payload,
+        });
+        if (fallbackRes.type === 'error') {
+            return { success: false, message: normalizeMsg(response.messages, 'Failed to update owner project installation') };
+        }
+        return { success: true, data: fallbackRes.data };
+    }
+    return { success: true, data: response.data };
+}
+
 
 export async function uploadOwnerProjectImage(installationId: string, file: File): Promise<ActionResult> {
     const formData = new FormData();

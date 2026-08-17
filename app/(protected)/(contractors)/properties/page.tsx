@@ -41,10 +41,11 @@ function PropertyPageContent() {
     const urlCityId = searchParamsHook.get("city_id") || searchParamsHook.get("city") || "";
 
     const hasUrlSearchParams = Boolean(
-      urlSearch.trim() ||
-        urlSearchBy !== "all" ||
-        (urlStateId && urlStateId !== "all") ||
-        (urlCityId && urlCityId !== "all"),
+      urlSearch.trim() &&
+        urlStateId &&
+        urlStateId !== "all" &&
+        urlCityId &&
+        urlCityId !== "all",
     );
 
     if (hasUrlSearchParams) {

@@ -347,6 +347,7 @@ export default function UserProfile() {
     (role === "contractor" ||
       role === "insurance_company" ||
       role === "property_owner" ||
+      role === "manufacturer" ||
       role === "realtor");
   const logsRoute = LOGS_ROUTE[role] ?? "/admin/admin-logs";
 

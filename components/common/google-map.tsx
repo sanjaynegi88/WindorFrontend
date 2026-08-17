@@ -177,15 +177,23 @@ export default function GoogleMap({
   const prevCityNameRef = useRef<string | undefined>(undefined);
   const isFocusActiveRef = useRef<boolean>(false);
 
+  const handledFocusIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!focusedMarkerId) {
+      handledFocusIdRef.current = null;
+    }
+  }, [focusedMarkerId]);
+
   useEffect(() => {
     onFocusClearedRef.current = onFocusCleared;
   }, [onFocusCleared]);
 
   useEffect(() => {
-    if (shouldFitBounds || markers) {
+    if (shouldFitBounds) {
       lastFetchedRef.current = null;
     }
-  }, [shouldFitBounds, markers]);
+  }, [shouldFitBounds]);
 
   useEffect(() => {
     if (defaultCenter || focusedMarkerId) {
@@ -284,6 +292,15 @@ export default function GoogleMap({
       });
 
       mapInstanceRef.current = map;
+
+      if (defaultCenter) {
+        skipNextViewportFetchRef.current = true;
+        map.panTo(defaultCenter);
+        if (defaultZoom !== undefined) {
+          map.setZoom(defaultZoom);
+          setZoom(defaultZoom);
+        }
+      }
 
       map.addListener("idle", () => {
         const currentZoom = map.getZoom();
@@ -516,13 +533,19 @@ export default function GoogleMap({
         }
       }
 
-      // Automatically select/focus marker if specified
-      if (focusedMarkerId && mapInstanceRef.current) {
+      // Automatically select/focus marker if specified (only once per focusedMarkerId)
+      if (
+        focusedMarkerId &&
+        mapInstanceRef.current &&
+        handledFocusIdRef.current !== focusedMarkerId
+      ) {
         const focusedIndex = markers.findIndex((m) => m.id === focusedMarkerId);
         if (focusedIndex !== -1) {
+          handledFocusIdRef.current = focusedMarkerId;
           const markerData = markers[focusedIndex];
           setTimeout(() => {
             if (mapInstanceRef.current) {
+              skipNextViewportFetchRef.current = true;
               mapInstanceRef.current.panTo({
                 lat: markerData.lat,
                 lng: markerData.lng,
@@ -545,9 +568,9 @@ export default function GoogleMap({
       <div ref={mapRef} className="w-full h-full min-h-[600px]" />
 
       {loading && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-background/90 backdrop-blur border border-border px-3 py-1.5 rounded-full shadow-md z-10 flex items-center gap-2 text-xs font-medium animate-in fade-in slide-in-from-top-2">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-background/95 backdrop-blur border border-border px-4 py-2 rounded-full shadow-lg z-20 flex items-center gap-2.5 text-xs font-semibold text-foreground animate-in fade-in slide-in-from-top-2">
           <svg
-            className="animate-spin h-3 w-3 text-primary"
+            className="animate-spin h-3.5 w-3.5 text-primary"
             viewBox="0 0 24 24"
           >
             <circle
@@ -565,7 +588,7 @@ export default function GoogleMap({
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
             />
           </svg>
-          <span>Updating properties...</span>
+          <span>Centering map & loading properties...</span>
         </div>
       )}
 

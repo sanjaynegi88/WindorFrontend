@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import {
   getPropertyLocations,
+  getPropertyListAll,
   getCities,
   getReportUsage,
 } from "@/lib/actions";
@@ -48,6 +49,10 @@ export default function MapView({
   const [markers, setMarkers] = useState<MarkerData[]>([]);
   const [loading, setLoading] = useState(true);
   const [shouldFitBounds, setShouldFitBounds] = useState(false);
+  const [searchFocusCenter, setSearchFocusCenter] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
   const { user, role } = useUser();
   const [centerCityName, setCenterCityName] = useState<string | undefined>(
     undefined,
@@ -70,6 +75,106 @@ export default function MapView({
         .catch(() => {});
     }
   }, [role]);
+
+  const searchParamsString = JSON.stringify(searchParams);
+
+  const [isResolvingCenter, setIsResolvingCenter] = useState<boolean>(false);
+
+  // Resolve search map center coordinates from dashboard listing search API
+  useEffect(() => {
+    const resolveSearchCenter = async () => {
+      const activeStateId =
+        searchParams?.state_id && searchParams.state_id !== "all"
+          ? searchParams.state_id
+          : searchParams?.state && searchParams.state !== "all"
+            ? searchParams.state
+            : undefined;
+      const activeCityId =
+        searchParams?.city_id && searchParams.city_id !== "all"
+          ? searchParams.city_id
+          : searchParams?.city && searchParams.city !== "all"
+            ? searchParams.city
+            : undefined;
+
+      const hasSearchFilters = Boolean(
+        searchParams?.search?.trim() ||
+          searchParams?.brandName?.trim() ||
+          searchParams?.color?.trim() ||
+          searchParams?.style?.trim() ||
+          activeStateId ||
+          activeCityId,
+      );
+
+      if (!hasSearchFilters) {
+        setSearchFocusCenter(null);
+        setIsResolvingCenter(false);
+        return;
+      }
+
+      setIsResolvingCenter(true);
+      try {
+        const cleanFilterParams: any = {
+          ...searchParams,
+          page: 1,
+          limit: 1,
+        };
+        const searchResult = await getPropertyListAll(cleanFilterParams);
+        const dataList = searchResult?.data || searchResult || [];
+        const firstMatch = Array.isArray(dataList) ? dataList[0] : null;
+
+        let targetLat: number | null = null;
+        let targetLng: number | null = null;
+
+        if (firstMatch && firstMatch.latitude && firstMatch.longitude) {
+          targetLat = Number(firstMatch.latitude);
+          targetLng = Number(firstMatch.longitude);
+        } else if (activeStateId || activeCityId) {
+          // Fallback: If no search result found, call with only selected state/city params (limit 1)
+          const fallbackParams: any = {
+            page: 1,
+            limit: 1,
+            ...(activeStateId ? { state_id: activeStateId } : {}),
+            ...(activeCityId ? { city_id: activeCityId } : {}),
+          };
+          const fallbackResult = await getPropertyListAll(fallbackParams);
+          const fallbackData = fallbackResult?.data || fallbackResult || [];
+          const firstFallback = Array.isArray(fallbackData) ? fallbackData[0] : null;
+
+          if (
+            firstFallback &&
+            firstFallback.latitude &&
+            firstFallback.longitude
+          ) {
+            targetLat = Number(firstFallback.latitude);
+            targetLng = Number(firstFallback.longitude);
+          }
+        }
+
+        if (targetLat !== null && targetLng !== null) {
+          const newCenter = { lat: targetLat, lng: targetLng };
+          setSearchFocusCenter(newCenter);
+
+          // Fetch data for bounds around the resolved search center immediately
+          const focusBounds = {
+            minLat: targetLat - 0.05,
+            maxLat: targetLat + 0.05,
+            minLng: targetLng - 0.05,
+            maxLng: targetLng + 0.05,
+          };
+          await fetchDataForBounds(focusBounds);
+        } else {
+          setSearchFocusCenter(null);
+        }
+      } catch (err) {
+        console.error("Failed to resolve search center:", err);
+        setSearchFocusCenter(null);
+      } finally {
+        setIsResolvingCenter(false);
+      }
+    };
+
+    resolveSearchCenter();
+  }, [searchParamsString]);
 
   const getMarkerReportStatus = (p: any): "view" | "purchase" | "none" => {
     const hasReport = p.has_report || (p.projects && p.projects.length > 0);
@@ -117,22 +222,14 @@ export default function MapView({
           ? searchParams.state_id
           : undefined;
 
-      const hasActiveSearch = Boolean(
-        searchParams?.search?.trim() ||
-          searchParams?.brandName?.trim() ||
-          searchParams?.color?.trim() ||
-          searchParams?.style?.trim()
-      );
-
-      // If text/component search is active, don't restrict to current viewport bounds
+      // Note: getPropertyLocations is only passed viewport bounds and location IDs (no text search query)
       const result = await getPropertyLocations(
-        hasActiveSearch ? undefined : bounds?.minLat,
-        hasActiveSearch ? undefined : bounds?.maxLat,
-        hasActiveSearch ? undefined : bounds?.minLng,
-        hasActiveSearch ? undefined : bounds?.maxLng,
+        bounds?.minLat,
+        bounds?.maxLat,
+        bounds?.minLng,
+        bounds?.maxLng,
         zoomLevel,
         {
-          ...restParams,
           ...(activeCityId ? { city_id: activeCityId } : {}),
           ...(activeStateId ? { state_id: activeStateId } : {}),
         },
@@ -174,10 +271,6 @@ export default function MapView({
 
       if (requestId !== activeRequestRef.current) return;
       setMarkers(mappedMarkers);
-
-      if (hasActiveSearch && mappedMarkers.length > 0 && !focusCenter) {
-        setShouldFitBounds(true);
-      }
     } catch (error) {
       console.error("Failed to fetch properties for bounds:", error);
     } finally {
@@ -187,7 +280,9 @@ export default function MapView({
     }
   };
 
-  const searchParamsString = JSON.stringify(searchParams);
+  const focusCenterKey = focusCenter
+    ? `${focusCenter.lat},${focusCenter.lng}`
+    : "";
 
   useEffect(() => {
     if (focusCenter) {
@@ -202,21 +297,8 @@ export default function MapView({
       return;
     }
 
-    const hasActiveSearch = Boolean(
-      searchParams?.search?.trim() ||
-        searchParams?.brandName?.trim() ||
-        searchParams?.color?.trim() ||
-        searchParams?.style?.trim() ||
-        (searchParams?.city_id && searchParams.city_id !== "all") ||
-        (searchParams?.state_id && searchParams.state_id !== "all"),
-    );
-
-    if (hasActiveSearch && !focusCenter) {
-      setShouldFitBounds(true);
-    }
-
     fetchDataForBounds(currentBoundsRef.current || undefined);
-  }, [searchParamsString, reportUsage, focusCenter]);
+  }, [searchParamsString, reportUsage, focusCenterKey]);
 
   useEffect(() => {
     const resolveCenterLocation = async () => {
@@ -251,28 +333,20 @@ export default function MapView({
   ) => {
     currentBoundsRef.current = bounds;
     setShouldFitBounds(false);
-
-    const hasActiveSearch = Boolean(
-      searchParams?.search?.trim() ||
-        searchParams?.brandName?.trim() ||
-        searchParams?.color?.trim() ||
-        searchParams?.style?.trim(),
-    );
-
-    if (!hasActiveSearch) {
-      await fetchDataForBounds(bounds, zoomLevel);
-    }
+    await fetchDataForBounds(bounds, zoomLevel);
   };
 
   return (
     <Card className="border-border/60 shadow-xl overflow-hidden bg-muted/5 min-h-[600px] flex flex-col pt-0 relative">
       <GoogleMap
         markers={markers}
-        loading={loading}
+        loading={loading || isResolvingCenter}
         onViewportChange={handleViewportChange}
         shouldFitBounds={shouldFitBounds}
-        defaultCenter={focusCenter || undefined}
-        defaultZoom={focusCenter ? 17.5 : undefined}
+        defaultCenter={focusCenter || searchFocusCenter || undefined}
+        defaultZoom={
+          focusCenter ? 17.5 : searchFocusCenter ? 14 : undefined
+        }
         defaultCityName={centerCityName}
         focusedMarkerId={focusId}
         onFocusCleared={onFocusCleared}

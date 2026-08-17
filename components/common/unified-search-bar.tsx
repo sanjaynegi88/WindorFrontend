@@ -47,6 +47,7 @@ interface UnifiedSearchBarProps {
   className?: string;
   isMapView?: boolean;
   allowEmptySearch?: boolean;
+  requireAllFields?: boolean;
 }
 
 export function UnifiedSearchBar({
@@ -58,6 +59,7 @@ export function UnifiedSearchBar({
   className,
   isMapView = false,
   allowEmptySearch = false,
+  requireAllFields = true,
 }: UnifiedSearchBarProps) {
   const [search, setSearch] = useState(initialFilters?.search || "");
   const { user } = useUser();
@@ -162,11 +164,17 @@ export function UnifiedSearchBar({
     }
   }, [search, searchBy, state, city, onChange]);
 
+  const hasState = state !== "all" && state !== "";
+  const hasCity = city !== "all" && city !== "";
+  const hasSearch = search.trim().length > 0;
+
   const isSearchInputDone =
     allowEmptySearch ||
-    search.trim().length > 0 ||
-    (state !== "all" && state !== "") ||
-    (city !== "all" && city !== "");
+    (isCityInspector || isMapView
+      ? hasSearch
+      : requireAllFields
+        ? hasState && hasCity && hasSearch
+        : hasState || hasCity || hasSearch);
   const isSearchDisabled = !isSearchInputDone;
 
   const handleSearchClick = () => {
