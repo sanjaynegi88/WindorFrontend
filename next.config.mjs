@@ -23,6 +23,7 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '100mb',
     },
+    middlewareClientMaxBodySize: "100mb",
   },
   output: 'standalone',
   webpack: (config) => {
