@@ -1,9 +1,16 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetBody, SheetFooter } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { useState, useEffect } from "react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetBody,
+  SheetFooter,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   FileText,
   MapPin,
@@ -18,9 +25,14 @@ import {
   Info,
   Download,
   Calendar,
-  X
-} from 'lucide-react';
-import { cn, downloadPdfFromUrl, getErrorMessage, getWorkingAwsImageUrl } from '@/lib/utils';
+  X,
+} from "lucide-react";
+import {
+  cn,
+  downloadPdfFromUrl,
+  getErrorMessage,
+  getWorkingAwsImageUrl,
+} from "@/lib/utils";
 import {
   getPropertyListAll,
   generatePdfReport,
@@ -32,11 +44,11 @@ import {
   purchaseAllContractorReports,
   generateAllContractorPdfReport,
   generateContractorProjectPdfReport,
-} from '@/lib/actions';
-import { toast } from 'sonner';
-import Image from 'next/image';
-import { useUser } from '@/components/providers/user-provider';
-import { Checkbox } from '@/components/ui/checkbox';
+} from "@/lib/actions";
+import { toast } from "sonner";
+import Image from "next/image";
+import { useUser } from "@/components/providers/user-provider";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -44,9 +56,9 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogClose
-} from '@/components/ui/dialog';
-import { PdfGenerationLoader } from './pdf-generation-loader';
+  DialogClose,
+} from "@/components/ui/dialog";
+import { PdfGenerationLoader } from "./pdf-generation-loader";
 
 interface PropertyMapSidebarProps {
   propertyId: string | null;
@@ -54,18 +66,25 @@ interface PropertyMapSidebarProps {
   onClose: () => void;
 }
 
-export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapSidebarProps) {
+export function PropertyMapSidebar({
+  propertyId,
+  isOpen,
+  onClose,
+}: PropertyMapSidebarProps) {
   const { user, role } = useUser();
   const [property, setProperty] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'reports'>('overview');
+  const [activeTab, setActiveTab] = useState<"overview" | "reports">(
+    "overview",
+  );
   const [isGenerating, setIsGenerating] = useState(false);
   const [reportUsage, setReportUsage] = useState<any>(null);
 
   // local purchase states
   const [purchased, setPurchased] = useState(false);
   const [allContractorPurchased, setAllContractorPurchased] = useState(false);
-  const [isGeneratingAllContractor, setIsGeneratingAllContractor] = useState(false);
+  const [isGeneratingAllContractor, setIsGeneratingAllContractor] =
+    useState(false);
   const [isBulkPurchasing, setIsBulkPurchasing] = useState(false);
 
   // project lists
@@ -77,19 +96,29 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
   // selections
   const [selectedContractors, setSelectedContractors] = useState<string[]>([]);
   const [selectedHomeowners, setSelectedHomeowners] = useState<string[]>([]);
-  const [generatingProjects, setGeneratingProjects] = useState<Record<string, boolean>>({});
+  const [generatingProjects, setGeneratingProjects] = useState<
+    Record<string, boolean>
+  >({});
 
   // Sub-dialog states
   const [showAllContractorDialog, setShowAllContractorDialog] = useState(false);
-  const [showContractorListDialog, setShowContractorListDialog] = useState(false);
+  const [showContractorListDialog, setShowContractorListDialog] =
+    useState(false);
   const [showHomeownerListDialog, setShowHomeownerListDialog] = useState(false);
 
-  // Fetch report usage (insurance role)
+  // Fetch report usage
   useEffect(() => {
-    if (role === 'insurance_company' && isOpen) {
+    if (
+      (role === "insurance_company" ||
+        role === "realtor" ||
+        role === "manufacturer" ||
+        role === "contractor" ||
+        role === "property_owner") &&
+      isOpen
+    ) {
       getReportUsage()
         .then((res) => setReportUsage(res.data))
-        .catch(() => { });
+        .catch(() => {});
     }
   }, [role, isOpen]);
 
@@ -101,22 +130,28 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
       setLoading(true);
       try {
         const result = await getPropertyListAll({ id: propertyId });
-        const data = Array.isArray(result) ? result[0] : (result?.data ? (Array.isArray(result.data) ? result.data[0] : result.data) : result);
+        const data = Array.isArray(result)
+          ? result[0]
+          : result?.data
+            ? Array.isArray(result.data)
+              ? result.data[0]
+              : result.data
+            : result;
         setProperty(data?.data || data);
         setPurchased(data?.data?.is_purchased ?? data?.is_purchased ?? false);
         setAllContractorPurchased(
           data?.data?.all_contractor_purchased === true ||
-          data?.data?.is_all_contractor_purchased === true ||
-          data?.data?.all_contractors_purchased === true ||
-          data?.all_contractor_purchased === true ||
-          data?.is_all_contractor_purchased === true ||
-          data?.all_contractors_purchased === true ||
-          false
+            data?.data?.is_all_contractor_purchased === true ||
+            data?.data?.all_contractors_purchased === true ||
+            data?.all_contractor_purchased === true ||
+            data?.is_all_contractor_purchased === true ||
+            data?.all_contractors_purchased === true ||
+            false,
         );
-        setActiveTab('overview');
+        setActiveTab("overview");
       } catch (err) {
-        console.error('Error fetching property details:', err);
-        toast.error('Failed to load property details');
+        console.error("Error fetching property details:", err);
+        toast.error("Failed to load property details");
       } finally {
         setLoading(false);
       }
@@ -130,13 +165,20 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
     if (!propertyId) return;
     setLoadingContractor(true);
     try {
-      const res = await getprojectListingOfProperty(propertyId, undefined, 'CONTRACTOR');
-      console.log("res", res)
-      const projects = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+      const res = await getprojectListingOfProperty(
+        propertyId,
+        undefined,
+        "CONTRACTOR",
+      );
+      const projects = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.data)
+          ? res.data
+          : [];
       setContractorProjects(projects);
     } catch (err) {
-      console.error('Failed to load contractor projects:', err);
-      toast.error('Failed to load contractor projects');
+      console.error("Failed to load contractor projects:", err);
+      toast.error("Failed to load contractor projects");
     } finally {
       setLoadingContractor(false);
     }
@@ -146,12 +188,20 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
     if (!propertyId) return;
     setLoadingHomeowner(true);
     try {
-      const res = await getprojectListingOfProperty(propertyId, undefined, 'PROPERTY_OWNER');
-      const projects = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+      const res = await getprojectListingOfProperty(
+        propertyId,
+        undefined,
+        "PROPERTY_OWNER",
+      );
+      const projects = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.data)
+          ? res.data
+          : [];
       setHomeownerProjects(projects);
     } catch (err) {
-      console.error('Failed to load homeowner projects:', err);
-      toast.error('Failed to load homeowner projects');
+      console.error("Failed to load homeowner projects:", err);
+      toast.error("Failed to load homeowner projects");
     } finally {
       setLoadingHomeowner(false);
     }
@@ -176,37 +226,114 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
 
   if (!isOpen) return null;
 
-  const propertyOwnerEmail = property?.property_owner?.email || property?.owner_email || '';
-  const totalProjectsCount = (property?.projects ?? []).length;
-  const isOwnerOfProperty = role === 'property_owner' && !!propertyOwnerEmail && user?.email?.toLowerCase() === propertyOwnerEmail.toLowerCase();
-  const isAdmin = role === 'admin';
-  const isCityInspector = role === 'city_inspector';
+  const propertyOwnerEmail =
+    property?.property_owner?.email || property?.owner_email || "";
+  const projectsList = property?.projects ?? [];
+  const totalProjectsCount = projectsList.length;
+
+  const isProjectVerified = (p: any): boolean => {
+    if (!p) return false;
+    if (
+      p.verified_status === true ||
+      p.installer_verified === true ||
+      p.installerVerified === true ||
+      p.is_verified === true ||
+      p.verified === true
+    ) {
+      return true;
+    }
+    const pStatus = (p.status || p.approval_status || p.verified_status || "")
+      .toString()
+      .toUpperCase();
+    if (
+      pStatus === "VERIFIED" ||
+      pStatus === "APPROVED" ||
+      pStatus === "APPROVE"
+    ) {
+      return true;
+    }
+    if (p.components) {
+      const comp = p.components;
+      if (
+        comp.installer_verified === true ||
+        comp.installerVerified === true ||
+        comp.verified_status === true ||
+        comp.is_verified === true ||
+        comp.verified === true
+      ) {
+        return true;
+      }
+      const cStatus = (
+        comp.status ||
+        comp.verified_status ||
+        comp.approval_status ||
+        ""
+      )
+        .toString()
+        .toUpperCase();
+      if (
+        cStatus === "VERIFIED" ||
+        cStatus === "APPROVED" ||
+        cStatus === "APPROVE"
+      ) {
+        return true;
+      }
+    }
+    if (
+      p.permit_upload?.status === "VERIFIED" ||
+      p.permit_upload?.status === "APPROVED" ||
+      p.permit_status === "VERIFIED" ||
+      p.permit_status === "APPROVED"
+    ) {
+      return true;
+    }
+    return false;
+  };
+
+  const isAllProjectsVerified =
+    projectsList.length > 0 &&
+    projectsList.every((p: any) => isProjectVerified(p));
+
+  const isOwnerOfProperty =
+    role === "property_owner" &&
+    !!propertyOwnerEmail &&
+    user?.email?.toLowerCase() === propertyOwnerEmail.toLowerCase();
+  const isAdmin = role === "admin";
+  const isCityInspector = role === "city_inspector";
   const hasReport = !!property?.has_report;
 
+  const hasLimitAccess = Boolean(reportUsage && reportUsage.remaining > 0);
+
   const showGenerateOption =
-    hasReport && (
-      (role === "property_owner" && (isOwnerOfProperty || purchased)) ||
+    hasReport &&
+    ((role === "property_owner" &&
+      (isOwnerOfProperty || purchased || hasLimitAccess)) ||
       role === "admin" ||
       role === "city_inspector" ||
-      (role === "contractor" && purchased) ||
-      (role === "manufacturer" && purchased) ||
-      (role === "realtor" && purchased) ||
-      (role === "insurance_company" &&
-        (purchased || (reportUsage && reportUsage.remaining > 0)))
-    );
+      (role === "contractor" && (purchased || hasLimitAccess)) ||
+      (role === "manufacturer" && (purchased || hasLimitAccess)) ||
+      (role === "realtor" && (purchased || hasLimitAccess)) ||
+      (role === "insurance_company" && (purchased || hasLimitAccess)));
 
   const showBuyOption =
     hasReport &&
     totalProjectsCount > 0 &&
-    ((role === "property_owner" && !isOwnerOfProperty && !purchased) ||
-      (role === "contractor" && !purchased) ||
-      (role === "manufacturer" && !purchased) ||
-      (role === "realtor" && !purchased) ||
-      (role === "insurance_company" &&
-        !purchased &&
-        (!reportUsage || reportUsage.remaining === 0)));
+    ((role === "property_owner" &&
+      !isOwnerOfProperty &&
+      !purchased &&
+      !hasLimitAccess) ||
+      (role === "contractor" && !purchased && !hasLimitAccess) ||
+      (role === "manufacturer" && !purchased && !hasLimitAccess) ||
+      (role === "realtor" && !purchased && !hasLimitAccess) ||
+      (role === "insurance_company" && !purchased && !hasLimitAccess));
 
-  const hasAllContractorAccess = allContractorPurchased || purchased || isAdmin || isCityInspector || isOwnerOfProperty;
+  const hasAllContractorAccess =
+    allContractorPurchased ||
+    purchased ||
+    isAdmin ||
+    isCityInspector ||
+    isOwnerOfProperty ||
+    hasLimitAccess;
 
   // Actions
   const handleDownloadFullReport = async () => {
@@ -215,10 +342,10 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
     try {
       const url = await generatePdfReport(propertyId, undefined, user?.role);
       await downloadPdfFromUrl(url, `property-report-${propertyId}.pdf`);
-      toast.success('Report downloaded successfully');
+      toast.success("Report downloaded successfully");
       setPurchased(true);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to download report');
+      toast.error(err.message || "Failed to download report");
     } finally {
       setIsGenerating(false);
     }
@@ -234,17 +361,18 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
         setIsGenerating(false);
         return;
       }
-      const checkoutUrl = response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
+      const checkoutUrl =
+        response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
       if (checkoutUrl) {
-        localStorage.setItem('pending_report_id', propertyId);
-        localStorage.setItem('pending_report_type', 'single');
+        localStorage.setItem("pending_report_id", propertyId);
+        localStorage.setItem("pending_report_type", "single");
         window.location.href = checkoutUrl;
       } else {
         setPurchased(true);
         await handleDownloadFullReport();
       }
     } catch (err: any) {
-      toast.error(getErrorMessage(err, 'Something went wrong.'));
+      toast.error(getErrorMessage(err, "Something went wrong."));
       setIsGenerating(false);
     }
   };
@@ -254,11 +382,14 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
     setIsGeneratingAllContractor(true);
     try {
       const url = await generateAllContractorPdfReport(propertyId);
-      await downloadPdfFromUrl(url, `all-contractor-projects-report-${propertyId}.pdf`);
-      toast.success('Report downloaded successfully');
+      await downloadPdfFromUrl(
+        url,
+        `all-contractor-projects-report-${propertyId}.pdf`,
+      );
+      toast.success("Report downloaded successfully");
       setAllContractorPurchased(true);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to download report');
+      toast.error(err.message || "Failed to download report");
     } finally {
       setIsGeneratingAllContractor(false);
     }
@@ -275,26 +406,31 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
         setIsGeneratingAllContractor(false);
         return;
       }
-      const checkoutUrl = response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
+      const checkoutUrl =
+        response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
       if (checkoutUrl) {
-        localStorage.setItem('pending_report_id', propertyId);
-        localStorage.setItem('pending_report_type', 'all-contractor');
+        localStorage.setItem("pending_report_id", propertyId);
+        localStorage.setItem("pending_report_type", "all-contractor");
         window.location.href = checkoutUrl;
       } else {
         setAllContractorPurchased(true);
         await handleDownloadAllContractorReport();
       }
     } catch (err: any) {
-      toast.error(getErrorMessage(err, 'Something went wrong.'));
+      toast.error(getErrorMessage(err, "Something went wrong."));
       setIsGeneratingAllContractor(false);
     }
   };
 
-  const handleGenerateProjectReport = async (projectId: string, projectName: string) => {
+  const handleGenerateProjectReport = async (
+    projectId: string,
+    projectName: string,
+  ) => {
     setGeneratingProjects((prev) => ({ ...prev, [projectId]: true }));
     try {
       const isContractor = contractorProjects.some(
-        (proj: any) => String(proj.id ?? proj.project_id ?? proj._id) === String(projectId)
+        (proj: any) =>
+          String(proj.id ?? proj.project_id ?? proj._id) === String(projectId),
       );
       const url = isContractor
         ? await generateContractorProjectPdfReport(projectId)
@@ -303,10 +439,10 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
         ? `contractor-projects-report-${projectName}.pdf`
         : `owner-projects-report-${projectName}.pdf`;
       await downloadPdfFromUrl(url, filename);
-      toast.success('Report downloaded successfully');
+      toast.success("Report downloaded successfully");
     } catch (error: any) {
-      console.error('Download project report error:', error);
-      toast.error(getErrorMessage(error, 'Failed to download report'));
+      console.error("Download project report error:", error);
+      toast.error(getErrorMessage(error, "Failed to download report"));
     } finally {
       setGeneratingProjects((prev) => ({ ...prev, [projectId]: false }));
     }
@@ -320,26 +456,35 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
         toast.error(response.message);
         return;
       }
-      const checkoutUrl = response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
+      const checkoutUrl =
+        response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
       if (checkoutUrl) {
         const isContractor = contractorProjects.some(
-          (proj: any) => String(proj.id ?? proj.project_id ?? proj._id) === String(projectId)
+          (proj: any) =>
+            String(proj.id ?? proj.project_id ?? proj._id) ===
+            String(projectId),
         );
-        localStorage.setItem('pending_report_id', projectId);
-        localStorage.setItem('pending_report_type', isContractor ? 'contractor-project' : 'project');
-        localStorage.setItem('pending_report_property_id', propertyId);
+        localStorage.setItem("pending_report_id", projectId);
+        localStorage.setItem(
+          "pending_report_type",
+          isContractor ? "contractor-project" : "project",
+        );
+        localStorage.setItem("pending_report_property_id", propertyId);
         window.location.href = checkoutUrl;
       } else {
-        toast.success('Report purchased successfully');
+        toast.success("Report purchased successfully");
         loadContractorProjects();
         loadHomeownerProjects();
       }
     } catch (err) {
-      toast.error(getErrorMessage(err, 'Something went wrong.'));
+      toast.error(getErrorMessage(err, "Something went wrong."));
     }
   };
 
-  const handlePurchaseMultipleProjects = async (projectIds: string[], listType: 'contractor' | 'homeowner') => {
+  const handlePurchaseMultipleProjects = async (
+    projectIds: string[],
+    listType: "contractor" | "homeowner",
+  ) => {
     if (!propertyId || projectIds.length === 0) return;
     setIsBulkPurchasing(true);
     try {
@@ -348,15 +493,19 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
         toast.error(response.message);
         return;
       }
-      const checkoutUrl = response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
+      const checkoutUrl =
+        response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
       if (checkoutUrl) {
-        localStorage.setItem('pending_report_id', projectIds.join(','));
-        localStorage.setItem('pending_report_type', listType === 'contractor' ? 'contractor-project' : 'project');
-        localStorage.setItem('pending_report_property_id', propertyId);
+        localStorage.setItem("pending_report_id", projectIds.join(","));
+        localStorage.setItem(
+          "pending_report_type",
+          listType === "contractor" ? "contractor-project" : "project",
+        );
+        localStorage.setItem("pending_report_property_id", propertyId);
         window.location.href = checkoutUrl;
       } else {
-        toast.success('Reports purchased successfully');
-        if (listType === 'contractor') {
+        toast.success("Reports purchased successfully");
+        if (listType === "contractor") {
           setSelectedContractors([]);
           await loadContractorProjects();
         } else {
@@ -364,11 +513,11 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
           await loadHomeownerProjects();
         }
         for (const pid of projectIds) {
-          await handleGenerateProjectReport(pid, 'Project Report');
+          await handleGenerateProjectReport(pid, "Project Report");
         }
       }
     } catch (err) {
-      toast.error(getErrorMessage(err, 'Something went wrong.'));
+      toast.error(getErrorMessage(err, "Something went wrong."));
     } finally {
       setIsBulkPurchasing(false);
     }
@@ -379,10 +528,12 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
     .map((p: any) => p.components)
     .filter(Boolean)
     .flatMap((comp: any) =>
-      (comp.images ?? []).flatMap((img: any) => [
-        img.image_url ? `${img.image_url}` : null,
-        img.property_owner_files ? `${img.property_owner_files}` : null
-      ].filter(Boolean))
+      (comp.images ?? []).flatMap((img: any) =>
+        [
+          img.image_url ? `${img.image_url}` : null,
+          img.property_owner_files ? `${img.property_owner_files}` : null,
+        ].filter(Boolean),
+      ),
     );
   const uniqueImages = Array.from(new Set(allImages)) as string[];
 
@@ -403,26 +554,36 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
           {loading ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-3">
               <Loader2 className="w-10 h-10 animate-spin text-[#1CA7A6]" />
-              <span className="text-sm font-semibold text-[#708090] font-asap">Loading details...</span>
+              <span className="text-sm font-semibold text-[#708090] font-asap">
+                Loading details...
+              </span>
             </div>
           ) : !property ? (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-2">
               <AlertTriangle className="w-12 h-12 text-amber-500" />
-              <h3 className="text-md font-bold text-[#1F2A44] font-asap">Property Not Found</h3>
-              <p className="text-xs text-gray-500 font-medium">Failed to retrieve property details.</p>
+              <h3 className="text-md font-bold text-[#1F2A44] font-asap">
+                Property Not Found
+              </h3>
+              <p className="text-xs text-gray-500 font-medium">
+                Failed to retrieve property details.
+              </p>
             </div>
           ) : (
             <>
               {/* Image Banner */}
               <div className="w-full h-44 relative bg-gray-100 overflow-hidden shrink-0">
                 <Image
-                  src={property.front_image ? property.front_image : '/assets/prop_placeholder.png'}
+                  src={
+                    property.front_image
+                      ? property.front_image
+                      : "/assets/prop_placeholder.png"
+                  }
                   alt={property.address}
                   fill
                   className="object-cover transition-all duration-500"
                   unoptimized
                   onError={(e) => {
-                    (e.target as any).src = '/assets/prop_placeholder.png';
+                    (e.target as any).src = "/assets/prop_placeholder.png";
                   }}
                 />
                 {property.street_view_link && (
@@ -446,23 +607,23 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
               {/* Tabs */}
               <div className="flex border-b border-gray-100 bg-[#F8FAFC] shrink-0 font-asap">
                 <button
-                  onClick={() => setActiveTab('overview')}
+                  onClick={() => setActiveTab("overview")}
                   className={cn(
-                    'flex-1 py-3 text-xs font-bold uppercase tracking-widest text-center border-b-2 transition-all',
-                    activeTab === 'overview'
-                      ? 'border-[#1CA7A6] text-[#1CA7A6]'
-                      : 'border-transparent text-[#708090] hover:text-[#1F2A44]'
+                    "flex-1 py-3 text-xs font-bold uppercase tracking-widest text-center border-b-2 transition-all",
+                    activeTab === "overview"
+                      ? "border-[#1CA7A6] text-[#1CA7A6]"
+                      : "border-transparent text-[#708090] hover:text-[#1F2A44]",
                   )}
                 >
                   Overview
                 </button>
                 <button
-                  onClick={() => setActiveTab('reports')}
+                  onClick={() => setActiveTab("reports")}
                   className={cn(
-                    'flex-1 py-3 text-xs font-bold uppercase tracking-widest text-center border-b-2 transition-all',
-                    activeTab === 'reports'
-                      ? 'border-[#1CA7A6] text-[#1CA7A6]'
-                      : 'border-transparent text-[#708090] hover:text-[#1F2A44]'
+                    "flex-1 py-3 text-xs font-bold uppercase tracking-widest text-center border-b-2 transition-all",
+                    activeTab === "reports"
+                      ? "border-[#1CA7A6] text-[#1CA7A6]"
+                      : "border-transparent text-[#708090] hover:text-[#1F2A44]",
                   )}
                 >
                   Reports ({totalProjectsCount})
@@ -471,7 +632,7 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
 
               {/* Body Content */}
               <SheetBody className="flex-1 overflow-y-auto p-5 space-y-6">
-                {activeTab === 'overview' ? (
+                {activeTab === "overview" ? (
                   <div className="space-y-6 font-asap">
                     {/* Header Info */}
                     <div className="space-y-3">
@@ -482,9 +643,13 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                         <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
                           <MapPin className="w-3.5 h-3.5 text-[#708090]" />
                           <span>
-                            {[property.city_name || property.city?.name, property.state_name || property.state, property.zip]
+                            {[
+                              property.city_name || property.city?.name,
+                              property.state_name || property.state,
+                              property.zip,
+                            ]
                               .filter(Boolean)
-                              .join(', ')}
+                              .join(", ")}
                           </span>
                         </div>
                       </div>
@@ -495,7 +660,11 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                           size="sm"
                           className="h-8 rounded-lg font-bold uppercase tracking-wider text-[10px] border border-gray-200 bg-white hover:bg-gray-50 text-[#1CA7A6] gap-1.5 w-fit"
                         >
-                          <a href={property.street_view_link} target="_blank" rel="noopener noreferrer">
+                          <a
+                            href={property.street_view_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
                             <Eye className="w-3.5 h-3.5" />
                             Street View
                           </a>
@@ -506,19 +675,32 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                     {/* Metadata list */}
                     <div className="rounded-xl border border-gray-100 bg-slate-50/50 p-4 space-y-3.5">
                       <div className="flex items-center justify-between text-xs pb-2.5 border-b border-gray-100">
-                        <span className="font-bold text-gray-400 uppercase tracking-widest">Owner Email</span>
-                        <span className="font-bold text-[#1F2A44]">{propertyOwnerEmail || 'N/A'}</span>
+                        <span className="font-bold text-gray-400 uppercase tracking-widest">
+                          Owner Email
+                        </span>
+                        <span className="font-bold text-[#1F2A44]">
+                          {propertyOwnerEmail || "N/A"}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between text-xs pb-2.5 border-b border-gray-100">
-                        <span className="font-bold text-gray-400 uppercase tracking-widest">Total Projects</span>
-                        <span className="font-bold text-[#1F2A44]">{totalProjectsCount}</span>
+                        <span className="font-bold text-gray-400 uppercase tracking-widest">
+                          Total Projects
+                        </span>
+                        <span className="font-bold text-[#1F2A44]">
+                          {totalProjectsCount}
+                        </span>
                       </div>
-                      <div className={cn(
-                        "flex items-center justify-between text-xs",
-                        property.street_view_link && "pb-2.5 border-b border-gray-100"
-                      )}>
-                        <span className="font-bold text-gray-400 uppercase tracking-widest">Verification Status</span>
-                        {property.verified_status ? (
+                      <div
+                        className={cn(
+                          "flex items-center justify-between text-xs",
+                          property.street_view_link &&
+                            "pb-2.5 border-b border-gray-100",
+                        )}
+                      >
+                        <span className="font-bold text-gray-400 uppercase tracking-widest">
+                          Verification Status
+                        </span>
+                        {isAllProjectsVerified ? (
                           <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[9px] uppercase tracking-wider rounded-md">
                             Verified
                           </Badge>
@@ -530,7 +712,9 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                       </div>
                       {property.street_view_link && (
                         <div className="flex items-center justify-between text-xs">
-                          <span className="font-bold text-gray-400 uppercase tracking-widest">Street View</span>
+                          <span className="font-bold text-gray-400 uppercase tracking-widest">
+                            Street View
+                          </span>
                           <a
                             href={property.street_view_link}
                             target="_blank"
@@ -546,35 +730,47 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
 
                     {/* Install Details */}
                     <div className="space-y-2">
-                      <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Installations List</h3>
+                      <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+                        Installations List
+                      </h3>
                       {totalProjectsCount > 0 ? (
                         <div className="flex flex-wrap gap-1.5">
                           {(property.projects ?? [])
                             .map((p: any) => p.components?.component_type)
                             .filter(Boolean)
-                            .filter((value: any, index: number, self: any[]) => self.indexOf(value) === index) // Unique values
+                            .filter(
+                              (value: any, index: number, self: any[]) =>
+                                self.indexOf(value) === index,
+                            ) // Unique values
                             .map((type: string) => (
                               <Badge
                                 key={type}
                                 variant="outline"
                                 className="bg-white text-gray-700 border-gray-200 font-semibold text-[10px] capitalize px-2.5 py-1"
                               >
-                                {type.replace(/_/g, ' ')}
+                                {type.replace(/_/g, " ")}
                               </Badge>
                             ))}
                         </div>
                       ) : (
-                        <p className="text-xs font-semibold text-red-500">No installations listed yet</p>
+                        <p className="text-xs font-semibold text-red-500">
+                          No installations listed yet
+                        </p>
                       )}
                     </div>
 
                     {/* Photos grid summary */}
                     <div className="space-y-2">
-                      <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Property Images ({uniqueImages.length})</h3>
+                      <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+                        Property Images ({uniqueImages.length})
+                      </h3>
                       {uniqueImages.length > 0 ? (
                         <div className="grid grid-cols-4 gap-2">
                           {uniqueImages.slice(0, 4).map((src, idx) => (
-                            <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-100 bg-gray-50">
+                            <div
+                              key={idx}
+                              className="relative aspect-square rounded-lg overflow-hidden border border-gray-100 bg-gray-50"
+                            >
                               <Image
                                 src={src}
                                 alt={`property-${idx}`}
@@ -586,7 +782,9 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                           ))}
                         </div>
                       ) : (
-                        <p className="text-xs text-gray-500 font-medium">No property photos uploaded.</p>
+                        <p className="text-xs text-gray-500 font-medium">
+                          No property photos uploaded.
+                        </p>
                       )}
                     </div>
                   </div>
@@ -594,13 +792,16 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                   <div className="space-y-5 font-asap">
                     {totalProjectsCount === 0 ? (
                       <div className="p-5 text-center rounded-xl border border-dashed border-gray-200 bg-slate-50/50">
-                        <p className="text-xs font-semibold text-red-500">No reports available for this property.</p>
+                        <p className="text-xs font-semibold text-red-500">
+                          No reports available for this property.
+                        </p>
                       </div>
                     ) : (
                       <>
                         {/* Report description */}
                         <div className="text-xs text-gray-500 font-medium leading-relaxed">
-                          Download or purchase full comprehensive report or select specific project reports below.
+                          Download or purchase full comprehensive report or
+                          select specific project reports below.
                         </div>
 
                         {/* Full Report Option */}
@@ -615,7 +816,8 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                                   Full Property Report
                                 </h4>
                                 <p className="text-[10px] text-gray-400 font-medium mt-0.5 leading-normal">
-                                  Includes all contractor and homeowner projects.
+                                  Includes all contractor and homeowner
+                                  projects.
                                 </p>
                               </div>
                             </div>
@@ -630,7 +832,9 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                                 ) : (
                                   <Download className="w-3.5 h-3.5" />
                                 )}
-                                {isGenerating ? 'Downloading…' : 'Download Full Report'}
+                                {isGenerating
+                                  ? "Downloading…"
+                                  : "Download Full Report"}
                               </Button>
                             ) : (
                               <Button
@@ -643,7 +847,9 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                                 ) : (
                                   <ShoppingCart className="w-3.5 h-3.5" />
                                 )}
-                                {isGenerating ? 'Processing…' : 'Buy Full Report'}
+                                {isGenerating
+                                  ? "Processing…"
+                                  : "Buy Full Report"}
                               </Button>
                             )}
                           </div>
@@ -675,9 +881,9 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                               {isGeneratingAllContractor ? (
                                 <Loader2 className="w-3 h-3 animate-spin" />
                               ) : hasAllContractorAccess ? (
-                                'Download'
+                                "Download"
                               ) : (
-                                'Access'
+                                "Access"
                               )}
                             </Button>
                           </div>
@@ -742,14 +948,19 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
       </Sheet>
 
       {/* dialog 1: All Contractor Reports purchase prompt */}
-      <Dialog open={showAllContractorDialog} onOpenChange={setShowAllContractorDialog}>
+      <Dialog
+        open={showAllContractorDialog}
+        onOpenChange={setShowAllContractorDialog}
+      >
         <DialogContent className="sm:max-w-[400px] rounded-2xl border-none shadow-2xl p-6 font-asap bg-white">
           <DialogHeader className="space-y-2">
             <DialogTitle className="text-lg font-black text-[#1F2A44] uppercase tracking-tight">
               Purchase All Contractor Reports
             </DialogTitle>
             <DialogDescription className="text-xs text-gray-500 font-medium leading-relaxed">
-              This feature allows you to purchase access to all contractor reports associated with this property at once. Would you like to proceed to payment?
+              This feature allows you to purchase access to all contractor
+              reports associated with this property at once. Would you like to
+              proceed to payment?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 mt-4 flex flex-row">
@@ -771,7 +982,7 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                   Processing...
                 </>
               ) : (
-                'Purchase'
+                "Purchase"
               )}
             </Button>
           </DialogFooter>
@@ -779,7 +990,10 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
       </Dialog>
 
       {/* dialog 2: Contractor Projects List */}
-      <Dialog open={showContractorListDialog} onOpenChange={setShowContractorListDialog}>
+      <Dialog
+        open={showContractorListDialog}
+        onOpenChange={setShowContractorListDialog}
+      >
         <DialogContent className="sm:max-w-[500px] rounded-2xl border-none shadow-2xl p-6 max-h-[80vh] flex flex-col font-asap bg-white">
           <DialogHeader className="pb-3 border-b flex flex-row items-center justify-between">
             <div>
@@ -808,10 +1022,15 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
               </div>
             ) : (
               contractorProjects.map((project: any) => {
-                const projectId = project.id ?? project.project_id ?? project._id;
+                const projectId =
+                  project.id ?? project.project_id ?? project._id;
                 const isProjectGenerating = !!generatingProjects[projectId];
-                const isProjectPurchased = project.project_purchased === true || project.is_purchased === true;
-                const isSelected = selectedContractors.includes(String(projectId));
+                const isProjectPurchased =
+                  project.project_purchased === true ||
+                  project.is_purchased === true;
+                const isSelected = selectedContractors.includes(
+                  String(projectId),
+                );
                 const projectPrice = project.project_price ?? 29;
 
                 const hasProjectAccess =
@@ -820,7 +1039,8 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                   purchased ||
                   isAdmin ||
                   isCityInspector ||
-                  isOwnerOfProperty;
+                  isOwnerOfProperty ||
+                  hasLimitAccess;
 
                 return (
                   <div
@@ -836,7 +1056,9 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                           if (checked) {
                             setSelectedContractors((prev) => [...prev, pidStr]);
                           } else {
-                            setSelectedContractors((prev) => prev.filter((id) => id !== pidStr));
+                            setSelectedContractors((prev) =>
+                              prev.filter((id) => id !== pidStr),
+                            );
                           }
                         }}
                       />
@@ -844,11 +1066,11 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                     <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="space-y-0.5">
                         <p className="text-xs font-bold text-[#1F2A44]">
-                          {project.project_name || 'Untitled Project'}
+                          {project.project_name || "Untitled Project"}
                         </p>
                         <div className="flex items-center gap-2">
                           <span className="text-[9px] bg-[#1CA7A6]/10 text-[#1CA7A6] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                            {project.project_type || 'General'}
+                            {project.project_type || "General"}
                           </span>
                           {project.is_confirmed && (
                             <span className="text-[9px] text-[#43A047] font-bold">
@@ -860,7 +1082,12 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                       <div className="flex items-center gap-2">
                         {hasProjectAccess ? (
                           <Button
-                            onClick={() => handleGenerateProjectReport(projectId, project.project_name)}
+                            onClick={() =>
+                              handleGenerateProjectReport(
+                                projectId,
+                                project.project_name,
+                              )
+                            }
                             disabled={isProjectGenerating}
                             className="h-8 px-2.5 rounded-lg bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-[9px] uppercase tracking-widest gap-1 shadow-none"
                           >
@@ -869,11 +1096,13 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                             ) : (
                               <FileText className="w-3 h-3" />
                             )}
-                            {isProjectGenerating ? 'Downloading…' : 'Download'}
+                            {isProjectGenerating ? "Downloading…" : "Download"}
                           </Button>
                         ) : (
                           <Button
-                            onClick={() => handlePurchaseProjectReport(projectId)}
+                            onClick={() =>
+                              handlePurchaseProjectReport(projectId)
+                            }
                             className="h-8 px-2.5 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[9px] uppercase tracking-widest gap-1 shadow-none"
                           >
                             <ShoppingCart className="w-3 h-3" />
@@ -893,7 +1122,12 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                 {selectedContractors.length} selected
               </span>
               <Button
-                onClick={() => handlePurchaseMultipleProjects(selectedContractors, 'contractor')}
+                onClick={() =>
+                  handlePurchaseMultipleProjects(
+                    selectedContractors,
+                    "contractor",
+                  )
+                }
                 disabled={isBulkPurchasing}
                 className="h-8 px-3 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[9px] uppercase tracking-widest gap-1 shadow-none"
               >
@@ -902,10 +1136,14 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                 ) : (
                   <ShoppingCart className="w-3 h-3" />
                 )}
-                Pay Selected (${selectedContractors.reduce((total, id) => {
-                  const proj = contractorProjects.find((p) => String(p.id ?? p.project_id ?? p._id) === id);
+                Pay Selected ($
+                {selectedContractors.reduce((total, id) => {
+                  const proj = contractorProjects.find(
+                    (p) => String(p.id ?? p.project_id ?? p._id) === id,
+                  );
                   return total + (proj?.project_price ?? 29);
-                }, 0)})
+                }, 0)}
+                )
               </Button>
             </div>
           )}
@@ -922,7 +1160,10 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
       </Dialog>
 
       {/* dialog 3: Homeowner Projects List */}
-      <Dialog open={showHomeownerListDialog} onOpenChange={setShowHomeownerListDialog}>
+      <Dialog
+        open={showHomeownerListDialog}
+        onOpenChange={setShowHomeownerListDialog}
+      >
         <DialogContent className="sm:max-w-[500px] rounded-2xl border-none shadow-2xl p-6 max-h-[80vh] flex flex-col font-asap bg-white">
           <DialogHeader className="pb-3 border-b flex flex-row items-center justify-between">
             <div>
@@ -951,15 +1192,23 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
               </div>
             ) : (
               homeownerProjects.map((project: any) => {
-                const projectId = project.id ?? project.project_id ?? project._id;
+                const projectId =
+                  project.id ?? project.project_id ?? project._id;
                 const isProjectGenerating = !!generatingProjects[projectId];
-                const isProjectPurchased = project.project_purchased === true || project.is_purchased === true;
-                const isSelected = selectedHomeowners.includes(String(projectId));
+                const isProjectPurchased =
+                  project.project_purchased === true ||
+                  project.is_purchased === true;
+                const isSelected = selectedHomeowners.includes(
+                  String(projectId),
+                );
                 const projectPrice = project.project_price ?? 29;
 
                 const isCreator =
                   project.created_by === user?.id ||
-                  (user?.email && project.createdBy?.email && user.email.toLowerCase() === project.createdBy.email.toLowerCase());
+                  (user?.email &&
+                    project.createdBy?.email &&
+                    user.email.toLowerCase() ===
+                      project.createdBy.email.toLowerCase());
 
                 const hasProjectAccess =
                   isProjectPurchased ||
@@ -967,13 +1216,14 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                   isAdmin ||
                   isCityInspector ||
                   isOwnerOfProperty ||
-                  (role === 'property_owner' && isCreator);
+                  (role === "property_owner" && isCreator) ||
+                  hasLimitAccess;
 
                 const dateLabel = project.date_of_install
                   ? new Date(project.date_of_install).toLocaleDateString()
                   : project.start_date
                     ? new Date(project.start_date).toLocaleDateString()
-                    : 'N/A';
+                    : "N/A";
 
                 return (
                   <div
@@ -989,7 +1239,9 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                           if (checked) {
                             setSelectedHomeowners((prev) => [...prev, pidStr]);
                           } else {
-                            setSelectedHomeowners((prev) => prev.filter((id) => id !== pidStr));
+                            setSelectedHomeowners((prev) =>
+                              prev.filter((id) => id !== pidStr),
+                            );
                           }
                         }}
                       />
@@ -997,11 +1249,11 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                     <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="space-y-0.5">
                         <p className="text-xs font-bold text-[#1F2A44]">
-                          {project.project_name || 'Untitled Project'}
+                          {project.project_name || "Untitled Project"}
                         </p>
                         <div className="flex items-center gap-2">
                           <span className="text-[9px] bg-[#1CA7A6]/10 text-[#1CA7A6] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                            {project.project_type || 'General'}
+                            {project.project_type || "General"}
                           </span>
                           <span className="text-[9px] text-[#708090] font-semibold flex items-center gap-0.5">
                             <Calendar className="w-2.5 h-2.5" />
@@ -1012,7 +1264,12 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                       <div className="flex items-center gap-2">
                         {hasProjectAccess ? (
                           <Button
-                            onClick={() => handleGenerateProjectReport(projectId, project.project_name)}
+                            onClick={() =>
+                              handleGenerateProjectReport(
+                                projectId,
+                                project.project_name,
+                              )
+                            }
                             disabled={isProjectGenerating}
                             className="h-8 px-2.5 rounded-lg bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-[9px] uppercase tracking-widest gap-1 shadow-none"
                           >
@@ -1021,11 +1278,13 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                             ) : (
                               <FileText className="w-3 h-3" />
                             )}
-                            {isProjectGenerating ? 'Downloading…' : 'Download'}
+                            {isProjectGenerating ? "Downloading…" : "Download"}
                           </Button>
                         ) : (
                           <Button
-                            onClick={() => handlePurchaseProjectReport(projectId)}
+                            onClick={() =>
+                              handlePurchaseProjectReport(projectId)
+                            }
                             className="h-8 px-2.5 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[9px] uppercase tracking-widest gap-1 shadow-none"
                           >
                             <ShoppingCart className="w-3 h-3" />
@@ -1045,7 +1304,12 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                 {selectedHomeowners.length} selected
               </span>
               <Button
-                onClick={() => handlePurchaseMultipleProjects(selectedHomeowners, 'homeowner')}
+                onClick={() =>
+                  handlePurchaseMultipleProjects(
+                    selectedHomeowners,
+                    "homeowner",
+                  )
+                }
                 disabled={isBulkPurchasing}
                 className="h-8 px-3 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[9px] uppercase tracking-widest gap-1 shadow-none"
               >
@@ -1054,10 +1318,14 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
                 ) : (
                   <ShoppingCart className="w-3 h-3" />
                 )}
-                Pay Selected (${selectedHomeowners.reduce((total, id) => {
-                  const proj = homeownerProjects.find((p) => String(p.id ?? p.project_id ?? p._id) === id);
+                Pay Selected ($
+                {selectedHomeowners.reduce((total, id) => {
+                  const proj = homeownerProjects.find(
+                    (p) => String(p.id ?? p.project_id ?? p._id) === id,
+                  );
                   return total + (proj?.project_price ?? 29);
-                }, 0)})
+                }, 0)}
+                )
               </Button>
             </div>
           )}
@@ -1075,7 +1343,9 @@ export function PropertyMapSidebar({ propertyId, isOpen, onClose }: PropertyMapS
 
       <PdfGenerationLoader
         isOpen={isGenerating || isBulkPurchasing || isGeneratingAllContractor}
-        message={isBulkPurchasing ? 'Processing Purchase...' : 'Generating Report...'}
+        message={
+          isBulkPurchasing ? "Processing Purchase..." : "Generating Report..."
+        }
       />
     </>
   );

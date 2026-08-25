@@ -26,6 +26,7 @@ export interface Installation {
   updated_at: string;
   component_type: string;
   permit_status: string | null;
+  other?: string | null;
   images: {
     id: string;
     image_url: string | null;
@@ -101,6 +102,7 @@ export function mapProjectToInstallation(project: any, fallbackPropertyId?: stri
     updated_at: detail?.updated_at ?? project?.updated_at ?? '',
     component_type: project?.project_type ?? detail?.type ?? '',
     permit_status: detail?.permit_status ?? null,
+    other: project?.other ?? detail?.other ?? project?.other_project_type ?? null,
     images: (images ?? []).map((img: any, index: number) => ({
       id: img?.id ?? `${project?.id ?? 'project'}-${index}`,
       image_url: img?.image_url ?? null,

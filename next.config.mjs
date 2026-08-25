@@ -1,5 +1,7 @@
 import withSerwistInit from "@serwist/next";
 
+process.env.SERWIST_SUPPRESS_TURBOPACK_WARNING = "1";
+
 const withSerwist = withSerwistInit({
   swSrc: "app/sw.ts",
   swDest: "public/sw.js",
@@ -10,6 +12,7 @@ const withSerwist = withSerwistInit({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  turbopack: {},
   basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
   images: {
     remotePatterns: [
@@ -22,13 +25,10 @@ const nextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: '100mb',
-    },
+    },  
+    middlewareClientMaxBodySize: "100mb",
   },
   output: 'standalone',
-  webpack: (config) => {
-    return config;
-  },
 };
 
 export default withSerwist(nextConfig);
-

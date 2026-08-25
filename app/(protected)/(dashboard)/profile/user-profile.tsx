@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { ImageSourcePickerDialog } from "@/components/modals/image-source-picker-dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -81,6 +82,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn, toPascalCase } from "@/lib/utils";
+import { RoleForm } from "@/components/user-form/RoleForm";
 
 const profileSchema = z
   .object({
@@ -291,6 +293,21 @@ export default function UserProfile() {
   const [updatingAutoRenewal, setUpdatingAutoRenewal] =
     useState<boolean>(false);
   const [isPresent, setIsPresent] = useState<boolean>(false);
+  const [isProfileImagePickerOpen, setIsProfileImagePickerOpen] =
+    useState(false);
+  const galleryImageInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraImageInputRef = useRef<HTMLInputElement | null>(null);
+
+  const triggerProfileImageInput = () => {
+    const isMobile =
+      typeof window !== "undefined" &&
+      window.matchMedia("(pointer: coarse)").matches;
+    if (isMobile) {
+      setIsProfileImagePickerOpen(true);
+    } else {
+      galleryImageInputRef.current?.click();
+    }
+  };
   const router = useRouter();
   const { user: contextUser, setUser: setContextUser } = useUser();
 
@@ -316,7 +333,6 @@ export default function UserProfile() {
   };
 
   const [contractorProfileId, setContractorProfileId] = useState(null);
-  console.log(contractorProfileId);
   const [purchaseUsersOpen, setPurchaseUsersOpen] = useState(false);
   const [purchaseUserCount, setPurchaseUserCount] = useState(1);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
@@ -364,7 +380,8 @@ export default function UserProfile() {
   const showEditContractorProfile =
     role === "contractor" && (user as any)?.is_directory === true;
 
-  const showPurchasebtn = role === "contractor" && !isSubAccount;
+  const showPurchasebtn =
+    (role === "contractor" || role === "manufacturer") && !isSubAccount;
 
   const handleAddContractorProfile = () => {
     localStorage.setItem("pending_level", effectivelevel);
@@ -476,7 +493,6 @@ export default function UserProfile() {
               : cityData?.name;
             if (resolvedName) setSelectedCityName(resolvedName);
           } catch {
-            console.log("error while fetching city name");
           } finally {
             setIsCityLoading(false);
           }
@@ -713,8 +729,6 @@ export default function UserProfile() {
     }
     if (selectedImage) formData.append("image", selectedImage);
 
-    console.log("FormData submitting:", Object.fromEntries(formData.entries()));
-
     const result = await updateUserProfile(formData);
     if (!result.success) {
       toast.error(result.message || "Failed to update profile.");
@@ -826,21 +840,28 @@ export default function UserProfile() {
                         </Avatar>
                         {isEditing && (
                           <>
+                            {/* Hidden file input for Gallery */}
                             <input
+                              ref={galleryImageInputRef}
                               type="file"
                               id="profile-image-input"
                               className="hidden"
                               accept="image/*"
                               onChange={handleImageChange}
                             />
+                            {/* Hidden file input for Camera */}
+                            <input
+                              ref={cameraImageInputRef}
+                              type="file"
+                              className="hidden"
+                              accept="image/*"
+                              capture="environment"
+                              onChange={handleImageChange}
+                            />
                             <button
                               type="button"
-                              onClick={() =>
-                                document
-                                  .getElementById("profile-image-input")
-                                  ?.click()
-                              }
-                              className="absolute -bottom-1 -right-1 p-2 bg-background rounded-xl shadow-lg border text-primary hover:scale-110 transition-transform"
+                              onClick={triggerProfileImageInput}
+                              className="absolute -bottom-1 -right-1 p-2 bg-background rounded-xl shadow-lg border text-primary hover:scale-110 transition-transform cursor-pointer"
                             >
                               <Camera className="size-3.5" />
                             </button>
@@ -968,1189 +989,24 @@ export default function UserProfile() {
                     </div>
                   )}
 
-                  {/* ── Contractor-specific fields ── */}
-                  {(role === "contractor" || role === "manufacturer") && (
-                    <>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          Company Address
-                          {isEditing && (
-                            <label className="text-red-500">*</label>
-                          )}
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.companyAddress || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="companyAddress"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="Company Address"
-                                      {...field}
-                                      value={field.value || ""}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          Company Name
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.company_name || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="company_name"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="Company Name"
-                                      {...field}
-                                      value={field.value || ""}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          Company Email
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.companyEmail || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="companyEmail"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="Company Address"
-                                      {...field}
-                                      value={field.value || ""}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          Website URL
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.websiteUrl || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="websiteUrl"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="Website URL"
-                                      {...field}
-                                      value={field.value || ""}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          License Number
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.licenseNumber || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="licenseNumber"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="License Number"
-                                      {...field}
-                                      value={field.value || ""}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          Mobile Phone
-                          {isEditing && (
-                            <label className="text-red-500">*</label>
-                          )}
-                        </Label>
-
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.mobilePhone || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="mobilePhone"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="Mobile Phone (10 digits)"
-                                      {...field}
-                                      value={field.value || ""}
-                                      maxLength={10}
-                                      inputMode="numeric"
-                                      onChange={(e) => {
-                                        const digits = e.target.value
-                                          .replace(/\D/g, "")
-                                          .slice(0, 10);
-                                        field.onChange(digits);
-                                      }}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          Company Phone
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.companyPhone || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="companyPhone"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="Company Phone (optional)"
-                                      {...field}
-                                      value={field.value || ""}
-                                      maxLength={10}
-                                      inputMode="numeric"
-                                      onChange={(e) => {
-                                        const digits = e.target.value
-                                          .replace(/\D/g, "")
-                                          .slice(0, 10);
-                                        field.onChange(digits);
-                                      }}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest pt-2">
-                          State
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {states.find((s) => s.id === user?.state_id)
-                                ?.name ||
-                                user?.state_id ||
-                                "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="state_id"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <div className="[&_button]:h-11 [&_button]:rounded-xl [&_button]:bg-muted/30 [&_button]:border-input [&_button]:shadow-none">
-                                      <StateSelect
-                                        disabled={isSubAccount}
-                                        value={field.value || ""}
-                                        valueType="id"
-                                        placeholder="Select State"
-                                        onSelectState={(st) => {
-                                          field.onChange(st.id);
-                                          setSelectedStateId(st.id);
-                                          form.setValue("city_id", "");
-                                        }}
-                                      />
-                                    </div>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest pt-2">
-                          City
-                          {isEditing && (
-                            <label className="text-red-500">*</label>
-                          )}
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            isCityLoading ? (
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
-                                <Loader2 className="size-4 animate-spin text-primary" />
-                                <span>Loading city...</span>
-                              </div>
-                            ) : (
-                              <p className="text-sm font-bold">
-                                {selectedCityName || "Not provided"}
-                              </p>
-                            )
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="city_id"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <div className="[&_button]:h-11 [&_button]:rounded-xl [&_button]:bg-muted/30 [&_button]:border-input [&_button]:shadow-none">
-                                      <CitySelect
-                                        disabled={isSubAccount}
-                                        value={field.value || ""}
-                                        stateValue={selectedStateId}
-                                        valueType="id"
-                                        placeholder="Select city"
-                                        onSelectCity={(city) => {
-                                          field.onChange(city.id);
-                                          setSelectedCityName(city.name);
-                                        }}
-                                      />
-                                    </div>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest pt-2">
-                          Services
-                        </Label>
-                        <div className="md:col-span-2 min-w-0">
-                          {!isEditing ? (
-                            <div className="flex flex-wrap gap-2 min-w-0">
-                              {user?.serviceTypes?.length ? (
-                                user.serviceTypes.map((item: string) => {
-                                  const matchingService = services.find(
-                                    (s) => s.id === item,
-                                  );
-                                  const name = matchingService
-                                    ? matchingService.service_name
-                                    : item;
-                                  return (
-                                    <span
-                                      key={item}
-                                      className="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary/10 text-primary border border-primary/20 break-words"
-                                    >
-                                      {toPascalCase(name)}
-                                    </span>
-                                  );
-                                })
-                              ) : (
-                                <span className="text-sm font-bold text-muted-foreground">
-                                  Not provided
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <ServiceSelect
-                              name="serviceTypes"
-                              variant="badge"
-                              disabled={isSubAccount}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {/* ── Property-specific fields ── */}
-                  {(role === "property_owner" || role === "realtor") && (
-                    <>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          Property Address
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.propertyAddress || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="propertyAddress"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="Property Address"
-                                      {...field}
-                                      value={field.value || ""}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          Mobile Phone
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.mobilePhone || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="mobilePhone"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="Mobile Phone (10 digits)"
-                                      {...field}
-                                      value={field.value || ""}
-                                      maxLength={10}
-                                      inputMode="numeric"
-                                      onChange={(e) => {
-                                        const digits = e.target.value
-                                          .replace(/\D/g, "")
-                                          .slice(0, 10);
-                                        field.onChange(digits);
-                                      }}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest pt-2">
-                          State
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {states.find((s) => s.id === user?.state_id)
-                                ?.name ||
-                                user?.state_id ||
-                                "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="state_id"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <div className="[&_button]:h-11 [&_button]:rounded-xl [&_button]:bg-muted/30 [&_button]:border-input [&_button]:shadow-none">
-                                      <StateSelect
-                                        disabled={isSubAccount}
-                                        value={field.value || ""}
-                                        valueType="id"
-                                        placeholder="Select State"
-                                        onSelectState={(st) => {
-                                          field.onChange(st.id);
-                                          setSelectedStateId(st.id);
-                                          form.setValue("city_id", "");
-                                        }}
-                                      />
-                                    </div>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest pt-2">
-                          City
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {selectedCityName || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="city_id"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <div className="[&_button]:h-11 [&_button]:rounded-xl [&_button]:bg-muted/30 [&_button]:border-input [&_button]:shadow-none">
-                                      <CitySelect
-                                        disabled={isSubAccount}
-                                        value={field.value || ""}
-                                        stateValue={selectedStateId}
-                                        valueType="id"
-                                        placeholder="Select city"
-                                        onSelectCity={(city) => {
-                                          field.onChange(city.id);
-                                          setSelectedCityName(city.name);
-                                          if (
-                                            !selectedStateId &&
-                                            city.state_id
-                                          ) {
-                                            form.setValue(
-                                              "state_id",
-                                              city.state_id,
-                                            );
-                                            setSelectedStateId(city.state_id);
-                                          }
-                                        }}
-                                        syncState={true}
-                                      />
-                                    </div>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          Zip Code
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.zip || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="zip"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="Zip Code"
-                                      {...field}
-                                      value={field.value || ""}
-                                      inputMode="numeric"
-                                      maxLength={10}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest pt-2">
-                          Owner Dates
-                        </Label>
-                        <div className="md:col-span-2 grid grid-cols-2 gap-4">
-                          {!isEditing ? (
-                            <>
-                              <div>
-                                <p className="text-xs text-muted-foreground mb-1">
-                                  Start
-                                </p>
-                                <p className="text-sm font-bold">
-                                  {user?.ownerDateStart
-                                    ? user.ownerDateStart.split("T")[0]
-                                    : "Not provided"}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground mb-1">
-                                  End
-                                </p>
-                                <p className="text-sm font-bold">
-                                  {isPresent ||
-                                  user?.present ||
-                                  user?.ownerDateEnd === "Present" ||
-                                  user?.ownerDateEnd?.toLowerCase() ===
-                                    "present"
-                                    ? "Present"
-                                    : user?.ownerDateEnd
-                                      ? user.ownerDateEnd.split("T")[0]
-                                      : "Not provided"}
-                                </p>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <FormField
-                                control={form.control}
-                                name="ownerDateStart"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <p className="text-xs text-muted-foreground mb-1">
-                                      Start Date
-                                    </p>
-                                    <FormControl>
-                                      <Input
-                                        disabled={isSubAccount}
-                                        type="date"
-                                        {...field}
-                                        value={field.value || ""}
-                                        className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={form.control}
-                                name="ownerDateEnd"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <p className="text-xs text-muted-foreground mb-1">
-                                      End Date
-                                    </p>
-                                    <FormControl>
-                                      <Input
-                                        disabled={isSubAccount || isPresent}
-                                        type={isPresent ? "text" : "date"}
-                                        value={
-                                          isPresent
-                                            ? "Present"
-                                            : field.value || ""
-                                        }
-                                        onChange={(e) =>
-                                          field.onChange(e.target.value)
-                                        }
-                                        className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none disabled:opacity-80"
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <div className="flex items-center gap-2 mt-3 col-span-2">
-                                <Checkbox
-                                  id="profile-present-residence"
-                                  disabled={isSubAccount}
-                                  checked={isPresent}
-                                  onCheckedChange={(checked) => {
-                                    const isChecked = Boolean(checked);
-                                    setIsPresent(isChecked);
-                                    form.setValue("present", isChecked);
-                                    if (isChecked) {
-                                      form.setValue("ownerDateEnd", "");
-                                    }
-                                  }}
-                                />
-                                <label
-                                  htmlFor="profile-present-residence"
-                                  className="text-sm font-medium leading-none cursor-pointer select-none"
-                                >
-                                  Present (Currently Residing)
-                                </label>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {/* ── Insurance Company fields ── */}
-                  {role === "insurance_company" && (
-                    <>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          Company Name
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.company_name || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="company_name"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="Company Name"
-                                      {...field}
-                                      value={field.value || ""}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          Title
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.title || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="title"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="Title"
-                                      {...field}
-                                      value={field.value || ""}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          Company Address
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.companyAddress || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="companyAddress"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="Company Address"
-                                      {...field}
-                                      value={field.value || ""}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          Website URL
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.websiteUrl || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="websiteUrl"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="Website URL"
-                                      {...field}
-                                      value={field.value || ""}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          Mobile Phone
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.mobilePhone || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="mobilePhone"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="Mobile Phone (10 digits)"
-                                      {...field}
-                                      value={field.value || ""}
-                                      maxLength={10}
-                                      inputMode="numeric"
-                                      onChange={(e) => {
-                                        const digits = e.target.value
-                                          .replace(/\D/g, "")
-                                          .slice(0, 10);
-                                        field.onChange(digits);
-                                      }}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          Company Phone
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.companyPhone || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="companyPhone"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="Company Phone (10 digits)"
-                                      {...field}
-                                      value={field.value || ""}
-                                      maxLength={10}
-                                      inputMode="numeric"
-                                      onChange={(e) => {
-                                        const digits = e.target.value
-                                          .replace(/\D/g, "")
-                                          .slice(0, 10);
-                                        field.onChange(digits);
-                                      }}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest pt-2">
-                          State
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {states.find((s) => s.id === user?.state_id)
-                                ?.name ||
-                                user?.state_id ||
-                                "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="state_id"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <div className="[&_button]:h-11 [&_button]:rounded-xl [&_button]:bg-muted/30 [&_button]:border-input [&_button]:shadow-none">
-                                      <StateSelect
-                                        disabled={isSubAccount}
-                                        value={field.value || ""}
-                                        valueType="id"
-                                        placeholder="Select State"
-                                        onSelectState={(st) => {
-                                          field.onChange(st.id);
-                                          setSelectedStateId(st.id);
-                                          form.setValue("city_id", "");
-                                        }}
-                                      />
-                                    </div>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest pt-2">
-                          City
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {selectedCityName || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="city_id"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <div className="[&_button]:h-11 [&_button]:rounded-xl [&_button]:bg-muted/30 [&_button]:border-input [&_button]:shadow-none">
-                                      <CitySelect
-                                        disabled={isSubAccount}
-                                        value={field.value || ""}
-                                        stateValue={selectedStateId}
-                                        valueType="id"
-                                        placeholder="Select city"
-                                        onSelectCity={(city) => {
-                                          field.onChange(city.id);
-                                          setSelectedCityName(city.name);
-                                        }}
-                                      />
-                                    </div>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {/* ── City Inspector fields ── */}
-                  {role === "city_inspector" && (
-                    <>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest pt-2">
-                          State
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {states.find((s) => s.id === user?.state_id)
-                                ?.name ||
-                                user?.state_id ||
-                                "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="state_id"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <div className="[&_button]:h-11 [&_button]:rounded-xl [&_button]:bg-muted/30 [&_button]:border-input [&_button]:shadow-none">
-                                      <StateSelect
-                                        disabled={
-                                          isSubAccount ||
-                                          role === "city_inspector"
-                                        }
-                                        value={field.value || ""}
-                                        valueType="id"
-                                        placeholder="Select State"
-                                        onSelectState={(st) => {
-                                          field.onChange(st.id);
-                                          setSelectedStateId(st.id);
-                                          form.setValue("city_id", "");
-                                        }}
-                                      />
-                                    </div>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest pt-2">
-                          City
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {selectedCityName || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="city_id"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <div className="[&_button]:h-11 [&_button]:rounded-xl [&_button]:bg-muted/30 [&_button]:border-input [&_button]:shadow-none">
-                                      <CitySelect
-                                        disabled={
-                                          isSubAccount ||
-                                          role === "city_inspector"
-                                        }
-                                        value={field.value || ""}
-                                        stateValue={selectedStateId}
-                                        valueType="id"
-                                        placeholder="Select city"
-                                        onSelectCity={(city) => {
-                                          field.onChange(city.id);
-                                          setSelectedCityName(city.name);
-                                        }}
-                                      />
-                                    </div>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          City Official
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.cityOfficial || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="cityOfficial"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="City Official"
-                                      {...field}
-                                      value={field.value || ""}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          Title
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.title || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="title"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="Title"
-                                      {...field}
-                                      value={field.value || ""}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          City Address
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.cityAddress || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="cityAddress"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="City Address"
-                                      {...field}
-                                      value={field.value || ""}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      <div className="px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                        <Label className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                          City Phone
-                        </Label>
-                        <div className="md:col-span-2">
-                          {!isEditing ? (
-                            <p className="text-sm font-bold">
-                              {user?.cityPhone || "Not provided"}
-                            </p>
-                          ) : (
-                            <FormField
-                              control={form.control}
-                              name="cityPhone"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      disabled={isSubAccount}
-                                      placeholder="City Phone (10 digits)"
-                                      {...field}
-                                      value={field.value || ""}
-                                      maxLength={10}
-                                      inputMode="numeric"
-                                      onChange={(e) => {
-                                        const digits = e.target.value
-                                          .replace(/\D/g, "")
-                                          .slice(0, 10);
-                                        field.onChange(digits);
-                                      }}
-                                      className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  )}
+                  {/* ── Role-specific fields ── */}
+                  <RoleForm
+                    role={user?.role ?? user?.roleEntity?.role_name}
+                    context="profile"
+                    form={form}
+                    isEditing={isEditing}
+                    disabled={isSubAccount}
+                    selectedStateId={selectedStateId}
+                    onStateSelect={setSelectedStateId}
+                    selectedCityName={selectedCityName}
+                    onCitySelect={(_, name) =>
+                      name && setSelectedCityName(name)
+                    }
+                    isPresent={isPresent}
+                    onPresentChange={setIsPresent}
+                    statesList={states}
+                    isCityLoading={isCityLoading}
+                  />
                 </form>
               </Form>
             </CardContent>
@@ -2887,6 +1743,21 @@ export default function UserProfile() {
                     </Card> */}
         </div>
       </div>
+
+      <ImageSourcePickerDialog
+        isOpen={isProfileImagePickerOpen}
+        onClose={() => setIsProfileImagePickerOpen(false)}
+        onSelectCamera={() => {
+          setIsProfileImagePickerOpen(false);
+          setTimeout(() => cameraImageInputRef.current?.click(), 100);
+        }}
+        onSelectGallery={() => {
+          setIsProfileImagePickerOpen(false);
+          setTimeout(() => galleryImageInputRef.current?.click(), 100);
+        }}
+        title="Upload Profile Picture"
+        description="Choose how you would like to upload your profile picture:"
+      />
     </Content>
   );
 }

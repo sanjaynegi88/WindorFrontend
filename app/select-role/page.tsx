@@ -1,25 +1,31 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
-import { assignUserRole, getRoles, signout } from '@/lib/actions';
-import { RoleSelectionPage } from '@/components/register/role-selection-page';
-import { cn } from '@/lib/utils';
-import { Step2PropertyForm, Step2PropertyValues } from '../register/complete-profile/step2-property-form';
-import { Step2ContractorForm, Step2ContractorValues } from '../register/complete-profile/step2-contractor-form';
-import Image from 'next/image';
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { assignUserRole, getRoles, signout } from "@/lib/actions";
+import { RoleSelectionPage } from "@/components/register/role-selection-page";
+import { cn } from "@/lib/utils";
+import {
+  Step2PropertyForm,
+  Step2PropertyValues,
+} from "../register/complete-profile/step2-property-form";
+import {
+  Step2ContractorForm,
+  Step2ContractorValues,
+} from "../register/complete-profile/step2-contractor-form";
+import Image from "next/image";
 
 // Roles excluded from self-selection (assigned by admins only)
-const EXCLUDED_ROLES = ['ADMIN', 'CITY_INSPECTOR'];
+const EXCLUDED_ROLES = ["ADMIN", "CITY_INSPECTOR"];
 
 // Role group helpers — same logic as register page
-const CONTRACTOR_ROLES = ['CONTRACTOR', 'MANUFACTURER', 'DISTRIBUTOR'];
-const PROPERTY_ROLES = ['PROPERTY_OWNER', 'HOMEOWNER', 'REALTOR', 'PROPERTY'];
+const CONTRACTOR_ROLES = ["CONTRACTOR", "MANUFACTURER", "DISTRIBUTOR"];
+const PROPERTY_ROLES = ["PROPERTY_OWNER", "HOMEOWNER", "REALTOR", "PROPERTY"];
 
-function getRoleGroup(roleName: string): 'contractor' | 'property' | null {
-  const upper = (roleName || '').toUpperCase();
-  if (CONTRACTOR_ROLES.some((r) => upper.includes(r))) return 'contractor';
-  if (PROPERTY_ROLES.some((r) => upper.includes(r))) return 'property';
+function getRoleGroup(roleName: string): "contractor" | "property" | null {
+  const upper = (roleName || "").toUpperCase();
+  if (CONTRACTOR_ROLES.some((r) => upper.includes(r))) return "contractor";
+  if (PROPERTY_ROLES.some((r) => upper.includes(r))) return "property";
   return null;
 }
 
@@ -35,12 +41,21 @@ function StepIndicator({ step }: { step: 1 | 2 }) {
     <div className="flex items-center justify-center gap-3 mb-[32px]">
       {[1, 2].map((s) => (
         <div key={s} className="flex items-center gap-3">
-          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[16px] font-bold font-asap transition-colors ${s === step ? 'bg-[#1CA7A6] text-white' : s < step ? 'bg-[#1CA7A6]/40 text-white' : 'bg-[rgba(112,128,144,0.2)] text-[#708090]'
-            }`}>
+          <div
+            className={`w-9 h-9 rounded-full flex items-center justify-center text-[16px] font-bold font-asap transition-colors ${
+              s === step
+                ? "bg-[#1CA7A6] text-white"
+                : s < step
+                  ? "bg-[#1CA7A6]/40 text-white"
+                  : "bg-[rgba(112,128,144,0.2)] text-[#708090]"
+            }`}
+          >
             {s}
           </div>
           {s < 2 && (
-            <div className={`w-16 h-[2px] rounded transition-colors ${step > 1 ? 'bg-[#1CA7A6]' : 'bg-[rgba(112,128,144,0.2)]'}`} />
+            <div
+              className={`w-16 h-[2px] rounded transition-colors ${step > 1 ? "bg-[#1CA7A6]" : "bg-[rgba(112,128,144,0.2)]"}`}
+            />
           )}
         </div>
       ))}
@@ -59,18 +74,24 @@ export default function SelectRolePage() {
     getRoles()
       .then((res) => {
         const filtered: RoleOption[] = (res.data || [])
-          .filter((r: { id: string; role_name: string }) => !EXCLUDED_ROLES.includes(r.role_name))
+          .filter(
+            (r: { id: string; role_name: string }) =>
+              !EXCLUDED_ROLES.includes(r.role_name),
+          )
           .map((r: { id: string; role_name: string }) => ({
             id: r.id,
             role_name: r.role_name,
             label: r.role_name
-              .split('_')
-              .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-              .join(' '),
+              .split("_")
+              .map(
+                (w: string) =>
+                  w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(),
+              )
+              .join(" "),
           }));
         setRoles(filtered);
       })
-      .catch(() => toast.error('Failed to load roles'))
+      .catch(() => toast.error("Failed to load roles"))
       .finally(() => setLoadingRoles(false));
   }, []);
 
@@ -98,24 +119,38 @@ export default function SelectRolePage() {
 
   const handleSignout = async () => {
     await signout();
-    window.location.href = process.env.NEXT_PUBLIC_LOGIN_URL || '/login';
+    window.location.href = process.env.NEXT_PUBLIC_LOGIN_URL || "/login";
   };
-
 
   async function submitRole(extraFields: Record<string, any>) {
     if (!selectedRole) return;
     setLoading(true);
     try {
-      const response = await assignUserRole(selectedRole.id, selectedRole.role_name, extraFields);
+      const response = await assignUserRole(
+        selectedRole.id,
+        selectedRole.role_name,
+        extraFields,
+      );
       if (!response.success) {
         toast.error(response.message);
         return;
       }
-      toast.success('Role selected successfully. Welcome!');
+      toast.success("Role selected successfully. Welcome!");
       await new Promise((r) => setTimeout(r, 100));
-      window.location.href = '/dashboard';
+      const resData = (response as any).data;
+      const hasMembership = Boolean(
+        resData?.has_membership ?? resData?.hasMembership,
+      );
+      const isSubUser = Boolean(resData?.sub_account ?? resData?.subAccount);
+      const role = (resData?.role || selectedRole.role_name)?.toLowerCase();
+      const isExempt =
+        role === "admin" || role === "city_inspector" || isSubUser;
+      const target = !hasMembership && !isExempt ? "/plans" : "/dashboard";
+      window.location.href = target;
     } catch (error: any) {
-      toast.error(error.message || 'Failed to set role. Please try again.');
+      toast.error(error.message || "Failed to set role. Please try again.");
+      setLoading(false);
+    } finally {
       setLoading(false);
     }
   }
@@ -154,15 +189,21 @@ export default function SelectRolePage() {
     <div
       className={cn(
         "w-full",
-        step === 2 &&
-        "bg-linear-to-b from-white to-[#1ccab334]"
+        step === 2 && "bg-linear-to-b from-white to-[#1ccab334]",
       )}
     >
       {step === 2 && (
-        <div >
+        <div>
           <div className="flex justify-center mb-8 pt-6">
             <div className="w-[80px] h-[76px] md:w-[100px] md:h-[95px] bg-white shadow-[0px_4px_14px_rgba(31,42,68,0.3)] rounded-[15px] flex items-center justify-center">
-              <Image src="/assets/logo.png" alt="Windor Logo" width={75} height={65} priority className="h-[50px] md:h-[65px] w-[55px] md:w-[75px] object-contain" />
+              <Image
+                src="/assets/logo.png"
+                alt="Windor Logo"
+                width={75}
+                height={65}
+                priority
+                className="h-[50px] md:h-[65px] w-[55px] md:w-[75px] object-contain"
+              />
             </div>
           </div>
 
@@ -189,7 +230,7 @@ export default function SelectRolePage() {
       )}
 
       {/* ── STEP 2: Role-specific fields ── */}
-      {step === 2 && roleGroup === 'contractor' && (
+      {step === 2 && roleGroup === "contractor" && (
         <div className="max-w-2xl  mx-auto  px-4 py-12">
           <Step2ContractorForm
             onBack={() => setStep(1)}
@@ -199,7 +240,7 @@ export default function SelectRolePage() {
         </div>
       )}
 
-      {step === 2 && roleGroup === 'property' && (
+      {step === 2 && roleGroup === "property" && (
         <div className="max-w-2xl   mx-auto   px-4 py-12">
           <Step2PropertyForm
             onBack={() => setStep(1)}
@@ -211,8 +252,12 @@ export default function SelectRolePage() {
 
       {/* Sign out */}
       <p className="text-center mt-6 pb-6 text-[14px] text-[#708090] font-asap">
-        Wrong account?{' '}
-        <button type="button" onClick={() => handleSignout()} className="text-[#1CA7A6] font-semibold hover:underline">
+        Wrong account?{" "}
+        <button
+          type="button"
+          onClick={() => handleSignout()}
+          className="text-[#1CA7A6] font-semibold hover:underline"
+        >
           Sign out
         </button>
       </p>

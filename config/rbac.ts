@@ -50,7 +50,43 @@ export const RBAC_CONFIG: RouteConfig[] = [
     { path: '/admin/property-types', allowedRoles: ['admin'] }
 ];
 
-export const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/verify-otp', '/reset-password', '/subscription/success', '/subscription/cancel', '/subscription/failure', '/purchase/success', '/purchase/cancel', '/purchase/failed', '/contractors'];
+export const publicRoutes = [
+    '/',
+    '/home',
+    '/about-us',
+    '/services',
+    '/pricing',
+    '/plans',
+    '/contact',
+    '/faq',
+    '/resources',
+    '/careers',
+    '/properties',
+    '/documentation',
+    '/verification-services',
+    '/verification',
+    '/reporting',
+    '/home-owner',
+    '/insurance-companies',
+    '/city-inspectors',
+    '/contractor',
+    '/realtors',
+    '/distributors',
+    '/manufacturers',
+    '/login',
+    '/register',
+    '/forgot-password',
+    '/verify-otp',
+    '/reset-password',
+    '/set-password',
+    '/subscription/success',
+    '/subscription/cancel',
+    '/subscription/failure',
+    '/purchase/success',
+    '/purchase/cancel',
+    '/purchase/failed',
+    '/contractors'
+];
 
 export function canAccess(role: Role, path: string): boolean {
     if (path === '/' || publicRoutes.some(route => path.startsWith(route))) return true;

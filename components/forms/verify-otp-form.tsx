@@ -21,9 +21,15 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { verifyOtp, verifyRegisterOtp, forgotPassword, resendRegisterOtp } from "@/lib/actions";
+import {
+  verifyOtp,
+  verifyRegisterOtp,
+  verifySubUserOtp,
+  forgotPassword,
+  resendRegisterOtp,
+  resendSubUserOtp,
+} from "@/lib/actions";
 import Image from "next/image";
-
 
 const formSchema = z.object({
   otp: z.string().min(6, {
@@ -39,10 +45,12 @@ export function VerifyOtpForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
+  const token = searchParams.get("token") || "";
   const type = searchParams.get("type") || "forgot-password";
   const role = searchParams.get("role") || "";
 
   const isRegister = type === "register";
+  const isSubUser = type === "sub-user";
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -78,10 +86,26 @@ export function VerifyOtpForm() {
         setLoading(false);
         return;
       }
-      const userId = result.data?.userId || "";
+      const formToken =
+        result.data?.formToken || result.data?.form_token || result.data?.token;
+      if (formToken && typeof window !== "undefined") {
+        localStorage.setItem("formToken", formToken);
+      }
+      const userId =
+        result.data?.userId || result.data?.user_id || result.data?.id || "";
       toast.success("Email verified! Please complete your profile.");
       await new Promise((r) => setTimeout(r, 100));
       window.location.href = `/register/complete-profile?userId=${encodeURIComponent(userId)}&role=${encodeURIComponent(role)}&email=${encodeURIComponent(email)}`;
+    } else if (isSubUser) {
+      const result = await verifySubUserOtp({ email, otp: values.otp });
+      if (!result.success) {
+        toast.error(result.message || "Invalid OTP. Please try again.");
+        setLoading(false);
+        return;
+      }
+      toast.success("OTP verified successfully! Logging you in...");
+      await new Promise((r) => setTimeout(r, 100));
+      window.location.href = "/dashboard";
     } else {
       const result = await verifyOtp({ email, otp: values.otp });
       if (!result.success) {
@@ -99,8 +123,9 @@ export function VerifyOtpForm() {
     setResendLoading(true);
     const result = isRegister
       ? await resendRegisterOtp({ email })
+      : isSubUser
+      ? await resendSubUserOtp({ email })
       : await forgotPassword({ email });
-    console.log("handleResend ~ result:", result)
     if (!result.success) {
       toast.error(result.message || "Failed to resend OTP. Please try again.");
     } else {
@@ -131,7 +156,9 @@ export function VerifyOtpForm() {
         </h1>
         <p className="text-[14px] leading-[18px] md:text-[22px] md:leading-[28px] font-medium text-[#708090] font-asap">
           Enter the 6-digit code sent to{" "}
-          <span className="text-[#1F2A44] font-semibold">{email || "your email"}</span>
+          <span className="text-[#1F2A44] font-semibold">
+            {email || "your email"}
+          </span>
         </p>
       </div>
 
@@ -151,7 +178,9 @@ export function VerifyOtpForm() {
                       onPaste={(e) => {
                         e.preventDefault();
                         const pastedData = e.clipboardData.getData("text");
-                        const cleanedData = pastedData.replace(/\D/g, "").slice(0, 6);
+                        const cleanedData = pastedData
+                          .replace(/\D/g, "")
+                          .slice(0, 6);
                         if (cleanedData) {
                           field.onChange(cleanedData);
                         }
@@ -196,7 +225,7 @@ export function VerifyOtpForm() {
                   "text-[14px] md:text-[18px] font-bold font-asap transition-colors",
                   canResend && !resendLoading
                     ? "text-[#1CA7A6] hover:underline cursor-pointer"
-                    : "text-[#708090] cursor-not-allowed"
+                    : "text-[#708090] cursor-not-allowed",
                 )}
               >
                 {resendLoading ? "Sending..." : "Resend OTP"}
@@ -206,24 +235,32 @@ export function VerifyOtpForm() {
             {!canResend && (
               <span className="text-[13px] md:text-[16px] font-medium text-[#708090] font-asap">
                 Resend available in{" "}
-                <span className="text-[#1CA7A6] font-bold">{formatTime(timer)}</span>
+                <span className="text-[#1CA7A6] font-bold">
+                  {formatTime(timer)}
+                </span>
               </span>
             )}
           </div>
 
           <div className="text-center mt-[16px] md:mt-[24px]">
             <span className="text-[16px] md:text-[22px] leading-[35px] font-normal text-[rgba(112,128,144,0.93)] font-asap">
-              {isRegister ? (
+              {isRegister && !isSubUser ? (
                 <>
                   Go back to{" "}
-                  <Link href="/register" className="font-bold text-[#1CA7A6] hover:underline">
+                  <Link
+                    href="/register"
+                    className="font-bold text-[#1CA7A6] hover:underline"
+                  >
                     Register
                   </Link>
                 </>
               ) : (
                 <>
                   Go back to{" "}
-                  <Link href="/forgot-password" className="font-bold text-[#1CA7A6] hover:underline">
+                  <Link
+                    href="/forgot-password"
+                    className="font-bold text-[#1CA7A6] hover:underline"
+                  >
                     Forgot Password
                   </Link>
                 </>

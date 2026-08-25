@@ -17,32 +17,13 @@ import { CitySelect, StateSelect } from "@/components/city-zip-selector";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ServiceSelect } from "@/components/service-select";
 
+import { RoleForm } from "@/components/user-form/RoleForm";
+import { contractorRoleSchema as step2ContractorSchema } from "@/lib/user-role-schema";
+
 const inputCls =
   "h-[65px] px-[19px] border-[rgba(112,128,144,0.23)] rounded-[6px] text-[20px] leading-[23px] font-medium text-[#1F2A44] bg-white placeholder:text-[#1F2A44]/50 font-asap";
 const errCls =
   "text-[18px] leading-[21px] font-normal text-[#DF433C] font-asap mt-2";
-
-const step2ContractorSchema = z.object({
-  companyAddress: z.string().min(1, { message: "Company address is required" }),
-  company_name: z.string().optional(),
-  companyEmail: z.string().optional(),
-  websiteUrl: z.string().optional(),
-  licenseNumber: z.string().optional(),
-  mobilePhone: z
-    .string()
-    .min(1, { message: "Mobile phone is required" })
-    .regex(/^\d{10}$/, { message: "Mobile phone must be exactly 10 digits" }),
-  companyPhone: z
-    .string()
-    .optional()
-    .refine((value) => !value || /^\d{10}$/.test(value), {
-      message: "Company phone must be exactly 10 digits",
-    }),
-  state_id: z.string().optional(),
-  city_id: z.string().optional(),
-  serviceTypes: z.array(z.string()).optional(),
-  other_service: z.string().optional(),
-});
 
 export type Step2ContractorValues = z.infer<typeof step2ContractorSchema>;
 
@@ -93,154 +74,11 @@ export function Step2ContractorForm({
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleFormSubmit)} className="w-full">
           <div className="space-y-6 mb-10">
-            <FormField
-              control={form.control}
-              name="companyAddress"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input
-                      placeholder="Company Address (required)"
-                      {...field}
-                      className={inputCls}
-                    />
-                  </FormControl>
-                  <FormMessage className={errCls} />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="company_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input
-                      placeholder="Company Name"
-                      {...field}
-                      className={inputCls}
-                    />
-                  </FormControl>
-                  <FormMessage className={errCls} />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="websiteUrl"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input
-                      placeholder="Website URL"
-                      {...field}
-                      className={inputCls}
-                    />
-                  </FormControl>
-                  <FormMessage className={errCls} />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="licenseNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input
-                      placeholder="License No."
-                      {...field}
-                      className={inputCls}
-                    />
-                  </FormControl>
-                  <FormMessage className={errCls} />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="mobilePhone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input
-                      placeholder="Mobile Phone (required)"
-                      {...field}
-                      className={inputCls}
-                      maxLength={10}
-                      inputMode="numeric"
-                      onChange={(e) => {
-                        const digits = e.target.value
-                          .replace(/\D/g, "")
-                          .slice(0, 10);
-                        field.onChange(digits);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage className={errCls} />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="companyPhone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input
-                      placeholder="Company Phone"
-                      {...field}
-                      className={inputCls}
-                      maxLength={10}
-                      inputMode="numeric"
-                      onChange={(e) => {
-                        const digits = e.target.value
-                          .replace(/\D/g, "")
-                          .slice(0, 10);
-                        field.onChange(digits);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage className={errCls} />
-                </FormItem>
-              )}
-            />
-
-            <div
-              className={`[&_button]:h-[65px] [&_button]:rounded-[6px] [&_button]:border-[rgba(112,128,144,0.23)] [&_button]:text-[20px] [&_button]:font-asap [&_button]:font-medium [&_button]:text-[#708090] [&_button]:shadow-none [&_button]:bg-white`}
-            >
-              <StateSelect
-                name="state_id"
-                valueType="id"
-                placeholder="Select a state"
-                onSelectState={(st) => {
-                  form.setValue("state_id", st.id);
-                  form.setValue("city_id", "");
-                }}
-              />
-            </div>
-
-            <div
-              className={`[&_button]:h-[65px] [&_button]:rounded-[6px] [&_button]:border-[rgba(112,128,144,0.23)] [&_button]:text-[20px] [&_button]:font-asap [&_button]:font-medium [&_button]:text-[#708090] [&_button]:shadow-none [&_button]:bg-white`}
-            >
-              <CitySelect
-                name="city_id"
-                valueType="id"
-                placeholder="Select a city"
-                stateValue={form.watch("state_id")}
-                syncState={true}
-              />
-            </div>
-
-            <ServiceSelect
-              name="serviceTypes"
-              label="Type of Service"
-              variant="button"
+            <RoleForm
+              role="CONTRACTOR"
+              context="register"
+              form={form}
+              errCls={errCls}
             />
           </div>
 

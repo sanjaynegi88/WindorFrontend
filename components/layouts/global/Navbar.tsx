@@ -36,7 +36,6 @@ import Image from "next/image";
 import { useUser } from "@/components/providers/user-provider";
 import { useNotifications } from "@/components/providers/notification-provider";
 import { getUserProfile, signout } from "@/lib/actions";
-import VerificationList from "@/app/(protected)/(inspector)/verification/verification-list";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -176,6 +175,35 @@ export function Navbar() {
             : []),
         ];
 
+      case "manufacturer":
+        return [
+          { name: "HOME", href: landingUrl },
+          { name: "DASHBOARD", href: "/dashboard" },
+          {
+            name: "PROPERTIES",
+            activeFor: ["/properties", "/property-details"],
+            submenu: [
+              { name: "View Properties", href: "/properties" },
+              { name: "Enter new Property", href: "/properties/new" },
+              { name: "Added Property list", href: "/added-properties" },
+            ],
+          },
+          {
+            name: "PROJECTS",
+            activeFor: ["/projects", "/my-projects"],
+            submenu: [
+              { name: "My projects Lists", href: "/my-projects" },
+              { name: "Create new Project", href: "/projects" },
+            ],
+          },
+          { name: "REPORTS", href: "/reports" },
+          { name: "DIRECTORY", href: "/contractors" },
+          //{ name: "PROFILE", href: "/profile" },
+          ...(!user?.user?.sub_account
+            ? [{ name: "TEAM", href: "/manufacturer-users" }]
+            : []),
+        ];
+
       case "admin":
         return [
           { name: "HOME", href: landingUrl },
@@ -289,6 +317,11 @@ export function Navbar() {
     { name: "Set Prices", href: "/admin/report-price", icon: DollarSignIcon },
     { name: "Admin Logs", href: "/admin/admin-logs", icon: History },
     { name: "Import Data", href: "/admin/import-data", icon: FileDownIcon },
+    {
+      name: "Marketing Content",
+      href: "/admin/marketing-content",
+      icon: FileText,
+    },
   ];
 
   return (

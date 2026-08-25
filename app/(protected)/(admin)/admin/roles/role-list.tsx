@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 import {
   ColumnDef,
   getCoreRowModel,
@@ -9,17 +9,16 @@ import {
   PaginationState,
   SortingState,
   useReactTable,
-} from '@tanstack/react-table';
+} from "@tanstack/react-table";
 import {
   Search,
-  MoreVertical,
   Calendar,
-  Edit,
   Trash2,
   MapPin,
   Plus,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
+  AlertTriangle,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardFooter,
@@ -27,25 +26,15 @@ import {
   CardHeading,
   CardTable,
   CardToolbar,
-} from '@/components/ui/card';
-import { DataGrid } from '@/components/ui/data-grid';
-import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
-import { DataGridPagination } from '@/components/ui/data-grid-pagination';
-import {
-  DataGridTable,
-} from '@/components/ui/data-grid-table';
-import { Input } from '@/components/ui/input';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
-import { getRoles, deleteRoles } from '@/lib/actions';
-import { Skeleton } from '@/components/ui/skeleton';
+} from "@/components/ui/card";
+import { DataGrid } from "@/components/ui/data-grid";
+import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
+import { DataGridPagination } from "@/components/ui/data-grid-pagination";
+import { DataGridTable } from "@/components/ui/data-grid-table";
+import { Input } from "@/components/ui/input";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { getRoles, deleteRoles } from "@/lib/actions";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,32 +44,40 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { toast } from 'sonner';
-import { RoleFormDialog } from './roles-form-dialog';
-import { formatDate } from '@/lib/helpers';
-import { toPascalCase } from '@/lib/utils';
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { RoleFormDialog } from "./roles-form-dialog";
+import { formatDate } from "@/lib/helpers";
+import { toPascalCase } from "@/lib/utils";
 
-export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTrigger: number, onSuccess: () => void }) {
+export default function RolesListPage({
+  refreshTrigger,
+  onSuccess,
+}: {
+  refreshTrigger: number;
+  onSuccess: () => void;
+}) {
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
   });
 
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>([]);
-  const [editingPropertyType, setEditingPropertyType] = useState<any | null>(null);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-
-  const fetchData = async (page: number = 1, limit: number = 10, search?: string) => {
+  const fetchData = async (
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+  ) => {
     setLoading(true);
     try {
       const response = await getRoles(page, limit, search);
@@ -94,8 +91,8 @@ export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTr
         setData([]);
       }
     } catch (error) {
-      console.error('Error fetching state list:', error);
-      ('Failed to load property types');
+      console.error("Error fetching state list:", error);
+      ("Failed to load property types");
     } finally {
       setLoading(false);
     }
@@ -116,7 +113,12 @@ export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTr
 
   useEffect(() => {
     fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
-  }, [refreshTrigger, pagination.pageIndex, pagination.pageSize, debouncedSearch]);
+  }, [
+    refreshTrigger,
+    pagination.pageIndex,
+    pagination.pageSize,
+    debouncedSearch,
+  ]);
 
   const handleDelete = (id: string) => {
     setDeleteId(id);
@@ -131,18 +133,14 @@ export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTr
         toast.error(response.message);
         return;
       }
-      toast.success('Role deleted successfully');
+      toast.success("Role deleted successfully");
       fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete Role');
+      toast.error(error.message || "Failed to delete Role");
     } finally {
       setIsDeleting(false);
       setDeleteId(null);
     }
-  };
-
-  const handleEdit = (propertyType: any) => {
-    setEditingPropertyType(propertyType);
   };
 
   const { pageIndex, pageSize } = pagination;
@@ -150,9 +148,13 @@ export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTr
   const columns = useMemo<ColumnDef<any>[]>(
     () => [
       {
-        accessorKey: 'index',
-        id: 'index',
-        header: () => <div className="text-center text-[0.8125rem] font-normal text-foreground/70">Id</div>,
+        accessorKey: "index",
+        id: "index",
+        header: () => (
+          <div className="text-center text-[0.8125rem] font-normal text-foreground/70">
+            Id
+          </div>
+        ),
         cell: ({ row }) => (
           <div className="text-center font-medium text-muted-foreground/70">
             {pageIndex * pageSize + row.index + 1}
@@ -161,16 +163,16 @@ export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTr
         enableSorting: false,
         size: 60,
         meta: {
-          headerClassName: 'ps-4',
-          cellClassName: 'ps-4',
-          skeleton: <Skeleton className="w-6 h-7" />
+          headerClassName: "ps-4",
+          cellClassName: "ps-4",
+          skeleton: <Skeleton className="w-6 h-7" />,
         },
         enableHiding: false,
         enableResizing: false,
       },
       {
-        accessorKey: 'type_name',
-        id: 'name',
+        accessorKey: "type_name",
+        id: "name",
         header: ({ column }) => (
           <DataGridColumnHeader
             title="Role Name"
@@ -194,12 +196,12 @@ export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTr
         enableHiding: false,
         enableResizing: true,
         meta: {
-          skeleton: <Skeleton className="w-6 h-7" />
-        }
+          skeleton: <Skeleton className="w-6 h-7" />,
+        },
       },
       {
-        accessorKey: 'created_at',
-        id: 'created_at',
+        accessorKey: "created_at",
+        id: "created_at",
         header: ({ column }) => (
           <DataGridColumnHeader
             title="Created At"
@@ -218,12 +220,12 @@ export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTr
         enableHiding: true,
         enableResizing: true,
         meta: {
-          skeleton: <Skeleton className="w-6 h-7" />
-        }
+          skeleton: <Skeleton className="w-6 h-7" />,
+        },
       },
       {
-        accessorKey: 'updated_at',
-        id: 'updated_at',
+        accessorKey: "updated_at",
+        id: "updated_at",
         header: ({ column }) => (
           <DataGridColumnHeader
             title="Last Updated"
@@ -242,36 +244,23 @@ export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTr
         enableHiding: true,
         enableResizing: true,
         meta: {
-          skeleton: <Skeleton className="w-6 h-7" />
-        }
+          skeleton: <Skeleton className="w-6 h-7" />,
+        },
       },
       {
-        id: 'actions',
+        id: "actions",
         cell: ({ row }) => {
           return (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuItem className='cursor-pointer' onClick={() => handleEdit(row.original)}>
-                  <Edit className="size-3.5 mr-2" />
-                  Edit Role
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive cursor-pointer"
-                  onClick={() => handleDelete(row.original.id)}
-                  disabled={row.original.role_name.toLowerCase() === 'admin'}
-                >
-                  <Trash2 className="size-3.5 mr-2" />
-                  Delete Role
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => handleDelete(row.original.id)}
+              disabled={row.original.role_name?.toLowerCase() === "admin"}
+              title="Delete Role"
+            >
+              <Trash2 className="size-4" />
+            </Button>
           );
         },
         size: 50,
@@ -298,7 +287,7 @@ export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTr
       sorting,
       columnOrder,
     },
-    columnResizeMode: 'onChange',
+    columnResizeMode: "onChange",
     onColumnOrderChange: setColumnOrder,
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
@@ -314,7 +303,7 @@ export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTr
         recordCount={totalRecords}
         isLoading={loading}
         tableClassNames={{
-          bodyRow: 'group/row',
+          bodyRow: "group/row",
         }}
         tableLayout={{
           dense: true,
@@ -322,19 +311,6 @@ export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTr
         }}
       >
         <Card className="shadow-lg border border-gray-200">
-          <CardHeader className="px-4 py-3 flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <CardHeading className="w-full sm:w-auto">
-            </CardHeading>
-            <CardToolbar className="w-full sm:w-auto">
-              <Button
-                className="w-full sm:w-auto rounded-xl px-4 bg-primary text-white hover:bg-primary/90 shadow-sm"
-                onClick={() => setIsAddDialogOpen(true)}
-              >
-                <Plus className="size-4 mr-2" />
-                Add Role
-              </Button>
-            </CardToolbar>
-          </CardHeader>
           <CardTable>
             <ScrollArea>
               <DataGridTable />
@@ -352,36 +328,63 @@ export default function RolesListPage({ refreshTrigger, onSuccess }: { refreshTr
       </DataGrid>
 
       <RoleFormDialog
-        isOpen={isAddDialogOpen || !!editingPropertyType}
-        onClose={() => {
-          setIsAddDialogOpen(false);
-          setEditingPropertyType(null);
-        }}
-        state={editingPropertyType}
-        onSuccess={() => fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch)}
+        isOpen={isAddDialogOpen}
+        onClose={() => setIsAddDialogOpen(false)}
+        state={null}
+        onSuccess={() =>
+          fetchData(
+            pagination.pageIndex + 1,
+            pagination.pageSize,
+            debouncedSearch,
+          )
+        }
       />
 
-      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
-        <AlertDialogContent className="rounded-2xl">
+      <AlertDialog
+        open={!!deleteId}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+      >
+        <AlertDialogContent className="rounded-2xl sm:max-w-110">
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the role
-              and remove its data from our servers.
+            <div className="flex items-center gap-2.5 text-destructive mb-1">
+              <div className="p-2 rounded-full bg-destructive/10">
+                <AlertTriangle className="size-5" />
+              </div>
+              <AlertDialogTitle className="text-xl font-bold text-foreground">
+                Confirm Role Deletion
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-sm leading-relaxed">
+              Are you sure you want to delete this role?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 sm:gap-0">
-            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+
+          <div className="flex items-start gap-3 p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs my-1">
+            <AlertTriangle className="size-4.5 text-destructive shrink-0 mt-0.5" />
+            <div className="leading-relaxed">
+              <span className="font-bold block text-destructive mb-0.5">
+                Warning: High Impact & Irreversible
+              </span>
+              Deleting this role will permanently remove it from the system.
+              Dependent features and user permissions associated with this role
+              may stop working as before.
+            </div>
+          </div>
+
+          <AlertDialogFooter className="gap-2 sm:gap-0 mt-2">
+            <AlertDialogCancel className="rounded-xl font-semibold">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl font-semibold shadow-none"
             >
-              {isDeleting ? 'Deleting...' : 'Delete Role'}
+              {isDeleting ? "Deleting..." : "Delete Role"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
   );
-};
+}

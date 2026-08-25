@@ -1,13 +1,20 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { cn, toPascalCase } from "@/lib/utils";
-import { getprojectTypesInProperty, getprojectListingOfProperty } from "@/lib/actions";
+import { cn, toPascalCase, toTitleCase } from "@/lib/utils";
+import {
+  getprojectTypesInProperty,
+  getprojectListingOfProperty,
+} from "@/lib/actions";
 import { toast } from "sonner";
 import { ExpandableProjectCard } from "@/components/common/expandable-project-card";
 import { useUser } from "@/components/providers/user-provider";
 import { InstallationCard } from "./installation-card";
-import { Installation, mapProjectToInstallation, projectTypeToFormType } from "./types";
+import {
+  Installation,
+  mapProjectToInstallation,
+  projectTypeToFormType,
+} from "./types";
 
 interface ProjectsListViewProps {
   propertyId: string;
@@ -15,6 +22,7 @@ interface ProjectsListViewProps {
   propertyName?: string;
   propertyOwnerEmail?: string;
   hasComponents?: boolean;
+  propertyType?: string;
   onBack: () => void;
 }
 
@@ -24,18 +32,26 @@ export const ProjectsListView = ({
   propertyName,
   propertyOwnerEmail,
   hasComponents,
+  propertyType,
   onBack,
 }: ProjectsListViewProps) => {
   const { role, user } = useUser();
   const router = useRouter();
   const [projectTypes, setProjectTypes] = useState<string[]>([]);
-  const [activeProjectType, setActiveProjectType] = useState<string | null>(null);
+  const [activeProjectType, setActiveProjectType] = useState<string | null>(
+    null,
+  );
   const [allProjects, setAllProjects] = useState<any[]>([]);
-  const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
+  const [expandedProjects, setExpandedProjects] = useState<
+    Record<string, boolean>
+  >({});
   const [loadingTypes, setLoadingTypes] = useState(false);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [totalCount, setTotalCount] = useState<number>(0);
-  const isOwnerOfProperty = role === "property_owner" && !!propertyOwnerEmail && user?.email === propertyOwnerEmail;
+  const isOwnerOfProperty =
+    role === "property_owner" &&
+    !!propertyOwnerEmail &&
+    user?.email === propertyOwnerEmail;
   const canUpload = isOwnerOfProperty && !!hasComponents;
 
   useEffect(() => {
@@ -52,12 +68,15 @@ export const ProjectsListView = ({
           getprojectListingOfProperty(propertyId),
         ]);
 
-        console.log("typesResponse", typesResponse);
-        console.log("projectsResponse", projectsResponse);
-
-        const types = Array.isArray(typesResponse?.data) ? typesResponse.data : [];
+        const types = Array.isArray(typesResponse?.data)
+          ? typesResponse.data
+          : [];
         const count = typesResponse.totalcount;
-        const projects = Array.isArray(projectsResponse) ? projectsResponse : (Array.isArray(projectsResponse?.data) ? projectsResponse.data : []);
+        const projects = Array.isArray(projectsResponse)
+          ? projectsResponse
+          : Array.isArray(projectsResponse?.data)
+            ? projectsResponse.data
+            : [];
 
         if (!isMounted) return;
 
@@ -67,7 +86,7 @@ export const ProjectsListView = ({
         setActiveProjectType((current) =>
           current && types.some((t: any) => t.name === current)
             ? current
-            : types[0]?.name ?? null
+            : (types[0]?.name ?? null),
         );
       } catch (error) {
         console.error("Failed to fetch project data:", error);
@@ -92,20 +111,34 @@ export const ProjectsListView = ({
   }, [propertyId]);
 
   const handleAddInstallation = (project: any) => {
-    localStorage.setItem('current_project_id', project.id);
-    localStorage.setItem('current_property_id', propertyId);
-    localStorage.setItem('current_property_name', propertyName || '');
-    localStorage.setItem('current_project_type', projectTypeToFormType(project.project_type));
-    const ownerId = project.property?.property_owner_id || project.property_owner_id || project.property?.property_owner?.id;
-    const ownerEmail = project.property?.property_owner_email || project.property_owner_email || project.property?.property_owner?.email || propertyOwnerEmail;
+    localStorage.setItem("current_project_id", project.id);
+    localStorage.setItem("current_property_id", propertyId);
+    localStorage.setItem("current_property_name", propertyName || "");
+    localStorage.setItem(
+      "current_project_type",
+      projectTypeToFormType(project.project_type),
+    );
+    const ownerId =
+      project.property?.property_owner_id ||
+      project.property_owner_id ||
+      project.property?.property_owner?.id;
+    const ownerEmail =
+      project.property?.property_owner_email ||
+      project.property_owner_email ||
+      project.property?.property_owner?.email ||
+      propertyOwnerEmail;
     const isOwnerProject =
-      project.project_type === 'WINDOWS AND DOORS' ||
-      project.added_by === 'PROPERTY_OWNER' ||
-      project.created_by_type === 'PROPERTY_OWNER' ||
+      project.added_by === "PROPERTY_OWNER" ||
+      project.created_by_type === "PROPERTY_OWNER" ||
       (project.created_by && ownerId && project.created_by === ownerId) ||
-      (project.created_by_email && ownerEmail && project.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
-    localStorage.setItem('is_owner_project_type', isOwnerProject ? 'true' : 'false');
-    router.push('/properties/new?flow=add-installation');
+      (project.created_by_email &&
+        ownerEmail &&
+        project.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
+    localStorage.setItem(
+      "is_owner_project_type",
+      isOwnerProject ? "true" : "false",
+    );
+    router.push("/properties/new?flow=add-installation");
   };
 
   const toggleProjectExpanded = (projectId: string) => {
@@ -117,9 +150,10 @@ export const ProjectsListView = ({
 
   const selectedProjects = activeProjectType
     ? allProjects.filter(
-      (p: any) =>
-        String(p.project_type).toUpperCase() === String(activeProjectType).toUpperCase()
-    )
+        (p: any) =>
+          String(p.project_type).toUpperCase() ===
+          String(activeProjectType).toUpperCase(),
+      )
     : [];
 
   return (
@@ -127,7 +161,9 @@ export const ProjectsListView = ({
       <div className="px-4 md:px-[76px]">
         <h2 className="text-[16px] md:text-[20px] font-bold text-[#1F2A44] uppercase tracking-wide font-asap">
           Projects
-          <span className="ml-2 text-primary bg-primary/10 px-2 py-0.5 rounded-full">{totalCount}</span>
+          <span className="ml-2 text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+            {totalCount}
+          </span>
         </h2>
       </div>
 
@@ -142,9 +178,7 @@ export const ProjectsListView = ({
             <div className="flex flex-wrap justify-start gap-x-8 gap-y-6 pb-4">
               {projectTypes.map((type: any, id: number) => {
                 const isActive = activeProjectType === type.name;
-                const badgeColors = [
-                  "bg-primary/10 text-primary",
-                ];
+                const badgeColors = ["bg-primary/10 text-primary"];
 
                 return (
                   <button
@@ -154,17 +188,22 @@ export const ProjectsListView = ({
                       "relative inline-flex items-center whitespace-nowrap text-[14px] md:text-[18px] font-medium cursor-pointer pb-2",
                       isActive
                         ? "text-primary "
-                        : "text-[#1F2A44] hover:text-primary "
+                        : "text-[#1F2A44] hover:text-primary ",
                     )}
                   >
-                    <p className={cn(
-                      isActive ? "pb-1 border-b border-primary" : ""
-                    )}
-                    >{toPascalCase(type.name)}</p>
-                    <span className={cn(
-                      "inline-flex items-center justify-center ml-1.5 px-2.5 py-0.5 rounded-full text-[11px] md:text-[13px] font-bold font-inter",
-                      badgeColors[id % badgeColors.length]
-                    )}>
+                    <p
+                      className={cn(
+                        isActive ? "pb-1 border-b border-primary" : "",
+                      )}
+                    >
+                      {toPascalCase(type.name)}
+                    </p>
+                    <span
+                      className={cn(
+                        "inline-flex items-center justify-center ml-1.5 px-2.5 py-0.5 rounded-full text-[11px] md:text-[13px] font-bold font-inter",
+                        badgeColors[id % badgeColors.length],
+                      )}
+                    >
                       {type.count}
                     </span>
                   </button>
@@ -184,60 +223,92 @@ export const ProjectsListView = ({
         ) : selectedProjects.length > 0 ? (
           selectedProjects.map((project) => {
             const comp = mapProjectToInstallation(project, propertyId);
-            const projectStatus = project.is_confirmed ? 'COMPLETE' : 'DRAFT';
+            const projectStatus = project.is_confirmed ? "COMPLETE" : "DRAFT";
             const isCreator =
               project.created_by === (currentUserId ?? user?.id) ||
-              (user?.email && project.createdBy?.email && user.email.toLowerCase() === project.createdBy.email.toLowerCase());
-            const canAddInstallation = role === "admin" || role === "contractor" || isCreator;
+              (user?.email &&
+                project.createdBy?.email &&
+                user.email.toLowerCase() ===
+                  project.createdBy.email.toLowerCase());
+            const canAddInstallation =
+              role === "admin" || role === "contractor" || isCreator;
             const projectDateLabel = project.start_date
-              ? `${new Date(project.start_date).toLocaleDateString()} – ${project.end_date ? new Date(project.end_date).toLocaleDateString() : 'Ongoing'}`
+              ? `${new Date(project.start_date).toLocaleDateString()} – ${project.end_date ? new Date(project.end_date).toLocaleDateString() : "Ongoing"}`
               : project.date_of_install
                 ? new Date(project.date_of_install).toLocaleDateString()
                 : null;
 
             const creatorObj = project.createdBy || project.contractor;
             const addedBy = creatorObj
-              ? `${creatorObj.first_name || ''} ${creatorObj.last_name || ''}`.trim()
-              : project.created_by_email || project.contractor_email || 'N/A';
-            const addedByEmail = creatorObj?.email || project.created_by_email || project.contractor_email;
+              ? `${creatorObj.first_name || ""} ${creatorObj.last_name || ""}`.trim()
+              : project.created_by_email || project.contractor_email || "N/A";
+            const addedByEmail =
+              creatorObj?.email ||
+              project.created_by_email ||
+              project.contractor_email;
 
-            const ownerObj = project.property?.property_owner || project.property_owner;
+            const ownerObj =
+              project.property?.property_owner || project.property_owner;
             const ownerName = ownerObj
-              ? `${ownerObj.first_name || ''} ${ownerObj.last_name || ''}`.trim()
-              : project.property?.property_owner_email || project.property_owner_email || 'N/A';
-            const ownerEmail = ownerObj?.email || project.property?.property_owner_email || project.property_owner_email;
+              ? `${ownerObj.first_name || ""} ${ownerObj.last_name || ""}`.trim()
+              : project.property?.property_owner_email ||
+                project.property_owner_email ||
+                "N/A";
+            const ownerEmail =
+              ownerObj?.email ||
+              project.property?.property_owner_email ||
+              project.property_owner_email;
 
             const isExpanded = Boolean(expandedProjects[project.id]);
+            const isOtherType =
+              String(project.project_type).toLowerCase() === "other" ||
+              String(project.project_type).toLowerCase() === "other_contractor";
+            const projectType = toTitleCase(project.project_type);
+            const otherText =
+              project.other ||
+              project.other_project_type ||
+              project.other_component_type ||
+              project.details?.other;
+
             return (
               <ExpandableProjectCard
                 key={project.id}
                 title={project.project_name}
-                subtitle={projectDateLabel || "Tap to view installation details"}
+                subtitle={
+                  projectDateLabel || "Tap to view installation details"
+                }
                 badges={[
                   {
-                    label: project.project_type,
-                    className: "bg-[rgba(28,167,166,0.08)] text-[#1CA7A6] border-[#1CA7A6]",
+                    label:
+                      isOtherType && otherText
+                        ? `${projectType}: ${otherText}`
+                        : projectType,
+                    className:
+                      "bg-[rgba(28,167,166,0.08)] text-[#1CA7A6] border-[#1CA7A6]",
                   },
                   {
                     label: projectStatus,
-                    className: projectStatus === 'COMPLETE'
-                      ? 'bg-[rgba(67,160,71,0.1)] text-[#43A047] border-[#43A047]'
-                      : 'bg-[rgba(112,128,144,0.1)] text-[#708090] border-[#708090]',
+                    className:
+                      projectStatus === "COMPLETE"
+                        ? "bg-[rgba(67,160,71,0.1)] text-[#43A047] border-[#43A047]"
+                        : "bg-[rgba(112,128,144,0.1)] text-[#708090] border-[#708090]",
                   },
                 ]}
-                action={!project?.details && canAddInstallation ? (
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleAddInstallation(project);
-                    }}
-                    className="flex items-center gap-1.5 h-8 px-3 rounded-full border border-[#1CA7A6] bg-white text-[#1CA7A6] font-bold text-[10px] uppercase tracking-widest transition-colors hover:bg-[rgba(28,167,166,0.08)] shrink-0"
-                  >
-                    <Plus className="size-3" />
-                    Add Installation
-                  </button>
-                ) : null}
+                action={
+                  !project?.details && canAddInstallation ? (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleAddInstallation(project);
+                      }}
+                      className="flex items-center gap-1.5 h-8 px-3 rounded-full border border-[#1CA7A6] bg-white text-[#1CA7A6] font-bold text-[10px] uppercase tracking-widest transition-colors hover:bg-[rgba(28,167,166,0.08)] shrink-0"
+                    >
+                      <Plus className="size-3" />
+                      Add Installation
+                    </button>
+                  ) : null
+                }
                 isExpanded={isExpanded}
                 onToggle={() => toggleProjectExpanded(project.id)}
                 className="shadow-[0px_2px_10px_rgba(31,42,68,0.06)]"
@@ -258,9 +329,39 @@ export const ProjectsListView = ({
                       )}
                     </div>
                   </div>
+                  <div className="pb-4 border-b border-[#E8EDF2]">
+                    <div className="space-y-1">
+                      <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-[#B0BEC5] font-inter">
+                        Property Type
+                      </p>
+                      <p className="text-sm font-semibold text-[#1F2A44] font-asap">
+                        {propertyType || "N/A"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {(isOtherType || Boolean(otherText)) && (
+                    <div className="pb-4 border-b border-[#E8EDF2]">
+                      <div className="space-y-1">
+                        <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-[#B0BEC5] font-inter">
+                          Other Specification
+                        </p>
+                        <p className="text-sm font-semibold text-[#1F2A44] font-asap">
+                          {otherText || "N/A"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {project?.details && comp ? (
-                    <InstallationCard key={comp.id} item={comp} canUpload={canUpload} embedded addedBy={addedBy} addedByEmail={addedByEmail} />
+                    <InstallationCard
+                      key={comp.id}
+                      item={comp}
+                      canUpload={canUpload}
+                      embedded
+                      addedBy={addedBy}
+                      addedByEmail={addedByEmail}
+                    />
                   ) : (
                     <div className="py-4 text-center text-[#708090] font-asap">
                       <p className="text-[13px] font-medium uppercase tracking-widest text-[#B0BEC5]">

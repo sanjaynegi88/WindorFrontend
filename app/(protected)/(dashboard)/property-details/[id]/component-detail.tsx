@@ -64,9 +64,6 @@ export default function ComponentDetail({
   const [reportUsage, setReportUsage] = useState<any>(null);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [isLoadingTotalCount, setIsLoadingTotalCount] = useState<boolean>(true);
-  // console.log('purchased', purchased)
-  // console.log('isPurchased', isPurchased)
-  // console.log("api data", componentData)
 
   const [heroImageSrc, setHeroImageSrc] = useState(heroImageUrl);
 
@@ -79,7 +76,13 @@ export default function ComponentDetail({
   }, [isPurchased]);
 
   useEffect(() => {
-    if (role === "insurance_company") {
+    if (
+      role === "insurance_company" ||
+      role === "realtor" ||
+      role === "manufacturer" ||
+      role === "contractor" ||
+      role === "property_owner"
+    ) {
       getReportUsage()
         .then((res) => setReportUsage(res.data))
         .catch(() => {});
@@ -112,27 +115,30 @@ export default function ComponentDetail({
     (role === "property_owner" && isOwnerOfProperty);
   const hasReportApi = !!componentData?.has_report;
 
+  const hasLimitAccess = Boolean(reportUsage && reportUsage.remaining > 0);
+
   const showGenerateOption =
     hasReportApi &&
-    ((role === "property_owner" && (isOwnerOfProperty || purchased)) ||
+    ((role === "property_owner" &&
+      (isOwnerOfProperty || purchased || hasLimitAccess)) ||
       role === "admin" ||
       role === "city_inspector" ||
-      (role === "contractor" && purchased) ||
-      (role === "manufacturer" && purchased) ||
-      (role === "realtor" && purchased) ||
-      (role === "insurance_company" &&
-        (purchased || (reportUsage && reportUsage.remaining > 0))));
+      (role === "contractor" && (purchased || hasLimitAccess)) ||
+      (role === "manufacturer" && (purchased || hasLimitAccess)) ||
+      (role === "realtor" && (purchased || hasLimitAccess)) ||
+      (role === "insurance_company" && (purchased || hasLimitAccess)));
 
   const showBuyOption =
     hasReportApi &&
     allProjects.length > 0 &&
-    ((role === "property_owner" && !isOwnerOfProperty && !purchased) ||
-      (role === "contractor" && !purchased) ||
-      (role === "manufacturer" && !purchased) ||
-      (role === "realtor" && !purchased) ||
-      (role === "insurance_company" &&
-        !purchased &&
-        (!reportUsage || reportUsage.remaining === 0)));
+    ((role === "property_owner" &&
+      !isOwnerOfProperty &&
+      !purchased &&
+      !hasLimitAccess) ||
+      (role === "contractor" && !purchased && !hasLimitAccess) ||
+      (role === "manufacturer" && !purchased && !hasLimitAccess) ||
+      (role === "realtor" && !purchased && !hasLimitAccess) ||
+      (role === "insurance_company" && !purchased && !hasLimitAccess));
 
   const downloadReport = async () => {
     setIsGenerating(true);
@@ -177,7 +183,30 @@ export default function ComponentDetail({
 
   const property = {
     propertyId: componentData?.id ?? "",
-    address: componentData?.address ?? "N/A",
+    address: componentData?.property_name || componentData?.address || "",
+    address2: componentData?.address2 || "",
+    property_type:
+      componentData?.other_property_type ??
+      componentData?.other_property_type_name ??
+      componentData?.property_type?.type_name ??
+      componentData?.property_type?.name ??
+      componentData?.property_type_category ??
+      componentData?.property_type?.category ??
+      (typeof componentData?.property_type === "string"
+        ? componentData?.property_type
+        : "") ??
+      "",
+    property_type_category:
+      componentData?.other_property_type ??
+      componentData?.other_property_type_name ??
+      componentData?.property_type_category ??
+      componentData?.property_type?.category ??
+      componentData?.property_type?.type_name ??
+      componentData?.property_type?.name ??
+      (typeof componentData?.property_type === "string"
+        ? componentData?.property_type
+        : "") ??
+      "",
     location: [
       componentData?.city_name ??
         componentData?.city?.name ??
@@ -229,10 +258,15 @@ export default function ComponentDetail({
   return (
     <div className="min-h-screen bg-linear-to-b from-[#F5FFFF] to-[#FFFFFF] pb-20">
       <div className="max-w-292.5 mx-auto pt-4 md:pt-14 px-4 md:px-0 space-y-4 md:space-y-6.75">
-        <div className="flex flex-col gap-2 md:gap-3">
+        <div className="flex flex-col">
           <h1 className="text-[20px] sm:text-[28px] md:text-[36px] font-bold text-[#1F2A44] tracking-normal uppercase leading-tight md:leading-[41px] font-asap break-words">
-            {componentData?.property_name || property?.address}
+            {property?.address}
           </h1>
+          {property?.address2 && (
+            <h1 className="text-[14px] sm:text-[18px] md:text-[24px] font-normal text-[rgba(112,128,144,0.93)] leading-tight mt-4 md:leading-[29px] font-inter break-words">
+              {property.address2}
+            </h1>
+          )}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
             <p className="text-[14px] sm:text-[18px] md:text-[24px] font-normal text-[rgba(112,128,144,0.93)] leading-tight md:leading-[29px] font-inter">
               {property.location}
@@ -302,7 +336,7 @@ export default function ComponentDetail({
                 componentData?.latitude &&
                 componentData?.longitude && (
                   <Link
-                    href={`/properties?view=map&lat=${componentData.latitude}&lng=${componentData.longitude}&id=${componentId}`}
+                    href={`/dashboard?view=map&lat=${componentData.latitude}&lng=${componentData.longitude}&id=${componentId}`}
                     className="flex items-center gap-1.5 sm:gap-2 h-8 sm:h-10 px-3 sm:px-6 rounded-full bg-white hover:bg-gray-100 text-[#1F2A44] font-bold text-[10px] sm:text-[12px] md:text-[14px] uppercase tracking-wider sm:tracking-widest transition-all shadow-lg border border-gray-200/50 hover:scale-105"
                   >
                     <Map className="size-3.5 sm:size-4 text-[#1CA7A6]" />
@@ -324,6 +358,7 @@ export default function ComponentDetail({
                 propertyId={componentId}
                 currentUserId={user?.id}
                 propertyName={property.address}
+                propertyType={property.property_type}
                 propertyOwnerEmail={componentData?.property_owner?.email}
                 hasComponents={
                   Array.isArray(componentData?.components) &&

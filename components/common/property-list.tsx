@@ -50,7 +50,13 @@ function PropertyRow({ address, city, state, zip, propertyId, isPurchased = fals
   const isCityInspector = role === "city_inspector";
 
   useEffect(() => {
-    if (role === "insurance_company") {
+    if (
+      role === "insurance_company" ||
+      role === "realtor" ||
+      role === "manufacturer" ||
+      role === "contractor" ||
+      role === "property_owner"
+    ) {
       fetchReportUsage();
     }
   }, [role]);
@@ -75,19 +81,13 @@ function PropertyRow({ address, city, state, zip, propertyId, isPurchased = fals
       return;
     }
 
-    if (role === "contractor") {
-      if (purchased) {
-        await downloadReport();
-      } else {
-        setShowPurchaseDialog(true);
-      }
-      return;
-    }
-
-    if (role === "insurance_company") {
-      if (purchased) {
-        await downloadReport();
-      } else if (reportUsage && reportUsage.remaining > 0) {
+    if (
+      role === "contractor" ||
+      role === "manufacturer" ||
+      role === "realtor" ||
+      role === "insurance_company"
+    ) {
+      if (purchased || (reportUsage && reportUsage.remaining > 0)) {
         await downloadReport();
       } else {
         setShowPurchaseDialog(true);
@@ -104,7 +104,13 @@ function PropertyRow({ address, city, state, zip, propertyId, isPurchased = fals
       toast.success("Report downloaded successfully");
       setPurchased(true);
 
-      if (user?.role === "insurance_company") {
+      if (
+        user?.role === "insurance_company" ||
+        user?.role === "realtor" ||
+        user?.role === "manufacturer" ||
+        user?.role === "contractor" ||
+        user?.role === "property_owner"
+      ) {
         await fetchReportUsage();
       }
     } catch (error: any) {
@@ -141,19 +147,24 @@ function PropertyRow({ address, city, state, zip, propertyId, isPurchased = fals
     }
   };
 
+  const hasLimitAccess = Boolean(reportUsage && reportUsage.remaining > 0);
+
   const showBuyOption =
-    (role === "contractor" && !purchased) ||
-    (role === "insurance_company" &&
+    ((role === "contractor" ||
+      role === "manufacturer" ||
+      role === "realtor" ||
+      role === "insurance_company") &&
       !purchased &&
-      (!reportUsage || reportUsage.remaining === 0));
+      !hasLimitAccess);
 
   const showGenerateOption =
     role === "property_owner" ||
     role === "admin" ||
     role === "city_inspector" ||
-    (role === "contractor" && purchased) ||
-    (role === "insurance_company" &&
-      (purchased || (reportUsage && reportUsage.remaining > 0)));
+    (role === "contractor" && (purchased || hasLimitAccess)) ||
+    (role === "manufacturer" && (purchased || hasLimitAccess)) ||
+    (role === "realtor" && (purchased || hasLimitAccess)) ||
+    (role === "insurance_company" && (purchased || hasLimitAccess));
 
   return (
     <>

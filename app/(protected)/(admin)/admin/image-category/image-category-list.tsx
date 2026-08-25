@@ -44,7 +44,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { getImageCategory, deleteImageCategory } from '@/lib/actions';
+import { getImageCategory, deleteImageCategory, getComponentTypes, getProjectTypesforPropertyOwner } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -56,6 +56,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import { ImageCategoryFormDialog } from './image-category-form-dialog';
 import { formatDate } from '@/lib/helpers';
@@ -70,6 +77,8 @@ export default function ImageCategoryListPage({ refreshTrigger, onSuccess }: { r
   const [sorting, setSorting] = useState<SortingState>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [categories, setCategories] = useState<{ id?: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>([]);
   const [editingPropertyType, setEditingPropertyType] = useState<any | null>(null);
@@ -79,11 +88,49 @@ export default function ImageCategoryListPage({ refreshTrigger, onSuccess }: { r
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const [response, response1] = await Promise.all([
+          getComponentTypes().catch(() => null),
+          getProjectTypesforPropertyOwner().catch(() => null),
+        ]);
 
-  const fetchData = async (page: number = 1, limit: number = 10, name?: string) => {
+        const compTypes = Array.isArray(response?.data)
+          ? response.data
+          : response?.data?.report_types || response?.report_types || [];
+        const ownerTypes = Array.isArray(response1?.data)
+          ? response1.data
+          : response1?.data?.report_types || response1?.report_types || [];
+
+        const merged = [...compTypes, ...ownerTypes];
+        const uniqueNames = new Set<string>();
+        const combined = merged.filter((t: any) => {
+          if (!t?.name) return false;
+          const key = t.name.toUpperCase();
+          if (uniqueNames.has(key)) return false;
+          uniqueNames.add(key);
+          return true;
+        });
+
+        setCategories(combined);
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  const fetchData = async (
+    page: number = 1,
+    limit: number = 10,
+    name?: string,
+    category?: string
+  ) => {
     setLoading(true);
     try {
-      const response = await getImageCategory(page, limit, name);
+      const categoryParam = category && category !== 'all' ? category : undefined;
+      const response = await getImageCategory(page, limit, name, categoryParam);
       if (response && response.data) {
         setData(response.data);
         if (response.pagination) {
@@ -109,14 +156,14 @@ export default function ImageCategoryListPage({ refreshTrigger, onSuccess }: { r
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Reset to page 0 when search changes
+  // Reset to page 0 when search or category changes
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [debouncedSearch]);
+  }, [debouncedSearch, selectedCategory]);
 
   useEffect(() => {
-    fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
-  }, [refreshTrigger, pagination.pageIndex, pagination.pageSize, debouncedSearch]);
+    fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch, selectedCategory);
+  }, [refreshTrigger, pagination.pageIndex, pagination.pageSize, debouncedSearch, selectedCategory]);
 
   const handleDelete = (id: string) => {
     setDeleteId(id);
@@ -363,6 +410,27 @@ export default function ImageCategoryListPage({ refreshTrigger, onSuccess }: { r
                     className="ps-9 w-full"
                   />
                 </div>
+                <div className="w-full sm:w-52">
+                  <Select
+                    value={selectedCategory}
+                    onValueChange={(val) => setSelectedCategory(val)}
+                  >
+                    <SelectTrigger
+                      size="sm"
+                      className="h-8 text-xs rounded-[6px] w-full bg-white border border-[rgba(112,128,144,0.23)] text-[#1F2A44] font-asap font-medium shadow-none"
+                    >
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {categories.map((c) => (
+                        <SelectItem key={c.name} value={c.name}>
+                          {toPascalCase(c.name)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardHeading>
             <CardToolbar className="w-full sm:w-auto">
@@ -398,7 +466,7 @@ export default function ImageCategoryListPage({ refreshTrigger, onSuccess }: { r
           setEditingPropertyType(null);
         }}
         state={editingPropertyType}
-        onSuccess={() => fetchData(pagination.pageIndex + 1, pagination.pageSize)}
+        onSuccess={() => fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch, selectedCategory)}
       />
 
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>

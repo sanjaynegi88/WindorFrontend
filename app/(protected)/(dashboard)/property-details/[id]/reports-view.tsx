@@ -56,56 +56,6 @@ export const ReportsView = ({
 }: ReportsViewProps) => {
   const { user, role } = useUser();
   const totalProjectsCount = (componentsData?.projects ?? []).length;
-  const contractorProjectsCount = (componentsData?.projects ?? []).filter(
-    (p: any) => {
-      const ownerId =
-        p.property?.property_owner_id ||
-        p.property_owner_id ||
-        p.property?.property_owner?.id ||
-        componentsData?.property_owner_id ||
-        componentsData?.property_owner?.id;
-      const ownerEmail =
-        p.property?.property_owner_email ||
-        p.property_owner_email ||
-        p.property?.property_owner?.email ||
-        componentsData?.property_owner_email ||
-        componentsData?.property_owner?.email ||
-        propertyOwnerEmail;
-      const isOwner =
-        p.created_by_type === "PROPERTY_OWNER" ||
-        p.added_by === "PROPERTY_OWNER" ||
-        (p.created_by && ownerId && p.created_by === ownerId) ||
-        (p.created_by_email &&
-          ownerEmail &&
-          p.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
-      return !isOwner;
-    },
-  ).length;
-  const homeownerProjectsCount = (componentsData?.projects ?? []).filter(
-    (p: any) => {
-      const ownerId =
-        p.property?.property_owner_id ||
-        p.property_owner_id ||
-        p.property?.property_owner?.id ||
-        componentsData?.property_owner_id ||
-        componentsData?.property_owner?.id;
-      const ownerEmail =
-        p.property?.property_owner_email ||
-        p.property_owner_email ||
-        p.property?.property_owner?.email ||
-        componentsData?.property_owner_email ||
-        componentsData?.property_owner?.email ||
-        propertyOwnerEmail;
-      const isOwner =
-        p.created_by_type === "PROPERTY_OWNER" ||
-        p.added_by === "PROPERTY_OWNER" ||
-        (p.created_by && ownerId && p.created_by === ownerId) ||
-        (p.created_by_email &&
-          ownerEmail &&
-          p.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
-      return isOwner;
-    },
-  ).length;
   const isOwnerOfProperty =
     role === "property_owner" &&
     !!propertyOwnerEmail &&
@@ -138,16 +88,15 @@ export const ReportsView = ({
   const [allContractorPurchased, setAllContractorPurchased] = useState<boolean>(
     componentsData?.is_all_contractor_purchased === true || false,
   );
-  console.log("allContractorPurchased", allContractorPurchased);
-  console.log("componentsData", componentsData);
   const [isGeneratingAllContractor, setIsGeneratingAllContractor] =
     useState(false);
+  const hasLimitAccess = Boolean(reportUsage && reportUsage.remaining > 0);
   const hasAllContractorAccess =
     allContractorPurchased ||
-    isPurchased ||
     isAdmin ||
     isCityInspector ||
-    isOwnerOfProperty;
+    isOwnerOfProperty ||
+    hasLimitAccess;
 
   useEffect(() => {
     setAllContractorPurchased(
@@ -258,7 +207,13 @@ export const ReportsView = ({
   }, [isPurchased]);
 
   useEffect(() => {
-    if (role === "insurance_company") {
+    if (
+      role === "insurance_company" ||
+      role === "realtor" ||
+      role === "manufacturer" ||
+      role === "contractor" ||
+      role === "property_owner"
+    ) {
       getReportUsage()
         .then((res) => setReportUsage(res.data))
         .catch(() => {});
@@ -277,7 +232,13 @@ export const ReportsView = ({
       );
       toast.success("Report downloaded successfully");
       setPurchased(true);
-      if (user?.role === "insurance_company") {
+      if (
+        user?.role === "insurance_company" ||
+        user?.role === "realtor" ||
+        user?.role === "manufacturer" ||
+        user?.role === "contractor" ||
+        user?.role === "property_owner"
+      ) {
         getReportUsage()
           .then((res) => setReportUsage(res.data))
           .catch(() => {});
@@ -294,25 +255,26 @@ export const ReportsView = ({
 
   const showGenerateOption =
     hasReportApi &&
-    ((role === "property_owner" && (isOwnerOfProperty || purchased)) ||
+    ((role === "property_owner" &&
+      (isOwnerOfProperty || purchased || hasLimitAccess)) ||
       role === "admin" ||
       role === "city_inspector" ||
-      (role === "contractor" && purchased) ||
-      (role === "manufacturer" && purchased) ||
-      (role === "realtor" && purchased) ||
-      (role === "insurance_company" &&
-        (purchased || (reportUsage && reportUsage.remaining > 0))));
+      (role === "contractor" && (purchased || hasLimitAccess)) ||
+      (role === "manufacturer" && (purchased || hasLimitAccess)) ||
+      (role === "realtor" && (purchased || hasLimitAccess)) ||
+      (role === "insurance_company" && (purchased || hasLimitAccess)));
 
   const showBuyOption =
     hasReportApi &&
     totalProjectsCount > 0 &&
-    ((role === "property_owner" && !isOwnerOfProperty && !purchased) ||
-      (role === "contractor" && !purchased) ||
-      (role === "manufacturer" && !purchased) ||
-      (role === "realtor" && !purchased) ||
-      (role === "insurance_company" &&
-        !purchased &&
-        (!reportUsage || reportUsage.remaining === 0)));
+    ((role === "property_owner" &&
+      !isOwnerOfProperty &&
+      !purchased &&
+      !hasLimitAccess) ||
+      (role === "contractor" && !purchased && !hasLimitAccess) ||
+      (role === "manufacturer" && !purchased && !hasLimitAccess) ||
+      (role === "realtor" && !purchased && !hasLimitAccess) ||
+      (role === "insurance_company" && !purchased && !hasLimitAccess));
 
   const handlePurchaseReport = async () => {
     setIsGenerating(true);
@@ -752,7 +714,8 @@ export const ReportsView = ({
                   isPurchased ||
                   isAdmin ||
                   isCityInspector ||
-                  isOwnerOfProperty;
+                  isOwnerOfProperty ||
+                  hasLimitAccess;
 
                 return (
                   <div
@@ -926,7 +889,8 @@ export const ReportsView = ({
                   isAdmin ||
                   isCityInspector ||
                   isOwnerOfProperty ||
-                  (role === "property_owner" && isCreator);
+                  (role === "property_owner" && isCreator) ||
+                  hasLimitAccess;
 
                 return (
                   <div

@@ -71,8 +71,12 @@ export const ProjectDefaultView = ({
         setLoadingPermits(true);
         try {
           const res = await getPermitsForProperty(propertyId);
-          setPermits(res?.data ?? res ?? []);
-          setPermitsLoaded(true);
+          if (res.success) {
+            setPermits(res.data?.data ?? res.data ?? []);
+            setPermitsLoaded(true);
+          } else {
+            toast.error(res.message || "Failed to load permits");
+          }
         } catch (err: any) {
           toast.error(err.message || "Failed to load permits");
         } finally {

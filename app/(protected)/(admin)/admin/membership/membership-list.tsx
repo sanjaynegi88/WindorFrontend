@@ -54,8 +54,15 @@ import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { deleteMembership, getMembership } from "@/lib/actions";
+import { deleteMembership, getMembership, getRoles } from "@/lib/actions";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { MembershipDetailsDialog } from "./membership-details-dialog";
 import { MembershipForm } from "@/components/forms/membership-form";
@@ -71,6 +78,8 @@ export default function MembershipList() {
 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedRole, setSelectedRole] = useState<string>("all");
+  const [roles, setRoles] = useState<{ id?: string; name?: string; role?: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -84,6 +93,21 @@ export default function MembershipList() {
   );
   const [data, setData] = useState<any[]>([]);
 
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const response = await getRoles().catch(() => null);
+        const rawRoles = Array.isArray(response)
+          ? response
+          : response?.data || response?.roles || [];
+        setRoles(rawRoles);
+      } catch (error) {
+        console.error("Failed to fetch roles:", error);
+      }
+    };
+    fetchRoles();
+  }, []);
+
   const handleEditMembership = (membership: any) => {
     setSelectedMembership(membership);
     setIsEditOpen(true);
@@ -92,7 +116,7 @@ export default function MembershipList() {
   const handleEditSuccess = () => {
     setIsEditOpen(false);
     setSelectedMembership(null);
-    fetchData();
+    fetchData(selectedRole);
   };
 
   const handleEditCancel = () => {
@@ -100,10 +124,11 @@ export default function MembershipList() {
     setSelectedMembership(null);
   };
 
-  const fetchData = async () => {
+  const fetchData = async (role?: string) => {
     setLoading(true);
     try {
-      const response = await getMembership();
+      const roleParam = role && role !== "all" ? role : undefined;
+      const response = await getMembership(undefined, roleParam);
       if (response && response.data) {
         setData(response.data);
       } else {
@@ -129,12 +154,12 @@ export default function MembershipList() {
       return;
     }
     toast.success('Membership deleted successfully');
-    fetchData();
+    fetchData(selectedRole);
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    fetchData(selectedRole);
+  }, [selectedRole]);
 
   const columns = useMemo<ColumnDef<any>[]>(
     () => [
@@ -474,7 +499,7 @@ export default function MembershipList() {
         <Card className="shadow-lg border border-gray-200">
           <CardHeader className="px-4 py-3 flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
             <CardHeading className="w-full sm:w-auto">
-              {/* <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
                 <div className="relative w-full sm:w-60">
                   <Search className="size-4 text-muted-foreground absolute inset-s-3 top-1/2 -translate-y-1/2" />
                   <Input
@@ -485,7 +510,32 @@ export default function MembershipList() {
                     className="ps-9 w-full"
                   />
                 </div>
-              </div> */}
+                <div className="w-full sm:w-52">
+                  <Select
+                    value={selectedRole}
+                    onValueChange={(val) => setSelectedRole(val)}
+                  >
+                    <SelectTrigger
+                      size="sm"
+                      className="h-8 text-xs rounded-[6px] w-full bg-white border border-[rgba(112,128,144,0.23)] text-[#1F2A44] font-asap font-medium shadow-none"
+                    >
+                      <SelectValue placeholder="All Roles" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Roles</SelectItem>
+                      {roles.map((r: any) => {
+                        const roleVal = typeof r === 'string' ? r : r.role_name || r.name || r.role || r.id || '';
+                        if (!roleVal) return null;
+                        return (
+                          <SelectItem key={r.id || roleVal} value={roleVal}>
+                            {toPascalCase(roleVal)}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </CardHeading>
             <CardToolbar className="w-full sm:w-auto">
               <div className="flex items-center gap-2.5">

@@ -51,6 +51,14 @@ import { toPascalCase } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ServiceSelect } from "@/components/service-select";
 
+import { RoleForm } from "@/components/user-form/RoleForm";
+import {
+  propertyRoleSchema as propertySchema,
+  contractorRoleSchema as contractorSchema,
+  insuranceRoleSchema as insuranceSchema,
+  inspectorRoleSchema as inspectorSchema,
+} from "@/lib/user-role-schema";
+
 // ─── Shared styles ────────────────────────────────────────────────────────────
 const inputCls =
   "h-[65px] px-[19px] border-[rgba(112,128,144,0.23)] rounded-[6px] text-[20px] leading-[23px] font-medium text-[#1F2A44] bg-white placeholder:text-[#1F2A44]/50 font-asap";
@@ -94,73 +102,6 @@ const step1Schema = z.object({
 
 type Step1Values = z.infer<typeof step1Schema>;
 
-const phoneRegex = /^\d{10}$/;
-
-const propertySchema = z.object({
-  propertyAddress: z.string().min(1, "Property address is required"),
-  mobilePhone: z
-    .string()
-    .min(1, "Mobile phone is required")
-    .regex(phoneRegex, "Mobile phone must be exactly 10 digits"),
-  ownerDateStart: z.string().min(1, "Start date is required"),
-  ownerDateEnd: z.string().optional(),
-  present: z.boolean().optional(),
-  state_id: z.string().min(1, "State is required"),
-  city_id: z.string().min(1, "City is required"),
-  zip: z.string().min(1, "Zip code is required"),
-});
-
-const contractorSchema = z.object({
-  companyAddress: z.string().min(1, "Company address is required"),
-  company_name: z.string().optional(),
-  companyEmail: z.string().optional(),
-  websiteUrl: z.string().optional(),
-  licenseNumber: z.string().optional(),
-  mobilePhone: z
-    .string()
-    .min(1, "Mobile phone is required")
-    .regex(phoneRegex, "Mobile phone must be exactly 10 digits"),
-  companyPhone: z
-    .string()
-    .optional()
-    .refine((value) => !value || /^\d{10}$/.test(value), {
-      message: "Company phone must be exactly 10 digits",
-    }),
-  state_id: z.string().optional(),
-  city_id: z.string().optional(),
-  serviceTypes: z.array(z.string()).optional(),
-  other_service: z.string().optional(),
-});
-
-const insuranceSchema = z.object({
-  company_name: z.string().min(1, "Company name is required"),
-  companyAddress: z.string().min(1, "Company address is required"),
-  websiteUrl: z.string().optional(),
-  mobilePhone: z
-    .string()
-    .regex(phoneRegex, "Mobile phone must be exactly 10 digits"),
-  companyPhone: z
-    .string()
-    .optional()
-    .refine((value) => !value || /^\d{10}$/.test(value), {
-      message: "Company phone must be exactly 10 digits",
-    }),
-  state_id: z.string().optional(),
-  city_id: z.string().optional(),
-  title: z.string().min(1, "Title is required"),
-});
-
-const inspectorSchema = z.object({
-  state_id: z.string().optional(),
-  city_id: z.string().min(1, "City is required"),
-  cityOfficial: z.string().min(1, "City official name is required"),
-  cityAddress: z.string().min(1, "City address is required"),
-  cityPhone: z
-    .string()
-    .regex(phoneRegex, "City phone must be exactly 10 digits"),
-  title: z.string().min(1, "Title is required"),
-});
-
 type PropertyValues = z.infer<typeof propertySchema>;
 type ContractorValues = z.infer<typeof contractorSchema>;
 type InsuranceValues = z.infer<typeof insuranceSchema>;
@@ -176,23 +117,7 @@ function PropertyForm({
   onBack: () => void;
   loading: boolean;
 }) {
-  const [states, setStates] = useState<{ id: string; name: string }[]>([]);
-  const [selectedStateId, setSelectedStateId] = useState("");
   const [isPresent, setIsPresent] = useState(false);
-
-  useEffect(() => {
-    getStates(1, 1000)
-      .then((res) => {
-        const raw: any[] = Array.isArray(res) ? res : res?.data || [];
-        setStates(
-          raw.map((s: any) => ({
-            id: String(s.id),
-            name: s.state_name || s.name,
-          })),
-        );
-      })
-      .catch(() => {});
-  }, []);
 
   const form = useForm<PropertyValues>({
     resolver: zodResolver(propertySchema),
@@ -210,147 +135,13 @@ function PropertyForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-        <FormField
-          control={form.control}
-          name="propertyAddress"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Property Address</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Property Address"
-                  {...field}
-                  className={inputCls}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+        <RoleForm
+          role="PROPERTY_OWNER"
+          context="add-user"
+          form={form}
+          isPresent={isPresent}
+          onPresentChange={setIsPresent}
         />
-        <FormField
-          control={form.control}
-          name="mobilePhone"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Phone (Direct)</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Mobile Phone (10 digits)"
-                  {...field}
-                  className={inputCls}
-                  maxLength={10}
-                  inputMode="numeric"
-                  onChange={(e) => {
-                    const digits = e.target.value
-                      .replace(/\D/g, "")
-                      .slice(0, 10);
-                    field.onChange(digits);
-                  }}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <StateSelect
-          name="state_id"
-          label="State"
-          valueType="id"
-          placeholder="Select a state"
-          onSelectState={(state) => {
-            form.setValue("state_id", state.id);
-            setSelectedStateId(state.id);
-            form.setValue("city_id", "");
-          }}
-        />
-        <CitySelect
-          name="city_id"
-          label="City"
-          stateValue={selectedStateId}
-          valueType="id"
-          placeholder="Select a city"
-          onSelectCity={(city) => {
-            form.setValue("city_id", String(city.id));
-            if (!selectedStateId && city.state_id) {
-              form.setValue("state_id", String(city.state_id));
-              setSelectedStateId(String(city.state_id));
-            }
-          }}
-          syncState={true}
-        />
-        <FormField
-          control={form.control}
-          name="zip"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Zip Code</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Zip Code"
-                  {...field}
-                  className={inputCls}
-                  inputMode="numeric"
-                  maxLength={10}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="ownerDateStart"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Owner Start Date</FormLabel>
-                <FormControl>
-                  <Input type="date" {...field} className={inputCls} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="ownerDateEnd"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Owner End Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type={isPresent ? "text" : "date"}
-                    disabled={isPresent}
-                    value={isPresent ? "Present" : field.value || ""}
-                    onChange={(e) => field.onChange(e.target.value)}
-                    className={`${inputCls} disabled:bg-muted/40 disabled:opacity-80`}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        <div className="flex items-center gap-2 mt-2">
-          <Checkbox
-            id="add-user-present-residence"
-            checked={isPresent}
-            onCheckedChange={(checked) => {
-              const isChecked = Boolean(checked);
-              setIsPresent(isChecked);
-              form.setValue("present", isChecked);
-              if (isChecked) {
-                form.setValue("ownerDateEnd", "");
-              }
-            }}
-          />
-          <label
-            htmlFor="add-user-present-residence"
-            className="text-sm font-medium leading-none cursor-pointer select-none"
-          >
-            Present (Currently Residing)
-          </label>
-        </div>
         <FormButtons onBack={onBack} loading={loading} />
       </form>
     </Form>
@@ -391,8 +182,6 @@ function ContractorForm({
 
   function handleFormSubmit(values: ContractorValues) {
     if (!values.licenseNumber || values.licenseNumber.trim() === "") {
-      // setPendingValues(values);
-      // setShowLicenseWarning(true);
       onSubmit(values);
     } else {
       onSubmit(values);
@@ -406,165 +195,7 @@ function ContractorForm({
           onSubmit={form.handleSubmit(handleFormSubmit)}
           className="space-y-5"
         >
-          <FormField
-            control={form.control}
-            name="company_name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Company Name</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Company Name (optional)"
-                    {...field}
-                    className={inputCls}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="companyEmail"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Company Email</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Email (optional)"
-                    {...field}
-                    className={inputCls}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="companyAddress"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Company Address<label className="text-red-500">*</label>
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Company Address"
-                    {...field}
-                    className={inputCls}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="websiteUrl"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Website URL</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="https://..."
-                    {...field}
-                    className={inputCls}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="mobilePhone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    Mobile Phone <label className="text-red-500">*</label>
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Mobile (10 digits)"
-                      {...field}
-                      className={inputCls}
-                      maxLength={10}
-                      inputMode="numeric"
-                      onChange={(e) => {
-                        const digits = e.target.value
-                          .replace(/\D/g, "")
-                          .slice(0, 10);
-                        field.onChange(digits);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="companyPhone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Company Phone</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Company (10 digits)"
-                      {...field}
-                      className={inputCls}
-                      maxLength={10}
-                      inputMode="numeric"
-                      onChange={(e) => {
-                        const digits = e.target.value
-                          .replace(/\D/g, "")
-                          .slice(0, 10);
-                        field.onChange(digits);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-          <StateSelect
-            name="state_id"
-            label="State"
-            valueType="id"
-            placeholder="Select a state"
-            onSelectState={(st) => {
-              form.setValue("state_id", st.id);
-              form.setValue("city_id", "");
-            }}
-          />
-          <CitySelect
-            name="city_id"
-            label="City"
-            valueType="id"
-            stateValue={form.watch("state_id")}
-            placeholder="Select a city"
-            syncState={true}
-          />
-          <FormField
-            control={form.control}
-            name="licenseNumber"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Input
-                    placeholder="License No."
-                    {...field}
-                    className={inputCls}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <ServiceSelect name="serviceTypes" label="Services Provided" />
+          <RoleForm role="CONTRACTOR" context="add-user" form={form} />
           <FormButtons onBack={onBack} loading={loading} />
         </form>
       </Form>
@@ -611,149 +242,7 @@ function InsuranceForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-        <FormField
-          control={form.control}
-          name="company_name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                Company Name <label className="text-red-500">*</label>
-              </FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Company Name"
-                  {...field}
-                  className={inputCls}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Title</FormLabel>
-              <FormControl>
-                <Input placeholder="Title" {...field} className={inputCls} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="companyAddress"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                Company Address <label className="text-red-500">*</label>
-              </FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Company Address"
-                  {...field}
-                  className={inputCls}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="websiteUrl"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Website URL</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="https://..."
-                  {...field}
-                  className={inputCls}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="mobilePhone"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Mobile Phone <label className="text-red-500">*</label>
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Mobile (10 digits)"
-                    {...field}
-                    className={inputCls}
-                    maxLength={10}
-                    inputMode="numeric"
-                    onChange={(e) => {
-                      const digits = e.target.value
-                        .replace(/\D/g, "")
-                        .slice(0, 10);
-                      field.onChange(digits);
-                    }}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="companyPhone"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Company Phone
-                  <label className="text-red-500">*</label>
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Company Phone (optional)"
-                    {...field}
-                    className={inputCls}
-                    maxLength={10}
-                    inputMode="numeric"
-                    onChange={(e) => {
-                      const digits = e.target.value
-                        .replace(/\D/g, "")
-                        .slice(0, 10);
-                      field.onChange(digits);
-                    }}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        <StateSelect
-          name="state_id"
-          label="State"
-          valueType="id"
-          placeholder="Select a state"
-          onSelectState={(st) => {
-            form.setValue("state_id", st.id);
-            form.setValue("city_id", "");
-          }}
-        />
-        <CitySelect
-          name="city_id"
-          label="City"
-          valueType="id"
-          stateValue={form.watch("state_id")}
-          placeholder="Select a city"
-          syncState={true}
-        />
+        <RoleForm role="INSURANCE_COMPANY" context="add-user" form={form} />
         <FormButtons onBack={onBack} loading={loading} />
       </form>
     </Form>
@@ -784,96 +273,7 @@ function InspectorForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-        <StateSelect
-          name="state_id"
-          label="State"
-          valueType="id"
-          placeholder="Select a state"
-          onSelectState={(st) => {
-            form.setValue("state_id", st.id);
-            form.setValue("city_id", "");
-          }}
-        />
-        <CitySelect
-          name="city_id"
-          label="City"
-          valueType="id"
-          stateValue={form.watch("state_id")}
-          placeholder="Select a city"
-          syncState={true}
-        />
-        <FormField
-          control={form.control}
-          name="cityOfficial"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>City Official Name</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="City Official"
-                  {...field}
-                  className={inputCls}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Title</FormLabel>
-              <FormControl>
-                <Input placeholder="Title" {...field} className={inputCls} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="cityAddress"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>City Address</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="City Address"
-                  {...field}
-                  className={inputCls}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="cityPhone"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>City Phone</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="City Phone (10 digits)"
-                  {...field}
-                  className={inputCls}
-                  maxLength={10}
-                  inputMode="numeric"
-                  onChange={(e) => {
-                    const digits = e.target.value
-                      .replace(/\D/g, "")
-                      .slice(0, 10);
-                    field.onChange(digits);
-                  }}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <RoleForm role="CITY_INSPECTOR" context="add-user" form={form} />
         <FormButtons onBack={onBack} loading={loading} />
       </form>
     </Form>

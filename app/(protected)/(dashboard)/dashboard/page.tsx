@@ -75,7 +75,7 @@ function DashboardPageContent() {
   const isAdminOrInspector = role === "admin" || role === "city_inspector";
   const isAdmin = role === "admin";
   const isPropertyOwner = role === "property_owner";
-  const isContractor = role === "contractor";
+  const isContractor = role === "contractor" || role === "manufacturer";
 
   const hasMembershipCookie =
     typeof document !== "undefined" &&
@@ -94,15 +94,18 @@ function DashboardPageContent() {
     const id = searchParamsHook.get("id");
 
     const urlSearch = searchParamsHook.get("search") || "";
-    const urlSearchBy = (searchParamsHook.get("searchBy") as SearchScope) || "all";
-    const urlStateId = searchParamsHook.get("state_id") || searchParamsHook.get("state") || "";
-    const urlCityId = searchParamsHook.get("city_id") || searchParamsHook.get("city") || "";
+    const urlSearchBy =
+      (searchParamsHook.get("searchBy") as SearchScope) || "all";
+    const urlStateId =
+      searchParamsHook.get("state_id") || searchParamsHook.get("state") || "";
+    const urlCityId =
+      searchParamsHook.get("city_id") || searchParamsHook.get("city") || "";
 
     const hasUrlSearchParams = Boolean(
       urlSearch.trim() ||
-        urlSearchBy !== "all" ||
-        (urlStateId && urlStateId !== "all") ||
-        (urlCityId && urlCityId !== "all"),
+      urlSearchBy !== "all" ||
+      (urlStateId && urlStateId !== "all") ||
+      (urlCityId && urlCityId !== "all"),
     );
 
     if (hasUrlSearchParams) {
@@ -732,7 +735,8 @@ function DashboardPageContent() {
                 onOpenInMap={(lat, lng, id) => {
                   setMapFocus({ lat, lng });
                   setMapFocusId(id);
-                  const mapElement = document.getElementById("dashboard-map-view");
+                  const mapElement =
+                    document.getElementById("dashboard-map-view");
                   if (mapElement) {
                     mapElement.scrollIntoView({ behavior: "smooth" });
                   }

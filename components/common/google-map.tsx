@@ -310,9 +310,6 @@ export default function GoogleMap({
         }
 
         if (skipNextViewportFetchRef.current) {
-          console.log(
-            "[GoogleMap] Skipping viewport fetch due to programmatic fitBounds/search centering.",
-          );
           skipNextViewportFetchRef.current = false;
           return;
         }
@@ -341,10 +338,6 @@ export default function GoogleMap({
             const maxLat = ne.lat();
             const minLng = sw.lng();
             const maxLng = ne.lng();
-
-            console.log(
-              `[GoogleMap Idle] Map Zoom: ${currentZoom}, Bounds: minLat=${minLat.toFixed(6)}, maxLat=${maxLat.toFixed(6)}, minLng=${minLng.toFixed(6)}, maxLng=${maxLng.toFixed(6)}`,
-            );
 
             if (lastFetchedRef.current) {
               const {

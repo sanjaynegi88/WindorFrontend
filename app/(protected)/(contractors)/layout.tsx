@@ -1,11 +1,17 @@
-'use client';
+"use client";
 
-import { RoleGuard } from '@/components/RoleGuard';
+import { RoleGuard } from "@/components/RoleGuard";
 
-export default function ContractorLayout({ children }: { children: React.ReactNode }) {
-    return (
-        <RoleGuard allowedRoles={['contractor', 'admin','property_owner']}>
-            {children}
-        </RoleGuard>
-    );
+export default function ContractorLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <RoleGuard
+      allowedRoles={["contractor", "admin", "property_owner", "manufacturer"]}
+    >
+      {children}
+    </RoleGuard>
+  );
 }
