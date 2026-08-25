@@ -1,7 +1,7 @@
-﻿"use client";
+﻿'use client';
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   ColumnDef,
   getCoreRowModel,
@@ -11,25 +11,11 @@ import {
   PaginationState,
   SortingState,
   useReactTable,
-} from "@tanstack/react-table";
-import {
-  Filter,
-  Search,
-  Settings2,
-  X,
-  Hammer,
-  Layout,
-  Maximize2,
-  DoorOpen,
-  MoreHorizontal,
-  MoreVertical,
-  Eye,
-  File,
-  FileText,
-} from "lucide-react";
-import { cn, downloadPdfFromUrl } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+} from '@tanstack/react-table';
+import { Filter, Search, Settings2, X, Hammer, Layout, Maximize2, DoorOpen, MoreHorizontal, MoreVertical, Eye, File, FileText } from 'lucide-react';
+import { cn, downloadPdfFromUrl } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardFooter,
@@ -37,33 +23,28 @@ import {
   CardHeading,
   CardTable,
   CardToolbar,
-} from "@/components/ui/card";
-import { DataGrid } from "@/components/ui/data-grid";
-import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
-import { DataGridColumnVisibility } from "@/components/ui/data-grid-column-visibility";
-import { DataGridPagination } from "@/components/ui/data-grid-pagination";
+} from '@/components/ui/card';
+import { DataGrid } from '@/components/ui/data-grid';
+import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
+import { DataGridColumnVisibility } from '@/components/ui/data-grid-column-visibility';
+import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import {
   DataGridTable,
   DataGridTableRowSelect,
   DataGridTableRowSelectAll,
-} from "@/components/ui/data-grid-table";
-import { Input } from "@/components/ui/input";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+} from '@/components/ui/data-grid-table';
+import { Input } from '@/components/ui/input';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  generatePdfReport,
-  getPropertyListUser,
-  uploadPropertOwnerImages,
-  uploadPermit,
-} from "@/lib/actions";
-import { useUser } from "@/components/providers/user-provider";
-import { Skeleton } from "@/components/ui/skeleton";
+} from '@/components/ui/dropdown-menu';
+import { generatePdfReport, getPropertyListUser, uploadPropertOwnerImages, uploadPermit } from '@/lib/actions';
+import { useUser } from '@/components/providers/user-provider';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
   DialogContent,
@@ -71,12 +52,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { ImagePlus, Loader2 } from "lucide-react";
-import Image from "next/image";
-import { toast } from "sonner";
+} from '@/components/ui/dialog';
+import { ImagePlus, Loader2 } from 'lucide-react';
+import Image from 'next/image';
+import { toast } from 'sonner';
 
-type InstallationStatus = "Verified" | "Not Verified";
+type InstallationStatus = 'Verified' | 'Not Verified';
 
 interface Installation {
   id: string;
@@ -95,20 +76,16 @@ interface Installation {
 }
 
 const statusColors: Record<InstallationStatus, string> = {
-  Verified: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-  "Not Verified": "bg-red-500/10 text-red-500 border-red-500/20",
+  Verified: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+  'Not Verified': 'bg-red-500/10 text-red-500 border-red-500/20',
 };
 
-const TypeIcon = ({ type }: { type: Installation["type"] }) => {
+const TypeIcon = ({ type }: { type: Installation['type'] }) => {
   switch (type) {
-    case "Roofing":
-      return <Hammer className="size-3.5" />;
-    case "Siding":
-      return <Layout className="size-3.5" />;
-    case "Window":
-      return <Maximize2 className="size-3.5" />;
-    case "Door":
-      return <DoorOpen className="size-3.5" />;
+    case 'Roofing': return <Hammer className="size-3.5" />;
+    case 'Siding': return <Layout className="size-3.5" />;
+    case 'Window': return <Maximize2 className="size-3.5" />;
+    case 'Door': return <DoorOpen className="size-3.5" />;
   }
 };
 
@@ -121,25 +98,23 @@ export default function InstallationList() {
   });
 
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<Installation[]>([]);
 
   // Image upload state
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [selectedInstallation, setSelectedInstallation] =
-    useState<Installation | null>(null);
+  const [selectedInstallation, setSelectedInstallation] = useState<Installation | null>(null);
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
 
   // Permit upload state
   const [permitDialogOpen, setPermitDialogOpen] = useState(false);
-  const [permitInstallation, setPermitInstallation] =
-    useState<Installation | null>(null);
+  const [permitInstallation, setPermitInstallation] = useState<Installation | null>(null);
   const [permitFile, setPermitFile] = useState<File | null>(null);
-  const [permitDescription, setPermitDescription] = useState("");
-  const [permitNotes, setPermitNotes] = useState("");
+  const [permitDescription, setPermitDescription] = useState('');
+  const [permitNotes, setPermitNotes] = useState('');
   const [uploadingPermit, setUploadingPermit] = useState(false);
   const permitFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -159,22 +134,13 @@ export default function InstallationList() {
                 flatData.push({
                   id: component.id,
                   propertyId: property.id,
-                  address:
-                    `${property.address || ""}, ${property.city_name || property.city?.name || ""}`
-                      .trim()
-                      .replace(/,\s*$/, "") || "",
-                  type:
-                    component.component_type.charAt(0) +
-                    component.component_type.slice(1).toLowerCase(),
+                  address: `${property.address || ''}, ${property.city_name || property.city?.name || ''}`.trim().replace(/,\s*$/, '') || '',
+                  type: (component.component_type.charAt(0) + component.component_type.slice(1).toLowerCase()),
                   componentType: component.component_type,
-                  brand: component.brand || "N/A",
-                  installer: component.installer || "N/A",
-                  installDate: property.created_at
-                    ? new Date(property.created_at).toLocaleDateString()
-                    : "N/A",
-                  status: property.verified_status
-                    ? "Verified"
-                    : "Not Verified",
+                  brand: component.brand || 'N/A',
+                  installer: component.installer || 'N/A',
+                  installDate: property.created_at ? new Date(property.created_at).toLocaleDateString() : 'N/A',
+                  status: property.verified_status ? 'Verified' : 'Not Verified',
                   owner_uploaded: component.owner_uploaded || false,
                   permit_status: component.permit_status ?? null,
                   project_id: project.id,
@@ -187,7 +153,7 @@ export default function InstallationList() {
 
         setData(flatData);
       } catch (error) {
-        console.error("Failed to fetch installations:", error);
+        console.error('Failed to fetch installations:', error);
       } finally {
         setLoading(false);
       }
@@ -201,7 +167,7 @@ export default function InstallationList() {
       const url = await generatePdfReport(propertyId, type.toLowerCase());
       await downloadPdfFromUrl(url, `property-report-${propertyId}.pdf`);
     } catch (error) {
-      console.error("Failed to generate PDF report:", error);
+      console.error('Failed to generate PDF report:', error);
     }
   };
 
@@ -213,7 +179,7 @@ export default function InstallationList() {
     // }
 
     setSelectedFiles([...selectedFiles, ...files]);
-    const newPreviews = files.map((file) => URL.createObjectURL(file));
+    const newPreviews = files.map(file => URL.createObjectURL(file));
     setPreviews([...previews, ...newPreviews]);
   };
 
@@ -229,32 +195,31 @@ export default function InstallationList() {
   };
 
   const handleUploadImages = async () => {
+    console.log('[handleUploadImages] selectedInstallation:', selectedInstallation, 'files:', selectedFiles.length);
     if (!selectedInstallation || selectedFiles.length === 0) return;
 
     setUploading(true);
     const result = await uploadPropertOwnerImages(
-      selectedInstallation.componentType === "WINDOWS AND DOORS"
-        ? "window_door"
-        : selectedInstallation.componentType.toLowerCase().replace(/_/g, "-"),
+      selectedInstallation.componentType === 'WINDOWS AND DOORS'
+        ? 'window_door'
+        : selectedInstallation.componentType.toLowerCase().replace(/_/g, '-'),
       selectedInstallation.id,
-      selectedFiles,
+      selectedFiles
     );
     setUploading(false);
 
     if (!result.success) {
-      toast.error(
-        result.message || "Failed to upload images. Please try again.",
-      );
+      toast.error(result.message || 'Failed to upload images. Please try again.');
       return;
     }
 
-    toast.success("Images uploaded successfully!");
-    setData((prevData) =>
-      prevData.map((item) =>
+    toast.success('Images uploaded successfully!');
+    setData(prevData =>
+      prevData.map(item =>
         item.id === selectedInstallation.id
           ? { ...item, owner_uploaded: true }
-          : item,
-      ),
+          : item
+      )
     );
     setUploadDialogOpen(false);
     setSelectedFiles([]);
@@ -271,8 +236,8 @@ export default function InstallationList() {
   const openPermitDialog = (installation: Installation) => {
     setPermitInstallation(installation);
     setPermitFile(null);
-    setPermitDescription("");
-    setPermitNotes("");
+    setPermitDescription('');
+    setPermitNotes('');
     setPermitDialogOpen(true);
   };
 
@@ -280,30 +245,25 @@ export default function InstallationList() {
     if (!permitInstallation || !permitFile) return;
     const projectId = permitInstallation.project_id;
     if (!projectId) {
-      toast.error("No project associated with this installation");
+      toast.error('No project associated with this installation');
       return;
     }
     setUploadingPermit(true);
-    const result = await uploadPermit(
-      projectId,
-      permitFile,
-      permitDescription,
-      permitNotes,
-    );
+    const result = await uploadPermit(projectId, permitFile, permitDescription, permitNotes);
     setUploadingPermit(false);
 
     if (!result.success) {
-      toast.error(result.message || "Failed to upload permit");
+      toast.error(result.message || 'Failed to upload permit');
       return;
     }
 
-    toast.success("Permit uploaded successfully");
-    setData((prevData) =>
-      prevData.map((item) =>
+    toast.success('Permit uploaded successfully');
+    setData(prevData =>
+      prevData.map(item =>
         item.id === permitInstallation.id
-          ? { ...item, permit_status: "pending" }
-          : item,
-      ),
+          ? { ...item, permit_status: 'pending' }
+          : item
+      )
     );
     setPermitDialogOpen(false);
   };
@@ -311,22 +271,22 @@ export default function InstallationList() {
   const columns = useMemo<ColumnDef<Installation>[]>(
     () => [
       {
-        accessorKey: "id",
-        id: "id",
+        accessorKey: 'id',
+        id: 'id',
         header: () => <DataGridTableRowSelectAll size="sm" />,
         cell: ({ row }) => <DataGridTableRowSelect row={row} size="sm" />,
         enableSorting: false,
         size: 40,
         meta: {
-          headerClassName: "ps-4",
-          cellClassName: "ps-4",
+          headerClassName: 'ps-4',
+          cellClassName: 'ps-4',
         },
         enableHiding: false,
         enableResizing: false,
       },
       {
-        accessorKey: "address",
-        id: "address",
+        accessorKey: 'address',
+        id: 'address',
         header: ({ column }) => (
           <DataGridColumnHeader
             title="Property Address"
@@ -347,8 +307,8 @@ export default function InstallationList() {
         enableResizing: true,
       },
       {
-        accessorKey: "type",
-        id: "type",
+        accessorKey: 'type',
+        id: 'type',
         header: ({ column }) => (
           <DataGridColumnHeader
             title="System Type"
@@ -372,8 +332,8 @@ export default function InstallationList() {
         enableResizing: true,
       },
       {
-        accessorKey: "brand",
-        id: "brand",
+        accessorKey: 'brand',
+        id: 'brand',
         header: ({ column }) => (
           <DataGridColumnHeader
             title="Brand"
@@ -388,8 +348,8 @@ export default function InstallationList() {
         enableResizing: true,
       },
       {
-        accessorKey: "installer",
-        id: "installer",
+        accessorKey: 'installer',
+        id: 'installer',
         header: ({ column }) => (
           <DataGridColumnHeader
             title="Contractor"
@@ -397,17 +357,15 @@ export default function InstallationList() {
             column={column}
           />
         ),
-        cell: ({ row }) => (
-          <div className="truncate">{row.original.installer}</div>
-        ),
+        cell: ({ row }) => <div className="truncate">{row.original.installer}</div>,
         size: 180,
         enableSorting: true,
         enableHiding: true,
         enableResizing: true,
       },
       {
-        accessorKey: "installDate",
-        id: "installDate",
+        accessorKey: 'installDate',
+        id: 'installDate',
         header: ({ column }) => (
           <DataGridColumnHeader
             title="Install Date"
@@ -416,9 +374,7 @@ export default function InstallationList() {
           />
         ),
         cell: ({ row }) => (
-          <div className="text-muted-foreground">
-            {row.original.installDate}
-          </div>
+          <div className="text-muted-foreground">{row.original.installDate}</div>
         ),
         size: 130,
         enableSorting: true,
@@ -426,8 +382,8 @@ export default function InstallationList() {
         enableResizing: true,
       },
       {
-        accessorKey: "status",
-        id: "status",
+        accessorKey: 'status',
+        id: 'status',
         header: ({ column }) => (
           <DataGridColumnHeader
             title="Status"
@@ -438,10 +394,7 @@ export default function InstallationList() {
         cell: ({ row }) => {
           const status = row.original.status;
           return (
-            <Badge
-              variant="outline"
-              className={cn("font-medium", statusColors[status])}
-            >
+            <Badge variant="outline" className={cn('font-medium', statusColors[status])}>
               {status}
             </Badge>
           );
@@ -452,7 +405,7 @@ export default function InstallationList() {
         enableResizing: true,
       },
       {
-        id: "actions",
+        id: 'actions',
         cell: ({ row }) => {
           return (
             <DropdownMenu>
@@ -465,63 +418,47 @@ export default function InstallationList() {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                 <DropdownMenuItem
-                  onClick={() =>
-                    handleGeneratePdfReport(
-                      row.original.propertyId,
-                      row.original.type,
-                    )
-                  }
-                  className="cursor-pointer"
+                  onClick={() => handleGeneratePdfReport(row.original.propertyId, row.original.type)}
+                  className='cursor-pointer'
                 >
                   <File />
                   View Report
                 </DropdownMenuItem>
                 {!row.original.owner_uploaded &&
-                  user?.email &&
-                  row.original.property_owner_email &&
-                  user.email.toLowerCase() ===
-                    row.original.property_owner_email.toLowerCase() && (
+                  user?.email && row.original.property_owner_email &&
+                  user.email.toLowerCase() === row.original.property_owner_email.toLowerCase() && (
                     <DropdownMenuItem
                       onClick={() => openUploadDialog(row.original)}
-                      className="cursor-pointer"
+                      className='cursor-pointer'
                     >
                       <ImagePlus className="size-3.5 mr-2" />
                       Upload Images
                     </DropdownMenuItem>
                   )}
                 {row.original.owner_uploaded && (
-                  <DropdownMenuItem
-                    disabled
-                    className="cursor-not-allowed text-muted-foreground"
-                  >
+                  <DropdownMenuItem disabled className='cursor-not-allowed text-muted-foreground'>
                     <ImagePlus className="size-3.5 mr-2" />
                     Images Already Uploaded
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem
-                  onClick={() =>
-                    router.push(`/installations/${row.original.id}`)
-                  }
-                  className="cursor-pointer"
+                  onClick={() => router.push(`/installations/${row.original.id}`)}
+                  className='cursor-pointer'
                 >
                   <Eye />
                   View Details
                 </DropdownMenuItem>
-                {row.original.permit_status === null &&
-                  row.original.project_id && (
-                    <DropdownMenuItem
-                      onClick={() => openPermitDialog(row.original)}
-                      className="cursor-pointer"
-                    >
-                      <FileText className="size-3.5" />
-                      Add Permit
-                    </DropdownMenuItem>
-                  )}
-                {row.original.permit_status !== null && (
+                {row.original.permit_status === null && row.original.project_id && (
                   <DropdownMenuItem
-                    disabled
-                    className="cursor-not-allowed text-muted-foreground"
+                    onClick={() => openPermitDialog(row.original)}
+                    className='cursor-pointer'
                   >
+                    <FileText className="size-3.5" />
+                    Add Permit
+                  </DropdownMenuItem>
+                )}
+                {row.original.permit_status !== null && (
+                  <DropdownMenuItem disabled className='cursor-not-allowed text-muted-foreground'>
                     <FileText className="size-3.5" />
                     Permit: {row.original.permit_status}
                   </DropdownMenuItem>
@@ -546,7 +483,7 @@ export default function InstallationList() {
       const searchLower = searchQuery.toLowerCase();
       return (
         !searchQuery ||
-        Object.values(item).join(" ").toLowerCase().includes(searchLower)
+        Object.values(item).join(' ').toLowerCase().includes(searchLower)
       );
     });
   }, [searchQuery, data]);
@@ -559,7 +496,7 @@ export default function InstallationList() {
       sorting,
       columnOrder,
     },
-    columnResizeMode: "onChange",
+    columnResizeMode: 'onChange',
     onColumnOrderChange: setColumnOrder,
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
@@ -568,6 +505,7 @@ export default function InstallationList() {
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
+
 
   if (loading) {
     return (
@@ -600,13 +538,14 @@ export default function InstallationList() {
     );
   }
 
+
   return (
     <>
       <DataGrid
         table={table}
         recordCount={filteredData.length}
         tableClassNames={{
-          bodyRow: "group/row",
+          bodyRow: 'group/row',
         }}
         tableLayout={{
           dense: true,
@@ -616,6 +555,7 @@ export default function InstallationList() {
           columnsVisibility: true,
         }}
       >
+
         <Card className="border-none shadow-none">
           <CardHeader className="px-4 py-3">
             <CardHeading>
@@ -634,7 +574,7 @@ export default function InstallationList() {
                       mode="icon"
                       variant="ghost"
                       className="absolute inset-e-1.5 top-1/2 -translate-y-1/2 h-6 w-6"
-                      onClick={() => setSearchQuery("")}
+                      onClick={() => setSearchQuery('')}
                     >
                       <X />
                     </Button>
@@ -670,26 +610,15 @@ export default function InstallationList() {
           <DialogHeader>
             <DialogTitle>Upload Installation Images</DialogTitle>
             <DialogDescription>
-              Upload up to 5 clear photos of your {selectedInstallation?.type}{" "}
-              for verification.
+              Upload up to 5 clear photos of your {selectedInstallation?.type} for verification.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               {previews.map((preview, index) => (
-                <div
-                  key={index}
-                  className="relative aspect-square rounded-lg overflow-hidden border bg-muted"
-                >
-                  <Image
-                    src={preview}
-                    alt="Upload preview"
-                    fill
-                    sizes="(max-width: 768px) 50vw, 15vw"
-                    unoptimized
-                    className="w-full h-full object-cover"
-                  />
+                <div key={index} className="relative aspect-square rounded-lg overflow-hidden border bg-muted">
+                  <Image src={preview} alt="Upload preview" fill sizes="(max-width: 768px) 50vw, 15vw" unoptimized className="w-full h-full object-cover" />
                   <button
                     onClick={() => removeFile(index)}
                     className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full hover:bg-destructive/90 transition-colors"
@@ -702,9 +631,7 @@ export default function InstallationList() {
               {previews.length < 5 && (
                 <label className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/25 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-muted/50 transition-colors">
                   <ImagePlus className="size-6 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground font-medium">
-                    Add Photo
-                  </span>
+                  <span className="text-xs text-muted-foreground font-medium">Add Photo</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -739,7 +666,7 @@ export default function InstallationList() {
                   Uploading...
                 </>
               ) : (
-                "Upload Images"
+                'Upload Images'
               )}
             </Button>
           </DialogFooter>
@@ -752,8 +679,7 @@ export default function InstallationList() {
           <DialogHeader>
             <DialogTitle>Upload Permit</DialogTitle>
             <DialogDescription>
-              Upload a permit document for this {permitInstallation?.type}{" "}
-              installation.
+              Upload a permit document for this {permitInstallation?.type} installation.
             </DialogDescription>
           </DialogHeader>
 
@@ -769,15 +695,10 @@ export default function InstallationList() {
                 {permitFile ? (
                   <div className="flex items-center gap-2 w-full">
                     <FileText className="size-4 text-muted-foreground shrink-0" />
-                    <span className="text-sm font-medium truncate flex-1">
-                      {permitFile.name}
-                    </span>
+                    <span className="text-sm font-medium truncate flex-1">{permitFile.name}</span>
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPermitFile(null);
-                      }}
+                      onClick={(e) => { e.stopPropagation(); setPermitFile(null); }}
                       className="p-1 rounded-full hover:bg-muted"
                     >
                       <X className="size-3" />
@@ -844,12 +765,13 @@ export default function InstallationList() {
                   Uploading…
                 </>
               ) : (
-                "Upload Permit"
+                'Upload Permit'
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </>
   );
 }

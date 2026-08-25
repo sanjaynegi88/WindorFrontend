@@ -39,14 +39,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DynamicFormFields,
-  FormCheckboxField,
-} from "@/components/common/form-fields";
-import {
-  BASE_MEMBERSHIP_FIELDS,
-  ROLE_MEMBERSHIP_FIELDS,
-} from "./membership-fields-config";
 
 const featureSchema = z.object({
   name: z.string().min(1, "Name cannot be empty"),
@@ -87,35 +79,9 @@ const membershipFormSchema = z
       message: "Required fields for selected role are missing",
       path: ["targetRole"],
     },
-  )
-  .superRefine((data, ctx) => {
-    if (data.level && data.level !== "FREE") {
-      if (
-        data.monthlyPrice &&
-        !isNaN(parseFloat(data.monthlyPrice)) &&
-        parseFloat(data.monthlyPrice) <= 0
-      ) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Monthly price cannot be 0 for non-free plans",
-          path: ["monthlyPrice"],
-        });
-      }
-      if (
-        data.yearlyPrice &&
-        !isNaN(parseFloat(data.yearlyPrice)) &&
-        parseFloat(data.yearlyPrice) <= 0
-      ) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Yearly price cannot be 0 for non-free plans",
-          path: ["yearlyPrice"],
-        });
-      }
-    }
-  });
+  );
 
-export type MembershipFormValues = z.infer<typeof membershipFormSchema>;
+type MembershipFormValues = z.infer<typeof membershipFormSchema>;
 
 interface MembershipFormProps {
   membership?: {
@@ -149,6 +115,7 @@ export function MembershipForm({
   const isEditing = !!membership;
   const [roles, setRoles] = useState<{ id: string; role_name: string }[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(true);
+  console.log(membership);
   useEffect(() => {
     const fetchRoles = async () => {
       try {
@@ -189,6 +156,9 @@ export function MembershipForm({
   });
   const level = form.watch("level");
   const isFree = level === "FREE";
+  const unlimitedProject = form.watch("isUnlimitedProjects");
+  const unlimitedProperty = form.watch("isUnlimitedProperties");
+  const isUnlimitedAccess = form.watch("isUnlimitedAccess");
 
   React.useEffect(() => {
     if (isFree) {
@@ -216,22 +186,38 @@ export function MembershipForm({
       isActive: data.status,
     };
 
-    // Dynamically populate role-specific fields matching data.targetRole
-    const activeRoleFields = ROLE_MEMBERSHIP_FIELDS.filter(
-      (field) => !field.roles || field.roles.includes(data.targetRole)
-    );
+    if (data.targetRole === "PROPERTY_OWNER" && data.level) {
+      requestBody.level = data.level;
+      requestBody.maxProjects = data.maxProjects;
+      requestBody.isUnlimitedProjects = data.isUnlimitedProjects;
+      requestBody.maxReports = data.maxReports
+        ? parseInt(data.maxReports)
+        : null;
+      requestBody.isUnlimitedAccess = data.isUnlimitedAccess;
+    }
 
-    activeRoleFields.forEach((field) => {
-      const rawValue = data[field.name as keyof MembershipFormValues];
-      if (field.type === "number") {
-        requestBody[field.name] =
-          rawValue && typeof rawValue === "string" && rawValue.trim() !== ""
-            ? parseInt(rawValue, 10)
-            : null;
-      } else if (rawValue !== undefined) {
-        requestBody[field.name] = rawValue;
-      }
-    });
+    if (data.targetRole === "CONTRACTOR" && data.level) {
+      requestBody.level = data.level;
+      requestBody.maxProperties = data.maxProperties;
+      requestBody.maxProjects = data.maxProjects;
+      requestBody.maxCities = data.maxCities;
+      requestBody.maxUsers = data.maxUsers;
+      requestBody.isUnlimitedProperties = data.isUnlimitedProperties;
+      requestBody.isUnlimitedProjects = data.isUnlimitedProjects;
+      requestBody.maxReports = data.maxReports
+        ? parseInt(data.maxReports)
+        : null;
+      requestBody.isUnlimitedAccess = data.isUnlimitedAccess;
+    }
+    if (data.targetRole === "INSURANCE_COMPANY" && data.maxReports) {
+      requestBody.maxReports = parseInt(data.maxReports!);
+      requestBody.isUnlimitedAccess = data.isUnlimitedAccess;
+    }
+    if (data.targetRole === "REALTOR" && data.maxReports) {
+      requestBody.level = data.level;
+      requestBody.maxReports = parseInt(data.maxReports!);
+      requestBody.isUnlimitedAccess = data.isUnlimitedAccess;
+    }
 
     try {
       if (isEditing && membership) {
@@ -296,7 +282,7 @@ export function MembershipForm({
                         disabled={loadingRoles}
                       >
                         <FormControl>
-                          <SelectTrigger className="h-12 border-input focus:bg-background transition-all shadow-none">
+                          <SelectTrigger className="h-12  border-input focus:bg-background transition-all shadow-none">
                             <SelectValue
                               placeholder={
                                 loadingRoles
@@ -330,19 +316,396 @@ export function MembershipForm({
                     </FormItem>
                   )}
                 />
-                <DynamicFormFields
-                  fields={BASE_MEMBERSHIP_FIELDS}
-                  form={form}
-                  gridClassName="contents"
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="font-semibold text-foreground">
+                        Plan Name
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Name of the plan"
+                          {...field}
+                          className="h-12 border-input focus:bg-background transition-all shadow-none"
+                        />
+                      </FormControl>
+                      <FormMessage className="text-[10px] font-bold" />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="monthlyPrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="font-semibold text-foreground">
+                        Monthly Price ($)
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="0.00"
+                          {...field}
+                          disabled={isFree}
+                          className="h-12  border-input focus:bg-background transition-all shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                      </FormControl>
+                      <FormMessage className="text-[10px] font-bold" />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="yearlyPrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="font-semibold text-foreground">
+                        Yearly Price ($)
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="0.00"
+                          {...field}
+                          disabled={isFree}
+                          className="h-12 border-input focus:bg-background transition-all shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                      </FormControl>
+                      <FormMessage className="text-[10px] font-bold" />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-2">
+                      <FormLabel className="font-semibold text-foreground">
+                        Description
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Brief description"
+                          {...field}
+                          rows={4}
+                          className=" border-input transition-all shadow-none font-bold resize-none"
+                        />
+                      </FormControl>
+                      <FormMessage className="text-[10px] font-bold" />
+                    </FormItem>
+                  )}
                 />
               </div>
 
-              {/* Role-Specific Dynamic Fields */}
-              <DynamicFormFields
-                fields={ROLE_MEMBERSHIP_FIELDS}
-                form={form}
-                targetRole={form.watch("targetRole")}
-              />
+              {form.watch("targetRole") === "PROPERTY_OWNER" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <FormField
+                    control={form.control}
+                    name="level"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold text-foreground">
+                          Level
+                        </FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="h-12  border-input focus:bg-background transition-all shadow-none font-bold">
+                              <SelectValue placeholder="Select level" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="FREE">Free (No Cost)</SelectItem>
+                            <SelectItem value="SILVER">Silver</SelectItem>
+                            <SelectItem value="GOLD">Gold</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage className="text-[10px] font-bold" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="maxProjects"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold text-foreground">
+                          {" "}
+                          Max Projects
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Maximum number of Projects"
+                            {...field}
+                            disabled={unlimitedProject}
+                            className="h-12  border-input focus:bg-background transition-all shadow-none font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                          />
+                        </FormControl>
+                        <FormMessage className="text-[10px] font-bold" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="isUnlimitedProjects"
+                    render={({ field }) => (
+                      <FormItem className="flex-row items-center gap-2">
+                        <FormLabel className="font-semibold text-foreground">
+                          unlimitedProject
+                        </FormLabel>
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage className="text-[10px] font-bold" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+              {form.watch("targetRole") === "REALTOR" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <FormField
+                    control={form.control}
+                    name="level"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold text-foreground">
+                          Level
+                        </FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="h-12  border-input focus:bg-background transition-all shadow-none font-bold">
+                              <SelectValue placeholder="Select level" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="SILVER">Silver</SelectItem>
+                            <SelectItem value="GOLD">Gold</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage className="text-[10px] font-bold" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+
+              {form.watch("targetRole") === "CONTRACTOR" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <FormField
+                    control={form.control}
+                    name="level"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold text-foreground">
+                          Level
+                        </FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="h-12  border-input focus:bg-background transition-all shadow-none ">
+                              <SelectValue placeholder="Select level" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="FREE">Free (No Cost)</SelectItem>
+                            <SelectItem value="STANDARD">Standard</SelectItem>
+                            <SelectItem value="SILVER">Silver</SelectItem>
+                            <SelectItem value="GOLD">Gold</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage className="text-[10px] font-bold" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="maxCities"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold text-foreground">
+                          {" "}
+                          Max Cities
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Maximum number of Cities"
+                            {...field}
+                            className="h-12  border-input focus:bg-background transition-all shadow-none "
+                          />
+                        </FormControl>
+                        <FormMessage className="text-[10px] font-bold" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="maxProperties"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold text-foreground">
+                          Max Properties
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Maximum number of Properties can add"
+                            {...field}
+                            disabled={unlimitedProperty}
+                            className="h-12  border-input focus:bg-background transition-all shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
+                          />
+                        </FormControl>
+                        <FormMessage className="text-[10px] font-bold" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="maxUsers"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold text-foreground">
+                          Max Users
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Maximun user can be added"
+                            {...field}
+                            className="h-12  border-input focus:bg-background transition-all shadow-none"
+                          />
+                        </FormControl>
+                        <FormMessage className="text-[10px] font-bold" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="maxProjects"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold text-foreground">
+                          {" "}
+                          Max Projects
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Maximum number of Projects"
+                            {...field}
+                            disabled={unlimitedProject}
+                            className="h-12  border-input focus:bg-background transition-all shadow-none font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                          />
+                        </FormControl>
+                        <FormMessage className="text-[10px] font-bold" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="isUnlimitedProperties"
+                    render={({ field }) => (
+                      <FormItem className="flex-row items-center gap-2">
+                        <FormLabel className="font-semibold text-foreground">
+                          unlimitedProperty
+                        </FormLabel>
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage className="text-[10px] font-bold" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="isUnlimitedProjects"
+                    render={({ field }) => (
+                      <FormItem className="flex-row items-center gap-2">
+                        <FormLabel className="font-semibold text-foreground">
+                          unlimitedProject
+                        </FormLabel>
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage className="text-[10px] font-bold" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+
+              {(form.watch("targetRole") === "INSURANCE_COMPANY" ||
+                form.watch("targetRole") === "CONTRACTOR" ||
+                form.watch("targetRole") === "PROPERTY_OWNER" ||
+                form.watch("targetRole") === "REALTOR") && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <FormField
+                    control={form.control}
+                    name="maxReports"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold text-foreground">
+                          Max Reports
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Maximum number of reports"
+                            {...field}
+                            disabled={isUnlimitedAccess}
+                            className="h-12  border-input focus:bg-background transition-all shadow-none font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                          />
+                        </FormControl>
+                        <FormMessage className="text-[10px] font-bold" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+              {(form.watch("targetRole") === "INSURANCE_COMPANY" ||
+                form.watch("targetRole") === "CONTRACTOR" ||
+                form.watch("targetRole") === "PROPERTY_OWNER" ||
+                form.watch("targetRole") === "REALTOR") && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <FormField
+                    control={form.control}
+                    name="isUnlimitedAccess"
+                    render={({ field }) => (
+                      <FormItem className="flex-row items-center gap-2">
+                        <FormLabel className="font-semibold text-foreground">
+                          Unlimited Access
+                        </FormLabel>
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage className="text-[10px] font-bold" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
 
               <DynamicFeaturesTable
                 control={form.control}
@@ -353,10 +716,23 @@ export function MembershipForm({
                 addButtonText="Add New Feature Line"
               />
 
-              <FormCheckboxField
+              <FormField
                 control={form.control}
                 name="status"
-                label="Status (is active)"
+                render={({ field }) => (
+                  <FormItem className="flex-row items-center gap-2">
+                    <FormLabel className="font-semibold text-foreground">
+                      Status (is active)
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage className="text-[10px] font-bold" />
+                  </FormItem>
+                )}
               />
             </CardContent>
           </Card>

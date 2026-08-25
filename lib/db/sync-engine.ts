@@ -204,7 +204,7 @@ async function syncSingleTransaction(transaction: PropertyTransaction): Promise<
                     console.error(` Failed to upload images for ${installation.type}:`, imageError);
                 }
             } else {
- 
+                console.log(` No images to upload for ${installation.type}`);
             }
         }
       

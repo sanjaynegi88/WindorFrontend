@@ -123,13 +123,7 @@ export default function Register1Page() {
     if (!result.success) { toast.error(result.message || "Google sign-in failed"); setGoogleLoading(false); return; }
     toast.success(result.data.isNewUser ? "Account created successfully" : "Login successful");
     await new Promise((r) => setTimeout(r, 100));
-    const user = result.data?.user;
-    const hasMembership = Boolean(user?.has_membership);
-    const isSubUser = Boolean(user?.sub_account);
-    const role = user?.role?.toLowerCase();
-    const isExempt = role === 'admin' || role === 'city_inspector' || isSubUser;
-    const target = (!hasMembership && !isExempt) ? "/plans" : "/dashboard";
-    window.location.href = result.data.requiresRoleSelection ? "/select-role" : target;
+    window.location.href = result.data.requiresRoleSelection ? "/select-role" : "/dashboard";
   }
 
   function handleGoogleError() {

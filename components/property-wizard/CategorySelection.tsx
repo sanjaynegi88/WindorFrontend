@@ -85,11 +85,15 @@ interface CategorySelectionProps {
 
 type ComponentType = {
   name: string;
+  required_permit?: boolean;
   isOwnerProjectType?: boolean;
 };
 
 const inputClass =
   "w-full h-[46px] md:h-[65px] px-[20px] md:px-[29px] rounded-[6px] md:rounded-[10px] border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] bg-white text-[14px] md:text-[20px] font-medium text-[#1F2A44] focus:outline-none placeholder:text-[#708090]/50 font-asap";
+
+const triggerClass =
+  "w-full h-[46px] md:h-[65px] px-[20px] md:px-[29px] rounded-[6px] md:rounded-[10px] border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] bg-white text-[14px] md:text-[20px] font-medium text-[#1F2A44] data-placeholder:text-[#708090]/50 focus:ring-[#1CA7A6]/20 font-asap gap-2 justify-start text-left [&>span]:flex-1 [&>span]:truncate [&>span]:text-left";
 
 export function CategorySelection({
   address,
@@ -243,6 +247,7 @@ export function CategorySelection({
             ownerRes?.data?.report_types || []
           ).map((t: any) => ({
             ...t,
+            required_permit: false,
             isOwnerProjectType: true,
           }));
           const compTypes: ComponentType[] = (
@@ -251,6 +256,10 @@ export function CategorySelection({
             const nameLower = (t?.name || "").toLowerCase();
             return {
               ...t,
+              required_permit:
+                nameLower === "doors" || nameLower === "garage_doors"
+                  ? false
+                  : true,
               isOwnerProjectType: false,
             };
           });
@@ -275,6 +284,10 @@ export function CategorySelection({
             const nameLower = (t?.name || "").toLowerCase();
             return {
               ...t,
+              required_permit:
+                nameLower === "doors" || nameLower === "garage_doors"
+                  ? false
+                  : !isPropertyOwner,
               isOwnerProjectType: isPropertyOwner,
             };
           });
@@ -287,9 +300,15 @@ export function CategorySelection({
         if (firstAvailable && !projectType && !initialProjectType) {
           setProjectType(firstAvailable.name.toLowerCase());
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error("Failed to fetch component types:", error);
-        toast.error(error?.message);
+        toast.error("Failed to load project types");
+        const fallback = [
+          { name: "ROOFING", required_permit: true },
+          { name: "SIDING", required_permit: true },
+        ];
+        setComponentTypes(fallback);
+        if (fallback[0]) setProjectType(fallback[0].name.toLowerCase());
       } finally {
         setLoading(false);
       }
@@ -412,6 +431,8 @@ export function CategorySelection({
         : {}),
       ...(isPropertyOwner ? { visible_status: visibility } : {}),
     };
+
+    //console.log("selected city id", governingCity);
 
     const changed = compareWithInitial(body);
     setHasChanges(changed);
@@ -554,34 +575,15 @@ export function CategorySelection({
                 <label
                   key={type.id}
                   className={cn(
-                    "flex flex-col md:flex-row items-center justify-center md:justify-start gap-[8px] md:gap-[10px] group relative",
+                    "flex flex-col md:flex-row items-center justify-center md:justify-start gap-[8px] md:gap-[10px] group",
                     disableProjectType
                       ? "cursor-not-allowed opacity-70"
                       : "cursor-pointer",
                   )}
                 >
-                  <input
-                    type="radio"
-                    className="sr-only peer"
-                    name="projectType"
-                    checked={projectType === type.id}
-                    onChange={() =>
-                      !disableProjectType &&
-                      handleFieldChange(() => setProjectType(type.id))
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        if (!disableProjectType) {
-                          handleFieldChange(() => setProjectType(type.id));
-                        }
-                      }
-                    }}
-                    disabled={disableProjectType}
-                  />
                   <div
                     className={cn(
-                      "size-[10px] md:size-[26px] rounded-full border border-[rgba(112,128,144,0.4333)] md:border-[rgba(112,128,144,0.3)] flex items-center justify-center transition-all bg-white peer-focus-visible:ring-2 peer-focus-visible:ring-[#1CA7A6] peer-focus-visible:ring-offset-2",
+                      "size-[10px] md:size-[26px] rounded-full border border-[rgba(112,128,144,0.4333)] md:border-[rgba(112,128,144,0.3)] flex items-center justify-center transition-all bg-white",
                       projectType === type.id &&
                         "border-[rgba(112,128,144,0.5)]",
                     )}
@@ -590,6 +592,17 @@ export function CategorySelection({
                       <div className="size-[6px] md:size-[14px] rounded-full bg-[#1CA7A6]" />
                     )}
                   </div>
+                  <input
+                    type="radio"
+                    className="hidden"
+                    name="projectType"
+                    checked={projectType === type.id}
+                    onChange={() =>
+                      !disableProjectType &&
+                      handleFieldChange(() => setProjectType(type.id))
+                    }
+                    disabled={disableProjectType}
+                  />
                   <span
                     className={cn(
                       "text-[13px] md:text-[20px] font-medium transition-colors font-asap text-center md:text-left",
@@ -699,26 +712,11 @@ export function CategorySelection({
               {(["public", "private"] as const).map((option) => (
                 <label
                   key={option}
-                  className="flex flex-col md:flex-row items-center gap-[8px] md:gap-[15px] cursor-pointer relative"
+                  className="flex flex-col md:flex-row items-center gap-[8px] md:gap-[15px] cursor-pointer"
                 >
-                  <input
-                    type="radio"
-                    className="sr-only peer"
-                    name="visibility"
-                    checked={visibility === option}
-                    onChange={() =>
-                      handleFieldChange(() => setVisibility(option))
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleFieldChange(() => setVisibility(option));
-                      }
-                    }}
-                  />
                   <div
                     className={cn(
-                      "size-[10px] md:size-[26px] rounded-full border border-[rgba(112,128,144,0.4333)] md:border-[rgba(112,128,144,0.3)] flex items-center justify-center transition-all bg-white peer-focus-visible:ring-2 peer-focus-visible:ring-[#1CA7A6] peer-focus-visible:ring-offset-2",
+                      "size-[10px] md:size-[26px] rounded-full border border-[rgba(112,128,144,0.4333)] md:border-[rgba(112,128,144,0.3)] flex items-center justify-center transition-all bg-white",
                       visibility === option && "border-[rgba(112,128,144,0.5)]",
                     )}
                   >
@@ -726,6 +724,15 @@ export function CategorySelection({
                       <div className="size-[6px] md:size-[14px] rounded-full bg-[#1CA7A6]" />
                     )}
                   </div>
+                  <input
+                    type="radio"
+                    className="hidden"
+                    name="visibility"
+                    checked={visibility === option}
+                    onChange={() =>
+                      handleFieldChange(() => setVisibility(option))
+                    }
+                  />
                   <span
                     className={cn(
                       "text-[13px] md:text-[20px] font-medium transition-colors font-asap text-center md:text-left capitalize",

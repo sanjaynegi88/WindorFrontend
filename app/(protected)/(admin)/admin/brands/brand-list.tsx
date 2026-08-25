@@ -98,12 +98,8 @@ export default function BrandList({ onAddBrand }: { onAddBrand: () => void }) {
           getProjectTypesforPropertyOwner().catch(() => null),
         ]);
 
-        const compTypes = Array.isArray(response?.data)
-          ? response.data
-          : response?.data?.report_types || response?.report_types || [];
-        const ownerTypes = Array.isArray(response1?.data)
-          ? response1.data
-          : response1?.data?.report_types || response1?.report_types || [];
+        const compTypes = response?.data?.report_types || [];
+        const ownerTypes = response1?.data?.report_types || [];
 
         const merged = [...compTypes, ...ownerTypes];
         const uniqueNames = new Set<string>();

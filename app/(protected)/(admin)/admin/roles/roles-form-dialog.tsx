@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { createRoles, editRoles } from '@/lib/actions';
 import { toast } from 'sonner';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 const stateSchema = z.object({
   role_name: z.string().min(1, 'Role is required'),
@@ -107,21 +107,12 @@ export function RoleFormDialog({ isOpen, onClose, state, onSuccess }: RoleFormDi
         <DialogHeader>
           <DialogTitle className="text-foreground">{state ? 'Edit Role' : 'Add New Role'}</DialogTitle>
           <DialogDescription>
-            {state ? 'Update the details of the Role. Note: Editing this role may affect existing system functionality.' : 'Enter details for the new Role.'}
+            {state ? 'Update the details of the Role.' : 'Enter details for the new Role.'}
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 py-2">
-            {state && (
-              <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50/90 border border-amber-200/80 text-amber-900 text-xs">
-                <AlertTriangle className="size-4 text-amber-600 shrink-0 mt-0.5" />
-                <div className="leading-relaxed">
-                  <span className="font-bold block text-amber-950 mb-0.5">Warning: Impact Notice</span>
-                  Modifying this role may alter system permissions and cause dependent features to stop working as before.
-                </div>
-              </div>
-            )}
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
 
             <FormField
               control={form.control}

@@ -10,18 +10,10 @@ import { BrandedLayout } from "@/app/(auth)/layout/branded-layout";
 import Image from "next/image";
 import { postAddtionalUserForm } from "@/lib/actions";
 import { Step2PropertyForm, Step2PropertyValues } from "./step2-property-form";
-import {
-  Step2ContractorForm,
-  Step2ContractorValues,
-} from "./step2-contractor-form";
+import { Step2ContractorForm, Step2ContractorValues } from "./step2-contractor-form";
 import { StepIndicator } from "./step-indicator";
 
-const CONTRACTOR_ROLES = [
-  "contractor",
-  "manufacturer",
-  "distributor",
-  "manufacturer_distributor",
-];
+const CONTRACTOR_ROLES = ["contractor", "manufacturer", "distributor", "manufacturer_distributor"];
 const PROPERTY_ROLES = ["property_owner", "homeowner", "realtor"];
 
 function isContractorRole(name: string) {
@@ -35,39 +27,22 @@ function CompleteProfileContent() {
   const searchParams = useSearchParams();
   const userId = searchParams.get("userId") || "";
   const role = searchParams.get("role") || "";
-  const roleDisplayName = role
-    .split("_")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(" ");
+  const roleDisplayName = role.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
 
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(
-    values: Step2PropertyValues | Step2ContractorValues | Record<string, never>,
-  ) {
+  async function handleSubmit(values: Step2PropertyValues | Step2ContractorValues | Record<string, never>) {
     setLoading(true);
-    const formToken = typeof window !== "undefined" ? localStorage.getItem("formToken") || undefined : undefined;
-    const result = await postAddtionalUserForm(userId, values, formToken);
+    const result = await postAddtionalUserForm(userId, values);
+    console.log(result);
     setLoading(false);
     if (!result.success) {
-      toast.error(
-        result.message || "Failed to save profile. Please try again later.",
-      );
+      toast.error(result.message || "Failed to save profile. Please try again later.");
       return;
-    }
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("formToken");
     }
     toast.success("Profile completed successfully!");
     await new Promise((r) => setTimeout(r, 100));
-    const data = result.data;
-    const hasMembership = Boolean(data?.has_membership);
-    const isSubUser = Boolean(data?.sub_account);
-    const userRole = data?.role?.toLowerCase();
-    const isExempt =
-      userRole === "admin" || userRole === "city_inspector" || isSubUser;
-    const target = !hasMembership && !isExempt ? "/plans" : "/dashboard";
-    window.location.href = target;
+    window.location.href = "/dashboard";
   }
 
   return (
@@ -78,22 +53,13 @@ function CompleteProfileContent() {
           {/* Logo */}
           <div className="flex justify-center mb-[76px]">
             <div className="w-[168px] h-[159px] bg-white shadow-[0px_4px_14px_rgba(31,42,68,0.3)] rounded-[20px] flex items-center justify-center shrink-0">
-              <Image
-                src="/assets/logo.png"
-                alt="Windor Logo"
-                width={136}
-                height={118}
-                priority
-                className="h-[118px] w-[136px] object-contain"
-              />
+              <Image src="/assets/logo.png" alt="Windor Logo" width={136} height={118} priority className="h-[118px] w-[136px] object-contain" />
             </div>
           </div>
 
           {/* Title */}
           <div className="w-full text-center mb-[44px]">
-            <h1 className="text-[48px] leading-[55px] font-bold text-[#1F2A44] mb-[8px] font-asap uppercase">
-              SIGN UP NOW
-            </h1>
+            <h1 className="text-[48px] leading-[55px] font-bold text-[#1F2A44] mb-[8px] font-asap uppercase">SIGN UP NOW</h1>
             <p className="text-[26px] leading-[30px] font-medium text-[#708090] font-asap">
               Completing registration as {roleDisplayName}
             </p>

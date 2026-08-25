@@ -6,7 +6,6 @@ import { ExpandableProjectCard } from "@/components/common/expandable-project-ca
 import {
   getMyProjects,
   generateContractorProjectPdfReport,
-  generateOwnerProjectPdfReport,
   confirmProject,
   deleteProject,
 } from "@/lib/actions";
@@ -62,7 +61,6 @@ export default function MyProjectList() {
   const user = useUser();
   const role = user?.role?.toLowerCase() || "";
   const isAdmin = role === "admin";
-  const isOwner = role === "property_owner";
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<{
     id: string;
@@ -91,12 +89,6 @@ export default function MyProjectList() {
   ) => {
     setGeneratingReports((prev) => ({ ...prev, [projectId]: true }));
     try {
-      if (isOwner) {
-        const url = await generateOwnerProjectPdfReport(projectId);
-        const filename = `owner-projects-report-${projectName}.pdf`;
-        await downloadPdfFromUrl(url, filename);
-        toast.success(`Report downloaded successfully`);
-      }
       const url = await generateContractorProjectPdfReport(projectId);
       const filename = `contractor-projects-report-${projectName}.pdf`;
       await downloadPdfFromUrl(url, filename);
@@ -129,6 +121,7 @@ export default function MyProjectList() {
         isAdmin,
         isConfirmed,
       );
+      console.log(response);
       const normalizedProjects = Array.isArray(response)
         ? response
         : Array.isArray(response?.data)
@@ -410,6 +403,7 @@ export default function MyProjectList() {
               const actualProjectId =
                 project.id ?? project.project_id ?? project._id;
 
+              console.log("actualProjectId", actualProjectId);
               const handleAddInstallation = (project: any) => {
                 router.push(
                   `/properties/edit/${property.id}?projectId=${actualProjectId}&noInstallation=true`,

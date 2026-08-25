@@ -86,11 +86,11 @@ db.version(6).upgrade(async (tx) => {
 
 // Handle database errors gracefully
 db.on('ready', () => {
-
+    console.log('Database initialized successfully');
 });
 
 db.on('versionchange', () => {
-
+    console.log('Database schema updated');
 });
 
 export { db };

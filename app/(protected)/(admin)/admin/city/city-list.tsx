@@ -131,6 +131,7 @@ export default function CityList({
         true,
         true,
       );
+      console.log(response);
       if (response && response.data) {
         setData(response.data);
         if (response.pagination) {

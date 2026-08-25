@@ -64,13 +64,7 @@ export default function Login1Page() {
     toast.success("Login successful");
 
     await new Promise((resolve) => setTimeout(resolve, 100));
-    const user = result.data?.user;
-    const hasMembership = Boolean(user?.has_membership);
-    const isSubUser = Boolean(user?.sub_account);
-    const role = user?.role?.toLowerCase();
-    const isExempt = role === 'admin' || role === 'city_inspector' || isSubUser;
-    const target = (!hasMembership && !isExempt) ? "/plans" : "/dashboard";
-    window.location.href = target;
+    window.location.href = "/dashboard";
   }
 
   async function handleGoogleSuccess(credentialResponse: CredentialResponse) {
@@ -100,13 +94,7 @@ export default function Login1Page() {
     );
 
     await new Promise((resolve) => setTimeout(resolve, 100));
-    const user = result.data?.user;
-    const hasMembership = Boolean(user?.has_membership);
-    const isSubUser = Boolean(user?.sub_account);
-    const role = user?.role?.toLowerCase();
-    const isExempt = role === 'admin' || role === 'city_inspector' || isSubUser;
-    const target = (!hasMembership && !isExempt) ? "/plans" : "/dashboard";
-    window.location.href = result.data.requiresRoleSelection ? "/select-role" : target;
+    window.location.href = result.data.requiresRoleSelection ? "/select-role" : "/dashboard";
   }
 
   function handleGoogleError() {

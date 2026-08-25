@@ -3,7 +3,6 @@
 // Server actions for property and installation management
 
 import { cookies } from 'next/headers';
-import { loginSchema, registerSchema, forgotPasswordSchema, verifyOtpSchema, resetPasswordSchema } from '@/lib/validations/auth';
 
 /**
  * Converts a component type string to its API endpoint segment by replacing underscores with hyphens.
@@ -22,7 +21,6 @@ type FetchApiParams = {
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
     tags?: string[];
     isAuth?: boolean;
-    token?: string;
     responseType?: 'json' | 'blob' | 'text';
     /** Request timeout in milliseconds. Defaults to 120000ms (2 min) for blobs, 30000ms for others. */
     timeout?: number;
@@ -52,7 +50,6 @@ export async function fetchApi<T = any>({
     method = 'GET',
     tags,
     isAuth = true,
-    token: customToken,
     responseType = 'json',
     timeout,
 }: FetchApiParams): Promise<FetchApiResponse<T>> {
@@ -60,7 +57,7 @@ export async function fetchApi<T = any>({
     const _url = API_URL + url;
 
     const cookieStore = await cookies();
-    let token = customToken ?? cookieStore.get('auth-token')?.value;
+    let token = cookieStore.get('auth-token')?.value;
     const refreshTokenValue = cookieStore.get('refresh-token')?.value;
     const isFormData = data instanceof FormData;
 
@@ -173,12 +170,7 @@ export async function loginUser(body: any): Promise<ActionResult<{
     user: { id: string; name: string; email: string; role: string; sub_account: boolean; has_membership: boolean };
 }>> {
     try {
-        const parseResult = loginSchema.safeParse(body);
-        if (!parseResult.success) {
-            const errorMsg = parseResult.error.issues.map(i => i.message).join(', ');
-            return { success: false, message: errorMsg };
-        }
-        const { rememberMe, ...loginData } = parseResult.data;
+        const { rememberMe, ...loginData } = body;
         const response = await fetchApi({
             url: '/api/auth/login',
             method: 'POST',
@@ -489,14 +481,10 @@ export async function registerUser(body: any): Promise<ActionResult> {
 }
 
 export async function forgotPassword(body: any): Promise<ActionResult> {
-    const parseResult = forgotPasswordSchema.safeParse(body);
-    if (!parseResult.success) {
-        return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
-    }
     const response = await fetchApi({
         url: '/api/auth/forgot-password',
         method: 'POST',
-        data: parseResult.data,
+        data: body,
         isAuth: false,
     });
 
@@ -513,14 +501,10 @@ export async function forgotPassword(body: any): Promise<ActionResult> {
 }
 
 export async function verifyOtp(body: any): Promise<ActionResult> {
-    const parseResult = verifyOtpSchema.safeParse(body);
-    if (!parseResult.success) {
-        return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
-    }
     const response = await fetchApi({
         url: '/api/auth/verify-otp',
         method: 'POST',
-        data: parseResult.data,
+        data: body,
         isAuth: false,
     });
 
@@ -537,14 +521,10 @@ export async function verifyOtp(body: any): Promise<ActionResult> {
 }
 
 export async function verifyRegisterOtp(body: { email: string; otp: string }): Promise<ActionResult> {
-    const parseResult = verifyOtpSchema.safeParse(body);
-    if (!parseResult.success) {
-        return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
-    }
     const response = await fetchApi({
         url: '/api/auth/register/verify',
         method: 'POST',
-        data: parseResult.data,
+        data: body,
         isAuth: false,
     });
 
@@ -555,146 +535,16 @@ export async function verifyRegisterOtp(body: { email: string; otp: string }): P
                 ? response.messages
                 : 'Failed to verify OTP';
         return { success: false, message: msg };
-    }
-
-    const data = response.data;
-    const formToken = data?.formToken || data?.form_token || data?.token;
-    if (formToken) {
-        try {
-            const cookieStore = await cookies();
-            cookieStore.set('form-token', formToken, {
-                httpOnly: false,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
-                maxAge: 3600,
-            });
-        } catch (cookieErr) {
-            console.error('Error setting form-token cookie:', cookieErr);
-        }
     }
 
     return { success: true, data: response.data };
 }
 
 export async function resendRegisterOtp(body: { email: string }): Promise<ActionResult> {
-    const parseResult = forgotPasswordSchema.safeParse(body);
-    if (!parseResult.success) {
-        return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
-    }
     const response = await fetchApi({
         url: '/api/auth/register/resend-otp',
         method: 'POST',
-        data: parseResult.data,
-        isAuth: false,
-    });
-
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages)
-            ? response.messages.join(', ')
-            : typeof response.messages === 'string'
-                ? response.messages
-                : 'Failed to resend OTP';
-        return { success: false, message: msg };
-    }
-
-    return { success: true, data: response.data };
-}
-
-export async function setSubUserPassword(body: { email?: string; password: string; token?: string }): Promise<ActionResult> {
-    if (!body.password || body.password.length < 6) {
-        return { success: false, message: 'Password must be at least 6 characters.' };
-    }
-    const response = await fetchApi({
-        url: '/api/auth/sub-user/set-password',
-        method: 'POST',
         data: body,
-        isAuth: false,
-    });
-
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages)
-            ? response.messages.join(', ')
-            : typeof response.messages === 'string'
-                ? response.messages
-                : 'Failed to set password';
-        return { success: false, message: msg };
-    }
-
-    return { success: true, data: response.data };
-}
-
-export async function verifySubUserOtp(body: { email: string; otp: string }): Promise<ActionResult> {
-    const parseResult = verifyOtpSchema.safeParse({ email: body.email, otp: body.otp });
-    if (!parseResult.success) {
-        return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
-    }
-    const response = await fetchApi({
-        url: '/api/auth/sub-user/verify-otp',
-        method: 'POST',
-        data: body,
-        isAuth: false,
-    });
-
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages)
-            ? response.messages.join(', ')
-            : typeof response.messages === 'string'
-                ? response.messages
-                : 'Failed to verify OTP';
-        return { success: false, message: msg };
-    }
-
-    try {
-        const data = response.data;
-        if (data && data.tokens) {
-            const cookieStore = await cookies();
-            cookieStore.set('auth-token', data.tokens.idToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: data.tokens.expiresIn ? Number(data.tokens.expiresIn) : 24 * 60 * 60,
-            });
-            cookieStore.set('refresh-token', data.tokens.refreshToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: 30 * 24 * 60 * 60,
-            });
-            cookieStore.set('user-role', (data.role || 'guest').toLowerCase(), {
-                httpOnly: false,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: 30 * 24 * 60 * 60,
-            });
-            cookieStore.set('sub-account', String(data.sub_account ?? true), {
-                httpOnly: false,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: 30 * 24 * 60 * 60,
-            });
-            cookieStore.set('has-membership', String(data.has_membership ?? false), {
-                httpOnly: false,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: 30 * 24 * 60 * 60,
-            });
-        }
-    } catch (cookieError) {
-        console.error('Error setting session cookies in verifySubUserOtp:', cookieError);
-    }
-
-    return { success: true, data: response.data };
-}
-
-export async function resendSubUserOtp(body: { email: string }): Promise<ActionResult> {
-    const parseResult = forgotPasswordSchema.safeParse(body);
-    if (!parseResult.success) {
-        return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
-    }
-    const response = await fetchApi({
-        url: '/api/auth/sub-user/resend-otp',
-        method: 'POST',
-        data: parseResult.data,
         isAuth: false,
     });
 
@@ -712,14 +562,10 @@ export async function resendSubUserOtp(body: { email: string }): Promise<ActionR
 
 
 export async function resetPassword(body: any): Promise<ActionResult> {
-    const parseResult = resetPasswordSchema.safeParse(body);
-    if (!parseResult.success) {
-        return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
-    }
     const response = await fetchApi({
         url: '/api/auth/reset-password',
         method: 'POST',
-        data: parseResult.data,
+        data: body,
         isAuth: false,
     });
 
@@ -824,46 +670,38 @@ export async function deleteProperty(id: string) {
 }
 
 export async function uploadInstallationImages(type: string, id: string, files: File[] | Record<string, File | null>): Promise<ActionResult> {
-    try {
-        const formData = new FormData();
+    const formData = new FormData();
 
-        if (Array.isArray(files)) {
-            const key = normalizeCategoryKey(type);
-            files.forEach((file) => {
-                if (file) {
-                    formData.append(key || 'files', file);
-                }
-            });
-        } else if (files && typeof files === 'object') {
-            Object.entries(files).forEach(([fieldName, file]) => {
-                if (file) {
-                    formData.append(fieldName, file);
-                }
-            });
-        } else {
-            return { success: false, message: 'No image files provided for upload' };
-        }
-
-        const response = await fetchApi({
-            url: `/api/${toEndpointType(type)}/${id}/images`,
-            method: 'POST',
-            data: formData,
+    if (Array.isArray(files)) {
+        const key = normalizeCategoryKey(type);
+        files.forEach((file) => {
+            formData.append(key || 'files', file);
         });
-
-        if (response.type === 'error') {
-            const message =
-                typeof response.messages === 'string'
-                    ? response.messages
-                    : Array.isArray(response.messages)
-                        ? response.messages.join(', ')
-                        : 'Failed to upload images';
-            return { success: false, message };
-        }
-
-        return { success: true, data: response.data };
-    } catch (e: any) {
-        return { success: false, message: e?.message || 'Failed to upload images' };
+    } else {
+        Object.entries(files).forEach(([fieldName, file]) => {
+            if (file) {
+                formData.append(fieldName, file);
+            }
+        });
     }
+
+    const response = await fetchApi({
+        url: `/api/${toEndpointType(type)}/${id}/images`,
+        method: 'POST',
+        data: formData,
+    });
+
+    if (response.type === 'error') {
+        const message =
+            typeof response.messages === 'string'
+                ? response.messages
+                : Array.isArray(response.messages)
+                    ? response.messages.join(', ')
+                    : 'Failed to upload images';
+        return { success: false, message };
+    }
+
+    return { success: true, data: response.data };
 }
 
 export async function postReport(propertyId: string): Promise<ActionResult> {
@@ -885,7 +723,7 @@ export async function postReport(propertyId: string): Promise<ActionResult> {
     return { success: true, data: response.data };
 }
 
-export async function getPropertyById(id: string) {
+export async function getPropertyById(id: any) {
     const response = await fetchApi({
         url: `/api/properties/components/summary?id=${id}`,
         method: 'GET',
@@ -1316,7 +1154,7 @@ export async function getReportUsage() {
 }
 
 export async function purchaseReport(reportId: string) {
-    const url = `/api/reports/${reportId}/purchase`;
+    let url = `/api/reports/${reportId}/purchase`
     const response = await fetchApi({
         url: url,
         method: 'POST',
@@ -1329,7 +1167,7 @@ export async function purchaseReport(reportId: string) {
 }
 
 export async function purchaseAllContractorReports(propertyId: string): Promise<ActionResult> {
-    const url = `/api/stripe/purchase/property/${propertyId}`;
+    let url = `/api/stripe/purchase/property/${propertyId}`
     const response = await fetchApi({
         url: url,
         method: 'POST',
@@ -1501,7 +1339,7 @@ export async function getCities(
         url += `?${query}`;
     }
 
-
+    console.log(url)
 
     const response = await fetchApi({
         url,
@@ -1762,52 +1600,27 @@ export async function getPropertyOwners() {
     return response.data;
 }
 export async function uploadPropertOwnerImages(type: string, id: string, files: File[]): Promise<ActionResult> {
-    try {
-        const formData = new FormData();
-        if (Array.isArray(files)) {
-            files.forEach((file) => {
-                if (file) formData.append('files', file);
-            });
-        }
-
-        const url = `/api/owner-project/${id}/upload`;
-
-        const response = await fetchApi({
-            url: url,
-            method: 'POST',
-            data: formData,
-        });
-
-        if (response.type === 'error') {
-            const message =
-                typeof response.messages === 'string'
-                    ? response.messages
-                    : Array.isArray(response.messages)
-                        ? response.messages.join(', ')
-                        : 'Failed to upload images';
-            return { success: false, message };
-        }
-
-        return { success: true, data: response.data };
-    } catch (e: any) {
-        return { success: false, message: e?.message || 'Failed to upload images' };
-    }
-}
-
-export async function uploadImagesPropertyOwnersForMainProjects(type: string, id: string, files: File[]) {
     const formData = new FormData();
     files.forEach((file) => {
         formData.append('files', file);
     });
 
+    let url = `/api/owner-project/${id}/upload`;
+
     const response = await fetchApi({
-        url: `/api/${toEndpointType(type)}/${id}/property-owner/images`,
+        url: url,
         method: 'POST',
         data: formData,
     });
 
     if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update images') };
+        const message =
+            typeof response.messages === 'string'
+                ? response.messages
+                : Array.isArray(response.messages)
+                    ? response.messages.join(', ')
+                    : 'Failed to upload images';
+        return { success: false, message };
     }
 
     return { success: true, data: response.data };
@@ -2034,7 +1847,7 @@ export async function checkoutReports(filters: PropertyFilters) {
 }
 
 export async function getPropertyTypeOption() {
-    const url = '/api/properties/property-types'
+    let url = '/api/properties/property-types'
     const response = await fetchApi({
         url,
         method: 'GET'
@@ -2050,7 +1863,7 @@ export async function getPropertyTypeOptions(page?: number, limit?: number, sear
     if (page !== undefined) params.append('page', String(page));
     if (limit !== undefined) params.append('limit', String(limit));
     if (search) params.append('search', search);
-    const url = `/api/property-types${params.toString() ? `?${params.toString()}` : ''}`;
+    let url = `/api/property-types${params.toString() ? `?${params.toString()}` : ''}`;
     const response = await fetchApi({
         url,
         method: 'GET'
@@ -2062,7 +1875,7 @@ export async function getPropertyTypeOptions(page?: number, limit?: number, sear
 }
 
 export async function createPropertyType(body: any) {
-    const url = '/api/property-types'
+    let url = '/api/property-types'
     const response = await fetchApi({
         url,
         method: 'POST',
@@ -2076,7 +1889,7 @@ export async function createPropertyType(body: any) {
 }
 
 export async function editPropertyType(id: string, body: any) {
-    const url = `/api/property-types/${id}`;
+    let url = `/api/property-types/${id}`;
     const response = await fetchApi({
         url,
         method: 'PUT',
@@ -2089,7 +1902,7 @@ export async function editPropertyType(id: string, body: any) {
 }
 
 export async function deletePropertyType(id: string) {
-    const url = `/api/property-types/${id}`;
+    let url = `/api/property-types/${id}`;
     const response = await fetchApi({
         url,
         method: 'DELETE'
@@ -2101,7 +1914,7 @@ export async function deletePropertyType(id: string) {
 }
 
 export async function createServiceProvided(body: any) {
-    const url = '/api/services-provided'
+    let url = '/api/services-provided'
     const response = await fetchApi({
         url,
         method: 'POST',
@@ -2115,7 +1928,7 @@ export async function createServiceProvided(body: any) {
 
 
 export async function editServiceProvided(id: string, body: any) {
-    const url = `/api/services-provided/${id}`;
+    let url = `/api/services-provided/${id}`;
     const response = await fetchApi({
         url,
         method: 'PUT',
@@ -2128,7 +1941,7 @@ export async function editServiceProvided(id: string, body: any) {
 }
 
 export async function deleteServiceProvided(id: string) {
-    const url = `/api/services-provided/${id}`;
+    let url = `/api/services-provided/${id}`;
     const response = await fetchApi({
         url,
         method: 'DELETE'
@@ -2144,7 +1957,7 @@ export async function getServiceProvided(page?: number, limit?: number, search?:
     if (page !== undefined) params.append('page', String(page));
     if (limit !== undefined) params.append('limit', String(limit));
     if (search) params.append('search', search);
-    const url = `/api/services-provided${params.toString() ? `?${params.toString()}` : ''}`;
+    let url = `/api/services-provided${params.toString() ? `?${params.toString()}` : ''}`;
     const response = await fetchApi({
         url,
         method: 'GET'
@@ -2156,7 +1969,7 @@ export async function getServiceProvided(page?: number, limit?: number, search?:
 }
 
 export async function createRoles(body: any) {
-    const url = '/api/roles'
+    let url = '/api/roles'
     const response = await fetchApi({
         url,
         method: 'POST',
@@ -2170,7 +1983,7 @@ export async function createRoles(body: any) {
 
 
 export async function editRoles(id: string, body: any) {
-    const url = `/api/roles/${id}`;
+    let url = `/api/roles/${id}`;
     const response = await fetchApi({
         url,
         method: 'PUT',
@@ -2183,7 +1996,7 @@ export async function editRoles(id: string, body: any) {
 }
 
 export async function deleteRoles(id: string) {
-    const url = `/api/roles/${id}`;
+    let url = `/api/roles/${id}`;
     const response = await fetchApi({
         url,
         method: 'DELETE'
@@ -2217,7 +2030,7 @@ export async function getRoles(page?: number, limit?: number, search?: string) {
 
 
 export async function createImageCategory(body: any) {
-    const url = '/api/admin/component-image-categories'
+    let url = '/api/admin/component-image-categories'
     const response = await fetchApi({
         url,
         method: 'POST',
@@ -2231,7 +2044,7 @@ export async function createImageCategory(body: any) {
 
 
 export async function editImageCategory(id: string, body: any) {
-    const url = `/api/admin/component-image-categories/${id}`;
+    let url = `/api/admin/component-image-categories/${id}`;
     const response = await fetchApi({
         url,
         method: 'PUT',
@@ -2244,7 +2057,7 @@ export async function editImageCategory(id: string, body: any) {
 }
 
 export async function deleteImageCategory(id: string) {
-    const url = `/api/admin/component-image-categories/${id}`;
+    let url = `/api/admin/component-image-categories/${id}`;
     const response = await fetchApi({
         url,
         method: 'DELETE'
@@ -2272,7 +2085,7 @@ export async function getImageCategory(page: number | string = 1, limit: number 
     if (search) params.append('search', search);
     if (actualComponentType) params.append('component_type', actualComponentType);
 
-    const url = `/api/admin/component-image-categories?${params.toString()}`;
+    let url = `/api/admin/component-image-categories?${params.toString()}`;
     const response = await fetchApi({
         url,
         method: 'GET'
@@ -2285,7 +2098,7 @@ export async function getImageCategory(page: number | string = 1, limit: number 
 
 
 export async function addProject(propertyId: any, body: any): Promise<ActionResult> {
-    const url = `/api/property-projects/${propertyId}`;
+    let url = `/api/property-projects/${propertyId}`;
     const response = await fetchApi({
         url,
         method: "POST",
@@ -2311,7 +2124,7 @@ export async function editProject(propertyId: any, projectId: any, body: any): P
 }
 
 export async function getReportPrice() {
-    const url = `/api/app-settings`
+    let url = `/api/app-settings`
     const response = await fetchApi({
         url,
         method: 'GET'
@@ -2323,7 +2136,7 @@ export async function getReportPrice() {
 }
 
 export async function editReportPrice(id: any, body: any) {
-    const url = `/api/app-settings/${id}`;
+    let url = `/api/app-settings/${id}`;
     const response = await fetchApi({
         url,
         method: 'PUT',
@@ -2336,7 +2149,7 @@ export async function editReportPrice(id: any, body: any) {
 }
 
 export async function getProjectTypesforPropertyOwner() {
-    const url = `/api/owner-project/types`;
+    let url = `/api/owner-project/types`;
     const response = await fetchApi({
         url,
         method: 'GET'
@@ -2348,7 +2161,7 @@ export async function getProjectTypesforPropertyOwner() {
 }
 
 export async function postPropertyOwnerInstallations(id: any, body: any): Promise<ActionResult> {
-    const url = `/api/owner-project/${id}`;
+    let url = `/api/owner-project/${id}`;
     const response = await fetchApi({
         url,
         method: 'POST',
@@ -2384,38 +2197,31 @@ export async function updatePropertyOwnerInstallation(id: string, body: any): Pr
 
 
 export async function uploadOwnerProjectImage(installationId: string, file: File): Promise<ActionResult> {
-    try {
-        if (!file) {
-            return { success: false, message: 'No file provided for upload' };
-        }
-        const formData = new FormData();
-        formData.append('file', file);
+    const formData = new FormData();
+    formData.append('file', file);
 
-        const response = await fetchApi({
-            url: `/api/owner-project/${installationId}/upload`,
-            method: 'POST',
-            data: formData,
-        });
+    const response = await fetchApi({
+        url: `/api/owner-project/${installationId}/upload`,
+        method: 'POST',
+        data: formData,
+    });
 
-        if (response.type === 'error') {
-            const message =
-                typeof response.messages === 'string'
-                    ? response.messages
-                    : Array.isArray(response.messages)
-                        ? response.messages.join(', ')
-                        : 'Failed to upload image';
-            return { success: false, message };
-        }
-
-        return { success: true, data: response.data };
-    } catch (e: any) {
-        return { success: false, message: e?.message || 'Failed to upload image' };
+    if (response.type === 'error') {
+        const message =
+            typeof response.messages === 'string'
+                ? response.messages
+                : Array.isArray(response.messages)
+                    ? response.messages.join(', ')
+                    : 'Failed to upload image';
+        return { success: false, message };
     }
+
+    return { success: true, data: response.data };
 }
 
 
 export async function verifyInstallation(permitId: string, payload: any, projectId?: string) {
-    const url = projectId ? `/api/owner-project/${projectId}/verify` : `/api/permit/${permitId}/verify`;
+    let url = projectId ? `/api/owner-project/${projectId}/verify` : `/api/permit/${permitId}/verify`;
     const response = await fetchApi({
         url,
         method: 'POST',
@@ -2463,16 +2269,13 @@ export async function purchaseExtraUsers(numberOfUsers: number): Promise<ActionR
     return { success: true, data: response.data };
 }
 
-export async function postAddtionalUserForm(userId: string, body: any, formTokenOverride?: string) {
-    const cookieStore = await cookies();
-    const formToken = formTokenOverride || cookieStore.get('form-token')?.value;
+export async function postAddtionalUserForm(userId: string, body: any) {
 
-    const url = `/api/auth/form/${userId}`;
+    let url = `/api/auth/form/${userId}`;
     const response = await fetchApi({
         url,
         method: 'POST',
-        data: body,
-        ...(formToken ? { token: formToken } : {}),
+        data: body
     });
     if (response.type === 'error') {
         const msg = Array.isArray(response.messages)
@@ -2484,6 +2287,7 @@ export async function postAddtionalUserForm(userId: string, body: any, formToken
     }
 
     try {
+        const cookieStore = await cookies();
         const data = response.data;
         if (data && data.tokens) {
             cookieStore.set('auth-token', data.tokens.idToken, {
@@ -2517,7 +2321,6 @@ export async function postAddtionalUserForm(userId: string, body: any, formToken
                 maxAge: 30 * 24 * 60 * 60
             });
         }
-        cookieStore.delete('form-token');
     } catch (cookieError) {
         console.error('Error setting cookies in postAddtionalUserForm:', cookieError);
     }
@@ -2526,13 +2329,13 @@ export async function postAddtionalUserForm(userId: string, body: any, formToken
 }
 
 export async function getprojectTypesInProperty(propertyId: any) {
-    const url = `/api/property-projects/property/${propertyId}/types`;
+    let url = `/api/property-projects/property/${propertyId}/types`;
     const response = await fetchApi({
         url,
         method: 'GET',
     });
     if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to get project types'), data: [], totalcount: 0 };
+        throw new Error(normalizeMsg(response.messages, 'Failed to get project types'));
     }
     return response.data;
 }
@@ -2554,7 +2357,7 @@ export async function getprojectListingOfProperty(propertyId: any, projectType?:
         method: 'GET',
     });
     if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to get projects'), data: [] };
+        throw new Error(normalizeMsg(response.messages, 'Failed to get projects'));
     }
     return response.data;
 }
@@ -2571,13 +2374,13 @@ export async function getMyProjects(page: number = 1, limit: number = 9, search?
     if (isConfirmed !== undefined) {
         params.append('is_confirmed', String(isConfirmed));
     }
-    const url = `/api/property-projects/user/properties/full?${params.toString()}`;
+    let url = `/api/property-projects/user/properties/full?${params.toString()}`;
     const response = await fetchApi({
         url,
         method: 'GET',
     });
     if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to get projects'), data: [] };
+        throw new Error(normalizeMsg(response.messages, 'Failed to get projects'));
     }
     return response.data;
 }
@@ -2592,13 +2395,13 @@ export async function getAllProjects(page: number = 1, limit: number = 9, search
     if (isConfirmed !== undefined) {
         params.append('is_confirmed', String(isConfirmed));
     }
-    const url = `/api/property-projects/user/properties/full?${params.toString()}`;
+    let url = `/api/property-projects/user/properties/full?${params.toString()}`;
     const response = await fetchApi({
         url,
         method: 'GET',
     });
     if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to get projects'), data: [] };
+        throw new Error(normalizeMsg(response.messages, 'Failed to get projects'));
     }
     return response.data;
 }
@@ -2611,7 +2414,7 @@ export async function getProjectByIdNew(projectId: string) {
         method: 'GET',
     });
     if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to get project'), data: null };
+        throw new Error(normalizeMsg(response.messages, 'Failed to get project'));
     }
     return response.data;
 }
@@ -2663,7 +2466,7 @@ export async function getPurchasedReports(page: number = 1, limit: number = 9, s
         method: 'GET',
     });
     if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to get purchased reports'), data: [] };
+        throw new Error(normalizeMsg(response.messages, 'Failed to get purchased reports'));
     }
     return response.data;
 }
@@ -2773,15 +2576,15 @@ export async function getImportJobStatus(jobId: string): Promise<ActionResult> {
     return { success: true, data: response.data?.data || response.data };
 }
 
-export async function getPermitsForProperty(propertyId: string): Promise<ActionResult> {
+export async function getPermitsForProperty(propertyId: string) {
     const response = await fetchApi({
         url: `/api/permit?id=${propertyId}`,
         method: 'GET',
     });
     if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to get permits') };
+        throw new Error(normalizeMsg(response.messages, 'Failed to get permits'));
     }
-    return { success: true, data: response.data };
+    return response.data;
 }
 
 export async function getAddedPropertiesListing(params?: { page?: number; limit?: number; search?: string; status?: string }): Promise<ActionResult> {

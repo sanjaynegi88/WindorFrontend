@@ -41,15 +41,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { getUserList, deleteUserAdmin, getUserById, getRoles } from '@/lib/actions';
+import { getUserList, deleteUserAdmin, getUserById } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -132,8 +125,6 @@ export default function UserList() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [selectedRole, setSelectedRole] = useState<string>('all');
-  const [roles, setRoles] = useState<{ id?: string; name?: string; role?: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>([]);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -143,32 +134,11 @@ export default function UserList() {
   const [viewingUserData, setViewingUserData] = useState<any | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
-  useEffect(() => {
-    const fetchRoles = async () => {
-      try {
-        const response = await getRoles().catch(() => null);
-        const rawRoles = Array.isArray(response)
-          ? response
-          : response?.data || response?.roles || [];
-        setRoles(rawRoles);
-      } catch (error) {
-        console.error('Failed to fetch roles:', error);
-      }
-    };
-    fetchRoles();
-  }, []);
-
-  const fetchData = async (
-    page: number = 1,
-    limit: number = 10,
-    search?: string,
-    role?: string
-  ) => {
+  const fetchData = async (page: number = 1, limit: number = 10, search?: string) => {
     setLoading(true);
     try {
-      const roleParam = role && role !== 'all' ? role : undefined;
-      const response = await getUserList(page, limit, roleParam, search);
-      const mappedData = (response.data || []).map((user: any) => ({
+      const response = await getUserList(page, limit, undefined, search);
+      const mappedData = response.data.map((user: any) => ({
         id: user.id || user.firebase_uid,
         first_name: user.first_name || 'N/A',
         last_name: user.last_name || 'N/A',
@@ -203,7 +173,7 @@ export default function UserList() {
       }
       toast.success('User deleted successfully');
       setDeletingUser(null);
-      fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch, selectedRole);
+      fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
     } catch (error: any) {
       toast.error(error.message || 'Failed to delete user');
     }
@@ -232,14 +202,14 @@ export default function UserList() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Reset to page 0 when search or role changes
+  // Reset to page 0 when search changes
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [debouncedSearch, selectedRole]);
+  }, [debouncedSearch]);
 
   useEffect(() => {
-    fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch, selectedRole);
-  }, [pagination.pageIndex, pagination.pageSize, debouncedSearch, selectedRole]);
+    fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
+  }, [pagination.pageIndex, pagination.pageSize, debouncedSearch]);
 
   const { pageIndex, pageSize } = pagination;
 
@@ -769,31 +739,6 @@ export default function UserList() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="ps-9 w-full"
                   />
-                </div>
-                <div className="w-full sm:w-52">
-                  <Select
-                    value={selectedRole}
-                    onValueChange={(val) => setSelectedRole(val)}
-                  >
-                    <SelectTrigger
-                      size="sm"
-                      className="h-8 text-xs rounded-[6px] w-full bg-white border border-[rgba(112,128,144,0.23)] text-[#1F2A44] font-asap font-medium shadow-none"
-                    >
-                      <SelectValue placeholder="All Roles" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Roles</SelectItem>
-                      {roles.map((r: any) => {
-                        const roleVal = typeof r === 'string' ? r : r.role_name || r.name || r.role || r.id || '';
-                        if (!roleVal) return null;
-                        return (
-                          <SelectItem key={r.id || roleVal} value={roleVal}>
-                            {toPascalCase(roleVal)}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
             </CardHeading>

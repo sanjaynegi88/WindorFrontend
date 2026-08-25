@@ -75,7 +75,7 @@ export default function AddContractorStaffPage() {
       return;
     }
     toast.success(
-      `Contractor staff "${values.firstName} ${values.lastName}" added successfully!`,
+      `Insurance staff "${values.firstName} ${values.lastName}" added successfully!`,
     );
     router.push("/contractor-users");
   };

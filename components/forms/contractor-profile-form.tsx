@@ -71,6 +71,7 @@ export function ContractorProfileForm({
     { id: string; service_name: string }[]
   >([]);
   const isPremium = membershipLevel === "GOLD";
+  console.log(isPremium);
   const router = useRouter();
 
   useEffect(() => {
@@ -112,6 +113,7 @@ export function ContractorProfileForm({
   }, [initialData, form]);
 
   const onSubmit = async (data: ContractorProfileFormValues) => {
+    console.log(" edit runned");
     setIsSubmitting(true);
     try {
       const formData = new FormData();

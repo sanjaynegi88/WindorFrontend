@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import Image from "next/image";
 import { Loader2, ImagePlus, X, ChevronLeft, ChevronRight } from "lucide-react";
-import { cn, toPascalCase, toTitleCase } from "@/lib/utils";
-import { uploadImagesPropertyOwnersForMainProjects } from "@/lib/actions";
+import { cn, toPascalCase } from "@/lib/utils";
+import { uploadPropertOwnerImages } from "@/lib/actions";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Installation, normalizeImageUrl, toApiType } from "./types";
@@ -31,20 +31,17 @@ export const InstallationCard = ({
 
   const validImages = localImages
     .map((img) => ({ img, src: normalizeImageUrl(img) }))
-    .filter(
-      (entry): entry is { img: (typeof localImages)[number]; src: string } =>
-        Boolean(entry.src),
-    );
+    .filter((entry): entry is { img: typeof localImages[number]; src: string } => Boolean(entry.src));
   const validImageUrls = validImages.map((entry) => entry.src);
 
   const alreadyUploaded = localImages.some((img) => img.owner_uploaded);
 
   const formattedDate = item.install_date
     ? new Date(item.install_date).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      })
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    })
     : "N/A";
 
   const typeColor: Record<string, string> = {
@@ -62,21 +59,22 @@ export const InstallationCard = ({
     if (!files.length) return;
 
     setUploading(true);
-    const result = await uploadImagesPropertyOwnersForMainProjects(
+    const result = await uploadPropertOwnerImages(
       toApiType(item.component_type),
       item.id,
       files,
     );
     setUploading(false);
+    console.log(result);
 
     if (!result.success) {
-      toast.error(result.message || "Failed to upload images");
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      toast.error(result.message || 'Failed to upload images');
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
     const previews = files.map((f) => ({
-      id: "",
+      id: '',
       image_url: null,
       thumbnail_url: null,
       property_owner_files: URL.createObjectURL(f),
@@ -85,8 +83,8 @@ export const InstallationCard = ({
       created_at: new Date().toISOString(),
     }));
     setLocalImages((prev) => [...prev, ...previews]);
-    toast.success("Images uploaded successfully");
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    toast.success('Images uploaded successfully');
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   return (
@@ -107,7 +105,7 @@ export const InstallationCard = ({
               badgeClass,
             )}
           >
-            {toTitleCase(item.component_type)}
+            {item.component_type}
           </span>
           {item.impact_resistant && (
             <span className="text-[10px] md:text-[11px] font-semibold uppercase tracking-widest px-3 py-1 rounded-full border bg-[rgba(255,193,7,0.12)] text-[#F59E0B] border-[#F59E0B] font-inter">
@@ -126,9 +124,7 @@ export const InstallationCard = ({
                   : "bg-[rgba(255,193,7,0.12)] text-[#F59E0B] border-[#F59E0B]",
             )}
           >
-            {item.permit_status
-              ? toPascalCase(item.permit_status)
-              : "Permit Not Uploaded"}
+            {item.permit_status ? toPascalCase(item.permit_status) : "Permit Not Uploaded"}
           </span>
 
           {canUpload &&
@@ -183,7 +179,6 @@ export const InstallationCard = ({
           { label: "Install Date", value: formattedDate },
           { label: "Contractor", value: item.installer },
           { label: "Supplier", value: item.supplier },
-          ...(item.other ? [{ label: "Other", value: item.other }] : []),
         ].map(({ label, value }) => (
           <div key={label} className="space-y-0.5">
             <p className="text-[10px] md:text-[11px] font-semibold uppercase tracking-widest text-[#B0BEC5] font-inter">
@@ -249,9 +244,7 @@ export const InstallationCard = ({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setCurrentImageIndex((prev) =>
-                        prev === 0 ? selectedImages.length - 1 : prev - 1,
-                      );
+                      setCurrentImageIndex((prev) => (prev === 0 ? selectedImages.length - 1 : prev - 1));
                     }}
                     className="absolute left-2 md:left-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10 cursor-pointer"
                   >
@@ -274,9 +267,7 @@ export const InstallationCard = ({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setCurrentImageIndex((prev) =>
-                        prev === selectedImages.length - 1 ? 0 : prev + 1,
-                      );
+                      setCurrentImageIndex((prev) => (prev === selectedImages.length - 1 ? 0 : prev + 1));
                     }}
                     className="absolute right-2 md:left-auto md:right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10 cursor-pointer"
                   >
@@ -290,7 +281,7 @@ export const InstallationCard = ({
                   {selectedImages.map((_, idx) => (
                     <div
                       key={idx}
-                      className={`size-2.5 rounded-full transition-colors ${idx === currentImageIndex ? "bg-white" : "bg-white/40"}`}
+                      className={`size-2.5 rounded-full transition-colors ${idx === currentImageIndex ? 'bg-white' : 'bg-white/40'}`}
                     />
                   ))}
                 </div>

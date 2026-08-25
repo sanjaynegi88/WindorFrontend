@@ -6,7 +6,13 @@ import { ChevronLeft, X, ImageIcon, Loader2, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadPropertyImages, getPropertyById } from "@/lib/actions";
 import { toast } from "sonner";
-import { ImageSourcePickerDialog } from "@/components/modals/image-source-picker-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 interface PropertyAddressPhotosProps {
   address: string;
@@ -57,12 +63,14 @@ export function PropertyAddressPhotos({
     let isMounted = true;
     const fetchExistingImages = async () => {
       const startTime = performance.now();
-
+      console.log(
+        `[DEBUG] PropertyAddressPhotos: fetchExistingImages STARTED for propertyId=${propertyId}`,
+      );
       setLoadingExisting(true);
       try {
         const res = await getPropertyById(propertyId);
         const duration = performance.now() - startTime;
-
+        //console.log(`[DEBUG] PropertyAddressPhotos: getPropertyById API response time: ${duration.toFixed(2)} ms`);
         const propertyPayload = res?.data ?? res;
         if (propertyPayload && isMounted) {
           setPhotos({
@@ -170,6 +178,7 @@ export function PropertyAddressPhotos({
 
     setUploading(true);
     const startTime = performance.now();
+    console.log(`[DEBUG] PropertyAddressPhotos: uploadPropertyImages STARTED`);
     try {
       const response = await uploadPropertyImages(
         propertyId,
@@ -177,6 +186,9 @@ export function PropertyAddressPhotos({
         otherFile,
       );
       const duration = performance.now() - startTime;
+      console.log(
+        `[DEBUG] PropertyAddressPhotos: uploadPropertyImages API response time: ${duration.toFixed(2)} ms`,
+      );
       if (!response.success) {
         toast.error(response.message);
         return;
@@ -192,6 +204,9 @@ export function PropertyAddressPhotos({
   };
 
   if (loadingExisting) {
+    console.log(
+      `[DEBUG] PropertyAddressPhotos: Rendering "Loading saved images..." spinner (propertyId=${propertyId})`,
+    );
     return (
       <div className="w-full max-w-[1170px] mx-auto flex flex-col items-center justify-center py-20 gap-4 font-asap">
         <Loader2 className="size-12 animate-spin text-[#1CA7A6]" />
@@ -348,13 +363,42 @@ export function PropertyAddressPhotos({
         </button>
       </div>
 
-      {/* Upload Option Popup Dialog */}
-      <ImageSourcePickerDialog
-        isOpen={!!activePickerTarget}
-        onClose={() => setActivePickerTarget(null)}
-        onSelectCamera={handleSelectCamera}
-        onSelectGallery={handleSelectGallery}
-      />
+      {/* Upload Option Popup Dialog for Mobile */}
+      <Dialog
+        open={!!activePickerTarget}
+        onOpenChange={(open) => !open && setActivePickerTarget(null)}
+      >
+        <DialogContent className="max-w-[90vw] sm:max-w-[400px] rounded-[20px] p-6 bg-white shadow-2xl font-asap border border-slate-100">
+          <DialogHeader className="text-center space-y-2 mb-4">
+            <DialogTitle className="text-xl font-extrabold text-[#1F2A44] uppercase tracking-tight text-center">
+              Upload Photo
+            </DialogTitle>
+            <DialogDescription className="text-sm font-medium text-[#708090] text-center">
+              Choose how you would like to upload your image:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 gap-3">
+            <button
+              type="button"
+              onClick={handleSelectCamera}
+              className="flex items-center justify-center gap-3 w-full h-[52px] bg-[#1CA7A6] hover:bg-[#189695] text-white font-bold rounded-xl text-base shadow-md transition-all active:scale-[0.98] cursor-pointer"
+            >
+              <Camera className="size-5" />
+              <span>Take Photo (Camera)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSelectGallery}
+              className="flex items-center justify-center gap-3 w-full h-[52px] bg-slate-100 hover:bg-slate-200 text-[#1F2A44] font-bold rounded-xl text-base transition-all active:scale-[0.98] cursor-pointer border border-slate-200/60"
+            >
+              <ImageIcon className="size-5 text-[#1CA7A6]" />
+              <span>Choose from Gallery</span>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

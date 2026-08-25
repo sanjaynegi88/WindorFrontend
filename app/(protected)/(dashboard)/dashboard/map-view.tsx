@@ -67,15 +67,9 @@ export default function MapView({
 
   const activeRequestRef = useRef<number>(0);
 
-  // Fetch report usage
+  // Fetch report usage (insurance role)
   useEffect(() => {
-    if (
-      role === "insurance_company" ||
-      role === "realtor" ||
-      role === "manufacturer" ||
-      role === "contractor" ||
-      role === "property_owner"
-    ) {
+    if (role === "insurance_company") {
       getReportUsage()
         .then((res) => setReportUsage(res.data))
         .catch(() => {});
@@ -192,16 +186,16 @@ export default function MapView({
       !!ownerEmail &&
       user?.email?.toLowerCase() === ownerEmail.toLowerCase();
     const isPurchased = p.is_purchased === true;
-    const hasLimitAccess = Boolean(reportUsage && reportUsage.remaining > 0);
 
     const canDownload =
-      (role === "property_owner" && (isOwnerOfProperty || isPurchased || hasLimitAccess)) ||
+      (role === "property_owner" && (isOwnerOfProperty || isPurchased)) ||
       role === "admin" ||
       role === "city_inspector" ||
-      (role === "contractor" && (isPurchased || hasLimitAccess)) ||
-      (role === "manufacturer" && (isPurchased || hasLimitAccess)) ||
-      (role === "realtor" && (isPurchased || hasLimitAccess)) ||
-      (role === "insurance_company" && (isPurchased || hasLimitAccess));
+      (role === "contractor" && isPurchased) ||
+      (role === "manufacturer" && isPurchased) ||
+      (role === "realtor" && isPurchased) ||
+      (role === "insurance_company" &&
+        (isPurchased || (reportUsage && reportUsage.remaining > 0)));
 
     return canDownload ? "view" : "purchase";
   };

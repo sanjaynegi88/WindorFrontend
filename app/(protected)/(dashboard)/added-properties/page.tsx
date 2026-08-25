@@ -188,6 +188,7 @@ export default function AddedPropertiesPage() {
     try {
       const apiStatus = type === "APPROVE" ? "APPROVE" : "REJECT";
       const res = await updatePropertyApproval(propertyId, apiStatus);
+      console.log(res);
 
       if (res.success) {
         const uiStatus = type === "APPROVE" ? "APPROVED" : "REJECTED";

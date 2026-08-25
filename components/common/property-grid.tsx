@@ -19,16 +19,7 @@ interface PropertyGridProps {
   mapSlot?: React.ReactNode;
 }
 
-export function PropertyGrid({
-  searchParams,
-  redirectUrl,
-  showActionButtons,
-  showDetail,
-  isPropertyOwner,
-  onOpenInMap,
-  onDeleteProperty,
-  mapSlot,
-}: PropertyGridProps) {
+export function PropertyGrid({ searchParams, redirectUrl, showActionButtons, showDetail, isPropertyOwner, onOpenInMap, onDeleteProperty, mapSlot }: PropertyGridProps) {
   const [properties, setProperties] = useState<any[]>([]);
 
   const handlePropertyDeleted = (deletedId: string) => {
@@ -43,14 +34,11 @@ export function PropertyGrid({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const getSafeString = (value: any): string => {
-    if (typeof value === "string") return value;
-    if (value && typeof value === "object" && "name" in value)
-      return String(value.name);
-    if (value && typeof value === "object" && "type_name" in value)
-      return String(value.type_name);
-    if (value && typeof value === "object" && "state_name" in value)
-      return String(value.state_name);
-    return "";
+    if (typeof value === 'string') return value;
+    if (value && typeof value === 'object' && 'name' in value) return String(value.name);
+    if (value && typeof value === 'object' && 'type_name' in value) return String(value.type_name);
+    if (value && typeof value === 'object' && 'state_name' in value) return String(value.state_name);
+    return '';
   };
 
   const fetchProperties = async (pageNum: number, append: boolean = false) => {
@@ -125,12 +113,10 @@ export function PropertyGrid({
       <div className="space-y-6 md:space-y-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
           {properties.map((prop) => {
-            const cityName =
-              getSafeString(prop.city_name) || getSafeString(prop.city);
-            const stateName =
-              prop.state_name !== "False"
-                ? getSafeString(prop.state_name) || getSafeString(prop.state)
-                : "";
+            const cityName = getSafeString(prop.city_name) || getSafeString(prop.city);;
+            const stateName = prop.state_name !== "False"
+              ? (getSafeString(prop.state_name) || getSafeString(prop.state))
+              : "";
 
             return (
               <PropertyCard
@@ -145,7 +131,7 @@ export function PropertyGrid({
                 zip={prop.zip || ""}
                 propertyId={prop.id}
                 isPurchased={prop.is_purchased || false}
-                propertyOwnerEmail={prop?.property_owner_email || ""}
+                propertyOwnerEmail={prop.property_owner?.email}
                 redirectUrl={redirectUrl || "/property-details/"}
                 showActionButtons={showActionButtons}
                 showDetail={showDetail}

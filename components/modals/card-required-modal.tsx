@@ -40,15 +40,14 @@ function CardForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stripe || !elements) {
-      console.warn(
-        "[CardForm] Submit attempted before Stripe/Elements initialization.",
-      );
+      console.warn("[CardForm] Submit attempted before Stripe/Elements initialization.");
       toast.error("Stripe is not initialized yet. Please try again.");
       return;
     }
 
     setIsSubmitting(true);
     setErrorMsg(null);
+    console.log("[CardForm] Processing card submission with clientSecret:", clientSecret);
 
     try {
       // 1. Confirm setup intent or create payment method
@@ -56,6 +55,7 @@ function CardForm({
       let paymentMethodId: string | undefined;
 
       if (cardElement) {
+        console.log("[CardForm] Calling stripe.confirmCardSetup...");
         const result = await stripe.confirmCardSetup(clientSecret, {
           payment_method: {
             card: cardElement,
@@ -65,11 +65,10 @@ function CardForm({
           },
         });
 
+        console.log("[CardForm] stripe.confirmCardSetup Result:", result);
+
         if (result.error) {
-          console.error(
-            "[CardForm] stripe.confirmCardSetup Error:",
-            result.error,
-          );
+          console.error("[CardForm] stripe.confirmCardSetup Error:", result.error);
           setErrorMsg(result.error.message || "Failed to process card details");
           setIsSubmitting(false);
           return;
@@ -80,7 +79,9 @@ function CardForm({
           typeof setupIntent?.payment_method === "string"
             ? setupIntent.payment_method
             : setupIntent?.payment_method?.id;
+        console.log("[CardForm] Extracted paymentMethodId from SetupIntent:", paymentMethodId);
       } else {
+        console.log("[CardForm] Calling stripe.confirmSetup...");
         const result = await stripe.confirmSetup({
           elements,
           redirect: "if_required",
@@ -88,6 +89,8 @@ function CardForm({
             return_url: window.location.href,
           },
         });
+
+        console.log("[CardForm] stripe.confirmSetup Result:", result);
 
         if (result.error) {
           console.error("[CardForm] stripe.confirmSetup Error:", result.error);
@@ -101,9 +104,11 @@ function CardForm({
           typeof setupIntent?.payment_method === "string"
             ? setupIntent.payment_method
             : setupIntent?.payment_method?.id;
+        console.log("[CardForm] Extracted paymentMethodId from SetupIntent:", paymentMethodId);
       }
 
       if (!paymentMethodId) {
+        console.log("[CardForm] Fallback: Calling stripe.createPaymentMethod...");
         const pmResult = await stripe.createPaymentMethod({
           type: "card",
           card: cardElement!,
@@ -111,12 +116,10 @@ function CardForm({
             name: name.trim() || undefined,
           },
         });
+        console.log("[CardForm] stripe.createPaymentMethod Result:", pmResult);
 
         if (pmResult.error) {
-          console.error(
-            "[CardForm] stripe.createPaymentMethod Error:",
-            pmResult.error,
-          );
+          console.error("[CardForm] stripe.createPaymentMethod Error:", pmResult.error);
           setErrorMsg(pmResult.error.message || "Invalid card details");
           setIsSubmitting(false);
           return;
@@ -124,7 +127,9 @@ function CardForm({
         paymentMethodId = pmResult.paymentMethod.id;
       }
 
+      console.log("[CardForm] Calling savePaymentMethod API with paymentMethodId:", paymentMethodId);
       const saveRes = await savePaymentMethod(paymentMethodId);
+      console.log("[CardForm] savePaymentMethod Response:", saveRes);
 
       if (!saveRes.success) {
         setErrorMsg(saveRes.message || "Failed to save payment method");
@@ -152,10 +157,7 @@ function CardForm({
       )}
 
       <div className="space-y-1.5">
-        <Label
-          htmlFor="cardholder-name"
-          className="text-xs font-semibold text-slate-700"
-        >
+        <Label htmlFor="cardholder-name" className="text-xs font-semibold text-slate-700">
           Cardholder Name
         </Label>
         <input
@@ -248,14 +250,11 @@ export function CardRequiredModal() {
           if (res.data?.clientSecret) {
             setClientSecret(res.data.clientSecret);
           } else {
-            setIntentError(
-              "Failed to initialize payment setup. Missing client secret.",
-            );
+            setIntentError("Failed to initialize payment setup. Missing client secret.");
           }
         } else {
           setIntentError(
-            res.message ||
-              "Failed to initialize payment setup. Please refresh.",
+            res.message || "Failed to initialize payment setup. Please refresh."
           );
         }
       } catch (err: any) {
@@ -310,10 +309,7 @@ export function CardRequiredModal() {
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-md mb-3 border border-white/20 shadow-inner">
             <CreditCard className="w-6 h-6 text-white" />
           </div>
-          <h2
-            id="modal-card-required-title"
-            className="text-xl font-bold tracking-tight"
-          >
+          <h2 id="modal-card-required-title" className="text-xl font-bold tracking-tight">
             Action Required: Add Payment Card
           </h2>
           <p className="text-xs text-teal-50/90 mt-1 max-w-xs mx-auto">
@@ -330,9 +326,7 @@ export function CardRequiredModal() {
               <span className="font-semibold text-amber-950 block mb-0.5">
                 Trial Billing Notice
               </span>
-              You must enter a payment card to continue. Billing will
-              automatically be done after your trial expires. You will{" "}
-              <strong>not be charged today</strong>.
+              You must enter a payment card to continue. Billing will automatically be done after your trial expires. You will <strong>not be charged today</strong>.
             </div>
           </div>
 
@@ -362,13 +356,11 @@ export function CardRequiredModal() {
                           setClientSecret(res.data.clientSecret);
                           setIntentError(null);
                         } else {
-                          setIntentError(
-                            "Failed to initialize payment setup. Missing client secret.",
-                          );
+                          setIntentError("Failed to initialize payment setup. Missing client secret.");
                         }
                       } else {
                         setIntentError(
-                          res.message || "Failed to initialize payment setup.",
+                          res.message || "Failed to initialize payment setup."
                         );
                       }
                     })
@@ -390,9 +382,7 @@ export function CardRequiredModal() {
 
           {/* Logout Option */}
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>
-              Logged in as <strong>{user?.email}</strong>
-            </span>
+            <span>Logged in as <strong>{user?.email}</strong></span>
             <button
               type="button"
               onClick={handleLogout}

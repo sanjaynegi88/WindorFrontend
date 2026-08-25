@@ -14,7 +14,6 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ImageSourcePickerDialog } from "@/components/modals/image-source-picker-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -173,40 +172,7 @@ export function InstallationForm({
   const [categoryPhotos, setCategoryPhotos] = useState<
     Record<string, { file: File | null; preview: string | null }>
   >({});
-  const [activeCategoryPickerKey, setActiveCategoryPickerKey] = useState<string | null>(null);
-  const categoryGalleryInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  const categoryCameraInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-
-  const triggerCategoryInput = (key: string) => {
-    const isMobile =
-      typeof window !== "undefined" &&
-      window.matchMedia("(pointer: coarse)").matches;
-    if (isMobile) {
-      setActiveCategoryPickerKey(key);
-    } else {
-      categoryGalleryInputRefs.current[key]?.click();
-    }
-  };
-
-  const handleCategorySelectCamera = () => {
-    if (activeCategoryPickerKey) {
-      const targetKey = activeCategoryPickerKey;
-      setActiveCategoryPickerKey(null);
-      setTimeout(() => {
-        categoryCameraInputRefs.current[targetKey]?.click();
-      }, 100);
-    }
-  };
-
-  const handleCategorySelectGallery = () => {
-    if (activeCategoryPickerKey) {
-      const targetKey = activeCategoryPickerKey;
-      setActiveCategoryPickerKey(null);
-      setTimeout(() => {
-        categoryGalleryInputRefs.current[targetKey]?.click();
-      }, 100);
-    }
-  };
+  const categoryInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const normalizeCategoryKey = (value?: string) =>
     (value || "")
@@ -239,10 +205,11 @@ export function InstallationForm({
   useEffect(() => {
     if (!type) return;
     const fetchImageCategories = async () => {
+      console.log(type);
       setLoadingCategories(true);
       try {
         const res = await getImageCategory(type.toUpperCase());
-
+        //console.log("res", res);
         const cats = res?.data || res || [];
         setImageCategories(cats);
         setCategoryPhotos((prev) => {
@@ -417,7 +384,13 @@ export function InstallationForm({
     }
   };
 
-  const onError = (errors: any) => {};
+  const onError = (errors: any) => {
+    console.log("Zod validation errors:", errors);
+    console.log(
+      "Zod validation errors stringified:",
+      JSON.stringify(errors, null, 2),
+    );
+  };
 
   if (!type) return null;
 
@@ -885,7 +858,9 @@ export function InstallationForm({
                           >
                             <div
                               className="relative aspect-square rounded-xl overflow-hidden border bg-muted/20 w-full cursor-pointer group"
-                              onClick={() => triggerCategoryInput(key)}
+                              onClick={() =>
+                                categoryInputRefs.current[key]?.click()
+                              }
                             >
                               {photo?.preview ? (
                                 <>
@@ -907,10 +882,9 @@ export function InstallationForm({
                                         ...prev,
                                         [key]: { file: null, preview: null },
                                       }));
-                                      if (categoryGalleryInputRefs.current[key])
-                                        categoryGalleryInputRefs.current[key]!.value = "";
-                                      if (categoryCameraInputRefs.current[key])
-                                        categoryCameraInputRefs.current[key]!.value = "";
+                                      if (categoryInputRefs.current[key])
+                                        categoryInputRefs.current[key]!.value =
+                                          "";
                                     }}
                                     className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
                                   >
@@ -948,39 +922,12 @@ export function InstallationForm({
                             <span className="text-xs font-semibold text-center text-muted-foreground leading-tight w-full px-1">
                               {label}
                             </span>
-                            {/* Hidden file input for Gallery */}
                             <input
                               ref={(el) => {
-                                categoryGalleryInputRefs.current[key] = el;
+                                categoryInputRefs.current[key] = el;
                               }}
                               type="file"
                               accept="image/*"
-                              className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (!file) return;
-                                if (file.size > 7 * 1024 * 1024) {
-                                  toast.error(
-                                    `Image "${file.name}" exceeds the 7MB size limit`,
-                                  );
-                                  e.target.value = "";
-                                  return;
-                                }
-                                const preview = URL.createObjectURL(file);
-                                setCategoryPhotos((prev) => ({
-                                  ...prev,
-                                  [key]: { file, preview },
-                                }));
-                              }}
-                            />
-                            {/* Hidden file input for Camera */}
-                            <input
-                              ref={(el) => {
-                                categoryCameraInputRefs.current[key] = el;
-                              }}
-                              type="file"
-                              accept="image/*"
-                              capture="environment"
                               className="hidden"
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
@@ -1131,15 +1078,6 @@ export function InstallationForm({
           </form>
         </Form>
       </CardContent>
-
-      <ImageSourcePickerDialog
-        isOpen={!!activeCategoryPickerKey}
-        onClose={() => setActiveCategoryPickerKey(null)}
-        onSelectCamera={handleCategorySelectCamera}
-        onSelectGallery={handleCategorySelectGallery}
-        title="Upload Installation Photo"
-        description="Choose how you would like to upload your installation photo:"
-      />
     </Card>
   );
 }

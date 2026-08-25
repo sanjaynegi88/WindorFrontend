@@ -11,13 +11,24 @@ import { CitySelect, StateSelect } from '@/components/city-zip-selector';
 import { Checkbox } from '@/components/ui/checkbox';
 import { getStates } from '@/lib/actions';
 
-import { RoleForm } from '@/components/user-form/RoleForm';
-import { propertyRoleSchema as step2PropertySchema } from '@/lib/user-role-schema';
-
 const inputCls =
   'h-[65px] px-[19px] border-[rgba(112,128,144,0.23)] rounded-[6px] text-[20px] leading-[23px] font-medium text-[#1F2A44] bg-white placeholder:text-[#1F2A44]/50 font-asap';
 const errCls =
   'text-[18px] leading-[21px] font-normal text-[#DF433C] font-asap mt-2';
+const triggerCls =
+  'h-[65px] px-[19px] border-[rgba(112,128,144,0.23)] rounded-[6px] text-[20px] font-medium text-[#708090] bg-white font-asap shadow-none';
+
+const step2PropertySchema = z.object({
+  propertyAddress: z.string().min(1, { message: 'Property address is required' }),
+  mobilePhone: z.string().min(1, { message: 'Mobile phone is required' })
+    .regex(/^\d{10}$/, { message: 'Mobile phone must be exactly 10 digits' }),
+  ownerDateStart: z.string().min(1, { message: 'Start date is required' }),
+  ownerDateEnd: z.string().optional(),
+  present: z.boolean().optional(),
+  state_id: z.string().min(1, { message: 'State is required' }),
+  city_id: z.string().min(1, { message: 'City is required' }),
+  zip: z.string().min(1, { message: 'Zip code is required' }),
+});
 
 export type Step2PropertyValues = z.infer<typeof step2PropertySchema>;
 
@@ -50,16 +61,146 @@ export function Step2PropertyForm({ onBack, onSubmit, loading }: Step2PropertyFo
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="w-full">
         <div className="space-y-[24px] mb-[40px]">
-          <RoleForm
-            role="PROPERTY_OWNER"
-            context="register"
-            form={form}
-            isPresent={isPresent}
-            onPresentChange={setIsPresent}
-            selectedStateId={selectedStateId}
-            onStateSelect={setSelectedStateId}
-            errCls={errCls}
-          />
+
+          <FormField control={form.control} name="propertyAddress" render={({ field }) => (
+            <FormItem>
+              <FormControl>
+                <Input placeholder="Property Address" {...field} className={inputCls} />
+              </FormControl>
+              <FormMessage className={errCls} />
+            </FormItem>
+          )} />
+
+          <FormField control={form.control} name="mobilePhone" render={({ field }) => (
+            <FormItem>
+              <FormControl>
+                <Input
+                  placeholder="Phone # Direct"
+                  {...field}
+                  className={inputCls}
+                  maxLength={10}
+                  inputMode="numeric"
+                  onChange={(e) => field.onChange(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                />
+              </FormControl>
+              <FormMessage className={errCls} />
+            </FormItem>
+          )} />
+
+          {/* State */}
+          <FormField control={form.control} name="state_id" render={({ field }) => (
+            <FormItem>
+              <FormControl>
+                <div className={`[&_button]:h-[65px] [&_button]:rounded-[6px] [&_button]:border-[rgba(112,128,144,0.23)] [&_button]:text-[20px] [&_button]:font-asap [&_button]:font-medium [&_button]:text-[#708090] [&_button]:shadow-none [&_button]:bg-white`}>
+                  <StateSelect
+                    name="state_id"
+                    value={field.value}
+                    valueType="id"
+                    placeholder="State"
+                    onSelectState={(st) => {
+                      field.onChange(st.id);
+                      setSelectedStateId(st.id);
+                      form.setValue('city_id', '');
+                    }}
+                  />
+                </div>
+              </FormControl>
+              <FormMessage className={errCls} />
+            </FormItem>
+          )} />
+
+          <FormField control={form.control} name="city_id" render={({ field }) => (
+            <FormItem>
+              <FormControl>
+                <div className={`[&_button]:h-[65px] [&_button]:rounded-[6px] [&_button]:border-[rgba(112,128,144,0.23)] [&_button]:text-[20px] [&_button]:font-asap [&_button]:font-medium [&_button]:text-[#708090] [&_button]:shadow-none [&_button]:bg-white`}>
+                  <CitySelect
+                    name="city_id"
+                    value={field.value}
+                    stateValue={form.watch('state_id') || selectedStateId}
+                    valueType="id"
+                    placeholder="City"
+                    onSelectCity={(city) => {
+                      field.onChange(city.id);
+                      if (!selectedStateId && city.state_id) {
+                        form.setValue('state_id', city.state_id);
+                        setSelectedStateId(city.state_id);
+                      }
+                    }}
+                    syncState={true}
+                  />
+                </div>
+              </FormControl>
+              <FormMessage className={errCls} />
+            </FormItem>
+          )} />
+
+          {/* Zip Code — plain input */}
+          <FormField control={form.control} name="zip" render={({ field }) => (
+            <FormItem>
+              <FormControl>
+                <Input
+                  placeholder="Zip Code"
+                  {...field}
+                  className={inputCls}
+                  inputMode="numeric"
+                  maxLength={10}
+                />
+              </FormControl>
+              <FormMessage className={errCls} />
+            </FormItem>
+          )} />
+
+          {/* Owner Dates */}
+          <div>
+            <p className="text-[18px] font-medium text-[#1F2A44] font-asap mb-3">Owner Dates</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField control={form.control} name="ownerDateStart" render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input type="date" {...field} className={`${inputCls} text-[#708090]`} />
+                  </FormControl>
+                  <p className="text-[14px] text-[#708090] font-asap mt-1">Start Date</p>
+                  <FormMessage className={errCls} />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="ownerDateEnd" render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input
+                      type={isPresent ? "text" : "date"}
+                      disabled={isPresent}
+                      value={isPresent ? "Present" : field.value || ""}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      className={`${inputCls} text-[#708090] disabled:bg-gray-100 disabled:opacity-80`}
+                    />
+                  </FormControl>
+                  <p className="text-[14px] text-[#708090] font-asap mt-1">End Date</p>
+                  <FormMessage className={errCls} />
+                </FormItem>
+              )} />
+            </div>
+            <div className="flex items-center gap-2 mt-3">
+              <Checkbox
+                id="present-residence"
+                checked={isPresent}
+                onCheckedChange={(checked) => {
+                  const isChecked = Boolean(checked);
+                  setIsPresent(isChecked);
+                  form.setValue("present", isChecked);
+                  if (isChecked) {
+                    form.setValue("ownerDateEnd", "");
+                  }
+                }}
+              />
+              <label
+                htmlFor="present-residence"
+                className="text-[16px] font-medium text-[#1F2A44] font-asap cursor-pointer select-none"
+              >
+                Present (Currently Residing)
+              </label>
+            </div>
+          </div>
+
         </div>
 
         <div className="flex gap-4">

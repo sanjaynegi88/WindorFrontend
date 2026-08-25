@@ -92,7 +92,7 @@ export async function downloadPdfFromUrl(url: string, filename: string) {
 
   const contentType = response.headers.get('content-type') || '';
   
-  const finalResponse = response;
+  let finalResponse = response;
   
   // If the backend returned JSON with a downloadUrl, we need to fetch the actual file
   if (contentType.includes('application/json')) {

@@ -33,7 +33,6 @@ interface PropertyVerifySidebarProps {
   propertyId: string | null;
   isOpen: boolean;
   onClose: () => void;
-  onUpdate?: () => void;
 }
 
 function ImageWithLoader({ src, alt }: { src: string; alt: string }) {
@@ -62,7 +61,6 @@ export function PropertyVerifySidebar({
   propertyId,
   isOpen,
   onClose,
-  onUpdate,
 }: PropertyVerifySidebarProps) {
   const { role } = useUser();
   const isAdmin = role === 'admin';
@@ -122,15 +120,9 @@ export function PropertyVerifySidebar({
               p.id === projectId
                 ? {
                   ...p,
-                  status: 'VERIFIED',
-                  approval_status: 'APPROVE',
-                  verified_status: true,
-                  installer_verified: true,
                   components: p.components
                     ? {
                       ...p.components,
-                      status: 'VERIFIED',
-                      verified_status: true,
                       installerVerified: true,
                       installer_verified: true,
                       verifiedAt: new Date().toISOString(),
@@ -144,7 +136,6 @@ export function PropertyVerifySidebar({
         });
         // Silent refetch to ensure alignment with server state
         fetchDetail(false);
-        onUpdate?.();
       } else {
         toast.error(res?.message || 'Failed to verify installation');
       }
@@ -173,15 +164,9 @@ export function PropertyVerifySidebar({
               p.id === projectId
                 ? {
                   ...p,
-                  status: 'REJECTED',
-                  approval_status: 'REJECT',
-                  verified_status: false,
-                  installer_verified: false,
                   components: p.components
                     ? {
                       ...p.components,
-                      status: 'REJECTED',
-                      verified_status: false,
                       installerVerified: false,
                       installer_verified: false,
                       verifiedAt: null,
@@ -195,7 +180,6 @@ export function PropertyVerifySidebar({
         });
         // Silent refetch to ensure alignment with server state
         fetchDetail(false);
-        onUpdate?.();
       } else {
         toast.error(res?.message || 'Failed to update component verification');
       }
@@ -404,37 +388,7 @@ export function PropertyVerifySidebar({
                         const permitUpload = project.permit_upload;
                         const hasPermit = !!permitUpload;
                         const permitVerified = permitUpload?.status === 'VERIFIED';
-                        const permitMissing = needPermit && !hasPermit;
-
-                        const compStatus = (
-                          comp.status ||
-                          comp.verified_status ||
-                          comp.permit_status ||
-                          project.status ||
-                          project.approval_status ||
-                          permitUpload?.status ||
-                          ""
-                        )
-                          .toString()
-                          .toUpperCase();
-
-                        const isRejected =
-                          compStatus === "REJECTED" ||
-                          compStatus === "REJECT" ||
-                          comp.verified_status === false ||
-                          (comp.installer_verified === false && comp.verified_at === null);
-
-                        const isVerified =
-                          !isRejected &&
-                          (comp.installer_verified === true ||
-                            comp.installerVerified === true ||
-                            comp.verified_status === true ||
-                            compStatus === "VERIFIED" ||
-                            compStatus === "APPROVED" ||
-                            compStatus === "APPROVE" ||
-                            permitVerified);
-
-                        const isPending = !isVerified && !isRejected;
+                        const canVerify = (!needPermit && !hasPermit) || (needPermit && hasPermit && !permitVerified);
 
                         return (
                           <div
@@ -461,34 +415,23 @@ export function PropertyVerifySidebar({
                                   {toPascalCase(comp.component_type)}
                                 </span>
 
-                                {/* Single Unified Status Badge */}
                                 <Badge
                                   variant="outline"
                                   className={cn(
-                                    'px-2.5 py-0.5 text-[9px] font-black uppercase tracking-tighter border-none',
-                                    isVerified
-                                      ? 'bg-emerald-500/10 text-emerald-600'
-                                      : isRejected
-                                      ? 'bg-red-500/10 text-red-600'
-                                      : permitMissing
-                                      ? 'bg-gray-500/10 text-gray-500'
-                                      : 'bg-amber-500/10 text-amber-600'
+                                    'px-2 py-0 text-[9px] font-black uppercase tracking-tighter border-none',
+                                    hasPermit
+                                      ? 'bg-blue-500/10 text-blue-600'
+                                      : 'bg-gray-500/10 text-gray-500'
                                   )}
                                 >
-                                  {isVerified
-                                    ? 'Verified'
-                                    : isRejected
-                                    ? 'Rejected'
-                                    : permitMissing
-                                    ? 'No Permit Uploaded'
-                                    : !needPermit
-                                    ? 'Permit Not Required'
-                                    : 'Pending'}
+                                  {hasPermit ? `${comp.permit_status
+                                    .replace(/_/g, ' ')
+                                    .replace(/\b\w/g, (c: any) => c.toUpperCase())}` : 'No Permit'}
                                 </Badge>
                               </div>
 
                               <div className="flex items-center gap-1.5 shrink-0">
-                                {/* View/Download Permit buttons for admin/inspector/owner when permit exists */}
+                                {/* View/Download Permit buttons for admin/inspector when permit exists */}
                                 {(isAdmin || isInspector || isOwner) && hasPermit && (project.permit_url || comp.permit_file_url) && (
                                   <>
                                     <Button
@@ -518,8 +461,8 @@ export function PropertyVerifySidebar({
                                   </>
                                 )}
 
-                                {/* Upload Permit button: need_permit is true and no permit uploaded yet */}
-                                {permitMissing && (
+                                {/* Upload Permit button: need_permit true and no permit uploaded yet */}
+                                {needPermit && !hasPermit && (
                                   <Button
                                     size="sm"
                                     onClick={() => openPermitDialog(comp, project.id)}
@@ -531,106 +474,52 @@ export function PropertyVerifySidebar({
                                   </Button>
                                 )}
 
-                                {/* CASE 1: PENDING -> Show BOTH Verify and Reject buttons (for non-owners) */}
-                                {isPending && !isOwner && (
-                                  <>
-                                    <Button
-                                      size="sm"
-                                      onClick={() => {
-                                        setVerifyParams({ projectId: project.id, componentId: comp.id });
-                                        setConfirmVerifyOpen(true);
-                                      }}
-                                      disabled={isVerifying || permitMissing}
-                                      title={permitMissing ? "Permit must be uploaded first" : undefined}
-                                      className="h-7 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg gap-1.5 bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                      {isVerifying ? (
-                                        <Loader2 className="size-3 animate-spin" />
-                                      ) : (
-                                        <ShieldCheck className="size-3" />
-                                      )}
-                                      {isVerifying ? 'Verifying…' : 'Verify'}
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      onClick={() => handleMarkUnverified(project.id, comp.id)}
-                                      disabled={isVerifying || permitMissing}
-                                      title={permitMissing ? "Permit must be uploaded first" : undefined}
-                                      className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                                      variant="ghost"
-                                    >
-                                      {isVerifying ? (
-                                        <Loader2 className="size-3 animate-spin" />
-                                      ) : (
-                                        <ShieldX className="size-3" />
-                                      )}
-                                      {isVerifying ? 'Updating…' : 'Reject'}
-                                    </Button>
-                                  </>
+                                {/* Verify button: no need_permit, OR permit uploaded and not yet VERIFIED */}
+                                {canVerify && !permitVerified && !isOwner && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      setVerifyParams({ projectId: project.id, componentId: comp.id });
+                                      setConfirmVerifyOpen(true);
+                                    }}
+                                    disabled={isVerifying}
+                                    className="h-7 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg gap-1.5 bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white"
+                                  >
+                                    {isVerifying ? (
+                                      <Loader2 className="size-3 animate-spin" />
+                                    ) : (
+                                      <ShieldCheck className="size-3" />
+                                    )}
+                                    {isVerifying ? 'Verifying…' : 'Verify'}
+                                  </Button>
                                 )}
 
-                                {/* CASE 2: VERIFIED -> Show Reject button (only for admin), show Verified indicator for non-admin */}
-                                {isVerified && (
-                                  <>
-                                    {isAdmin && (
-                                      <Button
-                                        size="sm"
-                                        onClick={() => handleMarkUnverified(project.id, comp.id)}
-                                        disabled={isVerifying || permitMissing}
-                                        title={permitMissing ? "Permit must be uploaded first" : undefined}
-                                        className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        variant="ghost"
-                                      >
-                                        {isVerifying ? (
-                                          <Loader2 className="size-3 animate-spin" />
-                                        ) : (
-                                          <ShieldX className="size-3" />
-                                        )}
-                                        {isVerifying ? 'Updating…' : 'Reject'}
-                                      </Button>
+                                {/* Admin: can mark verified items back as unverified */}
+                                {permitVerified && isAdmin && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleMarkUnverified(project.id, comp.id)}
+                                    disabled={isVerifying}
+                                    className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg gap-1.5"
+                                    variant="ghost"
+                                  >
+                                    {isVerifying ? (
+                                      <Loader2 className="size-3 animate-spin" />
+                                    ) : (
+                                      <ShieldX className="size-3" />
                                     )}
-                                    {(isInspector || isOwner) && (
-                                      <div className="flex items-center gap-1.5 text-emerald-600">
-                                        <CheckCircle2 className="size-4" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest">
-                                          Verified
-                                        </span>
-                                      </div>
-                                    )}
-                                  </>
+                                    {isVerifying ? 'Updating…' : 'Mark Unverified'}
+                                  </Button>
                                 )}
 
-                                {/* CASE 3: REJECTED -> Show Verify button (only for admin), show Rejected indicator for non-admin */}
-                                {isRejected && (
-                                  <>
-                                    {isAdmin && (
-                                      <Button
-                                        size="sm"
-                                        onClick={() => {
-                                          setVerifyParams({ projectId: project.id, componentId: comp.id });
-                                          setConfirmVerifyOpen(true);
-                                        }}
-                                        disabled={isVerifying || permitMissing}
-                                        title={permitMissing ? "Permit must be uploaded first" : undefined}
-                                        className="h-7 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg gap-1.5 bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                                      >
-                                        {isVerifying ? (
-                                          <Loader2 className="size-3 animate-spin" />
-                                        ) : (
-                                          <ShieldCheck className="size-3" />
-                                        )}
-                                        {isVerifying ? 'Verifying…' : 'Verify'}
-                                      </Button>
-                                    )}
-                                    {!isAdmin && (
-                                      <div className="flex items-center gap-1.5 text-red-600">
-                                        <ShieldX className="size-4" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest">
-                                          Rejected
-                                        </span>
-                                      </div>
-                                    )}
-                                  </>
+                                {/* Inspector: verified state is read-only */}
+                                {permitVerified && (isInspector || isOwner) && (
+                                  <div className="flex items-center gap-1.5 text-emerald-600">
+                                    <CheckCircle2 className="size-4" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest">
+                                      Verified
+                                    </span>
+                                  </div>
                                 )}
                               </div>
                             </div>
