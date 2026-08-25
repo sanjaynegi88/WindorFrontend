@@ -234,9 +234,6 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
 
     const loadPropertySummary = async () => {
       const startTime = performance.now();
-      console.log(
-        `[DEBUG] loadPropertySummary STARTED for tempPropertyId=${tempPropertyId}`,
-      );
       setIsInitializingProperty(true);
 
       try {
@@ -263,10 +260,6 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
         const t0 = performance.now();
         const property = await getPropertyById(tempPropertyId);
         const t1 = performance.now();
-        console.log(
-          `[DEBUG] getPropertyById API response time: ${(t1 - t0).toFixed(2)} ms`,
-          property,
-        );
 
         const propertyPayload = property?.data ?? property;
         const propStateId =
@@ -284,11 +277,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           undefined,
           propStateId || undefined,
         );
-        const t3 = performance.now();
-        console.log(
-          `[DEBUG] getCities API response time: ${(t3 - t2).toFixed(2)} ms`,
-          citiesRes,
-        );
+
         if (!isMounted) return;
 
         const rawCities: any[] = Array.isArray(citiesRes)
@@ -365,10 +354,6 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           }));
         }
       } finally {
-        const totalDuration = performance.now() - startTime;
-        console.log(
-          `[DEBUG] loadPropertySummary COMPLETED in ${totalDuration.toFixed(2)} ms`,
-        );
         if (isMounted) {
           setIsInitializingProperty(false);
         }
@@ -384,20 +369,12 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
 
   useEffect(() => {
     async function loadLocationData() {
-      const startTime = performance.now();
-      console.log(
-        "[DEBUG] loadLocationData STARTED (fetching states, owners, types)",
-      );
       try {
         const [statesRes, ownersRes, typesRes] = await Promise.all([
           getStates(1, 1000),
           canFetchOwners ? getPropertyOwners() : Promise.resolve([]),
           getPropertyTypes(),
         ]);
-        const totalDuration = performance.now() - startTime;
-        console.log(
-          `[DEBUG] loadLocationData Promise.all COMPLETED in ${totalDuration.toFixed(2)} ms`,
-        );
         const rawStates: any[] = Array.isArray(statesRes)
           ? statesRes
           : (statesRes as any)?.data || [];
@@ -479,7 +456,6 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
       .catch((err) => {
         console.error("Failed to fetch cities for state:", err);
       });
-    console.log(response);
     return () => {
       isMounted = false;
     };
@@ -679,7 +655,6 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
 
     const apiType = type === "garage_doors" ? "garage-doors" : type;
     const isOwnerProject = user.role === "property_owner" || isOwnerProjectType;
-    console.log("payload", payload);
     const installationResult = isOwnerProject
       ? await postPropertyOwnerInstallations(tempPropertyId, payload)
       : await postInstallation(tempPropertyId, apiType, payload);
@@ -720,23 +695,23 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           installationId,
           files.categoryFiles,
         );
-        if (!imgResult.success) throw new Error(imgResult.message);
-      } else if (files.contractorFiles.length > 0) {
+        if (!imgResult.success) throw new Error(imgResult.message || `Failed to upload category images`);
+      } else if (files.contractorFiles && files.contractorFiles.length > 0) {
         const imgResult = await uploadInstallationImages(
           apiType,
           installationId,
           files.contractorFiles,
         );
-        if (!imgResult.success) throw new Error(imgResult.message);
+        if (!imgResult.success) throw new Error(imgResult.message || `Failed to upload contractor images`);
       }
 
-      if (files.ownerFiles.length > 0) {
+      if (files.ownerFiles && files.ownerFiles.length > 0) {
         const ownerImgResult = await uploadPropertOwnerImages(
           apiType,
           installationId,
           files.ownerFiles,
         );
-        if (!ownerImgResult.success) throw new Error(ownerImgResult.message);
+        if (!ownerImgResult.success) throw new Error(ownerImgResult.message || `Failed to upload owner images`);
       }
     }
 
@@ -846,9 +821,6 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
   };
 
   if (isInitializingProperty && tempPropertyId) {
-    console.log(
-      `[DEBUG] Displaying Loading Form spinner (isInitializingProperty: true, tempPropertyId: ${tempPropertyId})`,
-    );
     return (
       <div className="bg-[#FFFFFF] md:bg-[#1F2A44] md:min-h-screen flex flex-col flex-1 items-center justify-center px-6">
         <div className="flex flex-col items-center justify-center gap-4 rounded-[20px] bg-white px-8 py-10 shadow-[0px_4px_34px_rgba(31,42,68,0.1)] text-center">

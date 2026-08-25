@@ -27,6 +27,8 @@ import {
   uploadOwnerProjectImagesAdmin,
   updatePropertyOwnerInstallation,
   deleteProject,
+  uploadInstallationImages,
+  uploadPropertOwnerImages,
 } from "@/lib/actions";
 import { Loader2, ChevronLeft, MapPin, FolderOpen, Trash2 } from "lucide-react";
 import { ConfirmDeleteDialog } from "@/components/property-wizard/ConfirmDeleteDialog";
@@ -158,7 +160,6 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       try {
         const propRes = await getPropertyDetail(propertyId);
         const prop = propRes?.data ?? propRes;
-        console.log(prop);
         setProperty(prop);
 
         const propStateId = prop?.state_id || prop?.state?.id;
@@ -289,7 +290,9 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
               matchedProj.property?.property_owner_email ||
               matchedProj.property_owner_email ||
               matchedProj.property?.property_owner?.email;
-            const projTypeUpper = (matchedProj.project_type || "").toUpperCase().replace(/_/g, " ");
+            const projTypeUpper = (matchedProj.project_type || "")
+              .toUpperCase()
+              .replace(/_/g, " ");
             const isOwner =
               projTypeUpper === "WINDOWS AND DOORS" ||
               projTypeUpper === "NEW APPLIANCES" ||
@@ -389,7 +392,9 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
               rawProj.property?.property_owner_email ||
               rawProj.property_owner_email ||
               rawProj.property?.property_owner?.email;
-            const projTypeUpper = (rawProj.project_type || "").toUpperCase().replace(/_/g, " ");
+            const projTypeUpper = (rawProj.project_type || "")
+              .toUpperCase()
+              .replace(/_/g, " ");
             const isOwner =
               projTypeUpper === "WINDOWS AND DOORS" ||
               projTypeUpper === "NEW APPLIANCES" ||
@@ -496,7 +501,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
         finalPropertyTypeId =
           addressData.property_type_id || addressData.property_type || null;
       }
-      //console.log("final property type id : ", finalPropertyTypeId);
+
       const result = await updateProperties(propertyId, {
         address: addressData.address,
         address2: addressData.address2,
@@ -648,13 +653,8 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       }
       const response = isOwnerProjectType
         ? await updatePropertyOwnerInstallation(selectedComponent.id, payload)
-        : await updateInstallation(
-            type,
-            selectedComponent.id,
-            payload,
-          );
+        : await updateInstallation(type, selectedComponent.id, payload);
       if (!response.success) {
-        console.log("issue in the update installation");
         toast.error(response.message);
         return;
       }
@@ -677,18 +677,11 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
         }
 
         if (allOwnerFiles.length > 0) {
-          console.log(
-            "[Image Edit] Calling API function: uploadOwnerProjectImagesAdmin",
-            "\n  Reason/Condition: isOwnerProjectType is TRUE (Owner project)",
-            "\n  Params:",
-            { type, newInstallationId, isOwnerProjectType, filesCount: allOwnerFiles.length }
-          );
           const response = await uploadOwnerProjectImagesAdmin(
             newInstallationId,
             allOwnerFiles,
           );
           if (!response.success) {
-            console.log("issue in the update owner files");
             toast.error(
               response.message || `Failed to update ${type} installation`,
             );
@@ -696,39 +689,28 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
           }
         }
       } else {
-        if (files.categoryFiles && Object.keys(files.categoryFiles).length > 0) {
-          console.log(
-            "[Image Edit] Calling API function: updateInstallationImagesByCategory",
-            "\n  Reason/Condition: files.categoryFiles is present, has keys > 0 AND isOwnerProjectType is FALSE",
-            "\n  Params:",
-            { type, newInstallationId, categoryFiles: files.categoryFiles }
-          );
+        if (
+          files.categoryFiles &&
+          Object.keys(files.categoryFiles).length > 0
+        ) {
           const response = await updateInstallationImagesByCategory(
             type,
             newInstallationId,
             files.categoryFiles,
           );
           if (!response.success) {
-            console.log("issue in the update contractor files");
             toast.error(
               response.message || `Failed to update ${type} installation`,
             );
             return;
           }
         } else if (files.contractorFiles.length > 0) {
-          console.log(
-            "[Image Edit] Calling API function: updateInstallationImagesAdmin",
-            "\n  Reason/Condition: files.categoryFiles is empty/absent, files.contractorFiles.length > 0 AND isOwnerProjectType is FALSE",
-            "\n  Params:",
-            { type, newInstallationId, contractorFilesCount: files.contractorFiles.length }
-          );
           const response = await updateInstallationImagesAdmin(
             type,
             newInstallationId,
             files.contractorFiles,
           );
           if (!response.success) {
-            console.log("issue in the update contractor files");
             toast.error(
               response.message || `Failed to update ${type} installation`,
             );
@@ -736,19 +718,12 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
           }
         }
         if (files.ownerFiles.length > 0) {
-          console.log(
-            "[Image Edit] Calling API function: updateImagesofPropertyOwnersAdmin",
-            "\n  Reason/Condition: files.ownerFiles.length > 0 AND isOwnerProjectType is FALSE",
-            "\n  Params:",
-            { type, newInstallationId, isOwnerProjectType, ownerFilesCount: files.ownerFiles.length }
-          );
           const response = await updateImagesofPropertyOwnersAdmin(
             type,
             newInstallationId,
             files.ownerFiles,
           );
           if (!response.success) {
-            console.log("issue in the update owner files");
             toast.error(
               response.message || `Failed to update ${type} installation`,
             );
@@ -857,8 +832,6 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       const installationId = await saveNewInstallationBase(values);
       if (!installationId) return;
 
-      const { uploadInstallationImages, uploadPropertOwnerImages } =
-        await import("@/lib/actions");
       const isOwnerProject =
         role === "property_owner" ||
         isOwnerProjectType ||
@@ -882,60 +855,39 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
           allOwnerFiles.push(...files.ownerFiles);
         }
         if (allOwnerFiles.length > 0) {
-          console.log(
-            "[Image Edit/Upload] Calling API function: uploadPropertOwnerImages",
-            "\n  Reason/Condition: isOwnerProject is TRUE (Owner project)",
-            "\n  Params:",
-            { newInstallationType, installationId, filesCount: allOwnerFiles.length }
-          );
           const r = await uploadPropertOwnerImages(
             newInstallationType!,
             installationId,
             allOwnerFiles,
           );
-          if (!r.success) throw new Error(r.message);
+          if (!r.success) throw new Error(r.message || "Failed to upload owner project images");
         }
       } else {
-        if (files.categoryFiles && Object.keys(files.categoryFiles).length > 0) {
-          console.log(
-            "[Image Edit/Upload] Calling API function: uploadInstallationImages",
-            "\n  Reason/Condition: files.categoryFiles is present, has keys > 0 AND isOwnerProject is FALSE",
-            "\n  Params:",
-            { newInstallationType, installationId, categoryFiles: files.categoryFiles }
-          );
+        if (
+          files.categoryFiles &&
+          Object.keys(files.categoryFiles).length > 0
+        ) {
           const r = await uploadInstallationImages(
             newInstallationType!,
             installationId,
             files.categoryFiles,
           );
-          if (!r.success) throw new Error(r.message);
-        } else if (files.contractorFiles.length > 0) {
-          console.log(
-            "[Image Edit/Upload] Calling API function: uploadInstallationImages",
-            "\n  Reason/Condition: files.categoryFiles is empty/absent, files.contractorFiles.length > 0 AND isOwnerProject is FALSE",
-            "\n  Params:",
-            { newInstallationType, installationId, contractorFilesCount: files.contractorFiles.length }
-          );
+          if (!r.success) throw new Error(r.message || "Failed to upload category images");
+        } else if (files.contractorFiles && files.contractorFiles.length > 0) {
           const r = await uploadInstallationImages(
             newInstallationType!,
             installationId,
             files.contractorFiles,
           );
-          if (!r.success) throw new Error(r.message);
+          if (!r.success) throw new Error(r.message || "Failed to upload contractor images");
         }
-        if (files.ownerFiles.length > 0) {
-          console.log(
-            "[Image Edit/Upload] Calling API function: uploadPropertOwnerImages",
-            "\n  Reason/Condition: files.ownerFiles.length > 0 AND isOwnerProject is FALSE",
-            "\n  Params:",
-            { newInstallationType, installationId, ownerFilesCount: files.ownerFiles.length }
-          );
+        if (files.ownerFiles && files.ownerFiles.length > 0) {
           const r = await uploadPropertOwnerImages(
             newInstallationType!,
             installationId,
             files.ownerFiles,
           );
-          if (!r.success) throw new Error(r.message);
+          if (!r.success) throw new Error(r.message || "Failed to upload owner images");
         }
       }
       localStorage.removeItem("current_project_id");
@@ -1170,14 +1122,6 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                     if (!currentInstallationId) return;
                     setSaving(true);
                     try {
-                      const { uploadInstallationImages } =
-                        await import("@/lib/actions");
-                      console.log(
-                        "[Image Edit/Upload] Calling API function: uploadInstallationImages",
-                        "\n  Reason/Condition: User submitted photo upload step (IMAGE_UPLOAD)",
-                        "\n  Params:",
-                        { newInstallationType, currentInstallationId, photosCount: Object.keys(photos).length }
-                      );
                       const result = await uploadInstallationImages(
                         newInstallationType,
                         currentInstallationId,

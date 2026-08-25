@@ -102,14 +102,20 @@ export function PropertyCard({
     isPropertyOwner &&
     !!propertyOwnerEmail &&
     user?.email === propertyOwnerEmail;
-  const canVerify = isAdmin || isCityInspector || isOwnerOfProperty;
+  const canVerify = isOwnerOfProperty || isAdmin || isCityInspector;
 
   const canAddNewProject = isContractor || isAdmin || isOwnerOfProperty;
 
   const [isVerifySidebarOpen, setIsVerifySidebarOpen] = useState(false);
 
   useEffect(() => {
-    if (role === "insurance_company") {
+    if (
+      role === "insurance_company" ||
+      role === "realtor" ||
+      role === "manufacturer" ||
+      role === "contractor" ||
+      role === "property_owner"
+    ) {
       fetchReportUsage();
     }
   }, [role]);
@@ -131,7 +137,13 @@ export function PropertyCard({
       toast.success("Report downloaded successfully");
       setPurchased(true);
 
-      if (user?.role === "insurance_company") {
+      if (
+        user?.role === "insurance_company" ||
+        user?.role === "realtor" ||
+        user?.role === "manufacturer" ||
+        user?.role === "contractor" ||
+        user?.role === "property_owner"
+      ) {
         await fetchReportUsage();
       }
     } catch (error: any) {
@@ -182,7 +194,13 @@ export function PropertyCard({
       }
       router.refresh();
 
-      if (user?.role === "insurance_company") {
+      if (
+        user?.role === "insurance_company" ||
+        user?.role === "realtor" ||
+        user?.role === "manufacturer" ||
+        user?.role === "contractor" ||
+        user?.role === "property_owner"
+      ) {
         await fetchReportUsage();
       }
     } catch (error: any) {

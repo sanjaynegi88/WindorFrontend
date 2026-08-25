@@ -32,13 +32,23 @@ const checkboxVariants = cva(
 function Checkbox({
   className,
   size,
+  onKeyDown,
   ...props
 }: React.ComponentProps<typeof CheckboxPrimitive.Root> &
   VariantProps<typeof checkboxVariants>) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.currentTarget.click();
+    }
+    onKeyDown?.(e);
+  };
+
   return (
     <CheckboxPrimitive.Root
       data-slot="checkbox"
       className={cn(checkboxVariants({ size }), className)}
+      onKeyDown={handleKeyDown}
       {...props}
     >
       <CheckboxPrimitive.Indicator

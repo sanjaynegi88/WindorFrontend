@@ -208,7 +208,7 @@ export function SearchableSelect({
                         className="text-[#1CA7A6] text-[15px] font-asap cursor-pointer py-2"
                       >
                         <PlusCircle className="mr-2 h-4 w-4 shrink-0" />
-                        Add "{toTitleCase(search.trim())}"
+                        Add &quot;{toTitleCase(search.trim())}&quot;
                       </CommandItem>
                     )}
 

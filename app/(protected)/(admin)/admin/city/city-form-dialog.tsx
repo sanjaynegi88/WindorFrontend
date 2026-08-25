@@ -38,14 +38,7 @@ const citySchema = z.object({
   state_id: z.string().min(1, "State is required"),
   zip_codes: z
     .string()
-    .min(1, "At least one zip code is required (comma separated)")
-    .refine((val) => {
-      const codes = val
-        .split(",")
-        .map((z) => z.trim())
-        .filter((z) => z !== "");
-      return codes.every((code) => /^\d{1,6}$/.test(code));
-    }, "Each zip code must be numeric and maximum 6 digits"),
+    .min(1, "At least one zip code is required (comma separated)"),
 });
 
 interface CityFormDialogProps {
@@ -208,10 +201,7 @@ export function CityFormDialog({
                           </div>
                         ) : states.length > 0 ? (
                           states.map((state: any) => (
-                            <SelectItem
-                              key={state.id}
-                              value={String(state.id)}
-                            >
+                            <SelectItem key={state.id} value={String(state.id)}>
                               {state.state_name || state.name}
                             </SelectItem>
                           ))
