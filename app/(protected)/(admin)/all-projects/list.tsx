@@ -6,6 +6,7 @@ import { ExpandableProjectCard } from "@/components/common/expandable-project-ca
 import {
   getAllProjects,
   generateContractorProjectPdfReport,
+  generateOwnerProjectPdfReport,
   confirmProject,
   deleteProject,
 } from "@/lib/actions";
@@ -25,6 +26,7 @@ import {
   downloadPdfFromUrl,
   getErrorMessage,
   toPascalCase,
+  isContractorProject,
   cn,
 } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -83,12 +85,20 @@ export default function AllProjectsList({ user }: { user: string }) {
   const handleGenerateReport = async (
     projectId: string,
     projectName: string,
+    projectObj?: any,
   ) => {
     setGeneratingReports((prev) => ({ ...prev, [projectId]: true }));
     try {
-      const url = await generateContractorProjectPdfReport(projectId);
-      const filename = `contractor-projects-report-${projectName}.pdf`;
-      await downloadPdfFromUrl(url, filename);
+      const isContractorProj = isContractorProject(projectObj);
+      if (isContractorProj) {
+        const url = await generateContractorProjectPdfReport(projectId);
+        const filename = `contractor-projects-report-${projectName}.pdf`;
+        await downloadPdfFromUrl(url, filename);
+      } else {
+        const url = await generateOwnerProjectPdfReport(projectId);
+        const filename = `owner-projects-report-${projectName}.pdf`;
+        await downloadPdfFromUrl(url, filename);
+      }
       toast.success(`Report downloaded successfully`);
     } catch (error: any) {
       console.error("Download report error:", error);
@@ -475,6 +485,7 @@ export default function AllProjectsList({ user }: { user: string }) {
                                 handleGenerateReport(
                                   actualProjectId,
                                   projectName,
+                                  project,
                                 );
                               }}
                               disabled={isAnyDownloading}

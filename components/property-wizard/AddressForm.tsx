@@ -215,6 +215,22 @@ export function AddressForm({
     return fetchedCities;
   }, [cities, fetchedCities, citySearch, data.state]);
 
+  const propertyTypeOptions = useMemo(() => {
+    if (!propertyTypes || propertyTypes.length === 0) return [];
+    return propertyTypes.map((pt: any, index: number) => {
+      const id = pt.id || pt.category || pt.name || `pt-${index}`;
+      const rawLabel = pt.category || pt.name || pt.id || "";
+      const name =
+        rawLabel === "OTHER"
+          ? "Other"
+          : rawLabel
+              .replace(/_/g, " ")
+              .replace(/-/g, " ")
+              .replace(/\b\w/g, (c: any) => c.toUpperCase());
+      return { id, name };
+    });
+  }, [propertyTypes]);
+
   const isOtherSelected =
     data.property_type_category === "OTHER" ||
     data.property_type_id === "OTHER" ||
@@ -260,11 +276,19 @@ export function AddressForm({
 
       <div className="space-y-[15px] md:space-y-[28px]">
         {/* Property Type */}
-        <Select
+        <SearchableSelect
+          options={propertyTypeOptions}
           value={
             isOtherSelected
               ? "OTHER"
               : (data.property_type_id ?? data.property_type ?? "")
+          }
+          placeholder="Property Type"
+          searchPlaceholder="Search property type..."
+          emptyMessage={
+            propertyTypes.length === 0
+              ? "Loading..."
+              : "No property type found"
           }
           onValueChange={(val) => {
             if (val === "OTHER") {
@@ -277,7 +301,11 @@ export function AddressForm({
               });
             } else {
               const selected = propertyTypes.find(
-                (pt: any) => pt.id === val || pt.category === val,
+                (pt: any) =>
+                  pt.id === val ||
+                  pt.category === val ||
+                  pt.name === val ||
+                  (pt.id || pt.category || pt.name) === val,
               );
               const categoryName = selected?.category || selected?.name || val;
               onChange({
@@ -289,39 +317,7 @@ export function AddressForm({
               });
             }
           }}
-        >
-          <SelectTrigger className={triggerClass}>
-            <SelectValue placeholder="Property Type" />
-          </SelectTrigger>
-
-          <SelectContent className="rounded-xl">
-            {propertyTypes.length > 0 ? (
-              propertyTypes.map((pt: any, index: number) => {
-                const itemKey =
-                  pt.id || pt.category || pt.name || `pt-${index}`;
-                const itemValue =
-                  pt.id || pt.category || pt.name || `pt-${index}`;
-                const rawLabel = pt.category || pt.name || pt.id || "";
-                const label =
-                  rawLabel === "OTHER"
-                    ? "Other"
-                    : rawLabel
-                        .replace(/_/g, " ")
-                        .replace(/-/g, " ")
-                        .replace(/\b\w/g, (c: any) => c.toUpperCase());
-                return (
-                  <SelectItem key={itemKey} value={itemValue}>
-                    {toTitleCase(label)}
-                  </SelectItem>
-                );
-              })
-            ) : (
-              <div className="p-4 text-center text-sm text-[#708090]">
-                Loading...
-              </div>
-            )}
-          </SelectContent>
-        </Select>
+        />
 
         {/* Other Property Type Input (Shown when Other is selected) */}
         {isOtherSelected && (
@@ -444,33 +440,29 @@ export function AddressForm({
             onChange({ ...data, zip: val });
           }}
         />
+        <div>
+          <Select
+            value={data.property_owner_id || ""}
+            onValueChange={(val) =>
+              onChange({ ...data, property_owner_id: val })
+            }
+          >
+            <SelectTrigger className={triggerClass}>
+              <SelectValue placeholder="Property Owner" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              {propertyOwners.map((owner) => (
+                <SelectItem key={owner.id} value={owner.id}>
+                  {owner.email}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {/* Property Owner & Coordinates (Admin Only) */}
         {user?.role === "admin" && (
           <div className="space-y-3.75 md:space-y-5 p-5 border border-dashed border-[rgba(28,167,166,0.3)] rounded-[10px] bg-slate-50/50">
-            <div>
-              <label className="text-[12px] md:text-[14px] font-bold text-[#708090] uppercase tracking-widest px-1 mb-1 block">
-                Property Owner
-              </label>
-              <Select
-                value={data.property_owner_id || ""}
-                onValueChange={(val) =>
-                  onChange({ ...data, property_owner_id: val })
-                }
-              >
-                <SelectTrigger className={triggerClass}>
-                  <SelectValue placeholder="Property Owner" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  {propertyOwners.map((owner) => (
-                    <SelectItem key={owner.id} value={owner.id}>
-                      {owner.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <Button
                 type="button"

@@ -255,3 +255,63 @@ export async function getWorkingAwsImageUrl(
   return fallback;
 }
 
+const CONTRACTOR_REPORT_TYPES = new Set([
+  'ROOFING',
+  'SIDING',
+  'WINDOWS',
+  'DOORS',
+  'GARAGE_DOORS',
+  'OTHER_CONTRACTOR',
+]);
+
+/**
+ * Checks if a project is a contractor project based on its report_types or metadata.
+ * Contractor projects contain report_types: ROOFING, SIDING, WINDOWS, DOORS, GARAGE_DOORS, OTHER_CONTRACTOR.
+ */
+export function isContractorProject(project: any): boolean {
+  if (!project) return false;
+
+  const reportTypes =
+    project.report_types ||
+    project.reportTypes ||
+    project.details?.report_types ||
+    [];
+
+  if (Array.isArray(reportTypes) && reportTypes.length > 0) {
+    return reportTypes.some((rt: any) => {
+      const name = (
+        typeof rt === 'string' ? rt : rt?.name || rt?.code || rt?.id || ''
+      ).toUpperCase();
+      return CONTRACTOR_REPORT_TYPES.has(name);
+    });
+  }
+
+  const singleType = (
+    project.project_type ||
+    project.type ||
+    project.report_type ||
+    project.details?.project_type ||
+    ''
+  ).toUpperCase();
+
+  if (singleType && CONTRACTOR_REPORT_TYPES.has(singleType)) {
+    return true;
+  }
+
+  if (
+    project.created_by_type === 'CONTRACTOR' ||
+    project.added_by === 'CONTRACTOR'
+  ) {
+    return true;
+  }
+
+  if (
+    project.created_by_type === 'PROPERTY_OWNER' ||
+    project.added_by === 'PROPERTY_OWNER'
+  ) {
+    return false;
+  }
+
+  return false;
+}
+

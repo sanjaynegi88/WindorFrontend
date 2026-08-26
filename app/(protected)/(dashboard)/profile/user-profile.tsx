@@ -618,6 +618,11 @@ export default function UserProfile() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error(`Image "${file.name}" exceeds the 2MB size limit`);
+        e.target.value = "";
+        return;
+      }
       setSelectedImage(file);
       const reader = new FileReader();
       reader.onloadend = () => setPreviewUrl(reader.result as string);
@@ -727,7 +732,13 @@ export default function UserProfile() {
     ) {
       formData.append("serviceTypes", data.serviceTypes.join(","));
     }
-    if (selectedImage) formData.append("image", selectedImage);
+    if (selectedImage) {
+      if (selectedImage.size > 2 * 1024 * 1024) {
+        toast.error("Selected profile image exceeds the 2MB size limit");
+        return;
+      }
+      formData.append("image", selectedImage);
+    }
 
     const result = await updateUserProfile(formData);
     if (!result.success) {
@@ -873,8 +884,11 @@ export default function UserProfile() {
                           Profile Picture
                         </p>
                         {isEditing && (
-                          <p className="text-xs text-muted-foreground leading-relaxed">
-                            Click camera to upload
+                          <p className="text-xs text-muted-foreground leading-relaxed flex flex-col gap-0.5">
+                            <span>Click camera to upload</span>
+                            <span className="text-[11px] text-amber-600 font-semibold">
+                              Acceptable size: Max 2MB
+                            </span>
                           </p>
                         )}
                       </div>

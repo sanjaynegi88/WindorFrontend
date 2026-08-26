@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Search, Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import {
   Select,
@@ -18,14 +18,15 @@ import {
   Command,
   CommandEmpty,
   CommandGroup,
-  CommandInput,
   CommandItem,
   CommandList,
+  CommandInput,
 } from "@/components/ui/command";
 import { getStates, getCities } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { useUser } from "../providers/user-provider";
 import { cn, toTitleCase } from "@/lib/utils";
+import { focusNextField } from "@/components/ui/searchable-select";
 
 export type SearchScope = "all" | "brand" | "color" | "style";
 
@@ -72,6 +73,95 @@ export function UnifiedSearchBar({
 
   const [openState, setOpenState] = useState(false);
   const [openCity, setOpenCity] = useState(false);
+  const justClosedStateRef = useRef(false);
+  const justClosedCityRef = useRef(false);
+  const isPointerStateRef = useRef(false);
+  const pointerStateTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isPointerCityRef = useRef(false);
+  const pointerCityTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const shouldFocusNextStateRef = useRef(false);
+  const shouldFocusNextCityRef = useRef(false);
+  const buttonRefState = useRef<HTMLButtonElement | null>(null);
+  const buttonRefCity = useRef<HTMLButtonElement | null>(null);
+
+  const handleOpenStateChange = (isOpen: boolean) => {
+    setOpenState(isOpen);
+    isPointerStateRef.current = false;
+    if (!isOpen) {
+      justClosedStateRef.current = true;
+      setTimeout(() => {
+        justClosedStateRef.current = false;
+      }, 200);
+    }
+  };
+
+  const handleOpenCityChange = (isOpen: boolean) => {
+    setOpenCity(isOpen);
+    isPointerCityRef.current = false;
+    if (!isOpen) {
+      justClosedCityRef.current = true;
+      setTimeout(() => {
+        justClosedCityRef.current = false;
+      }, 200);
+    }
+  };
+
+  const handlePointerDownState = () => {
+    isPointerStateRef.current = true;
+    if (pointerStateTimerRef.current) clearTimeout(pointerStateTimerRef.current);
+    pointerStateTimerRef.current = setTimeout(() => {
+      isPointerStateRef.current = false;
+    }, 300);
+  };
+
+  const handlePointerDownCity = () => {
+    isPointerCityRef.current = true;
+    if (pointerCityTimerRef.current) clearTimeout(pointerCityTimerRef.current);
+    pointerCityTimerRef.current = setTimeout(() => {
+      isPointerCityRef.current = false;
+    }, 300);
+  };
+
+  const handleCloseAutoFocusState = (e: Event) => {
+    if (shouldFocusNextStateRef.current) {
+      e.preventDefault();
+      shouldFocusNextStateRef.current = false;
+      focusNextField(buttonRefState.current);
+    }
+  };
+
+  const handleCloseAutoFocusCity = (e: Event) => {
+    if (shouldFocusNextCityRef.current) {
+      e.preventDefault();
+      shouldFocusNextCityRef.current = false;
+      focusNextField(buttonRefCity.current);
+    }
+  };
+
+  const handleFocusState = () => {
+    if (isInitialLoading) return;
+    if (isPointerStateRef.current) {
+      isPointerStateRef.current = false;
+      return;
+    }
+    if (justClosedStateRef.current) {
+      justClosedStateRef.current = false;
+      return;
+    }
+    setOpenState(true);
+  };
+
+  const handleFocusCity = () => {
+    if (isPointerCityRef.current) {
+      isPointerCityRef.current = false;
+      return;
+    }
+    if (justClosedCityRef.current) {
+      justClosedCityRef.current = false;
+      return;
+    }
+    setOpenCity(true);
+  };
 
   const [states, setStates] = useState<any[]>([]);
   const [cities, setCities] = useState<any[]>([]);
@@ -246,12 +336,15 @@ export function UnifiedSearchBar({
       {!isCityInspector && !isMapView && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-[10px] md:gap-[19.8px]">
           {/* Searchable State Dropdown */}
-          <Popover open={openState} onOpenChange={setOpenState}>
+          <Popover open={openState} onOpenChange={handleOpenStateChange}>
             <PopoverTrigger asChild>
               <Button
+                ref={buttonRefState}
                 variant="outline"
                 role="combobox"
                 aria-expanded={openState}
+                onPointerDown={handlePointerDownState}
+                onFocus={handleFocusState}
                 className="h-[39px] md:h-[65px] w-full justify-between rounded-[10px] border-[rgba(28,167,166,0.25)] bg-white text-[#708090] font-medium px-4 md:px-6 focus:ring-[#22a699]/20 text-[13px] md:text-[20px] font-asap shadow-none hover:bg-white"
               >
                 <span className="truncate flex items-center gap-2">
@@ -263,7 +356,10 @@ export function UnifiedSearchBar({
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50 text-[#1CA7A6]" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 rounded-xl bg-white shadow-xl border border-[rgba(28,167,166,0.25)] z-50">
+            <PopoverContent
+              onCloseAutoFocus={handleCloseAutoFocusState}
+              className="w-[var(--radix-popover-trigger-width)] p-0 rounded-xl bg-white shadow-xl border border-[rgba(28,167,166,0.25)] z-50"
+            >
               <Command>
                 <CommandInput
                   placeholder="Search state..."
@@ -284,6 +380,7 @@ export function UnifiedSearchBar({
                         <CommandItem
                           value="Select State"
                           onSelect={() => {
+                            shouldFocusNextStateRef.current = true;
                             setState("all");
                             setOpenState(false);
                           }}
@@ -304,6 +401,7 @@ export function UnifiedSearchBar({
                               key={s.id}
                               value={name}
                               onSelect={() => {
+                                shouldFocusNextStateRef.current = true;
                                 setState(s.id);
                                 setOpenState(false);
                               }}
@@ -328,14 +426,16 @@ export function UnifiedSearchBar({
           </Popover>
 
           {/* Searchable City Dropdown */}
-          <Popover open={openCity} onOpenChange={setOpenCity}>
+          <Popover open={openCity} onOpenChange={handleOpenCityChange}>
             <PopoverTrigger asChild>
               <Button
+                ref={buttonRefCity}
                 variant="outline"
                 role="combobox"
                 aria-expanded={openCity}
-                disabled={isCitiesLoading}
-                className="h-[39px] md:h-[65px] w-full justify-between rounded-[10px] border-[rgba(28,167,166,0.25)] bg-white text-[#708090] font-medium px-4 md:px-6 focus:ring-[#22a699]/20 text-[13px] md:text-[20px] font-asap shadow-none hover:bg-white disabled:opacity-70"
+                onPointerDown={handlePointerDownCity}
+                onFocus={handleFocusCity}
+                className="h-[39px] md:h-[65px] w-full justify-between rounded-[10px] border-[rgba(28,167,166,0.25)] bg-white text-[#708090] font-medium px-4 md:px-6 focus:ring-[#22a699]/20 text-[13px] md:text-[20px] font-asap shadow-none hover:bg-white"
               >
                 <span className="truncate flex items-center gap-2">
                   {isCitiesLoading && (
@@ -346,7 +446,10 @@ export function UnifiedSearchBar({
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50 text-[#1CA7A6]" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 rounded-xl bg-white shadow-xl border border-[rgba(28,167,166,0.25)] z-50">
+            <PopoverContent
+              onCloseAutoFocus={handleCloseAutoFocusCity}
+              className="w-[var(--radix-popover-trigger-width)] p-0 rounded-xl bg-white shadow-xl border border-[rgba(28,167,166,0.25)] z-50"
+            >
               <Command>
                 <CommandInput
                   placeholder="Search city..."
@@ -367,6 +470,7 @@ export function UnifiedSearchBar({
                         <CommandItem
                           value="City"
                           onSelect={() => {
+                            shouldFocusNextCityRef.current = true;
                             setCity("all");
                             setOpenCity(false);
                           }}
@@ -388,6 +492,7 @@ export function UnifiedSearchBar({
                               key={c.id}
                               value={name}
                               onSelect={() => {
+                                shouldFocusNextCityRef.current = true;
                                 setCity(c.id);
                                 if (cityStateId) {
                                   setState(String(cityStateId));

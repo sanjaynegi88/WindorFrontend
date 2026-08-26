@@ -33,6 +33,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { getCities, getStates } from "@/lib/actions";
+import { focusNextField } from "@/components/ui/searchable-select";
 
 interface CommonProps {
   name?: string;
@@ -78,6 +79,51 @@ export function StateSelect({
   const [states, setStates] = React.useState<StateOption[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [open, setOpen] = React.useState(false);
+  const justClosedRef = React.useRef(false);
+  const isPointerInteractionRef = React.useRef(false);
+  const pointerTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const shouldFocusNextRef = React.useRef(false);
+  const buttonRef = React.useRef<HTMLButtonElement | null>(null);
+
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    isPointerInteractionRef.current = false;
+    if (!isOpen) {
+      justClosedRef.current = true;
+      setTimeout(() => {
+        justClosedRef.current = false;
+      }, 200);
+    }
+  };
+
+  const handlePointerDown = () => {
+    isPointerInteractionRef.current = true;
+    if (pointerTimerRef.current) clearTimeout(pointerTimerRef.current);
+    pointerTimerRef.current = setTimeout(() => {
+      isPointerInteractionRef.current = false;
+    }, 300);
+  };
+
+  const handleCloseAutoFocus = (e: Event) => {
+    if (shouldFocusNextRef.current) {
+      e.preventDefault();
+      shouldFocusNextRef.current = false;
+      focusNextField(buttonRef.current);
+    }
+  };
+
+  const handleFocus = () => {
+    if (disabled) return;
+    if (isPointerInteractionRef.current) {
+      isPointerInteractionRef.current = false;
+      return;
+    }
+    if (justClosedRef.current) {
+      justClosedRef.current = false;
+      return;
+    }
+    setOpen(true);
+  };
 
   React.useEffect(() => {
     if (externalStates && externalStates.length > 0) {
@@ -131,16 +177,20 @@ export function StateSelect({
     if (onSelectState) {
       onSelectState(state);
     }
+    shouldFocusNextRef.current = true;
     setOpen(false);
   };
 
   const trigger = (
     <Button
+      ref={buttonRef}
       type="button"
       variant="outline"
       role="combobox"
       aria-expanded={open}
       disabled={disabled}
+      onPointerDown={handlePointerDown}
+      onFocus={handleFocus}
       className={cn(
         "h-[39px] md:h-[65px] rounded-[10px] border-[rgba(28,167,166,0.25)] bg-white text-[#708090] font-medium px-4 md:px-6 focus:ring-[#22a699]/20 text-[13px] md:text-[20px] font-asap transition-all w-full shadow-none flex items-center justify-between",
         !displayValue
@@ -156,9 +206,10 @@ export function StateSelect({
   );
 
   const content = (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent
+        onCloseAutoFocus={handleCloseAutoFocus}
         className="w-[var(--radix-popover-trigger-width)] p-0 rounded-xl overflow-hidden shadow-2xl border-[rgba(28,167,166,0.15)] bg-white z-[100]"
         align="start"
       >
@@ -263,6 +314,51 @@ export function CitySelect({
   const [cities, setCities] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [open, setOpen] = React.useState(false);
+  const justClosedRef = React.useRef(false);
+  const isPointerInteractionRef = React.useRef(false);
+  const pointerTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const shouldFocusNextRef = React.useRef(false);
+  const buttonRef = React.useRef<HTMLButtonElement | null>(null);
+
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    isPointerInteractionRef.current = false;
+    if (!isOpen) {
+      justClosedRef.current = true;
+      setTimeout(() => {
+        justClosedRef.current = false;
+      }, 200);
+    }
+  };
+
+  const handlePointerDown = () => {
+    isPointerInteractionRef.current = true;
+    if (pointerTimerRef.current) clearTimeout(pointerTimerRef.current);
+    pointerTimerRef.current = setTimeout(() => {
+      isPointerInteractionRef.current = false;
+    }, 300);
+  };
+
+  const handleCloseAutoFocus = (e: Event) => {
+    if (shouldFocusNextRef.current) {
+      e.preventDefault();
+      shouldFocusNextRef.current = false;
+      focusNextField(buttonRef.current);
+    }
+  };
+
+  const handleFocus = () => {
+    if (disabled) return;
+    if (isPointerInteractionRef.current) {
+      isPointerInteractionRef.current = false;
+      return;
+    }
+    if (justClosedRef.current) {
+      justClosedRef.current = false;
+      return;
+    }
+    setOpen(true);
+  };
 
   const internalStateValue =
     stateValue !== undefined
@@ -344,22 +440,26 @@ export function CitySelect({
       }
       if (controlledOnChange) controlledOnChange("");
     }
+    shouldFocusNextRef.current = true;
     setOpen(false);
   };
 
   const trigger = (
     <Button
+      ref={buttonRef}
       type="button"
       variant="outline"
       role="combobox"
       aria-expanded={open}
-      disabled={disabled || loading}
+      disabled={disabled}
+      onPointerDown={handlePointerDown}
+      onFocus={handleFocus}
       className={cn(
         "h-[39px] md:h-[65px] rounded-[10px] border-[rgba(28,167,166,0.25)] bg-white text-[#708090] font-medium px-4 md:px-6 focus:ring-[#22a699]/20 text-[13px] md:text-[20px] font-asap transition-all w-full shadow-none flex items-center justify-between",
         !displayValue
           ? "text-[#708090]/60 font-normal"
           : "text-[#708090] font-medium",
-        (disabled || loading) && "cursor-not-allowed opacity-70",
+        disabled && "cursor-not-allowed opacity-70",
         className,
       )}
     >
@@ -372,9 +472,10 @@ export function CitySelect({
   );
 
   const content = (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent
+        onCloseAutoFocus={handleCloseAutoFocus}
         className="w-[var(--radix-popover-trigger-width)] p-0 rounded-xl overflow-hidden shadow-2xl border-[rgba(28,167,166,0.15)] bg-white z-[100]"
         align="start"
       >

@@ -163,7 +163,7 @@ export function Navbar() {
             name: "PROJECTS",
             activeFor: ["/projects", "/my-projects"],
             submenu: [
-              { name: "My projects Lists", href: "/my-projects" },
+              { name: "My projects List", href: "/my-projects" },
               { name: "Create new Project", href: "/projects" },
             ],
           },
@@ -192,7 +192,7 @@ export function Navbar() {
             name: "PROJECTS",
             activeFor: ["/projects", "/my-projects"],
             submenu: [
-              { name: "My projects Lists", href: "/my-projects" },
+              { name: "My projects List", href: "/my-projects" },
               { name: "Create new Project", href: "/projects" },
             ],
           },
@@ -220,7 +220,7 @@ export function Navbar() {
             name: "PROJECTS",
             activeFor: ["/projects", "/my-projects"],
             submenu: [
-              { name: "My projects Lists", href: "/my-projects" },
+              { name: "My projects List", href: "/my-projects" },
               { name: "Create new Project", href: "/projects" },
             ],
           },
@@ -270,7 +270,7 @@ export function Navbar() {
             name: "PROJECTS",
             activeFor: ["/projects", "/my-projects"],
             submenu: [
-              { name: "My projects Lists", href: "/my-projects" },
+              { name: "My projects List", href: "/my-projects" },
               { name: "Create new Project", href: "/projects" },
             ],
           },

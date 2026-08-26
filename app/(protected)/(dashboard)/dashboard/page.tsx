@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  getPropertyListUser,
   generateMultipleReports,
   checkoutReports,
   getFreeTrialStatus,
@@ -42,7 +41,6 @@ function DashboardPageContent() {
   const isSubAccount =
     (user as any)?.user?.sub_account === true ||
     (user as any)?.sub_account === true;
-  const [userProperties, setUserProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
@@ -217,26 +215,6 @@ function DashboardPageContent() {
       : window.location.pathname;
     window.history.pushState(null, "", newUrl);
   };
-
-  useEffect(() => {
-    if (!user) return;
-
-    const fetchProperties = async () => {
-      if (role === "property_owner") {
-        try {
-          setLoading(true);
-          const propertiesRes = await getPropertyListUser();
-          setUserProperties(propertiesRes?.data || propertiesRes || []);
-        } catch (error: any) {
-          toast.error(error.message || "Failed to load data");
-          console.error("Failed to fetch properties:", error);
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-    fetchProperties();
-  }, [user, role]);
 
   const handleGenerateTop10 = async () => {
     if (!user) {

@@ -183,7 +183,8 @@ export default function ComponentDetail({
 
   const property = {
     propertyId: componentData?.id ?? "",
-    address: componentData?.property_name || componentData?.address || "",
+    propertyName: componentData?.property_name || "",
+    address: componentData?.address || "",
     address2: componentData?.address2 || "",
     property_type:
       componentData?.other_property_type ??
@@ -259,18 +260,29 @@ export default function ComponentDetail({
     <div className="min-h-screen bg-linear-to-b from-[#F5FFFF] to-[#FFFFFF] pb-20">
       <div className="max-w-292.5 mx-auto pt-4 md:pt-14 px-4 md:px-0 space-y-4 md:space-y-6.75">
         <div className="flex flex-col">
-          <h1 className="text-[20px] sm:text-[28px] md:text-[36px] font-bold text-[#1F2A44] tracking-normal uppercase leading-tight md:leading-[41px] font-asap break-words">
-            {property?.address}
-          </h1>
-          {property?.address2 && (
-            <h1 className="text-[14px] sm:text-[18px] md:text-[24px] font-normal text-[rgba(112,128,144,0.93)] leading-tight mt-4 md:leading-[29px] font-inter break-words">
-              {property.address2}
+          {property?.propertyName && (
+            <h1 className="text-[20px] sm:text-[28px] md:text-[36px] font-bold text-[#1F2A44] tracking-normal uppercase leading-tight md:leading-[41px] font-asap break-words">
+              {property?.propertyName}
             </h1>
           )}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-            <p className="text-[14px] sm:text-[18px] md:text-[24px] font-normal text-[rgba(112,128,144,0.93)] leading-tight md:leading-[29px] font-inter">
-              {property.location}
-            </p>
+
+          <div className="flex flex-col mt-4 sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="space-y-1">
+              {property?.address && (
+                <h1 className="text-[14px] sm:text-[18px] md:text-[24px] font-normal text-[rgba(112,128,144,0.93)] leading-tight md:leading-[29px] font-inter break-words">
+                  {property.address}
+                </h1>
+              )}
+              {property?.address2 && (
+                <h1 className="text-[14px] sm:text-[18px] md:text-[24px] font-normal text-[rgba(112,128,144,0.93)] leading-tight md:leading-[29px] font-inter break-words">
+                  {property.address2}
+                </h1>
+              )}
+              <p className="text-[14px] sm:text-[18px] md:text-[24px] font-normal text-[rgba(112,128,144,0.93)] leading-tight md:leading-[29px] font-inter">
+                {property.location}
+              </p>
+            </div>
+
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               {showAddProject && (
                 <Link

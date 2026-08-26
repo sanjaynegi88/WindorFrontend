@@ -27,7 +27,7 @@ import {
   FormMessage,
   FormDescription,
 } from "@/components/ui/form";
-import { getAppImageUrl, toPascalCase } from "@/lib/utils";
+import { getAppImageUrl, toPascalCase, cn } from "@/lib/utils";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { toast } from "sonner";
 import { DynamicFeaturesTable } from "../common/dynamic-features-table";
@@ -176,6 +176,62 @@ export function InstallationForm({
   const [activeCategoryPickerKey, setActiveCategoryPickerKey] = useState<string | null>(null);
   const categoryGalleryInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const categoryCameraInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const getTotalUploadSizeBytes = (
+    overrideCategoryPhotos?: Record<
+      string,
+      { file: File | null; preview: string | null }
+    >,
+    overrideOwnerFiles?: File[],
+    overrideContractorFiles?: File[],
+  ) => {
+    let total = 0;
+    const catPhotos = overrideCategoryPhotos || categoryPhotos;
+    const oFiles = overrideOwnerFiles || ownerFiles;
+    const cFiles = overrideContractorFiles || contractorFiles;
+
+    Object.values(catPhotos).forEach((val) => {
+      if (val?.file?.size) total += val.file.size;
+    });
+    oFiles.forEach((f) => {
+      if (f?.size) total += f.size;
+    });
+    if (!isEditMode) {
+      cFiles.forEach((f) => {
+        if (f?.size) total += f.size;
+      });
+    }
+    return total;
+  };
+
+  const handleCategoryFileSelect = (
+    key: string,
+    file: File | undefined,
+    inputEl: HTMLInputElement | null,
+  ) => {
+    if (!file) return;
+
+    const candidatePhotos = {
+      ...categoryPhotos,
+      [key]: { file, preview: null },
+    };
+
+    const candidateTotalBytes = getTotalUploadSizeBytes(candidatePhotos);
+    if (candidateTotalBytes > 20 * 1024 * 1024) {
+      const totalMB = (candidateTotalBytes / (1024 * 1024)).toFixed(1);
+      toast.error(
+        `Adding "${file.name}" exceeds the 20MB total combined image size limit (Total would be ${totalMB} MB). Please choose a smaller image.`,
+      );
+      if (inputEl) inputEl.value = "";
+      return;
+    }
+
+    const preview = URL.createObjectURL(file);
+    setCategoryPhotos((prev) => ({
+      ...prev,
+      [key]: { file, preview },
+    }));
+  };
 
   const triggerCategoryInput = (key: string) => {
     const isMobile =
@@ -356,30 +412,33 @@ export function InstallationForm({
 
   const handleOwnerImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const oversizedFiles = files.filter((f) => f.size > 2 * 1024 * 1024);
-    const validFiles = files.filter((f) => f.size <= 2 * 1024 * 1024);
+    if (files.length === 0) return;
 
-    if (oversizedFiles.length > 0) {
-      toast.error(
-        `Some files were removed because they exceed the 2MB size limit: ${oversizedFiles.map((f) => f.name).join(", ")}`,
-      );
-    }
-
-    if (validFiles.length === 0) {
-      e.target.value = "";
-      return;
-    }
-
-    if (ownerFiles.length + validFiles.length > 5) {
+    if (ownerFiles.length + files.length > 5) {
       toast.error("You can only upload up to 5 property owner images");
       e.target.value = "";
       return;
     }
-    const newFiles = [...ownerFiles, ...validFiles];
-    setOwnerFiles(newFiles);
-    const newPreviews = validFiles.map((file) => URL.createObjectURL(file));
+
+    const candidateOwnerFiles = [...ownerFiles, ...files];
+    const candidateTotalBytes = getTotalUploadSizeBytes(
+      categoryPhotos,
+      candidateOwnerFiles,
+    );
+
+    if (candidateTotalBytes > 20 * 1024 * 1024) {
+      const totalMB = (candidateTotalBytes / (1024 * 1024)).toFixed(1);
+      toast.error(
+        `Adding these owner images exceeds the 20MB total combined image size limit (Total would be ${totalMB} MB). Please remove or compress some images.`,
+      );
+      e.target.value = "";
+      return;
+    }
+
+    setOwnerFiles(candidateOwnerFiles);
+    const newPreviews = files.map((file) => URL.createObjectURL(file));
     setOwnerImagePreviews((prev) => [...prev, ...newPreviews]);
-    form.setValue("ownerImages", newFiles.map((f) => f.name) as any);
+    form.setValue("ownerImages", candidateOwnerFiles.map((f) => f.name) as any);
     e.target.value = "";
   };
 
@@ -400,6 +459,15 @@ export function InstallationForm({
 
   const onSubmit = async (values: any) => {
     if (!type) return;
+
+    const totalBytes = getTotalUploadSizeBytes();
+    if (totalBytes > 20 * 1024 * 1024) {
+      const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
+      toast.error(
+        `Total image upload size is ${totalMB} MB, which exceeds the 20MB limit. Please remove or compress some images before saving.`,
+      );
+      return;
+    }
 
     const categoryFileMap: Record<string, File> = {};
     Object.entries(categoryPhotos).forEach(([key, val]) => {
@@ -831,8 +899,21 @@ export function InstallationForm({
                         : "Leave empty to keep the current image."}
                     </span>
                     <span className="text-[11px] text-amber-600 font-semibold">
-                      Acceptable size: Max 7MB per image
+                      Acceptable size: Max 20MB total combined size for all images
                     </span>
+                    {getTotalUploadSizeBytes() > 0 && (
+                      <span
+                        className={cn(
+                          "text-[11px] font-bold mt-0.5",
+                          getTotalUploadSizeBytes() > 20 * 1024 * 1024
+                            ? "text-destructive"
+                            : "text-teal-700",
+                        )}
+                      >
+                        Current Total Upload Size:{" "}
+                        {(getTotalUploadSizeBytes() / (1024 * 1024)).toFixed(2)} MB / 20 MB
+                      </span>
+                    )}
                   </p>
 
                   {loadingCategories ? (
@@ -884,8 +965,16 @@ export function InstallationForm({
                             className="flex flex-col items-center gap-2"
                           >
                             <div
-                              className="relative aspect-square rounded-xl overflow-hidden border bg-muted/20 w-full cursor-pointer group"
+                              role="button"
+                              tabIndex={0}
+                              className="relative aspect-square rounded-xl overflow-hidden border bg-muted/20 w-full cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1CA7A6]"
                               onClick={() => triggerCategoryInput(key)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  triggerCategoryInput(key);
+                                }
+                              }}
                             >
                               {photo?.preview ? (
                                 <>
@@ -912,7 +1001,7 @@ export function InstallationForm({
                                       if (categoryCameraInputRefs.current[key])
                                         categoryCameraInputRefs.current[key]!.value = "";
                                     }}
-                                    className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                    className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
                                   >
                                     <X className="size-3" />
                                   </button>
@@ -956,22 +1045,13 @@ export function InstallationForm({
                               type="file"
                               accept="image/*"
                               className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (!file) return;
-                                if (file.size > 7 * 1024 * 1024) {
-                                  toast.error(
-                                    `Image "${file.name}" exceeds the 7MB size limit`,
-                                  );
-                                  e.target.value = "";
-                                  return;
-                                }
-                                const preview = URL.createObjectURL(file);
-                                setCategoryPhotos((prev) => ({
-                                  ...prev,
-                                  [key]: { file, preview },
-                                }));
-                              }}
+                              onChange={(e) =>
+                                handleCategoryFileSelect(
+                                  key,
+                                  e.target.files?.[0],
+                                  e.target,
+                                )
+                              }
                             />
                             {/* Hidden file input for Camera */}
                             <input
@@ -982,22 +1062,13 @@ export function InstallationForm({
                               accept="image/*"
                               capture="environment"
                               className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (!file) return;
-                                if (file.size > 7 * 1024 * 1024) {
-                                  toast.error(
-                                    `Image "${file.name}" exceeds the 7MB size limit`,
-                                  );
-                                  e.target.value = "";
-                                  return;
-                                }
-                                const preview = URL.createObjectURL(file);
-                                setCategoryPhotos((prev) => ({
-                                  ...prev,
-                                  [key]: { file, preview },
-                                }));
-                              }}
+                              onChange={(e) =>
+                                handleCategoryFileSelect(
+                                  key,
+                                  e.target.files?.[0],
+                                  e.target,
+                                )
+                              }
                             />
                           </div>
                         );
@@ -1014,7 +1085,7 @@ export function InstallationForm({
                         Property Owner Images (Up to 5)
                       </FormLabel>
                       <span className="text-[11px] text-amber-600 font-semibold">
-                        Acceptable size: Max 7MB per image
+                        Acceptable size: Max 20MB total combined size for all images
                       </span>
                     </div>
 
@@ -1072,7 +1143,18 @@ export function InstallationForm({
                         </div>
                       ))}
                       {ownerImagePreviews.length < 5 && (
-                        <label className="aspect-square rounded-xl border-2 border-dashed border-green-300/50 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors hover:border-green-400/60">
+                        <label
+                          tabIndex={0}
+                          role="button"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              const input = e.currentTarget.querySelector("input");
+                              if (input) input.click();
+                            }
+                          }}
+                          className="aspect-square rounded-xl border-2 border-dashed border-green-300/50 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors hover:border-green-400/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                        >
                           <ImagePlus className="size-6 text-green-600" />
                           <span className="text-xs text-green-700 font-medium">
                             Add Photo

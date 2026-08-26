@@ -65,6 +65,7 @@ export function PropertyGrid({
       if (isPropertyOwner) {
         cleanFilterParams.isPropertyOwner = isPropertyOwner;
       }
+
       const response = await getPropertyListAll(cleanFilterParams);
 
       const newData = response?.data || [];

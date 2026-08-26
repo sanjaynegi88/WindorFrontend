@@ -423,10 +423,7 @@ export default function AddUserPage() {
 
   function handleStep2Submit(
     values:
-      | PropertyValues
-      | ContractorValues
-      | InsuranceValues
-      | InspectorValues,
+      PropertyValues | ContractorValues | InsuranceValues | InspectorValues,
   ) {
     if (!step1Data) return;
     submitUser(step1Data, selectedRoleName, values);
@@ -540,26 +537,21 @@ export default function AddUserPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {roles
-                              .filter(
-                                (role) =>
-                                  role.role_name.toLowerCase() !== "admin",
-                              )
-                              .map((role) => (
-                                <SelectItem
-                                  key={role.id}
-                                  value={role.id}
-                                  className="cursor-pointer"
-                                >
-                                  {role.role_name
-                                    .split("_")
-                                    .map(
-                                      (w) =>
-                                        w.charAt(0) + w.slice(1).toLowerCase(),
-                                    )
-                                    .join(" ")}
-                                </SelectItem>
-                              ))}
+                            {roles.map((role) => (
+                              <SelectItem
+                                key={role.id}
+                                value={role.id}
+                                className="cursor-pointer"
+                              >
+                                {role.role_name
+                                  .split("_")
+                                  .map(
+                                    (w) =>
+                                      w.charAt(0) + w.slice(1).toLowerCase(),
+                                  )
+                                  .join(" ")}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, ChevronDown } from "lucide-react";
 import { cn, toTitleCase } from "@/lib/utils";
 import { Badge, BadgeButton } from "@/components/ui/badge";
@@ -40,6 +40,41 @@ export function MultiCitySelector({
   const [selectedCityData, setSelectedCityData] = useState(
     selectedCityDetails || []
   );
+  const justClosedRef = useRef(false);
+  const isPointerInteractionRef = useRef(false);
+  const pointerTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    isPointerInteractionRef.current = false;
+    if (!isOpen) {
+      justClosedRef.current = true;
+      setTimeout(() => {
+        justClosedRef.current = false;
+      }, 200);
+    }
+  };
+
+  const handlePointerDown = () => {
+    isPointerInteractionRef.current = true;
+    if (pointerTimerRef.current) clearTimeout(pointerTimerRef.current);
+    pointerTimerRef.current = setTimeout(() => {
+      isPointerInteractionRef.current = false;
+    }, 300);
+  };
+
+  const handleFocus = () => {
+    if (disabled) return;
+    if (isPointerInteractionRef.current) {
+      isPointerInteractionRef.current = false;
+      return;
+    }
+    if (justClosedRef.current) {
+      justClosedRef.current = false;
+      return;
+    }
+    setOpen(true);
+  };
 
   useEffect(() => {
     let active = true;
@@ -100,11 +135,14 @@ export function MultiCitySelector({
 
   return (
     <div className="w-full">
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <div
             role="combobox"
             aria-expanded={open}
+            tabIndex={disabled ? -1 : 0}
+            onPointerDown={handlePointerDown}
+            onFocus={handleFocus}
             className={cn(
               "flex w-full bg-white border border-[rgba(112,128,144,0.23)] transition-[color,box-shadow]",
               "text-[#a83e00] font-asap font-medium rounded-[6px] cursor-pointer",

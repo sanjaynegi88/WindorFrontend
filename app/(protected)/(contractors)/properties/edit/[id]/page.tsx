@@ -173,7 +173,9 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
             undefined,
             propStateId || undefined,
           ),
-          role === "admin" ? getPropertyOwners() : Promise.resolve([]),
+          role === "admin" || role === "contractor" || role === "manufacturer"
+            ? getPropertyOwners()
+            : Promise.resolve([]),
           getPropertyTypes(),
         ]);
 

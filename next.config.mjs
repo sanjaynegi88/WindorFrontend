@@ -24,9 +24,9 @@ const nextConfig = {
   },
   experimental: {
     serverActions: {
-      bodySizeLimit: '100mb',
+      bodySizeLimit: '20mb',
     },  
-    middlewareClientMaxBodySize: "100mb",
+    middlewareClientMaxBodySize: "20mb",
   },
   output: 'standalone',
 };

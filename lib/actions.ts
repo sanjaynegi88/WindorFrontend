@@ -995,17 +995,6 @@ export async function getPropertyLocations(
     return response.data;
 }
 
-export async function getPropertyListUser() {
-    const response = await fetchApi({
-        url: '/api/properties/user/with-components',
-        method: 'GET',
-    });
-    if (response.type === 'error') {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get property list'));
-    }
-    return response.data;
-}
-
 export async function getUserProfile() {
     const response = await fetchApi({
         url: "/api/users/profile",

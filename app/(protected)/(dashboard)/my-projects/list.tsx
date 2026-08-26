@@ -26,6 +26,7 @@ import {
   downloadPdfFromUrl,
   getErrorMessage,
   toPascalCase,
+  isContractorProject,
   cn,
 } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -88,18 +89,23 @@ export default function MyProjectList() {
   const handleGenerateReport = async (
     projectId: string,
     projectName: string,
+    projectObj?: any,
   ) => {
     setGeneratingReports((prev) => ({ ...prev, [projectId]: true }));
     try {
-      if (isOwner) {
+      const isContractorProj = isAdmin
+        ? isContractorProject(projectObj)
+        : !isOwner;
+
+      if (isContractorProj) {
+        const url = await generateContractorProjectPdfReport(projectId);
+        const filename = `contractor-projects-report-${projectName}.pdf`;
+        await downloadPdfFromUrl(url, filename);
+      } else {
         const url = await generateOwnerProjectPdfReport(projectId);
         const filename = `owner-projects-report-${projectName}.pdf`;
         await downloadPdfFromUrl(url, filename);
-        toast.success(`Report downloaded successfully`);
       }
-      const url = await generateContractorProjectPdfReport(projectId);
-      const filename = `contractor-projects-report-${projectName}.pdf`;
-      await downloadPdfFromUrl(url, filename);
       toast.success(`Report downloaded successfully`);
     } catch (error: any) {
       console.error("Download report error:", error);
@@ -486,6 +492,7 @@ export default function MyProjectList() {
                                 handleGenerateReport(
                                   actualProjectId,
                                   projectName,
+                                  project,
                                 );
                               }}
                               disabled={isAnyDownloading}

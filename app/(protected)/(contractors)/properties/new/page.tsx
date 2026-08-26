@@ -167,7 +167,11 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
   }>({ front: null, other: null });
 
   const user = useUser();
-  const canFetchOwners = user.role === "admin";
+  const currentRole = user?.role?.toLowerCase();
+  const canFetchOwners =
+    currentRole === "admin" ||
+    currentRole === "contractor" ||
+    currentRole === "manufacturer";
   const router = useRouter();
 
   const clearPropertyFlow = () => {
