@@ -506,9 +506,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
               ? addressData.other_property_type || null
               : null,
             property_name: addressData.property_name,
-            ...(user.role == "admin"
-              ? { property_owner_id: addressData.property_owner_id }
-              : {}),
+            property_owner_id: addressData.property_owner_id,
             latitude: addressData.latitude,
             longitude: addressData.longitude,
           },
@@ -699,14 +697,20 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           installationId,
           files.categoryFiles,
         );
-        if (!imgResult.success) throw new Error(imgResult.message || `Failed to upload category images`);
+        if (!imgResult.success)
+          throw new Error(
+            imgResult.message || `Failed to upload category images`,
+          );
       } else if (files.contractorFiles && files.contractorFiles.length > 0) {
         const imgResult = await uploadInstallationImages(
           apiType,
           installationId,
           files.contractorFiles,
         );
-        if (!imgResult.success) throw new Error(imgResult.message || `Failed to upload contractor images`);
+        if (!imgResult.success)
+          throw new Error(
+            imgResult.message || `Failed to upload contractor images`,
+          );
       }
 
       if (files.ownerFiles && files.ownerFiles.length > 0) {
@@ -715,7 +719,10 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           installationId,
           files.ownerFiles,
         );
-        if (!ownerImgResult.success) throw new Error(ownerImgResult.message || `Failed to upload owner images`);
+        if (!ownerImgResult.success)
+          throw new Error(
+            ownerImgResult.message || `Failed to upload owner images`,
+          );
       }
     }
 
