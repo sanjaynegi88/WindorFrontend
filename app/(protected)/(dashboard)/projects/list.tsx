@@ -156,7 +156,7 @@ export default function ProjectList() {
                 Properties
               </h2>
 
-              {role !== "contractor" && (
+              {/* {role !== "contractor" && (
                 <Button
                   onClick={handleGenerateTop10}
                   disabled={isGeneratingTop10}
@@ -172,7 +172,7 @@ export default function ProjectList() {
                   </span>
                   <span className="sm:hidden">Top 10</span>
                 </Button>
-              )}
+              )} */}
             </div>
           )}
         </div>

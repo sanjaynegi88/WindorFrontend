@@ -204,7 +204,7 @@ function PropertyPageContent() {
               <h2 className="text-2xl md:text-4xl font-black text-[#1e293b] tracking-tighter uppercase font-asap">
                 Properties
               </h2>
-              {role !== "contractor" && (
+              {/* {role !== "contractor" && (
                 <Button
                   onClick={handleGenerateTop10}
                   disabled={isGeneratingTop10}
@@ -220,7 +220,7 @@ function PropertyPageContent() {
                   </span>
                   <span className="sm:hidden">Top 10</span>
                 </Button>
-              )}
+              )} */}
             </div>
             <PropertyGrid
               searchParams={searchParams}
