@@ -152,7 +152,11 @@ export function CategorySelection({
       : undefined,
   );
   const [governingCity, setGoverningCity] = useState(
-    initialProjectData?.governing_city_id || defaultGoverningCityId || "",
+    initialProjectData?.governing_city_id
+      ? String(initialProjectData.governing_city_id)
+      : defaultGoverningCityId
+        ? String(defaultGoverningCityId)
+        : "",
   );
   const [permit, setPermit] = useState(initialProjectData?.permit || "");
   const [notes, setNotes] = useState(initialProjectData?.notes || "");
@@ -194,7 +198,11 @@ export function CategorySelection({
         : undefined,
     );
     setGoverningCity(
-      initialProjectData?.governing_city_id || defaultGoverningCityId || "",
+      initialProjectData?.governing_city_id
+        ? String(initialProjectData.governing_city_id)
+        : defaultGoverningCityId
+          ? String(defaultGoverningCityId)
+          : "",
     );
     setPermit(initialProjectData?.permit || "");
     setNotes(initialProjectData?.notes || "");
@@ -638,11 +646,11 @@ export function CategorySelection({
           <SearchableSelect
             options={(stateCities.length > 0 ? stateCities : cities).map(
               (c) => ({
-                id: c.id,
+                id: String(c.id),
                 name: toTitleCase(c.name),
               }),
             )}
-            value={governingCity || ""}
+            value={governingCity ? String(governingCity) : ""}
             onValueChange={(val) =>
               handleFieldChange(() => setGoverningCity(val))
             }

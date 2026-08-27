@@ -613,8 +613,6 @@ export default function UserProfile() {
     return { label: "Weak", color: "text-red-500", bg: "bg-red-500" };
   };
 
-  const integrityStatus = getIntegrityStatus(integrityScore);
-
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {

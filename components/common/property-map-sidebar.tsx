@@ -130,6 +130,11 @@ export function PropertyMapSidebar({
       setLoading(true);
       try {
         const result = await getPropertyListAll({ id: propertyId });
+        if (result && result.success === false) {
+          toast.error(result.message || "Failed to fetch property details");
+          setLoading(false);
+          return;
+        }
         const data = Array.isArray(result)
           ? result[0]
           : result?.data

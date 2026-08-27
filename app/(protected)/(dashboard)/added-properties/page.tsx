@@ -155,27 +155,40 @@ export default function AddedPropertiesPage() {
   };
 
   const handleAddProject = (property: MockProperty) => {
-    const propertyId = property.id;
+    const prop = property as any;
+    const propertyId = prop.id;
     const stateId =
-      property.raw?.state_id ||
-      property.raw?.state?.id ||
-      property.raw?.state?.state_id ||
+      prop.stateId ||
+      prop.raw?.state_id ||
+      prop.raw?.state?.id ||
+      prop.raw?.state?.state_id ||
+      prop.state_id ||
+      prop.state?.id ||
       "";
     const cityId =
-      property.raw?.city_id ||
-      property.raw?.city?.id ||
-      property.raw?.city?.city_id ||
+      prop.cityId ||
+      prop.raw?.city_id ||
+      prop.raw?.city?.id ||
+      prop.raw?.city?.city_id ||
+      prop.city_id ||
+      prop.city?.id ||
+      "";
+    const cityName =
+      prop.city ||
+      prop.raw?.city_name ||
+      prop.raw?.city?.name ||
       "";
     const propertyName =
-      property.propertyName ||
-      property.raw?.property_name ||
-      property.raw?.name ||
+      prop.propertyName ||
+      prop.raw?.property_name ||
+      prop.raw?.name ||
       "";
 
     const params = new URLSearchParams();
     if (propertyId) params.set("propertyId", String(propertyId));
     if (stateId) params.set("stateId", String(stateId));
     if (cityId) params.set("cityId", String(cityId));
+    if (cityName) params.set("cityName", String(cityName));
     if (propertyName) params.set("propertyName", propertyName);
 
     router.push(`/properties/new?${params.toString()}`);

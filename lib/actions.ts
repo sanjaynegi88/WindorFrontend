@@ -886,15 +886,24 @@ export async function postReport(propertyId: string): Promise<ActionResult> {
 }
 
 export async function getPropertyById(id: string) {
-    const response = await fetchApi({
-        url: `/api/properties/components/summary?id=${id}`,
-        method: 'GET',
-    });
-    if (response.type === 'error') {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get property details'));
+    try {
+        const response = await fetchApi({
+            url: `/api/properties/components/summary?id=${id}`,
+            method: 'GET',
+        });
+        if (response.type === 'error') {
+            return { success: false, message: normalizeMsg(response.messages, 'Failed to get property details'), data: null };
+        }
+        const rawData = response.data;
+        const item = Array.isArray(rawData)
+            ? rawData[0]
+            : rawData?.data && Array.isArray(rawData.data)
+            ? rawData.data[0]
+            : (rawData?.data ?? rawData);
+        return { success: true, data: item };
+    } catch (err: any) {
+        return { success: false, message: err?.message || 'Failed to get property details', data: null };
     }
-    const data = response.data;
-    return Array.isArray(data) ? data[0] : data;
 }
 
 export type PropertyFilters = {
@@ -914,6 +923,7 @@ export type PropertyFilters = {
     limit?: number;
     is_purchased?: boolean;
     isPropertyOwner?: boolean;
+    include_pending?: boolean;
 };
 
 function buildPropertyFilterParams(filters: PropertyFilters): URLSearchParams {
@@ -933,29 +943,40 @@ function buildPropertyFilterParams(filters: PropertyFilters): URLSearchParams {
     if (filters.page) params.append('page', filters.page.toString());
     if (filters.limit) params.append('limit', filters.limit.toString());
     if (filters.is_purchased !== undefined) params.append('is_purchased', filters.is_purchased.toString());
+    if (filters.include_pending !== undefined) params.append('include_pending', filters.include_pending.toString());
     return params;
 }
 
 export async function getPropertyListAll(filters?: PropertyFilters) {
-    let url = (filters && filters.isPropertyOwner)
-        ? '/api/properties/user/all-details'
-        : '/api/properties/components/summary';
+    try {
+        let url = (filters && filters.isPropertyOwner)
+            ? '/api/properties/user/all-details'
+            : '/api/properties/components/summary';
 
-    if (filters) {
-        const { isPropertyOwner, ...cleanFilters } = filters;
-        const query = buildPropertyFilterParams(cleanFilters).toString();
-        if (query) url += `?${query}`;
+        if (filters) {
+            const { isPropertyOwner, ...cleanFilters } = filters;
+            const query = buildPropertyFilterParams(cleanFilters).toString();
+            if (query) url += `?${query}`;
+        }
+
+        console.log("api url with params", url)
+
+        const response = await fetchApi({
+            url,
+            method: 'GET',
+        });
+
+        if (response.type === 'error') {
+            return { success: false, message: normalizeMsg(response.messages, 'Failed to get property list'), data: [] };
+        }
+        return {
+            success: true,
+            data: Array.isArray(response.data) ? response.data : (response.data?.data || response.data || []),
+            ...(typeof response.data === 'object' && response.data !== null ? response.data : {})
+        };
+    } catch (err: any) {
+        return { success: false, message: err?.message || 'Failed to get property list', data: [] };
     }
-
-    const response = await fetchApi({
-        url,
-        method: 'GET',
-    });
-
-    if (response.type === 'error') {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get property list'));
-    }
-    return response.data;
 }
 
 export async function getPropertyLocations(
@@ -1979,14 +2000,20 @@ export async function updatePropertyApprovalImages(propertyId: string, frontImag
 }
 
 export async function getPropertyDetail(id: string) {
-    const response = await fetchApi({
-        url: `/api/properties/components/summary?id=${id}`,
-        method: 'GET',
-    });
-    if (response.type === 'error') {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get property detail'));
+    try {
+        const response = await fetchApi({
+            url: `/api/properties/components/summary?id=${id}`,
+            method: 'GET',
+        });
+        if (response.type === 'error') {
+            return { success: false, message: normalizeMsg(response.messages, 'Failed to get property detail'), data: null };
+        }
+        const rawData = response.data;
+        const item = Array.isArray(rawData) ? rawData[0] : (rawData?.data ? rawData.data : rawData);
+        return { success: true, data: item };
+    } catch (err: any) {
+        return { success: false, message: err?.message || 'Failed to get property detail', data: null };
     }
-    return response.data;
 }
 
 

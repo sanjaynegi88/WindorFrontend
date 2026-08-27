@@ -54,9 +54,17 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
   const initialPropertyId = searchParams.get("propertyId");
   const paramStateId =
     searchParams.get("stateId") || searchParams.get("state_id");
-  const paramCityId = searchParams.get("cityId") || searchParams.get("city_id");
+  const paramCityId =
+    searchParams.get("cityId") ||
+    searchParams.get("city_id") ||
+    searchParams.get("governing_city_id") ||
+    searchParams.get("governingCityId");
   const paramPropertyName =
     searchParams.get("propertyName") || searchParams.get("property_name");
+  const paramCityName =
+    searchParams.get("cityName") ||
+    searchParams.get("city") ||
+    searchParams.get("city_name");
 
   const flow = searchParams.get("flow");
 
@@ -216,10 +224,10 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
       address: "",
       address2: "",
       property_type: "",
-      city_id: paramCityId || "",
-      city: "",
-      state: paramStateId || "",
-      state_id: paramStateId || "",
+      city_id: paramCityId ? String(paramCityId) : "",
+      city: paramCityName || "",
+      state: paramStateId ? String(paramStateId) : "",
+      state_id: paramStateId ? String(paramStateId) : "",
       zip: "",
       property_name: paramPropertyName || "",
       property_owner_id: "",
@@ -262,10 +270,13 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
         }
 
         const t0 = performance.now();
-        const property = await getPropertyById(tempPropertyId);
+        const propertyRes = await getPropertyById(tempPropertyId);
         const t1 = performance.now();
 
-        const propertyPayload = property?.data ?? property;
+        const isSuccess = propertyRes?.success === true;
+        const propertyPayload = isSuccess
+          ? propertyRes.data?.data ?? propertyRes.data
+          : null;
         const propStateId =
           propertyPayload?.state_id ||
           propertyPayload?.state?.id ||
@@ -305,37 +316,62 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
 
         setHasExistingReport(reportFlag);
         setExistingPropertyName(propertyName);
+        const targetCityId = propertyPayload?.city_id
+          ? String(propertyPayload.city_id)
+          : paramCityId
+            ? String(paramCityId)
+            : "";
+        const targetStateId = propertyPayload?.state_id
+          ? String(propertyPayload.state_id)
+          : paramStateId
+            ? String(paramStateId)
+            : "";
+        const matchedCityObj = rawCities.find(
+          (c: any) => String(c.id) === String(targetCityId),
+        );
+        const matchedCityName =
+          propertyPayload?.city_name ||
+          propertyPayload?.city?.name ||
+          matchedCityObj?.name ||
+          paramCityName ||
+          "";
+
         if (propertyPayload) {
           const frontImg = propertyPayload.front_image || null;
           const otherImg = propertyPayload.other_image || null;
           setExistingPropertyImages({ front: frontImg, other: otherImg });
           setHasSavedImages(!!frontImg || !!otherImg);
-          setAddressData({
-            address: propertyPayload.address || "",
-            address2: propertyPayload.address2 || "",
-            property_type_id:
-              propertyPayload.property_type_id ||
-              propertyPayload.property_type?.id ||
-              "",
-            property_type:
-              propertyPayload.property_type_id ||
-              propertyPayload.property_type?.id ||
-              "",
-            city_id: propertyPayload.city_id || paramCityId || "",
-            city: propertyPayload.city_name || propertyPayload.city?.name || "",
-            state: propertyPayload.state_id || paramStateId || "",
-            state_id: propertyPayload.state_id || paramStateId || "",
-            zip: propertyPayload.zip || "",
-            property_name: propertyName,
-            property_owner_id: propertyPayload.property_owner_id || "",
-            latitude: propertyPayload.latitude
-              ? Number(propertyPayload.latitude)
-              : 40.67,
-            longitude: propertyPayload.longitude
-              ? Number(propertyPayload.longitude)
-              : -73.94,
-          });
         }
+
+        setAddressData((prev) => ({
+          ...prev,
+          address: propertyPayload?.address || prev.address || "",
+          address2: propertyPayload?.address2 || prev.address2 || "",
+          property_type_id:
+            propertyPayload?.property_type_id ||
+            propertyPayload?.property_type?.id ||
+            prev.property_type_id ||
+            "",
+          property_type:
+            propertyPayload?.property_type_id ||
+            propertyPayload?.property_type?.id ||
+            prev.property_type ||
+            "",
+          city_id: targetCityId,
+          city: matchedCityName,
+          state: targetStateId,
+          state_id: targetStateId,
+          zip: propertyPayload?.zip || prev.zip || "",
+          property_name: propertyName || prev.property_name || "",
+          property_owner_id:
+            propertyPayload?.property_owner_id || prev.property_owner_id || "",
+          latitude: propertyPayload?.latitude
+            ? Number(propertyPayload.latitude)
+            : prev.latitude || 40.67,
+          longitude: propertyPayload?.longitude
+            ? Number(propertyPayload.longitude)
+            : prev.longitude || -73.94,
+        }));
         if (typeof window !== "undefined") {
           localStorage.setItem(
             "current_property_has_report",
@@ -347,7 +383,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
         }
       } catch (error) {
         console.error("[DEBUG] Failed to load property summary:", error);
-        if (paramPropertyName || paramStateId || paramCityId) {
+        if (paramPropertyName || paramStateId || paramCityId || paramCityName) {
           if (paramPropertyName) setExistingPropertyName(paramPropertyName);
           setAddressData((prev) => ({
             ...prev,
@@ -355,6 +391,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
             state: paramStateId || prev.state,
             state_id: paramStateId || prev.state_id,
             city_id: paramCityId || prev.city_id,
+            city: paramCityName || prev.city,
           }));
         }
       } finally {
@@ -901,7 +938,11 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
                   ""
                 }
                 defaultGoverningCityId={
-                  addressData.city_id || paramCityId || ""
+                  addressData.city_id
+                    ? String(addressData.city_id)
+                    : paramCityId
+                      ? String(paramCityId)
+                      : ""
                 }
                 cities={cities}
                 onContinue={handleProjectCreate}

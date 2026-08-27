@@ -3,19 +3,36 @@ import { getRoleGroup, RoleGroup, FormContext } from "./user-role-fields";
 
 export const phoneRegex = /^\d{10}$/;
 
-export const propertyRoleSchema = z.object({
-  propertyAddress: z.string().min(1, "Property address is required"),
-  mobilePhone: z
-    .string()
-    .min(1, "Mobile phone is required")
-    .regex(phoneRegex, "Mobile phone must be exactly 10 digits"),
-  ownerDateStart: z.string().min(1, "Start date is required"),
-  ownerDateEnd: z.string().optional().or(z.literal("")),
-  present: z.boolean().optional(),
-  state_id: z.string().min(1, "State is required"),
-  city_id: z.string().min(1, "City is required"),
-  zip: z.string().min(1, "Zip code is required"),
-});
+export const propertyRoleSchema = z
+  .object({
+    propertyAddress: z.string().min(1, "Property address is required"),
+    mobilePhone: z
+      .string()
+      .min(1, "Mobile phone is required")
+      .regex(phoneRegex, "Mobile phone must be exactly 10 digits"),
+    ownerDateStart: z.string().min(1, "Start date is required"),
+    ownerDateEnd: z.string().optional().or(z.literal("")),
+    present: z.boolean().optional(),
+    state_id: z.string().min(1, "State is required"),
+    city_id: z.string().min(1, "City is required"),
+    zip: z.string().min(1, "Zip code is required"),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      data.ownerDateStart &&
+      data.ownerDateEnd &&
+      data.ownerDateEnd !== "Present" &&
+      !data.present
+    ) {
+      if (data.ownerDateEnd < data.ownerDateStart) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "End date cannot be earlier than start date",
+          path: ["ownerDateEnd"],
+        });
+      }
+    }
+  });
 
 export const contractorRoleSchema = z.object({
   companyAddress: z.string().min(1, "Company address is required"),

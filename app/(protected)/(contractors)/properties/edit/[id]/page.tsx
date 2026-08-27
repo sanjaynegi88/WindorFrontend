@@ -148,10 +148,19 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
   >([]);
 
   const refreshProperty = async () => {
-    const res = await getPropertyDetail(propertyId);
-    const prop = res?.data ?? res;
-    setProperty(prop);
-    return prop;
+    try {
+      const res = await getPropertyDetail(propertyId);
+      if (res && res.success === false) {
+        toast.error(res.message || "Failed to load property detail");
+        return null;
+      }
+      const prop = res?.data ?? res;
+      setProperty(prop);
+      return prop;
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to load property detail");
+      return null;
+    }
   };
 
   useEffect(() => {
@@ -159,6 +168,11 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       setLoadingProperty(true);
       try {
         const propRes = await getPropertyDetail(propertyId);
+        if (propRes && propRes.success === false) {
+          toast.error(propRes.message || "Failed to load property detail");
+          setLoadingProperty(false);
+          return;
+        }
         const prop = propRes?.data ?? propRes;
         setProperty(prop);
 

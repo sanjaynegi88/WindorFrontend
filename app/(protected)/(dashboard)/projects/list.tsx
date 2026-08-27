@@ -47,6 +47,7 @@ export default function ProjectList() {
       style: searchBy === "style" ? search : "",
       state_id: state_id,
       city_id: city_id,
+      include_pending: true,
     };
   }, [appliedFilters]);
 
@@ -181,6 +182,7 @@ export default function ProjectList() {
             searchParams={searchParams}
             redirectUrl="properties/new?propertyId="
             isPropertyOwner={isPropertyOwner}
+            showTempProperties={true}
           />
         )}
 

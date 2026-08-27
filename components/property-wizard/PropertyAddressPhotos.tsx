@@ -63,7 +63,12 @@ export function PropertyAddressPhotos({
         const res = await getPropertyById(propertyId);
         const duration = performance.now() - startTime;
 
-        const propertyPayload = res?.data ?? res;
+        if (res && res.success === false) {
+          console.warn("[DEBUG] PropertyAddressPhotos: API error fetching existing property images:", res.message);
+          return;
+        }
+
+        const propertyPayload = res?.data;
         if (propertyPayload && isMounted) {
           setPhotos({
             front: { file: null, preview: propertyPayload.front_image || null },

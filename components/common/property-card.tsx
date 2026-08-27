@@ -55,6 +55,8 @@ interface PropertyCardProps {
   state: string;
   zip: string;
   propertyId: string;
+  stateId?: string;
+  cityId?: string;
   isPurchased?: boolean;
   propertyOwnerEmail?: string;
   redirectUrl?: string;
@@ -73,6 +75,8 @@ export function PropertyCard({
   state,
   zip,
   propertyId,
+  stateId,
+  cityId,
   hasReport,
   isPurchased = false,
   propertyName,
@@ -93,6 +97,16 @@ export function PropertyCard({
   const [purchased, setPurchased] = useState(isPurchased);
 
   const router = useRouter();
+
+  const getNewProjectUrl = () => {
+    const params = new URLSearchParams();
+    if (propertyId) params.set("propertyId", propertyId);
+    if (stateId) params.set("stateId", String(stateId));
+    if (cityId) params.set("cityId", String(cityId));
+    if (city) params.set("cityName", String(city));
+    if (propertyName) params.set("propertyName", propertyName);
+    return `/properties/new?${params.toString()}`;
+  };
 
   const isAdmin = role === "admin";
   const isCityInspector = role === "city_inspector";
@@ -259,7 +273,7 @@ export function PropertyCard({
                       asChild
                       className="gap-2 cursor-pointer py-2"
                     >
-                      <Link href={`/properties/new?propertyId=${propertyId}`}>
+                      <Link href={getNewProjectUrl()}>
                         <FileText className="size-3.5" />
                         <span className="text-xs font-bold">
                           Create New Project
@@ -287,7 +301,7 @@ export function PropertyCard({
               className="absolute top-3 right-3 z-10 transition-opacity text-[#1CA7A6]"
               onClick={(e) => e.stopPropagation()}
             >
-              <Link href={`/properties/new?propertyId=${propertyId}`}>
+              <Link href={getNewProjectUrl()}>
                 <Plus className="size-6 mr-2" />
               </Link>
             </div>
@@ -296,7 +310,11 @@ export function PropertyCard({
 
         <CardContent
           onClick={() => {
-            router.push(`${redirectUrl}${propertyId}`);
+            if (redirectUrl && redirectUrl.includes("properties/new")) {
+              router.push(getNewProjectUrl());
+            } else if (redirectUrl) {
+              router.push(`${redirectUrl}${propertyId}`);
+            }
           }}
           className="p-4 md:p-8 flex flex-col h-full min-h-[140px] md:min-h-[220px]"
         >
@@ -312,7 +330,7 @@ export function PropertyCard({
               !(isAdmin || isCityInspector) ? (
                 <>
                   <Link
-                    href={`/properties/new?propertyId=${propertyId}`}
+                    href={getNewProjectUrl()}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Image
@@ -324,7 +342,7 @@ export function PropertyCard({
                     />
                   </Link>
                   <Link
-                    href={`/properties/new?propertyId=${propertyId}`}
+                    href={getNewProjectUrl()}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Image

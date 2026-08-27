@@ -125,7 +125,7 @@ export default function MapView({
           limit: 1,
         };
         const searchResult = await getPropertyListAll(cleanFilterParams);
-        const dataList = searchResult?.data || searchResult || [];
+        const dataList = searchResult?.success !== false ? (Array.isArray(searchResult?.data) ? searchResult.data : searchResult?.data?.data || searchResult || []) : [];
         const firstMatch = Array.isArray(dataList) ? dataList[0] : null;
 
         let targetLat: number | null = null;
@@ -143,7 +143,7 @@ export default function MapView({
             ...(activeCityId ? { city_id: activeCityId } : {}),
           };
           const fallbackResult = await getPropertyListAll(fallbackParams);
-          const fallbackData = fallbackResult?.data || fallbackResult || [];
+          const fallbackData = fallbackResult?.success !== false ? (Array.isArray(fallbackResult?.data) ? fallbackResult.data : fallbackResult?.data?.data || fallbackResult || []) : [];
           const firstFallback = Array.isArray(fallbackData) ? fallbackData[0] : null;
 
           if (

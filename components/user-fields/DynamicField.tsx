@@ -352,15 +352,48 @@ function FieldInputContent({
 
     case "date":
       if (config.name === "ownerDateEnd") {
+        const ownerStartDate =
+          form?.watch?.("ownerDateStart") ||
+          form?.getValues?.("ownerDateStart") ||
+          "";
+        const formattedMinDate = ownerStartDate
+          ? String(ownerStartDate).split("T")[0]
+          : undefined;
+
         return (
           <Input
             type={isPresent ? "text" : "date"}
             disabled={isPresent || disabled}
+            min={isPresent ? undefined : formattedMinDate}
             value={isPresent ? "Present" : field.value || ""}
             onChange={(e) => field.onChange(e.target.value)}
             className={`${resolvedInputCls} ${
               isPresent ? "disabled:bg-muted/40 disabled:opacity-80" : ""
             }`}
+          />
+        );
+      }
+      if (config.name === "ownerDateStart") {
+        return (
+          <Input
+            type="date"
+            {...field}
+            value={field.value || ""}
+            disabled={disabled}
+            onChange={(e) => {
+              const newStartDate = e.target.value;
+              field.onChange(newStartDate);
+              const currentEndDate = form?.getValues?.("ownerDateEnd");
+              if (
+                currentEndDate &&
+                currentEndDate !== "Present" &&
+                newStartDate &&
+                currentEndDate < newStartDate
+              ) {
+                form?.setValue?.("ownerDateEnd", "");
+              }
+            }}
+            className={resolvedInputCls}
           />
         );
       }

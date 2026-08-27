@@ -16,7 +16,10 @@ export const RBAC_CONFIG: RouteConfig[] = [
     { path: '/reports', allowedRoles: 'all' },
     { path: '/property-details', allowedRoles: 'all' },
     { path: '/added-properties', allowedRoles: 'all' },
-    { path: '/properties/add-property', allowedRoles: ['contractor', 'admin'] },
+    { path: '/properties', allowedRoles: ['contractor', 'admin', 'property_owner', 'manufacturer'] },
+    { path: '/properties/new', allowedRoles: ['contractor', 'admin', 'property_owner', 'manufacturer'] },
+    { path: '/properties/edit', allowedRoles: ['contractor', 'admin', 'property_owner', 'manufacturer'] },
+    { path: '/properties/add-property', allowedRoles: ['contractor', 'admin', 'property_owner', 'manufacturer'] },
     { path: '/profile-setup', allowedRoles: ['contractor', 'admin'] },
     { path: '/contractor-users', allowedRoles: ['contractor'], mainAccountOnly: true },
     { path: '/contractor-users/add-user', allowedRoles: ['contractor'], mainAccountOnly: true },
@@ -61,7 +64,6 @@ export const publicRoutes = [
     '/faq',
     '/resources',
     '/careers',
-    '/properties',
     '/documentation',
     '/verification-services',
     '/verification',
@@ -89,15 +91,20 @@ export const publicRoutes = [
 ];
 
 export function canAccess(role: Role, path: string): boolean {
-    if (path === '/' || publicRoutes.some(route => path.startsWith(route))) return true;
-
     const routePattern = RBAC_CONFIG.find(config => {
         if (config.path === path) return true;
         if (path.startsWith(config.path + '/')) return true;
         return false;
     });
 
-    if (!routePattern) return false;
-    if (routePattern.allowedRoles === 'all') return true;
-    return routePattern.allowedRoles.includes(role);
+    if (routePattern) {
+        if (routePattern.allowedRoles === 'all') return true;
+        return routePattern.allowedRoles.includes(role);
+    }
+
+    if (path === '/' || publicRoutes.some(route => route === '/' ? path === '/' : (path === route || path.startsWith(route + '/')))) {
+        return true;
+    }
+
+    return false;
 }

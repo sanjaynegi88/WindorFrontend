@@ -281,7 +281,16 @@ export function PropertyList({ searchParams, isPurchased }: PropertyListProps) {
         ...(isPurchased !== undefined && { is_purchased: isPurchased }),
       });
 
-      const newData = response?.data || [];
+      if (response && response.success === false) {
+        toast.error(response.message || "Failed to fetch properties");
+        if (!append) setProperties([]);
+        setHasMore(false);
+        return;
+      }
+
+      const newData = Array.isArray(response?.data)
+        ? response.data
+        : (response?.data?.data || []);
       if (append) {
         setProperties((prev) => [...prev, ...newData]);
       } else {

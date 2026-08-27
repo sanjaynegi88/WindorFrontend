@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { PropertyDetailDialog } from "./property-detail-dialog";
+import { toast } from "sonner";
 
 interface PropertyGridProps {
   searchParams?: any;
@@ -17,6 +18,7 @@ interface PropertyGridProps {
   onOpenInMap?: (lat: number, lng: number, id: string) => void;
   onDeleteProperty?: (id: string) => void;
   mapSlot?: React.ReactNode;
+  showTempProperties?: boolean;
 }
 
 export function PropertyGrid({
@@ -28,6 +30,7 @@ export function PropertyGrid({
   onOpenInMap,
   onDeleteProperty,
   mapSlot,
+  showTempProperties,
 }: PropertyGridProps) {
   const [properties, setProperties] = useState<any[]>([]);
 
@@ -65,10 +68,24 @@ export function PropertyGrid({
       if (isPropertyOwner) {
         cleanFilterParams.isPropertyOwner = isPropertyOwner;
       }
+      if (showTempProperties) {
+        cleanFilterParams.include_pending = showTempProperties;
+      }
+
+      console.log(cleanFilterParams);
 
       const response = await getPropertyListAll(cleanFilterParams);
 
-      const newData = response?.data || [];
+      if (response && response.success === false) {
+        toast.error(response.message || "Failed to fetch properties");
+        if (!append) setProperties([]);
+        setHasMore(false);
+        return;
+      }
+
+      const newData = Array.isArray(response?.data)
+        ? response.data
+        : (response?.data?.data || []);
       if (append) {
         setProperties((prev) => [...prev, ...newData]);
       } else {
@@ -132,6 +149,26 @@ export function PropertyGrid({
               prop.state_name !== "False"
                 ? getSafeString(prop.state_name) || getSafeString(prop.state)
                 : "";
+            const stateId =
+              prop.state_id ||
+              prop.state?.id ||
+              prop.property?.state_id ||
+              prop.property?.state?.id ||
+              prop.property?.state?.state_id ||
+              prop.raw?.state_id ||
+              (typeof prop.state === "object" ? prop.state?.state_id : undefined) ||
+              (typeof prop.state === "string" && prop.state.includes("-") ? prop.state : undefined) ||
+              "";
+            const cityId =
+              prop.city_id ||
+              prop.city?.id ||
+              prop.property?.city_id ||
+              prop.property?.city?.id ||
+              prop.property?.city?.city_id ||
+              prop.raw?.city_id ||
+              (typeof prop.city === "object" ? prop.city?.city_id : undefined) ||
+              (typeof prop.city === "string" && prop.city.includes("-") ? prop.city : undefined) ||
+              "";
 
             return (
               <PropertyCard
@@ -145,6 +182,8 @@ export function PropertyGrid({
                 state={stateName}
                 zip={prop.zip || ""}
                 propertyId={prop.id}
+                stateId={stateId}
+                cityId={cityId}
                 isPurchased={prop.is_purchased || false}
                 propertyOwnerEmail={prop?.property_owner_email || ""}
                 redirectUrl={redirectUrl || "/property-details/"}

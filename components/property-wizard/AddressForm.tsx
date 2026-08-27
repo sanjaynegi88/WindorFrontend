@@ -69,7 +69,7 @@ interface AddressFormProps {
 }
 
 const triggerClass =
-  "h-[46px] md:h-[65px] px-[20px] md:px-[29px] rounded-[6px] md:rounded-[10px] border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] bg-white text-[14px] md:text-[20px] font-medium text-[#1F2A44] data-placeholder:text-[#708090]/50 focus:ring-[#1CA7A6]/20 font-asap gap-2 justify-start text-left [&>span]:flex-1 [&>span]:truncate [&>span]:text-left";
+  "w-full h-[46px] md:h-[65px] px-[20px] md:px-[29px] rounded-[6px] md:rounded-[10px] border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] bg-white text-[14px] md:text-[20px] font-medium text-[#1F2A44] data-placeholder:text-[#708090]/50 focus:ring-[#1CA7A6]/20 font-asap gap-2 justify-start text-left [&>span]:flex-1 [&>span]:truncate [&>span]:text-left";
 
 export function AddressForm({
   data,
@@ -440,24 +440,20 @@ export function AddressForm({
             onChange({ ...data, zip: val });
           }}
         />
-        <div>
-          <Select
+        <div className="w-full">
+          <SearchableSelect
+            options={propertyOwners.map((owner) => ({
+              id: owner.id,
+              name: owner.email || `${owner.first_name || ""} ${owner.last_name || ""}`.trim() || owner.id,
+            }))}
             value={data.property_owner_id || ""}
             onValueChange={(val) =>
               onChange({ ...data, property_owner_id: val })
             }
-          >
-            <SelectTrigger className={triggerClass}>
-              <SelectValue placeholder="Property Owner" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-              {propertyOwners.map((owner) => (
-                <SelectItem key={owner.id} value={owner.id}>
-                  {owner.email}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder="Property Owner"
+            searchPlaceholder="Search property owner..."
+            triggerClassName={triggerClass}
+          />
         </div>
 
         {/* Property Owner & Coordinates (Admin Only) */}

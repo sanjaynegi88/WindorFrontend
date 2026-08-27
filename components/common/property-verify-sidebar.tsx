@@ -91,9 +91,13 @@ export function PropertyVerifySidebar({
     if (showLoading) setLoading(true);
     try {
       const res = await getPropertyDetail(propertyId);
+      if (res && res.success === false) {
+        toast.error(res.message || 'Failed to load property details');
+        return;
+      }
       setProperty(res?.data ?? res);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to load property details');
+      toast.error(err?.message || 'Failed to load property details');
     } finally {
       if (showLoading) setLoading(false);
     }

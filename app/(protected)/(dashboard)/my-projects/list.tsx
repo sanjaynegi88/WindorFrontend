@@ -93,9 +93,7 @@ export default function MyProjectList() {
   ) => {
     setGeneratingReports((prev) => ({ ...prev, [projectId]: true }));
     try {
-      const isContractorProj = isAdmin
-        ? isContractorProject(projectObj)
-        : !isOwner;
+      const isContractorProj = isContractorProject(projectObj);
 
       if (isContractorProj) {
         const url = await generateContractorProjectPdfReport(projectId);
@@ -345,6 +343,8 @@ export default function MyProjectList() {
               const hasReport = project.property?.has_report || false;
               const isLocked = project?.is_locked_by_cancellation || false;
               const hasInstallation = project.details !== null;
+              const isContractorProj = isContractorProject(project);
+              const isOwnerContractor = isOwner && isContractorProj;
               const normalizeImageUrl = (value: any) => {
                 if (!value) return null;
                 if (typeof value === "string") return value;
@@ -444,7 +444,8 @@ export default function MyProjectList() {
                   action={
                     isLocked ? null : (
                       <>
-                        {property.id &&
+                        {!isOwnerContractor &&
+                          property.id &&
                           actualProjectId &&
                           (projectStatus === "DRAFT" || isAdmin) && (
                             <button
@@ -461,7 +462,8 @@ export default function MyProjectList() {
                               <span>Edit</span>
                             </button>
                           )}
-                        {property.id &&
+                        {!isOwnerContractor &&
+                          property.id &&
                           actualProjectId &&
                           hasInstallation &&
                           projectStatus === "DRAFT" && (
@@ -506,22 +508,24 @@ export default function MyProjectList() {
                               <span>Download</span>
                             </button>
                           )}
-                        {actualProjectId && projectStatus === "DRAFT" && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setProjectToDelete({
-                                id: actualProjectId,
-                                name: projectName,
-                              });
-                              setDeleteDialogOpen(true);
-                            }}
-                            className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-red-50 hover:bg-red-100 text-red-600 font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors cursor-pointer border border-red-200/60 font-asap shrink-0"
-                          >
-                            <Trash2 className="size-3 sm:size-3.5" />
-                            <span>Delete</span>
-                          </button>
-                        )}
+                        {!isOwnerContractor &&
+                          actualProjectId &&
+                          projectStatus === "DRAFT" && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setProjectToDelete({
+                                  id: actualProjectId,
+                                  name: projectName,
+                                });
+                                setDeleteDialogOpen(true);
+                              }}
+                              className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-red-50 hover:bg-red-100 text-red-600 font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors cursor-pointer border border-red-200/60 font-asap shrink-0"
+                            >
+                              <Trash2 className="size-3 sm:size-3.5" />
+                              <span>Delete</span>
+                            </button>
+                          )}
                       </>
                     )
                   }
@@ -587,15 +591,17 @@ export default function MyProjectList() {
                               <h1 className="text-sm font-semibold text-[#708090]">
                                 No Installation Found
                               </h1>
-                              <Button
-                                className="mt-2 h-9 text-xs font-bold"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleAddInstallation(project);
-                                }}
-                              >
-                                Add Installation
-                              </Button>
+                              {!isOwnerContractor && (
+                                <Button
+                                  className="mt-2 h-9 text-xs font-bold"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleAddInstallation(project);
+                                  }}
+                                >
+                                  Add Installation
+                                </Button>
+                              )}
                             </div>
                           ) : (
                             <>
