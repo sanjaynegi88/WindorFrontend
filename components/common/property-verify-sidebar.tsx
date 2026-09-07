@@ -1,23 +1,39 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetBody,
-} from '@/components/ui/sheet';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Loader2, MapPin, ShieldCheck, ShieldOff, CheckCircle2, ShieldX, FilePlus, Upload, X, Eye, Download } from 'lucide-react';
-import { cn, toPascalCase } from '@/lib/utils';
-import { getPropertyDetail, verifyInstallation, uploadPermit } from '@/lib/actions';
-import { toast } from 'sonner';
-import { useUser } from '@/components/providers/user-provider';
+} from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Loader2,
+  MapPin,
+  ShieldCheck,
+  ShieldOff,
+  CheckCircle2,
+  ShieldX,
+  FilePlus,
+  Upload,
+  X,
+  Eye,
+  Download,
+} from "lucide-react";
+import { cn, toPascalCase } from "@/lib/utils";
+import {
+  getPropertyDetail,
+  verifyInstallation,
+  uploadPermit,
+} from "@/lib/actions";
+import { toast } from "sonner";
+import { useUser } from "@/components/providers/user-provider";
 import {
   Dialog,
   DialogContent,
@@ -25,9 +41,9 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 
-import { AwsImage } from '@/components/common/aws-image';
+import { AwsImage } from "@/components/common/aws-image";
 
 interface PropertyVerifySidebarProps {
   propertyId: string | null;
@@ -49,8 +65,8 @@ function ImageWithLoader({ src, alt }: { src: string; alt: string }) {
         src={src}
         alt={alt}
         className={cn(
-          'object-cover w-full h-full transition-all duration-500',
-          loading ? 'opacity-0 scale-105' : 'opacity-100 scale-100'
+          "object-cover w-full h-full transition-all duration-500",
+          loading ? "opacity-0 scale-105" : "opacity-100 scale-100",
         )}
         onLoad={() => setLoading(false)}
       />
@@ -65,9 +81,9 @@ export function PropertyVerifySidebar({
   onUpdate,
 }: PropertyVerifySidebarProps) {
   const { role } = useUser();
-  const isAdmin = role === 'admin';
-  const isInspector = role === 'city_inspector';
-  const isOwner = role === 'property_owner';
+  const isAdmin = role === "admin";
+  const isInspector = role === "city_inspector";
+  const isOwner = role === "property_owner";
 
   const [property, setProperty] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -75,14 +91,17 @@ export function PropertyVerifySidebar({
 
   // Verify confirmation state
   const [confirmVerifyOpen, setConfirmVerifyOpen] = useState(false);
-  const [verifyParams, setVerifyParams] = useState<{ projectId: string; componentId: string } | null>(null);
+  const [verifyParams, setVerifyParams] = useState<{
+    projectId: string;
+    componentId: string;
+  } | null>(null);
 
   // Permit upload state
   const [permitDialogOpen, setPermitDialogOpen] = useState(false);
   const [permitComponent, setPermitComponent] = useState<any>(null);
   const [permitFile, setPermitFile] = useState<File | null>(null);
-  const [permitDescription, setPermitDescription] = useState('');
-  const [permitNotes, setPermitNotes] = useState('');
+  const [permitDescription, setPermitDescription] = useState("");
+  const [permitNotes, setPermitNotes] = useState("");
   const [uploadingPermit, setUploadingPermit] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -92,12 +111,12 @@ export function PropertyVerifySidebar({
     try {
       const res = await getPropertyDetail(propertyId);
       if (res && res.success === false) {
-        toast.error(res.message || 'Failed to load property details');
+        toast.error(res.message || "Failed to load property details");
         return;
       }
       setProperty(res?.data ?? res);
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to load property details');
+      toast.error(err?.message || "Failed to load property details");
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -109,15 +128,18 @@ export function PropertyVerifySidebar({
     fetchDetail(true);
   }, [isOpen, propertyId]);
 
-  const handleVerifyComponent = async (projectId: string, componentId: string) => {
+  const handleVerifyComponent = async (
+    projectId: string,
+    componentId: string,
+  ) => {
     setVerifyingId(componentId);
     const payload = {
-      status: 'VERIFIED',
-    }
+      status: "VERIFIED",
+    };
     try {
-      const res = await verifyInstallation(componentId, payload, projectId,);
+      const res = await verifyInstallation(componentId, payload, projectId);
       if (res?.success) {
-        toast.success('Installation verified successfully');
+        toast.success("Installation verified successfully");
         setProperty((prev: any) => {
           if (!prev) return prev;
           return {
@@ -125,24 +147,24 @@ export function PropertyVerifySidebar({
             projects: prev.projects?.map((p: any) =>
               p.id === projectId
                 ? {
-                  ...p,
-                  status: 'VERIFIED',
-                  approval_status: 'APPROVE',
-                  verified_status: true,
-                  installer_verified: true,
-                  components: p.components
-                    ? {
-                      ...p.components,
-                      status: 'VERIFIED',
-                      verified_status: true,
-                      installerVerified: true,
-                      installer_verified: true,
-                      verifiedAt: new Date().toISOString(),
-                      verified_at: new Date().toISOString(),
-                    }
-                    : p.components,
-                }
-                : p
+                    ...p,
+                    status: "VERIFIED",
+                    approval_status: "APPROVE",
+                    verified_status: true,
+                    installer_verified: true,
+                    components: p.components
+                      ? {
+                          ...p.components,
+                          status: "VERIFIED",
+                          verified_status: true,
+                          installerVerified: true,
+                          installer_verified: true,
+                          verifiedAt: new Date().toISOString(),
+                          verified_at: new Date().toISOString(),
+                        }
+                      : p.components,
+                  }
+                : p,
             ),
           };
         });
@@ -150,25 +172,27 @@ export function PropertyVerifySidebar({
         fetchDetail(false);
         onUpdate?.();
       } else {
-        toast.error(res?.message || 'Failed to verify installation');
+        toast.error(res?.message || "Failed to verify installation");
       }
     } catch (err: any) {
-      toast.error(err.message || 'Failed to verify installation');
+      toast.error(err.message || "Failed to verify installation");
     } finally {
       setVerifyingId(null);
     }
   };
 
-  const handleMarkUnverified = async (projectId: string, componentId: string) => {
+  const handleMarkUnverified = async (
+    projectId: string,
+    componentId: string,
+  ) => {
     setVerifyingId(componentId);
     try {
-
       const payload = {
-        status: 'REJECTED',
-      }
-      const res = await verifyInstallation(componentId, payload, projectId,);
+        status: "REJECTED",
+      };
+      const res = await verifyInstallation(componentId, payload, projectId);
       if (res?.success) {
-        toast.success('Installation marked as unverified');
+        toast.success("Installation marked as unverified");
         setProperty((prev: any) => {
           if (!prev) return prev;
           return {
@@ -176,24 +200,24 @@ export function PropertyVerifySidebar({
             projects: prev.projects?.map((p: any) =>
               p.id === projectId
                 ? {
-                  ...p,
-                  status: 'REJECTED',
-                  approval_status: 'REJECT',
-                  verified_status: false,
-                  installer_verified: false,
-                  components: p.components
-                    ? {
-                      ...p.components,
-                      status: 'REJECTED',
-                      verified_status: false,
-                      installerVerified: false,
-                      installer_verified: false,
-                      verifiedAt: null,
-                      verified_at: null,
-                    }
-                    : p.components,
-                }
-                : p
+                    ...p,
+                    status: "REJECTED",
+                    approval_status: "REJECT",
+                    verified_status: false,
+                    installer_verified: false,
+                    components: p.components
+                      ? {
+                          ...p.components,
+                          status: "REJECTED",
+                          verified_status: false,
+                          installerVerified: false,
+                          installer_verified: false,
+                          verifiedAt: null,
+                          verified_at: null,
+                        }
+                      : p.components,
+                  }
+                : p,
             ),
           };
         });
@@ -201,10 +225,10 @@ export function PropertyVerifySidebar({
         fetchDetail(false);
         onUpdate?.();
       } else {
-        toast.error(res?.message || 'Failed to update component verification');
+        toast.error(res?.message || "Failed to update component verification");
       }
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update component verification');
+      toast.error(err.message || "Failed to update component verification");
     } finally {
       setVerifyingId(null);
     }
@@ -213,8 +237,8 @@ export function PropertyVerifySidebar({
   const openPermitDialog = (comp: any, projectId: string) => {
     setPermitComponent({ ...comp, project_id: projectId });
     setPermitFile(null);
-    setPermitDescription('');
-    setPermitNotes('');
+    setPermitDescription("");
+    setPermitNotes("");
     setPermitDialogOpen(true);
   };
 
@@ -222,14 +246,19 @@ export function PropertyVerifySidebar({
     if (!permitComponent || !permitFile) return;
     const projectId = permitComponent.project_id;
     if (!projectId) {
-      toast.error('No project associated with this component');
+      toast.error("No project associated with this component");
       return;
     }
     setUploadingPermit(true);
     try {
-      const res = await uploadPermit(projectId, permitFile, permitDescription, permitNotes);
+      const res = await uploadPermit(
+        projectId,
+        permitFile,
+        permitDescription,
+        permitNotes,
+      );
       if (res?.success) {
-        toast.success('Permit uploaded successfully');
+        toast.success("Permit uploaded successfully");
         setProperty((prev: any) => {
           if (!prev) return prev;
           return {
@@ -237,18 +266,18 @@ export function PropertyVerifySidebar({
             projects: prev.projects?.map((p: any) =>
               p.id === projectId
                 ? {
-                  ...p,
-                  permitId: 'pending',
-                  permit_upload: { status: 'PENDING_VERIFICATION' },
-                  components: p.components
-                    ? {
-                      ...p.components,
-                      permit_status: 'PENDING_VERIFICATION',
-                      permit_uploaded_at: new Date().toISOString(),
-                    }
-                    : p.components,
-                }
-                : p
+                    ...p,
+                    permitId: "pending",
+                    permit_upload: { status: "PENDING_VERIFICATION" },
+                    components: p.components
+                      ? {
+                          ...p.components,
+                          permit_status: "PENDING_VERIFICATION",
+                          permit_uploaded_at: new Date().toISOString(),
+                        }
+                      : p.components,
+                  }
+                : p,
             ),
           };
         });
@@ -256,10 +285,10 @@ export function PropertyVerifySidebar({
         // Silent refetch to get real permit status and URLs from server
         fetchDetail(false);
       } else {
-        toast.error(res?.message || 'Failed to upload permit');
+        toast.error(res?.message || "Failed to upload permit");
       }
     } catch (err: any) {
-      toast.error(err.message || 'Failed to upload permit');
+      toast.error(err.message || "Failed to upload permit");
     } finally {
       setUploadingPermit(false);
     }
@@ -273,21 +302,27 @@ export function PropertyVerifySidebar({
           className="w-full sm:max-w-lg p-0 overflow-hidden flex flex-col border-s-0 shadow-2xl"
         >
           <SheetHeader className="px-6 py-4 border-b flex flex-row items-center justify-between space-y-0">
-            <SheetTitle className="text-lg font-bold">Verify Property</SheetTitle>
+            <SheetTitle className="text-lg font-bold">
+              Verify Property
+            </SheetTitle>
           </SheetHeader>
 
           <SheetBody className="flex-1 overflow-y-auto p-6 space-y-6">
             {loading && (
               <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
                 <Loader2 className="size-8 animate-spin" />
-                <span className="text-sm font-medium">Loading property details…</span>
+                <span className="text-sm font-medium">
+                  Loading property details…
+                </span>
               </div>
             )}
 
             {!loading && !property && (
               <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground/50">
                 <MapPin className="size-10" strokeWidth={1.5} />
-                <span className="text-sm font-medium">No property data found</span>
+                <span className="text-sm font-medium">
+                  No property data found
+                </span>
               </div>
             )}
 
@@ -299,10 +334,14 @@ export function PropertyVerifySidebar({
                     <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
                       Property Images
                     </span>
-                    <div className={cn(
-                      'grid gap-2',
-                      property.front_image && property.other_image ? 'grid-cols-2' : 'grid-cols-1'
-                    )}>
+                    <div
+                      className={cn(
+                        "grid gap-2",
+                        property.front_image && property.other_image
+                          ? "grid-cols-2"
+                          : "grid-cols-1",
+                      )}
+                    >
                       {property.front_image && (
                         <div className="space-y-1">
                           <div className="aspect-video rounded-2xl overflow-hidden border border-border/50">
@@ -338,7 +377,7 @@ export function PropertyVerifySidebar({
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h2 className="text-xl font-extrabold text-foreground tracking-tight leading-tight">
-                        {property.address || ''}
+                        {property.address || ""}
                       </h2>
                       {property.address2 && (
                         <p className="text-xs text-muted-foreground font-medium mt-0.5">
@@ -355,21 +394,27 @@ export function PropertyVerifySidebar({
 
                   <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                     {[
-                      { label: 'Parcel ID', value: property.parcel_id },
-                      { label: 'Property Type', value: typeof property.property_type === 'object' ? property.property_type?.type_name : property.property_type },
-                      { label: 'City', value: property.city_name },
-                      { label: 'State', value: property.state_name },
-                      { label: 'Zip', value: property.zip },
-                      { label: 'Year Built', value: property.yearbuilt },
-                      { label: 'Sq. Foot', value: property.square_foot },
-                      { label: 'Owner Email', value: property.owner_email },
+                      { label: "Parcel ID", value: property.parcel_id },
+                      {
+                        label: "Property Type",
+                        value:
+                          typeof property.property_type === "object"
+                            ? property.property_type?.type_name
+                            : property.property_type,
+                      },
+                      { label: "City", value: property.city_name },
+                      { label: "State", value: property.state_name },
+                      { label: "Zip", value: property.zip },
+                      { label: "Year Built", value: property.yearbuilt },
+                      { label: "Sq. Foot", value: property.square_foot },
+                      { label: "Owner Email", value: property.owner_email },
                     ].map(({ label, value }) => (
                       <div key={label} className="flex flex-col gap-0.5">
                         <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
                           {label}
                         </span>
                         <span className="text-xs font-semibold text-foreground break-all">
-                          {value ?? 'N/A'}
+                          {value ?? "N/A"}
                         </span>
                       </div>
                     ))}
@@ -381,7 +426,9 @@ export function PropertyVerifySidebar({
                 {/* Projects / Installations */}
                 {(() => {
                   const projects = property.projects ?? [];
-                  const projectsWithComponent = projects.filter((p: any) => p.components);
+                  const projectsWithComponent = projects.filter(
+                    (p: any) => p.components,
+                  );
                   return (
                     <div className="space-y-4">
                       <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
@@ -396,18 +443,23 @@ export function PropertyVerifySidebar({
 
                       {projectsWithComponent.map((project: any) => {
                         const comp = project.components;
-                        const compImages: string[] = (comp.images ?? []).flatMap((img: any) =>
+                        const compImages: string[] = (
+                          comp.images ?? []
+                        ).flatMap((img: any) =>
                           [
                             img.image_url ? `${img.image_url}` : null,
-                            img.property_owner_files ? `${img.property_owner_files}` : null,
-                          ].filter(Boolean)
+                            img.property_owner_files
+                              ? `${img.property_owner_files}`
+                              : null,
+                          ].filter(Boolean),
                         );
 
                         const isVerifying = verifyingId === comp.id;
                         const needPermit = !!project.need_permit;
                         const permitUpload = project.permit_upload;
                         const hasPermit = !!permitUpload;
-                        const permitVerified = permitUpload?.status === 'VERIFIED';
+                        const permitVerified =
+                          permitUpload?.status === "VERIFIED";
                         const permitMissing = needPermit && !hasPermit;
 
                         const compStatus = (
@@ -426,7 +478,8 @@ export function PropertyVerifySidebar({
                           compStatus === "REJECTED" ||
                           compStatus === "REJECT" ||
                           comp.verified_status === false ||
-                          (comp.installer_verified === false && comp.verified_at === null);
+                          (comp.installer_verified === false &&
+                            comp.verified_at === null);
 
                         const isVerified =
                           !isRejected &&
@@ -459,8 +512,8 @@ export function PropertyVerifySidebar({
                             </div>
 
                             {/* Component header */}
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex flex-wrap items-center gap-1.5">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 shrink-0">
                                 <span className="text-xs font-black tracking-widest text-foreground">
                                   {toPascalCase(comp.component_type)}
                                 </span>
@@ -469,128 +522,153 @@ export function PropertyVerifySidebar({
                                 <Badge
                                   variant="outline"
                                   className={cn(
-                                    'px-2.5 py-0.5 text-[9px] font-black uppercase tracking-tighter border-none',
+                                    "px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md border inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 leading-none h-6",
                                     isVerified
-                                      ? 'bg-emerald-500/10 text-emerald-600'
+                                      ? "bg-emerald-50 text-emerald-800 border-emerald-300"
                                       : isRejected
-                                      ? 'bg-red-500/10 text-red-600'
-                                      : permitMissing
-                                      ? 'bg-gray-500/10 text-gray-500'
-                                      : 'bg-amber-500/10 text-amber-600'
+                                        ? "bg-red-50 text-red-800 border-red-300"
+                                        : "bg-amber-100 text-amber-900 border-amber-300",
                                   )}
                                 >
+                                  <span
+                                    className={cn(
+                                      "size-1.5 rounded-full shrink-0",
+                                      isVerified
+                                        ? "bg-emerald-600"
+                                        : isRejected
+                                          ? "bg-red-600"
+                                          : "bg-amber-600",
+                                    )}
+                                  />
                                   {isVerified
-                                    ? 'Verified'
+                                    ? "Verified"
                                     : isRejected
-                                    ? 'Rejected'
-                                    : permitMissing
-                                    ? 'No Permit Uploaded'
-                                    : !needPermit
-                                    ? 'Permit Not Required'
-                                    : 'Pending'}
+                                      ? "Rejected"
+                                      : "Pending"}
                                 </Badge>
                               </div>
 
                               <div className="flex items-center gap-1.5 shrink-0">
                                 {/* View/Download Permit buttons for admin/inspector/owner when permit exists */}
-                                {(isAdmin || isInspector || isOwner) && hasPermit && (project.permit_url || comp.permit_file_url) && (
-                                  <>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => window.open(project.permit_url || comp.permit_file_url, '_blank')}
-                                      className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-lg gap-1.5"
-                                    >
-                                      <Eye className="size-3" />
-                                      View
-                                    </Button>
-                                    <a
-                                      href={project.permit_url || comp.permit_file_url}
-                                      download
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                    >
+                                {(isAdmin || isInspector || isOwner) &&
+                                  hasPermit &&
+                                  (project.permit_url ||
+                                    comp.permit_file_url) && (
+                                    <>
                                       <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-green-50 hover:bg-green-100 text-green-600 border border-green-200 rounded-lg gap-1.5"
+                                        onClick={() =>
+                                          window.open(
+                                            project.permit_url ||
+                                              comp.permit_file_url,
+                                            "_blank",
+                                          )
+                                        }
+                                        className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-lg gap-1.5"
                                       >
-                                        <Download className="size-3" />
-                                        Download
+                                        <Eye className="size-3" />
+                                        View
                                       </Button>
-                                    </a>
-                                  </>
-                                )}
+                                      <a
+                                        href={
+                                          project.permit_url ||
+                                          comp.permit_file_url
+                                        }
+                                        download
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-green-50 hover:bg-green-100 text-green-600 border border-green-200 rounded-lg gap-1.5"
+                                        >
+                                          <Download className="size-3" />
+                                          Download
+                                        </Button>
+                                      </a>
+                                    </>
+                                  )}
 
                                 {/* Upload Permit button: need_permit is true and no permit uploaded yet */}
                                 {permitMissing && (
                                   <Button
                                     size="sm"
-                                    onClick={() => openPermitDialog(comp, project.id)}
-                                    className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-lg gap-1.5"
-                                    variant="ghost"
+                                    onClick={() =>
+                                      openPermitDialog(comp, project.id)
+                                    }
+                                    className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 text-white rounded-lg gap-1.5 shadow-2xs transition-colors cursor-pointer"
                                   >
                                     <FilePlus className="size-3" />
                                     Upload Permit
                                   </Button>
                                 )}
 
-                                {/* CASE 1: PENDING -> Show BOTH Verify and Reject buttons (for non-owners) */}
-                                {isPending && !isOwner && (
+                                {/* CASE 1: PENDING -> Show BOTH Verify and Reject buttons (for non-owners when permit is not missing) */}
+                                {isPending && !isOwner && !permitMissing && (
                                   <>
                                     <Button
                                       size="sm"
                                       onClick={() => {
-                                        setVerifyParams({ projectId: project.id, componentId: comp.id });
+                                        setVerifyParams({
+                                          projectId: project.id,
+                                          componentId: comp.id,
+                                        });
                                         setConfirmVerifyOpen(true);
                                       }}
-                                      disabled={isVerifying || permitMissing}
-                                      title={permitMissing ? "Permit must be uploaded first" : undefined}
-                                      className="h-7 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg gap-1.5 bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                      disabled={isVerifying}
+                                      className="h-7 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg gap-1.5 bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
                                     >
                                       {isVerifying ? (
                                         <Loader2 className="size-3 animate-spin" />
                                       ) : (
                                         <ShieldCheck className="size-3" />
                                       )}
-                                      {isVerifying ? 'Verifying…' : 'Verify'}
+                                      {isVerifying ? "Verifying…" : "Verify"}
                                     </Button>
                                     <Button
                                       size="sm"
-                                      onClick={() => handleMarkUnverified(project.id, comp.id)}
-                                      disabled={isVerifying || permitMissing}
-                                      title={permitMissing ? "Permit must be uploaded first" : undefined}
-                                      className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                                      variant="ghost"
+                                      onClick={() =>
+                                        handleMarkUnverified(
+                                          project.id,
+                                          comp.id,
+                                        )
+                                      }
+                                      disabled={isVerifying}
+                                      className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-red-600 hover:bg-red-700 text-white rounded-lg gap-1.5 shadow-2xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                     >
                                       {isVerifying ? (
                                         <Loader2 className="size-3 animate-spin" />
                                       ) : (
                                         <ShieldX className="size-3" />
                                       )}
-                                      {isVerifying ? 'Updating…' : 'Reject'}
+                                      {isVerifying ? "Updating…" : "Reject"}
                                     </Button>
                                   </>
                                 )}
 
-                                {/* CASE 2: VERIFIED -> Show Reject button (only for admin), show Verified indicator for non-admin */}
+                                {/* CASE 2: VERIFIED -> Show Reject button (only for admin when permit not missing), show Verified indicator for non-admin */}
                                 {isVerified && (
                                   <>
-                                    {isAdmin && (
+                                    {isAdmin && !permitMissing && (
                                       <Button
                                         size="sm"
-                                        onClick={() => handleMarkUnverified(project.id, comp.id)}
-                                        disabled={isVerifying || permitMissing}
-                                        title={permitMissing ? "Permit must be uploaded first" : undefined}
-                                        className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        variant="ghost"
+                                        onClick={() =>
+                                          handleMarkUnverified(
+                                            project.id,
+                                            comp.id,
+                                          )
+                                        }
+                                        disabled={isVerifying}
+                                        className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-red-600 hover:bg-red-700 text-white rounded-lg gap-1.5 shadow-2xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                       >
                                         {isVerifying ? (
                                           <Loader2 className="size-3 animate-spin" />
                                         ) : (
                                           <ShieldX className="size-3" />
                                         )}
-                                        {isVerifying ? 'Updating…' : 'Reject'}
+                                        {isVerifying ? "Updating…" : "Reject"}
                                       </Button>
                                     )}
                                     {(isInspector || isOwner) && (
@@ -604,18 +682,20 @@ export function PropertyVerifySidebar({
                                   </>
                                 )}
 
-                                {/* CASE 3: REJECTED -> Show Verify button (only for admin), show Rejected indicator for non-admin */}
+                                {/* CASE 3: REJECTED -> Show Verify button (only for admin when permit not missing), show Rejected indicator for non-admin */}
                                 {isRejected && (
                                   <>
-                                    {isAdmin && (
+                                    {isAdmin && !permitMissing && (
                                       <Button
                                         size="sm"
                                         onClick={() => {
-                                          setVerifyParams({ projectId: project.id, componentId: comp.id });
+                                          setVerifyParams({
+                                            projectId: project.id,
+                                            componentId: comp.id,
+                                          });
                                           setConfirmVerifyOpen(true);
                                         }}
-                                        disabled={isVerifying || permitMissing}
-                                        title={permitMissing ? "Permit must be uploaded first" : undefined}
+                                        disabled={isVerifying}
                                         className="h-7 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg gap-1.5 bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                                       >
                                         {isVerifying ? (
@@ -623,7 +703,7 @@ export function PropertyVerifySidebar({
                                         ) : (
                                           <ShieldCheck className="size-3" />
                                         )}
-                                        {isVerifying ? 'Verifying…' : 'Verify'}
+                                        {isVerifying ? "Verifying…" : "Verify"}
                                       </Button>
                                     )}
                                     {!isAdmin && (
@@ -639,36 +719,59 @@ export function PropertyVerifySidebar({
                               </div>
                             </div>
 
+                            {/* Informational notice when permit is missing */}
+                            {permitMissing && (
+                              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <FilePlus className="size-3.5 text-amber-700 shrink-0" />
+                                  <span className="text-[11px] font-medium leading-tight">
+                                    To change the status you need to upload the
+                                    permit first.
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
                             {/* Component details */}
                             <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                               {[
-                                { label: 'Brand', value: comp.brand },
-                                { label: 'Style', value: comp.style },
-                                { label: 'Color', value: comp.color },
-                                { label: 'Material', value: comp.material },
-                                { label: 'Contractor', value: comp.installer },
-                                { label: 'Supplier', value: comp.supplier },
+                                { label: "Brand", value: comp.brand },
+                                { label: "Style", value: comp.style },
+                                { label: "Color", value: comp.color },
+                                { label: "Material", value: comp.material },
+                                { label: "Contractor", value: comp.installer },
+                                { label: "Supplier", value: comp.supplier },
                                 {
-                                  label: 'Install Date',
+                                  label: "Install Date",
                                   value: comp.install_date
-                                    ? new Date(comp.install_date).toLocaleDateString()
+                                    ? new Date(
+                                        comp.install_date,
+                                      ).toLocaleDateString()
                                     : null,
                                 },
                                 {
-                                  label: 'Verified At',
-                                  value: (comp.verifiedAt || comp.verified_at)
-                                    ? new Date(comp.verifiedAt || comp.verified_at).toLocaleDateString()
-                                    : null,
+                                  label: "Verified At",
+                                  value:
+                                    comp.verifiedAt || comp.verified_at
+                                      ? new Date(
+                                          comp.verifiedAt || comp.verified_at,
+                                        ).toLocaleDateString()
+                                      : null,
                                 },
                               ].map(({ label, value }) =>
                                 value ? (
-                                  <div key={label} className="flex flex-col gap-0.5">
+                                  <div
+                                    key={label}
+                                    className="flex flex-col gap-0.5"
+                                  >
                                     <span className="text-[9px] uppercase tracking-widest font-bold text-muted-foreground">
                                       {label}
                                     </span>
-                                    <span className="font-semibold text-foreground">{value}</span>
+                                    <span className="font-semibold text-foreground">
+                                      {value}
+                                    </span>
                                   </div>
-                                ) : null
+                                ) : null,
                               )}
                             </div>
 
@@ -682,8 +785,14 @@ export function PropertyVerifySidebar({
                             {compImages.length > 0 && (
                               <div className="grid grid-cols-3 gap-1.5">
                                 {compImages.map((src, idx) => (
-                                  <div key={idx} className="aspect-square rounded-xl overflow-hidden border border-border/40">
-                                    <ImageWithLoader src={src} alt={`${comp.component_type} image ${idx + 1}`} />
+                                  <div
+                                    key={idx}
+                                    className="aspect-square rounded-xl overflow-hidden border border-border/40"
+                                  >
+                                    <ImageWithLoader
+                                      src={src}
+                                      alt={`${comp.component_type} image ${idx + 1}`}
+                                    />
                                   </div>
                                 ))}
                               </div>
@@ -713,13 +822,16 @@ export function PropertyVerifySidebar({
           <DialogHeader>
             <DialogTitle>Upload Permit</DialogTitle>
             <DialogDescription>
-              Upload a permit document for this {permitComponent?.component_type} installation.
+              Upload a permit document for this{" "}
+              {permitComponent?.component_type} installation.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="permit-file">Permit Document <span className="text-destructive">*</span></Label>
+              <Label htmlFor="permit-file">
+                Permit Document <span className="text-destructive">*</span>
+              </Label>
               <div
                 className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-muted/50 transition-colors"
                 onClick={() => fileInputRef.current?.click()}
@@ -727,10 +839,15 @@ export function PropertyVerifySidebar({
                 {permitFile ? (
                   <div className="flex items-center gap-2 w-full">
                     <Upload className="size-4 text-muted-foreground shrink-0" />
-                    <span className="text-sm font-medium truncate flex-1">{permitFile.name}</span>
+                    <span className="text-sm font-medium truncate flex-1">
+                      {permitFile.name}
+                    </span>
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); setPermitFile(null); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPermitFile(null);
+                      }}
                       className="p-1 rounded-full hover:bg-muted"
                     >
                       <X className="size-3" />
@@ -739,7 +856,9 @@ export function PropertyVerifySidebar({
                 ) : (
                   <>
                     <Upload className="size-6 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground font-medium">Click to select a PDF or image file</span>
+                    <span className="text-xs text-muted-foreground font-medium">
+                      Click to select a PDF or image file
+                    </span>
                   </>
                 )}
                 <input
@@ -812,7 +931,8 @@ export function PropertyVerifySidebar({
           <DialogHeader>
             <DialogTitle>Confirm Verification</DialogTitle>
             <DialogDescription>
-              Are you sure you want to verify this installation? This will mark the component as verified.
+              Are you sure you want to verify this installation? This will mark
+              the component as verified.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
@@ -826,7 +946,10 @@ export function PropertyVerifySidebar({
               className="bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white"
               onClick={() => {
                 if (verifyParams) {
-                  handleVerifyComponent(verifyParams.projectId, verifyParams.componentId);
+                  handleVerifyComponent(
+                    verifyParams.projectId,
+                    verifyParams.componentId,
+                  );
                 }
                 setConfirmVerifyOpen(false);
               }}

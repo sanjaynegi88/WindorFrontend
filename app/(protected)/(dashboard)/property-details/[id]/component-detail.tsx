@@ -65,6 +65,15 @@ export default function ComponentDetail({
   const [totalCount, setTotalCount] = useState<number>(0);
   const [isLoadingTotalCount, setIsLoadingTotalCount] = useState<boolean>(true);
 
+  const isQuotaRole =
+    role === "insurance_company" ||
+    role === "realtor" ||
+    role === "manufacturer" ||
+    role === "contractor" ||
+    role === "property_owner";
+  const [isLoadingReportUsage, setIsLoadingReportUsage] =
+    useState<boolean>(true);
+
   const [heroImageSrc, setHeroImageSrc] = useState(heroImageUrl);
 
   useEffect(() => {
@@ -75,18 +84,26 @@ export default function ComponentDetail({
     setPurchased(isPurchased);
   }, [isPurchased]);
 
-  useEffect(() => {
-    if (
-      role === "insurance_company" ||
-      role === "realtor" ||
-      role === "manufacturer" ||
-      role === "contractor" ||
-      role === "property_owner"
-    ) {
-      getReportUsage()
-        .then((res) => setReportUsage(res.data))
-        .catch(() => {});
+  const fetchReportUsage = async () => {
+    if (isQuotaRole) {
+      setIsLoadingReportUsage(true);
+      try {
+        const res = await getReportUsage();
+        const usageData = res?.data || res;
+        setReportUsage(usageData);
+        return usageData;
+      } catch (err) {
+        console.error("Failed to fetch report usage:", err);
+      } finally {
+        setIsLoadingReportUsage(false);
+      }
+    } else {
+      setIsLoadingReportUsage(false);
     }
+  };
+
+  useEffect(() => {
+    fetchReportUsage();
   }, [role]);
 
   useEffect(() => {
@@ -113,11 +130,19 @@ export default function ComponentDetail({
     role === "contractor" ||
     role === "manufacturer" ||
     (role === "property_owner" && isOwnerOfProperty);
-  const hasReportApi = !!componentData?.has_report;
+  const hasReportApi = !!componentData?.has_report || hasReport;
 
   const hasLimitAccess = Boolean(reportUsage && reportUsage.remaining > 0);
 
+  const isDeterminingAccess =
+    hasReportApi &&
+    isQuotaRole &&
+    !isOwnerOfProperty &&
+    !purchased &&
+    isLoadingReportUsage;
+
   const showGenerateOption =
+    !isDeterminingAccess &&
     hasReportApi &&
     ((role === "property_owner" &&
       (isOwnerOfProperty || purchased || hasLimitAccess)) ||
@@ -129,6 +154,7 @@ export default function ComponentDetail({
       (role === "insurance_company" && (purchased || hasLimitAccess)));
 
   const showBuyOption =
+    !isDeterminingAccess &&
     hasReportApi &&
     allProjects.length > 0 &&
     ((role === "property_owner" &&
@@ -147,6 +173,7 @@ export default function ComponentDetail({
       await downloadPdfFromUrl(url, `property-report-${componentId}.pdf`);
       toast.success("Report downloaded successfully");
       setPurchased(true);
+      await fetchReportUsage();
     } catch (err: any) {
       toast.error(err.message || "Failed to download report");
     } finally {
@@ -164,8 +191,11 @@ export default function ComponentDetail({
         setIsGenerating(false);
         return;
       }
+
+      console.log(response, "response");
       const checkoutUrl =
         response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
+      console.log(checkoutUrl, "checkoutUrl");
       if (checkoutUrl) {
         localStorage.setItem("pending_report_id", componentId);
         localStorage.setItem("pending_report_type", "single");
@@ -293,27 +323,39 @@ export default function ComponentDetail({
                   <span>Add Project</span>
                 </Link>
               )}
-              {showGenerateOption && (
+              {isDeterminingAccess ? (
                 <Button
-                  onClick={downloadReport}
-                  disabled={isGenerating}
-                  className="flex items-center gap-1.5 sm:gap-2 h-9 sm:h-10 px-3 sm:px-4 rounded-lg bg-secondary-new hover:bg-secondary-new/80 text-white font-bold text-[11px] sm:text-[12px] uppercase tracking-wider sm:tracking-widest transition-colors shrink-0"
+                  disabled
+                  className="flex items-center gap-1.5 sm:gap-2 h-9 sm:h-10 px-3 sm:px-4 rounded-lg bg-secondary-new/60 text-white font-bold text-[11px] sm:text-[12px] uppercase tracking-wider sm:tracking-widest transition-colors shrink-0 cursor-not-allowed"
                 >
-                  {isGenerating ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <FileText className="size-3.5" />
+                  <Loader2 className="size-3.5 animate-spin" />
+                  <span>Loading…</span>
+                </Button>
+              ) : (
+                <>
+                  {showGenerateOption && (
+                    <Button
+                      onClick={downloadReport}
+                      disabled={isGenerating}
+                      className="flex items-center gap-1.5 sm:gap-2 h-9 sm:h-10 px-3 sm:px-4 rounded-lg bg-secondary-new hover:bg-secondary-new/80 text-white font-bold text-[11px] sm:text-[12px] uppercase tracking-wider sm:tracking-widest transition-colors shrink-0"
+                    >
+                      {isGenerating ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <FileText className="size-3.5" />
+                      )}
+                      {isGenerating ? "Downloading…" : "Download Full Report"}
+                    </Button>
                   )}
-                  {isGenerating ? "Downloading…" : "Download Full Report"}
-                </Button>
-              )}
-              {showBuyOption && (
-                <Button
-                  onClick={() => setShowPurchaseDialogTop(true)}
-                  className="flex items-center gap-1.5 sm:gap-2 h-9 sm:h-10 px-3 sm:px-4 rounded-lg bg-secondary-new hover:bg-secondary-new/80 text-white font-bold text-[11px] sm:text-[12px] uppercase tracking-wider sm:tracking-widest transition-colors shrink-0"
-                >
-                  Buy Full Report
-                </Button>
+                  {showBuyOption && (
+                    <Button
+                      onClick={() => setShowPurchaseDialogTop(true)}
+                      className="flex items-center gap-1.5 sm:gap-2 h-9 sm:h-10 px-3 sm:px-4 rounded-lg bg-secondary-new hover:bg-secondary-new/80 text-white font-bold text-[11px] sm:text-[12px] uppercase tracking-wider sm:tracking-widest transition-colors shrink-0"
+                    >
+                      Buy Full Report
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -387,6 +429,8 @@ export default function ComponentDetail({
                 onBack={() => setShowReports(false)}
                 componentsData={componentData}
                 propertyOwnerEmail={componentData?.property_owner?.email}
+                onReportUsageChange={(usage: any) => setReportUsage(usage)}
+                onPurchasedChange={(val: boolean) => setPurchased(val)}
               />
             ) : (
               <ProjectDefaultView

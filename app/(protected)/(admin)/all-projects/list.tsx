@@ -731,7 +731,7 @@ export default function AllProjectsList({ user }: { user: string }) {
             <X className="size-8" />
           </button>
 
-          <div className="relative w-full max-w-4xl max-h-[80vh] flex items-center justify-center">
+          <div className="relative w-full max-w-4xl h-[70vh] sm:h-[80vh] flex items-center justify-center">
             {selectedImages.length > 1 && (
               <button
                 onClick={(e) => {
@@ -749,7 +749,7 @@ export default function AllProjectsList({ user }: { user: string }) {
             <AwsImage
               src={selectedImages[currentImageIndex]}
               alt={`Project image ${currentImageIndex + 1}`}
-              className="max-w-full max-h-[80vh] object-contain rounded-lg"
+              className="object-contain rounded-lg"
             />
 
             {selectedImages.length > 1 && (

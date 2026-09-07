@@ -75,6 +75,8 @@ export const publicRoutes = [
     '/realtors',
     '/distributors',
     '/manufacturers',
+    '/property-search',
+    '/permit-review',
     '/login',
     '/register',
     '/forgot-password',

@@ -14,8 +14,8 @@ import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 interface MapDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
   addressString?: string;
   onSave: (lat: number, lng: number) => void;
 }

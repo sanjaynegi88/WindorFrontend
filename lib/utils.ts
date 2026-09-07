@@ -16,7 +16,7 @@ export function cn(...inputs: ClassValue[]): string {
  * Supports absolute URLs (Google images etc.) and relative paths (appends base URL).
  */
 export function getAppImageUrl(url: string | null | undefined): string {
-  if (!url) return '';
+  if (!url || url === 'undefined' || url === 'null') return '';
   if (url.startsWith('http')) return url;
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5000';
@@ -59,7 +59,7 @@ export function toTitleCase(str: string | null | undefined): string {
 
 
 export function getResourceFileUrl(url: string | null | undefined): string {
-  if (!url) return '';
+  if (!url || url === 'undefined' || url === 'null') return '';
   if (url.startsWith('http')) return url;
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5000';

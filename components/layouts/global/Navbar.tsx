@@ -300,7 +300,7 @@ export function Navbar() {
     { name: "Roles", href: "/admin/roles", icon: ShieldUser },
     { name: "Property List", href: "/admin/property-list", icon: HouseIcon },
     {
-      name: "Property Approval list",
+      name: "Properties Pending",
       href: "/added-properties",
       icon: VerifiedIcon,
     },
@@ -317,11 +317,11 @@ export function Navbar() {
     { name: "Set Prices", href: "/admin/report-price", icon: DollarSignIcon },
     { name: "Admin Logs", href: "/admin/admin-logs", icon: History },
     { name: "Import Data", href: "/admin/import-data", icon: FileDownIcon },
-    {
-      name: "Marketing Content",
-      href: "/admin/marketing-content",
-      icon: FileText,
-    },
+    // {
+    //   name: "Marketing Content",
+    //   href: "/admin/marketing-content",
+    //   icon: FileText,
+    // },
   ];
 
   return (
@@ -521,8 +521,12 @@ export function Navbar() {
                     <Avatar className="h-[43px] w-[43px]">
                       <AvatarImage
                         src={
-                          user.profile_image_url
-                            ? `${process.env.NEXT_PUBLIC_BASE_URL}${user.profile_image_url}`
+                          user.profile_image_url &&
+                          user.profile_image_url !== "undefined" &&
+                          user.profile_image_url !== "null"
+                            ? user.profile_image_url.startsWith("http")
+                              ? user.profile_image_url
+                              : `${process.env.NEXT_PUBLIC_BASE_URL}${user.profile_image_url.startsWith("/") ? user.profile_image_url : `/${user.profile_image_url}`}`
                             : ""
                         }
                         alt={user.first_name || "User"}

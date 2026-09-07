@@ -36,7 +36,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CitySelect, StateSelect } from "@/components/city-zip-selector";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Content } from "@/components/layouts/crm/components/content";

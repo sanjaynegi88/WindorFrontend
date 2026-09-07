@@ -58,13 +58,20 @@ export function ResetPasswordForm({
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!token) {
+      toast.error("Invalid or missing reset token. Please request a new link.");
+      return;
+    }
     setLoading(true);
     const result = await resetPassword({
       reset_token: token,
       newPassword: values.password,
     });
+
     if (!result.success) {
-      toast.error(result.message || "Failed to reset password. Please try again.");
+      toast.error(
+        result.message || "Failed to reset password. Please try again.",
+      );
       setLoading(false);
       return;
     }
@@ -82,6 +89,7 @@ export function ResetPasswordForm({
           width={136}
           height={118}
           priority
+          style={{ width: 'auto', height: 'auto' }}
           className="h-[60px] md:h-[118px] w-[70px] md:w-[136px] object-contain"
         />
       </div>
@@ -115,7 +123,9 @@ export function ResetPasswordForm({
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-[15px] md:right-[19px] top-1/2 -translate-y-1/2 text-[#708090] hover:text-[#1F2A44] transition-colors"
-                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        aria-label={
+                          showPassword ? "Hide password" : "Show password"
+                        }
                       >
                         {showPassword ? (
                           <EyeOff className="h-[16px] w-[16px] md:h-[28px] md:w-[28px]" />
@@ -145,9 +155,15 @@ export function ResetPasswordForm({
                       />
                       <button
                         type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        onClick={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
                         className="absolute right-[15px] md:right-[19px] top-1/2 -translate-y-1/2 text-[#708090] hover:text-[#1F2A44] transition-colors"
-                        aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                        aria-label={
+                          showConfirmPassword
+                            ? "Hide password"
+                            : "Show password"
+                        }
                       >
                         {showConfirmPassword ? (
                           <EyeOff className="h-[16px] w-[16px] md:h-[28px] md:w-[28px]" />
@@ -174,7 +190,10 @@ export function ResetPasswordForm({
           <div className="text-center mt-[20px] md:mt-[29px]">
             <span className="text-[16px] md:text-[22px] leading-[35px] font-normal text-[rgba(112,128,144,0.93)] font-asap">
               Remember your password?{" "}
-              <Link href={process.env.NEXT_PUBLIC_LOGIN_URL || "/login"} className="font-bold text-[#1CA7A6] hover:underline">
+              <Link
+                href={process.env.NEXT_PUBLIC_LOGIN_URL || "/login"}
+                className="font-bold text-[#1CA7A6] hover:underline"
+              >
                 Sign In
               </Link>
             </span>

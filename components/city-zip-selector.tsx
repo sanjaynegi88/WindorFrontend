@@ -53,11 +53,12 @@ export interface StateOption {
   abbreviation?: string;
 }
 
-interface StateSelectProps extends CommonProps {
+export interface StateSelectProps extends CommonProps {
   states?: StateOption[];
   valueType?: "name" | "id";
   onSelectState?: (state: StateOption) => void;
   onLoaded?: () => void;
+  loading?: boolean;
 }
 
 export function StateSelect({
@@ -74,6 +75,7 @@ export function StateSelect({
   labelClassName,
   onLoaded,
   disabled,
+  loading: externalLoading,
 }: StateSelectProps) {
   const formContext = useFormContext();
   const [states, setStates] = React.useState<StateOption[]>([]);
@@ -137,7 +139,9 @@ export function StateSelect({
       try {
         setLoading(true);
         const response = await getStates(1, 1000);
-        const raw: any[] = Array.isArray(response) ? response : response?.data || [];
+        const raw: any[] = Array.isArray(response)
+          ? response
+          : response?.data || [];
         const mapped = raw.map((s: any) => ({
           id: String(s.id),
           name: s.state_name || s.name,
@@ -161,10 +165,12 @@ export function StateSelect({
     name && formContext ? formContext.watch(name) : controlledValue;
 
   const selectedState = states.find((s) =>
-    valueType === "id" ? String(s.id) === String(internalValue) : s.name === internalValue,
+    valueType === "id"
+      ? String(s.id) === String(internalValue)
+      : s.name === internalValue,
   );
 
-  const displayValue = selectedState ? selectedState.name : (internalValue || "");
+  const displayValue = selectedState ? selectedState.name : internalValue || "";
 
   const handleSelect = (state: StateOption) => {
     const newValue = valueType === "id" ? String(state.id) : state.name;
@@ -233,7 +239,11 @@ export function StateSelect({
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      (valueType === "id" ? String(st.id) === String(internalValue) : st.name === internalValue)
+                      (
+                        valueType === "id"
+                          ? String(st.id) === String(internalValue)
+                          : st.name === internalValue
+                      )
                         ? "opacity-100"
                         : "opacity-0",
                     )}
@@ -282,7 +292,7 @@ export function StateSelect({
   );
 }
 
-interface CitySelectProps extends CommonProps {
+export interface CitySelectProps extends CommonProps {
   stateName?: string;
   stateValue?: string; // Add this for controlled component support
   zipName?: string;
@@ -290,6 +300,7 @@ interface CitySelectProps extends CommonProps {
   onSelectCity?: (city: any) => void;
   onLoaded?: () => void;
   syncState?: boolean;
+  loading?: boolean;
 }
 
 export function CitySelect({
@@ -309,6 +320,7 @@ export function CitySelect({
   onLoaded,
   syncState = false,
   disabled,
+  loading: externalLoading,
 }: CitySelectProps) {
   const formContext = useFormContext();
   const [cities, setCities] = React.useState<any[]>([]);
@@ -348,7 +360,7 @@ export function CitySelect({
   };
 
   const handleFocus = () => {
-    if (disabled) return;
+    if (disabled || externalLoading || loading) return;
     if (isPointerInteractionRef.current) {
       isPointerInteractionRef.current = false;
       return;
@@ -396,15 +408,29 @@ export function CitySelect({
   const internalValue =
     name && formContext ? formContext.watch(name) : controlledValue;
 
+  const isUuid = (val: any) =>
+    typeof val === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
   const selectedCity = cities.find((c) =>
-    valueType === "id" ? String(c.id) === String(internalValue) : c.name === internalValue,
+    valueType === "id"
+      ? String(c.id) === String(internalValue) ||
+        String(c.city_id) === String(internalValue)
+      : c.name === internalValue,
   );
+
+  const isLoadingCities =
+    externalLoading ||
+    loading ||
+    (Boolean(internalValue) &&
+      cities.length === 0 &&
+      Boolean(internalStateValue));
 
   const displayValue = selectedCity
     ? toTitleCase(selectedCity.name)
-    : loading
+    : isLoadingCities
       ? ""
-      : internalValue && valueType !== "id"
+      : internalValue && valueType !== "id" && !isUuid(internalValue)
         ? toTitleCase(String(internalValue))
         : "";
 
@@ -451,7 +477,7 @@ export function CitySelect({
       variant="outline"
       role="combobox"
       aria-expanded={open}
-      disabled={disabled}
+      disabled={disabled || isLoadingCities}
       onPointerDown={handlePointerDown}
       onFocus={handleFocus}
       className={cn(
@@ -459,13 +485,15 @@ export function CitySelect({
         !displayValue
           ? "text-[#708090]/60 font-normal"
           : "text-[#708090] font-medium",
-        disabled && "cursor-not-allowed opacity-70",
+        (disabled || isLoadingCities) && "cursor-not-allowed opacity-70",
         className,
       )}
     >
       <span className="truncate flex items-center gap-2">
-        {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />}
-        {displayValue || (loading ? "Loading cities..." : placeholder)}
+        {isLoadingCities && (
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />
+        )}
+        {displayValue || (isLoadingCities ? "Loading cities..." : placeholder)}
       </span>
       <ChevronDown className="h-4 w-4 md:h-6 md:w-6 shrink-0 opacity-50 ml-2" />
     </Button>
@@ -499,9 +527,11 @@ export function CitySelect({
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      (valueType === "id"
-                        ? String(city.id) === String(internalValue)
-                        : city.name === internalValue)
+                      (
+                        valueType === "id"
+                          ? String(city.id) === String(internalValue)
+                          : city.name === internalValue
+                      )
                         ? "opacity-100"
                         : "opacity-0",
                     )}

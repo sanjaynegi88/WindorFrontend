@@ -2,13 +2,6 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { ChevronLeft, Eye, MapPin } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StateOption, CityOption } from "@/lib/location-utils";
@@ -34,8 +27,8 @@ export interface AddressData {
   zip: string;
   property_name: string;
   property_owner_id: string;
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
   other_city?: string;
   state_id?: string;
 }
@@ -286,9 +279,7 @@ export function AddressForm({
           placeholder="Property Type"
           searchPlaceholder="Search property type..."
           emptyMessage={
-            propertyTypes.length === 0
-              ? "Loading..."
-              : "No property type found"
+            propertyTypes.length === 0 ? "Loading..." : "No property type found"
           }
           onValueChange={(val) => {
             if (val === "OTHER") {
@@ -444,7 +435,10 @@ export function AddressForm({
           <SearchableSelect
             options={propertyOwners.map((owner) => ({
               id: owner.id,
-              name: owner.email || `${owner.first_name || ""} ${owner.last_name || ""}`.trim() || owner.id,
+              name:
+                owner.email ||
+                `${owner.first_name || ""} ${owner.last_name || ""}`.trim() ||
+                owner.id,
             }))}
             value={data.property_owner_id || ""}
             onValueChange={(val) =>
@@ -455,28 +449,24 @@ export function AddressForm({
             triggerClassName={triggerClass}
           />
         </div>
-
-        {/* Property Owner & Coordinates (Admin Only) */}
-        {user?.role === "admin" && (
-          <div className="space-y-3.75 md:space-y-5 p-5 border border-dashed border-[rgba(28,167,166,0.3)] rounded-[10px] bg-slate-50/50">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <Button
-                type="button"
-                onClick={() => setIsMapPopupOpen(true)}
-                className="h-[46px] md:h-[55px] border border-[#1CA7A6] bg-white text-[#1CA7A6] hover:bg-[#1CA7A6]/5 font-bold rounded-[6px] md:rounded-[10px] text-[14px] md:text-[18px] flex items-center justify-center gap-2 shadow-none font-asap px-6"
-              >
-                <MapPin className="size-[16px] md:size-[22px]" />
-                Locate / Move Pin on Map
-              </Button>
-              {data.latitude !== undefined && data.longitude !== undefined && (
-                <span className="text-[12px] md:text-[14px] font-mono text-[#708090] bg-white px-4 py-2 rounded-[6px] border border-slate-200/60 shadow-sm">
-                  Pin Coordinates: {data.latitude.toFixed(6)},{" "}
-                  {data.longitude.toFixed(6)}
-                </span>
-              )}
-            </div>
+        <div className="space-y-3.75 md:space-y-5 p-5 border border-dashed border-[rgba(28,167,166,0.3)] rounded-[10px] bg-slate-50/50">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <Button
+              type="button"
+              onClick={() => setIsMapPopupOpen(true)}
+              className="h-[46px] md:h-[55px] border border-[#1CA7A6] bg-white text-[#1CA7A6] hover:bg-[#1CA7A6]/5 font-bold rounded-[6px] md:rounded-[10px] text-[14px] md:text-[18px] flex items-center justify-center gap-2 shadow-none font-asap px-6"
+            >
+              <MapPin className="size-[16px] md:size-[22px]" />
+              Locate / Move Pin on Map
+            </Button>
+            {data.latitude != null && data.longitude != null && (
+              <span className="text-[12px] md:text-[14px] font-mono text-[#708090] bg-white px-4 py-2 rounded-[6px] border border-slate-200/60 shadow-sm">
+                Pin Coordinates: {data.latitude.toFixed(6)},{" "}
+                {data.longitude.toFixed(6)}
+              </span>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       <div className="space-y-[15px] md:space-y-[17px] pt-[15px] md:pt-[23px]">
@@ -551,22 +541,20 @@ export function AddressForm({
         </button>
       </div>
 
-      {user?.role === "admin" && (
-        <MapDialog
-          isOpen={isMapPopupOpen}
-          onClose={() => setIsMapPopupOpen(false)}
-          latitude={data.latitude}
-          longitude={data.longitude}
-          addressString={
-            data.address
-              ? `${data.address}, ${data.city || ""}, ${data.state || ""} ${data.zip || ""}`
-              : undefined
-          }
-          onSave={(lat, lng) =>
-            onChange({ ...data, latitude: lat, longitude: lng })
-          }
-        />
-      )}
+      <MapDialog
+        isOpen={isMapPopupOpen}
+        onClose={() => setIsMapPopupOpen(false)}
+        latitude={data.latitude}
+        longitude={data.longitude}
+        addressString={
+          data.address
+            ? `${data.address}, ${data.city || ""}, ${data.state || ""} ${data.zip || ""}`
+            : undefined
+        }
+        onSave={(lat, lng) =>
+          onChange({ ...data, latitude: lat, longitude: lng })
+        }
+      />
     </div>
   );
 }

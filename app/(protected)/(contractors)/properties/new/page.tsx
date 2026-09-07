@@ -215,8 +215,8 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           zip: "",
           property_name: storedName,
           property_owner_id: "",
-          latitude: 40.67,
-          longitude: -73.94,
+          latitude: null,
+          longitude: null,
         };
       }
     }
@@ -231,8 +231,8 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
       zip: "",
       property_name: paramPropertyName || "",
       property_owner_id: "",
-      latitude: 40.67,
-      longitude: -73.94,
+      latitude: null,
+      longitude: null,
     };
   });
 
@@ -275,7 +275,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
 
         const isSuccess = propertyRes?.success === true;
         const propertyPayload = isSuccess
-          ? propertyRes.data?.data ?? propertyRes.data
+          ? (propertyRes.data?.data ?? propertyRes.data)
           : null;
         const propStateId =
           propertyPayload?.state_id ||
@@ -367,10 +367,10 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
             propertyPayload?.property_owner_id || prev.property_owner_id || "",
           latitude: propertyPayload?.latitude
             ? Number(propertyPayload.latitude)
-            : prev.latitude || 40.67,
+            : (prev.latitude ?? null),
           longitude: propertyPayload?.longitude
             ? Number(propertyPayload.longitude)
-            : prev.longitude || -73.94,
+            : (prev.longitude ?? null),
         }));
         if (typeof window !== "undefined") {
           localStorage.setItem(
@@ -577,7 +577,11 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
 
         if (nextStep === "SAVE" || nextStep === "DRAFT") {
           clearPropertyFlow();
-          router.push("/added-properties");
+          if (user.role === "admin") {
+            router.push("/dashboard");
+          } else {
+            router.push("/added-properties");
+          }
           return;
         }
 
@@ -600,7 +604,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
       } else if (nextStep === "SAVE") {
         clearPropertyFlow();
         if (user.role === "admin") {
-          router.push("/properties");
+          router.push("/dashboard");
         } else {
           router.push("/added-properties");
         }

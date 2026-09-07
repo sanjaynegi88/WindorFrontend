@@ -43,6 +43,8 @@ interface ReportsViewProps {
   onBack: () => void;
   propertyOwnerEmail: string;
   componentsData: any;
+  onReportUsageChange?: (usage: any) => void;
+  onPurchasedChange?: (purchased: boolean) => void;
 }
 
 export const ReportsView = ({
@@ -53,6 +55,8 @@ export const ReportsView = ({
   onBack,
   propertyOwnerEmail,
   componentsData,
+  onReportUsageChange,
+  onPurchasedChange,
 }: ReportsViewProps) => {
   const { user, role } = useUser();
   const totalProjectsCount = (componentsData?.projects ?? []).length;
@@ -116,7 +120,7 @@ export const ReportsView = ({
         `all-contractor-projects-report-${propertyId}.pdf`,
       );
       toast.success("Report downloaded successfully");
-      setAllContractorPurchased(true);
+      await fetchReportUsage();
     } catch (err: any) {
       toast.error(err.message || "Failed to download report");
     } finally {
@@ -162,43 +166,68 @@ export const ReportsView = ({
     }
   }, [showHomeOwnerProjectsDialog]);
 
+  const loadContractorProjects = async () => {
+    if (!propertyId) return;
+    setLoadingContractor(true);
+    try {
+      const res = await getprojectListingOfProperty(
+        propertyId,
+        undefined,
+        "CONTRACTOR",
+      );
+      const projects = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.data)
+          ? res.data
+          : [];
+      setContractorProjects(projects);
+    } catch (err) {
+      console.error("Failed to fetch contractor projects:", err);
+      toast.error("Failed to load contractor projects");
+    } finally {
+      setLoadingContractor(false);
+    }
+  };
+
+  const loadHomeownerProjects = async () => {
+    if (!propertyId) return;
+    setLoadingHomeowner(true);
+    try {
+      const res = await getprojectListingOfProperty(
+        propertyId,
+        undefined,
+        "PROPERTY_OWNER",
+      );
+      const projects = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.data)
+          ? res.data
+          : [];
+      setHomeownerProjects(projects);
+    } catch (err) {
+      console.error("Failed to fetch homeowner projects:", err);
+      toast.error("Failed to load homeowner projects");
+    } finally {
+      setLoadingHomeowner(false);
+    }
+  };
+
+  useEffect(() => {
+    if (propertyId) {
+      loadContractorProjects();
+      loadHomeownerProjects();
+    }
+  }, [propertyId]);
+
   useEffect(() => {
     if (showContractorProjectsDialog) {
-      setLoadingContractor(true);
-      getprojectListingOfProperty(propertyId, undefined, "CONTRACTOR")
-        .then((res) => {
-          const projects = Array.isArray(res)
-            ? res
-            : Array.isArray(res?.data)
-              ? res.data
-              : [];
-          setContractorProjects(projects);
-        })
-        .catch((err) => {
-          console.error("Failed to fetch contractor projects:", err);
-          toast.error("Failed to load contractor projects");
-        })
-        .finally(() => setLoadingContractor(false));
+      loadContractorProjects();
     }
   }, [showContractorProjectsDialog, propertyId]);
 
   useEffect(() => {
     if (showHomeOwnerProjectsDialog) {
-      setLoadingHomeowner(true);
-      getprojectListingOfProperty(propertyId, undefined, "PROPERTY_OWNER")
-        .then((res) => {
-          const projects = Array.isArray(res)
-            ? res
-            : Array.isArray(res?.data)
-              ? res.data
-              : [];
-          setHomeownerProjects(projects);
-        })
-        .catch((err) => {
-          console.error("Failed to fetch homeowner projects:", err);
-          toast.error("Failed to load homeowner projects");
-        })
-        .finally(() => setLoadingHomeowner(false));
+      loadHomeownerProjects();
     }
   }, [showHomeOwnerProjectsDialog, propertyId]);
 
@@ -206,7 +235,7 @@ export const ReportsView = ({
     setPurchased(isPurchased);
   }, [isPurchased]);
 
-  useEffect(() => {
+  const fetchReportUsage = async () => {
     if (
       role === "insurance_company" ||
       role === "realtor" ||
@@ -214,10 +243,20 @@ export const ReportsView = ({
       role === "contractor" ||
       role === "property_owner"
     ) {
-      getReportUsage()
-        .then((res) => setReportUsage(res.data))
-        .catch(() => {});
+      try {
+        const res = await getReportUsage();
+        const usageData = res?.data || res;
+        setReportUsage(usageData);
+        onReportUsageChange?.(usageData);
+        return usageData;
+      } catch (err) {
+        console.error("Failed to fetch report usage:", err);
+      }
     }
+  };
+
+  useEffect(() => {
+    fetchReportUsage();
   }, [role]);
 
   const downloadReport = async (projectType?: string) => {
@@ -232,17 +271,8 @@ export const ReportsView = ({
       );
       toast.success("Report downloaded successfully");
       setPurchased(true);
-      if (
-        user?.role === "insurance_company" ||
-        user?.role === "realtor" ||
-        user?.role === "manufacturer" ||
-        user?.role === "contractor" ||
-        user?.role === "property_owner"
-      ) {
-        getReportUsage()
-          .then((res) => setReportUsage(res.data))
-          .catch(() => {});
-      }
+      onPurchasedChange?.(true);
+      await fetchReportUsage();
     } catch (err: any) {
       toast.error(err.message || "Failed to download report");
     } finally {
@@ -251,7 +281,7 @@ export const ReportsView = ({
     }
   };
 
-  const hasReportApi = !!componentsData?.has_report;
+  const hasReportApi = !!componentsData?.has_report || totalProjectsCount > 0;
 
   const showGenerateOption =
     hasReportApi &&
@@ -293,6 +323,7 @@ export const ReportsView = ({
         window.location.href = checkoutUrl;
       } else {
         setPurchased(true);
+        onPurchasedChange?.(true);
         await downloadReport();
       }
     } catch (err: any) {
@@ -319,6 +350,31 @@ export const ReportsView = ({
         : `owner-projects-report-${projectName}.pdf`;
       await downloadPdfFromUrl(url, filename);
       toast.success("Report downloaded successfully");
+
+      setContractorProjects((prev) =>
+        prev.map((proj) => {
+          const pid = proj.id ?? proj.project_id ?? proj._id;
+          if (String(pid) === String(projectId)) {
+            return { ...proj, is_purchased: true, project_purchased: true };
+          }
+          return proj;
+        }),
+      );
+      setHomeownerProjects((prev) =>
+        prev.map((proj) => {
+          const pid = proj.id ?? proj.project_id ?? proj._id;
+          if (String(pid) === String(projectId)) {
+            return { ...proj, is_purchased: true, project_purchased: true };
+          }
+          return proj;
+        }),
+      );
+
+      const usageRes = await fetchReportUsage();
+      if (usageRes && usageRes.remaining === 0) {
+        loadContractorProjects();
+        loadHomeownerProjects();
+      }
     } catch (error: any) {
       console.error("Download project report error:", error);
       toast.error(getErrorMessage(error, "Failed to download report"));
@@ -538,8 +594,12 @@ export const ReportsView = ({
                         setShowAllContractorDialog(true);
                       }
                     }}
-                    disabled={isGeneratingAllContractor}
-                    className="w-full h-9 rounded-lg bg-primary hover:bg-primary/90 text-white font-bold text-sm uppercase tracking-widest gap-2 shadow-none"
+                    disabled={
+                      isGeneratingAllContractor ||
+                      loadingContractor ||
+                      contractorProjects.length === 0
+                    }
+                    className="w-full h-9 rounded-lg bg-primary hover:bg-primary/90 text-white font-bold text-sm uppercase tracking-widest gap-2 shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isGeneratingAllContractor ? (
                       <>
@@ -638,8 +698,12 @@ export const ReportsView = ({
             {hasAllContractorAccess ? (
               <Button
                 onClick={downloadAllContractorReport}
-                disabled={isGeneratingAllContractor}
-                className="h-11 bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white rounded-xl font-black uppercase tracking-widest flex-1 gap-2 animate-none"
+                disabled={
+                  isGeneratingAllContractor ||
+                  loadingContractor ||
+                  contractorProjects.length === 0
+                }
+                className="h-11 bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white rounded-xl font-black uppercase tracking-widest flex-1 gap-2 animate-none disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isGeneratingAllContractor ? (
                   <>
@@ -653,8 +717,12 @@ export const ReportsView = ({
             ) : (
               <Button
                 onClick={handleAllContractorPurchase}
-                disabled={isGeneratingAllContractor}
-                className="h-11 bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white rounded-xl font-black uppercase tracking-widest flex-1 gap-2 animate-none"
+                disabled={
+                  isGeneratingAllContractor ||
+                  loadingContractor ||
+                  contractorProjects.length === 0
+                }
+                className="h-11 bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white rounded-xl font-black uppercase tracking-widest flex-1 gap-2 animate-none disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isGeneratingAllContractor ? (
                   <>
@@ -711,7 +779,7 @@ export const ReportsView = ({
                 const hasProjectAccess =
                   isProjectPurchased ||
                   allContractorPurchased ||
-                  isPurchased ||
+                  purchased ||
                   isAdmin ||
                   isCityInspector ||
                   isOwnerOfProperty ||
@@ -885,7 +953,7 @@ export const ReportsView = ({
                       project.createdBy.email.toLowerCase());
                 const hasProjectAccess =
                   isProjectPurchased ||
-                  isPurchased ||
+                  purchased ||
                   isAdmin ||
                   isCityInspector ||
                   isOwnerOfProperty ||

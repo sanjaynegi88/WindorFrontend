@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 import {
   ColumnDef,
   getCoreRowModel,
@@ -9,74 +9,75 @@ import {
   PaginationState,
   SortingState,
   useReactTable,
-} from '@tanstack/react-table';
-import {
-  MoreVertical,
-  Calendar,
-  Edit,
-  DollarSign,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardFooter,
-  CardHeader,
-  CardTable,
-} from '@/components/ui/card';
-import { DataGrid } from '@/components/ui/data-grid';
-import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
-import {
-  DataGridTable,
-} from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+} from "@tanstack/react-table";
+import { MoreVertical, Calendar, Edit, DollarSign } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardFooter, CardHeader, CardTable } from "@/components/ui/card";
+import { DataGrid } from "@/components/ui/data-grid";
+import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
+import { DataGridTable } from "@/components/ui/data-grid-table";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { getReportPrice } from '@/lib/actions';
-import { Skeleton } from '@/components/ui/skeleton';
-import { toast } from 'sonner';
-import { ReportPriceFormDialog } from './report-price-form-dialog';
-import { formatDate } from '@/lib/helpers';
+} from "@/components/ui/dropdown-menu";
+import { getReportPrice } from "@/lib/actions";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import { ReportPriceFormDialog } from "./report-price-form-dialog";
+import { formatDate } from "@/lib/helpers";
 
 const formatReportPriceKey = (key: string) => {
   switch (key) {
-    case 'report_price':
-      return 'Report Price (Contractor Projects)';
-    case 'add_user_price':
-      return 'Contractor Additional User Price (Monthly)';
-    case 'add_user_price_annual':
-      return 'Contractor Additional User Price (Annual)';
-    case 'individual_project_price':
-      return 'Individual Project Report Price';
-    case 'full_report_price':
-      return 'Full Report Price (Owner, Contractor Projects)';
+    case "report_price":
+      return "Report Price (Contractor Projects)";
+    case "add_user_price":
+      return "Contractor Additional User Price (Monthly)";
+    case "add_user_price_annual":
+      return "Contractor Additional User Price (Annual)";
+    case "individual_project_price":
+      return "Individual Project Report Price";
+    case "full_report_price":
+      return "Full Report Price (Owner, Contractor Projects)";
+    case "add_insurance_user":
+      return "Insurance Additional User Price (Monthly)";
     default:
-      return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+      return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }
 };
 
-export default function ReportPriceListPage({ refreshTrigger, onSuccess }: { refreshTrigger: number, onSuccess: () => void }) {
+export default function ReportPriceListPage({
+  refreshTrigger,
+  onSuccess,
+}: {
+  refreshTrigger: number;
+  onSuccess: () => void;
+}) {
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
   });
 
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>([]);
-  const [editingPropertyType, setEditingPropertyType] = useState<any | null>(null);
+  const [editingPropertyType, setEditingPropertyType] = useState<any | null>(
+    null,
+  );
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
-
-  const fetchData = async (page: number = 1, limit: number = 10, name?: string) => {
+  const fetchData = async (
+    page: number = 1,
+    limit: number = 10,
+    name?: string,
+  ) => {
     setLoading(true);
     try {
       const response = await getReportPrice();
@@ -90,8 +91,8 @@ export default function ReportPriceListPage({ refreshTrigger, onSuccess }: { ref
         setData([]);
       }
     } catch (error: any) {
-      console.error('Error fetching state list:', error);
-      toast.error(error.message || 'Failed to load property types');
+      console.error("Error fetching state list:", error);
+      toast.error(error.message || "Failed to load property types");
     } finally {
       setLoading(false);
     }
@@ -122,9 +123,13 @@ export default function ReportPriceListPage({ refreshTrigger, onSuccess }: { ref
   const columns = useMemo<ColumnDef<any>[]>(
     () => [
       {
-        accessorKey: 'index',
-        id: 'index',
-        header: () => <div className="text-center text-[0.8125rem] font-normal text-foreground/70">Id</div>,
+        accessorKey: "index",
+        id: "index",
+        header: () => (
+          <div className="text-center text-[0.8125rem] font-normal text-foreground/70">
+            Id
+          </div>
+        ),
         cell: ({ row }) => (
           <div className="text-center font-medium text-muted-foreground/70">
             {pageIndex * pageSize + row.index + 1}
@@ -133,16 +138,16 @@ export default function ReportPriceListPage({ refreshTrigger, onSuccess }: { ref
         enableSorting: false,
         size: 60,
         meta: {
-          headerClassName: 'ps-4',
-          cellClassName: 'ps-4',
-          skeleton: <Skeleton className="w-6 h-7" />
+          headerClassName: "ps-4",
+          cellClassName: "ps-4",
+          skeleton: <Skeleton className="w-6 h-7" />,
         },
         enableHiding: false,
         enableResizing: false,
       },
       {
-        accessorKey: 'price',
-        id: 'name',
+        accessorKey: "price",
+        id: "name",
         header: ({ column }) => (
           <DataGridColumnHeader
             title="Price"
@@ -169,18 +174,14 @@ export default function ReportPriceListPage({ refreshTrigger, onSuccess }: { ref
         enableHiding: false,
         enableResizing: true,
         meta: {
-          skeleton: <Skeleton className="w-6 h-7" />
-        }
+          skeleton: <Skeleton className="w-6 h-7" />,
+        },
       },
       {
-        accessorKey: 'key',
-        id: 'name',
+        accessorKey: "key",
+        id: "name",
         header: ({ column }) => (
-          <DataGridColumnHeader
-            title="Key"
-            visibility={true}
-            column={column}
-          />
+          <DataGridColumnHeader title="Key" visibility={true} column={column} />
         ),
         cell: ({ row }) => {
           return (
@@ -198,12 +199,12 @@ export default function ReportPriceListPage({ refreshTrigger, onSuccess }: { ref
         enableHiding: false,
         enableResizing: true,
         meta: {
-          skeleton: <Skeleton className="w-6 h-7" />
-        }
+          skeleton: <Skeleton className="w-6 h-7" />,
+        },
       },
       {
-        accessorKey: 'created_at',
-        id: 'created_at',
+        accessorKey: "created_at",
+        id: "created_at",
         header: ({ column }) => (
           <DataGridColumnHeader
             title="Created At"
@@ -222,12 +223,12 @@ export default function ReportPriceListPage({ refreshTrigger, onSuccess }: { ref
         enableHiding: true,
         enableResizing: true,
         meta: {
-          skeleton: <Skeleton className="w-6 h-7" />
-        }
+          skeleton: <Skeleton className="w-6 h-7" />,
+        },
       },
       {
-        accessorKey: 'updated_at',
-        id: 'updated_at',
+        accessorKey: "updated_at",
+        id: "updated_at",
         header: ({ column }) => (
           <DataGridColumnHeader
             title="Last Updated"
@@ -246,11 +247,11 @@ export default function ReportPriceListPage({ refreshTrigger, onSuccess }: { ref
         enableHiding: true,
         enableResizing: true,
         meta: {
-          skeleton: <Skeleton className="w-6 h-7" />
-        }
+          skeleton: <Skeleton className="w-6 h-7" />,
+        },
       },
       {
-        id: 'actions',
+        id: "actions",
         cell: ({ row }) => {
           return (
             <DropdownMenu>
@@ -261,7 +262,10 @@ export default function ReportPriceListPage({ refreshTrigger, onSuccess }: { ref
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuItem className='cursor-pointer' onClick={() => handleEdit(row.original)}>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => handleEdit(row.original)}
+                >
                   <Edit className="size-3.5 mr-2" />
                   Edit Price
                 </DropdownMenuItem>
@@ -293,7 +297,7 @@ export default function ReportPriceListPage({ refreshTrigger, onSuccess }: { ref
       sorting,
       columnOrder,
     },
-    columnResizeMode: 'onChange',
+    columnResizeMode: "onChange",
     onColumnOrderChange: setColumnOrder,
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
@@ -309,7 +313,7 @@ export default function ReportPriceListPage({ refreshTrigger, onSuccess }: { ref
         recordCount={totalRecords}
         isLoading={loading}
         tableClassNames={{
-          bodyRow: 'group/row',
+          bodyRow: "group/row",
         }}
         tableLayout={{
           dense: true,
@@ -317,8 +321,7 @@ export default function ReportPriceListPage({ refreshTrigger, onSuccess }: { ref
         }}
       >
         <Card className="shadow-lg border border-gray-200">
-          <CardHeader className="px-4 py-3 flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          </CardHeader>
+          <CardHeader className="px-4 py-3 flex-col sm:flex-row gap-4 items-start sm:items-center justify-between"></CardHeader>
           <CardTable>
             <ScrollArea>
               <DataGridTable />
@@ -326,8 +329,7 @@ export default function ReportPriceListPage({ refreshTrigger, onSuccess }: { ref
             </ScrollArea>
           </CardTable>
 
-          <CardFooter className="px-4 py-0">
-          </CardFooter>
+          <CardFooter className="px-4 py-0"></CardFooter>
         </Card>
       </DataGrid>
 
@@ -338,8 +340,10 @@ export default function ReportPriceListPage({ refreshTrigger, onSuccess }: { ref
           setEditingPropertyType(null);
         }}
         state={editingPropertyType}
-        onSuccess={() => fetchData(pagination.pageIndex + 1, pagination.pageSize)}
+        onSuccess={() =>
+          fetchData(pagination.pageIndex + 1, pagination.pageSize)
+        }
       />
     </>
   );
-};
+}

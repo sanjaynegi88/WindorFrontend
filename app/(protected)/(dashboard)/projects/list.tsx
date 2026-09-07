@@ -1,5 +1,4 @@
 "use client";
-import { PdfGenerationLoader } from "@/components/common/pdf-generation-loader";
 import { PropertyGrid } from "@/components/common/property-grid";
 import {
   SearchScope,
@@ -8,11 +7,10 @@ import {
 import { Content } from "@/components/layouts/crm/components/content";
 import { useUser } from "@/components/providers/user-provider";
 import { Button } from "@/components/ui/button";
-import { checkoutReports, generateMultipleReports } from "@/lib/actions";
+import { useTop10Report } from "@/hooks/use-top-10-report";
 import { ChevronLeft, FileText, Loader2 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { downloadPdfFromUrl } from "@/lib/utils";
 
 export default function ProjectList() {
   const [filters, setFilters] = useState({
@@ -57,7 +55,6 @@ export default function ProjectList() {
   const isPropertyOwner = role === "property_owner";
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [isGeneratingTop10, setIsGeneratingTop10] = useState(false);
   const isAdmin = role === "admin";
   const hasMembershipCookie =
     typeof document !== "undefined" &&
@@ -68,49 +65,12 @@ export default function ProjectList() {
     isAdmin ||
     Boolean(user?.has_membership ?? user?.hasMembership ?? hasMembershipCookie);
 
-  const handleGenerateTop10 = async () => {
-    if (!user) {
-      toast.error("Please log in to generate a report");
-      return;
-    }
-
-    setIsGeneratingTop10(true);
-
-    try {
-      if (isAdminOrInspector) {
-        const url = await generateMultipleReports(reportFilters);
-        await downloadPdfFromUrl(url, "top-10-properties-report.pdf");
-        toast.success("Report downloaded successfully");
-      } else {
-        const checkoutResponse = await checkoutReports(reportFilters);
-        if (!checkoutResponse.success) {
-          toast.error(checkoutResponse.message);
-          return;
-        }
-        if (
-          checkoutResponse.data?.requiresPayment &&
-          checkoutResponse.data?.checkoutUrl
-        ) {
-          localStorage.setItem(
-            "pending_report_filters",
-            JSON.stringify(reportFilters),
-          );
-          localStorage.setItem("pending_report_type", "multiple");
-          window.location.href = checkoutResponse.data.checkoutUrl;
-          return;
-        }
-
-        const url = await generateMultipleReports(reportFilters);
-        await downloadPdfFromUrl(url, "top-10-properties-report.pdf");
-        toast.success("Report downloaded successfully");
-      }
-    } catch (error: any) {
-      console.error("Generate top 10 report error:", error);
-      toast.error(error.message || "Failed to generate report");
-    } finally {
-      setIsGeneratingTop10(false);
-    }
-  };
+  const { isGeneratingTop10, handleGenerateTop10, Top10Dialogs } =
+    useTop10Report({
+      reportFilters,
+      isAdminOrInspector,
+      user,
+    });
 
   const handleSearchTriggered = (newFilters?: typeof filters) => {
     if (!hasMembership) {
@@ -156,7 +116,7 @@ export default function ProjectList() {
                 Properties
               </h2>
 
-              {/* {role !== "contractor" && (
+              {role !== "contractor" && (
                 <Button
                   onClick={handleGenerateTop10}
                   disabled={isGeneratingTop10}
@@ -172,7 +132,7 @@ export default function ProjectList() {
                   </span>
                   <span className="sm:hidden">Top 10</span>
                 </Button>
-              )} */}
+              )}
             </div>
           )}
         </div>
@@ -202,10 +162,7 @@ export default function ProjectList() {
         </div>
       </div>
 
-      <PdfGenerationLoader
-        isOpen={isGeneratingTop10}
-        message="Generating Reports..."
-      />
+      <Top10Dialogs />
     </Content>
   );
 }

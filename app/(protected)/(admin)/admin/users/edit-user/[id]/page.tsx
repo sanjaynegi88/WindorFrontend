@@ -40,7 +40,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CitySelect, StateSelect } from "@/components/city-zip-selector";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -755,6 +754,7 @@ export default function EditUserPage({
                             form={form}
                             isPresent={isPresent}
                             onPresentChange={setIsPresent}
+                            statesList={states}
                           />
                         </div>
                       );

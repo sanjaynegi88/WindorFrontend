@@ -189,7 +189,15 @@ export default function UserList({ route }: { route: string }) {
             <div className="flex items-center gap-3">
               <Avatar className="size-8">
                 <AvatarImage
-                  src={`${process.env.NEXT_PUBLIC_BASE_URL}${row.original.profile.profile_image_url}`}
+                  src={
+                    row.original.profile?.profile_image_url &&
+                    row.original.profile.profile_image_url !== "undefined" &&
+                    row.original.profile.profile_image_url !== "null"
+                      ? row.original.profile.profile_image_url.startsWith("http")
+                        ? row.original.profile.profile_image_url
+                        : `${process.env.NEXT_PUBLIC_BASE_URL}${row.original.profile.profile_image_url.startsWith("/") ? row.original.profile.profile_image_url : `/${row.original.profile.profile_image_url}`}`
+                      : ""
+                  }
                   alt={row.original.email}
                 />
                 <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">

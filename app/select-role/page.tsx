@@ -202,6 +202,7 @@ export default function SelectRolePage() {
                 width={75}
                 height={65}
                 priority
+                style={{ width: 'auto', height: 'auto' }}
                 className="h-[50px] md:h-[65px] w-[55px] md:w-[75px] object-contain"
               />
             </div>

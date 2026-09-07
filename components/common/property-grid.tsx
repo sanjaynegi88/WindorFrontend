@@ -19,6 +19,7 @@ interface PropertyGridProps {
   onDeleteProperty?: (id: string) => void;
   mapSlot?: React.ReactNode;
   showTempProperties?: boolean;
+  resultsShow?: boolean;
 }
 
 export function PropertyGrid({
@@ -31,6 +32,7 @@ export function PropertyGrid({
   onDeleteProperty,
   mapSlot,
   showTempProperties,
+  resultsShow,
 }: PropertyGridProps) {
   const [properties, setProperties] = useState<any[]>([]);
 
@@ -72,7 +74,7 @@ export function PropertyGrid({
         cleanFilterParams.include_pending = showTempProperties;
       }
 
-      console.log(cleanFilterParams);
+      //console.log(cleanFilterParams);
 
       const response = await getPropertyListAll(cleanFilterParams);
 
@@ -85,7 +87,7 @@ export function PropertyGrid({
 
       const newData = Array.isArray(response?.data)
         ? response.data
-        : (response?.data?.data || []);
+        : response?.data?.data || [];
       if (append) {
         setProperties((prev) => [...prev, ...newData]);
       } else {
@@ -156,8 +158,12 @@ export function PropertyGrid({
               prop.property?.state?.id ||
               prop.property?.state?.state_id ||
               prop.raw?.state_id ||
-              (typeof prop.state === "object" ? prop.state?.state_id : undefined) ||
-              (typeof prop.state === "string" && prop.state.includes("-") ? prop.state : undefined) ||
+              (typeof prop.state === "object"
+                ? prop.state?.state_id
+                : undefined) ||
+              (typeof prop.state === "string" && prop.state.includes("-")
+                ? prop.state
+                : undefined) ||
               "";
             const cityId =
               prop.city_id ||
@@ -166,8 +172,12 @@ export function PropertyGrid({
               prop.property?.city?.id ||
               prop.property?.city?.city_id ||
               prop.raw?.city_id ||
-              (typeof prop.city === "object" ? prop.city?.city_id : undefined) ||
-              (typeof prop.city === "string" && prop.city.includes("-") ? prop.city : undefined) ||
+              (typeof prop.city === "object"
+                ? prop.city?.city_id
+                : undefined) ||
+              (typeof prop.city === "string" && prop.city.includes("-")
+                ? prop.city
+                : undefined) ||
               "";
 
             return (
@@ -193,6 +203,7 @@ export function PropertyGrid({
                 longitude={prop.longitude ? Number(prop.longitude) : undefined}
                 onOpenInMap={onOpenInMap}
                 onDelete={handlePropertyDeleted}
+                onQuotaExhausted={() => fetchProperties(1, false)}
               />
             );
           })}

@@ -12,6 +12,7 @@ export function ScreenLoader() {
         alt="logo"
         width={55}
         height={48}
+        style={{ width: 'auto', height: 'auto' }}
         priority
       />
       <div className="text-muted-foreground font-medium text-sm animate-pulse">

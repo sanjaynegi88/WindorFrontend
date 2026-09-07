@@ -115,6 +115,7 @@ export function MobileHeader({
           alt="Windor Logo"
           width={80}
           height={40}
+          style={{ width: "auto", height: "auto" }}
           className={cn(
             "object-contain h-10 w-auto",
             variant === "overlay" && "brightness-0 invert",
@@ -137,8 +138,12 @@ export function MobileHeader({
                   >
                     <AvatarImage
                       src={
-                        user.profile_image_url
-                          ? `${process.env.NEXT_PUBLIC_BASE_URL}${user.profile_image_url}`
+                        user.profile_image_url &&
+                        user.profile_image_url !== "undefined" &&
+                        user.profile_image_url !== "null"
+                          ? user.profile_image_url.startsWith("http")
+                            ? user.profile_image_url
+                            : `${process.env.NEXT_PUBLIC_BASE_URL}${user.profile_image_url.startsWith("/") ? user.profile_image_url : `/${user.profile_image_url}`}`
                           : ""
                       }
                       alt={user.first_name || "User"}

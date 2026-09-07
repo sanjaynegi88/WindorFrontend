@@ -107,8 +107,7 @@ export default function MapView({
           searchParams?.brandName?.trim() ||
           searchParams?.color?.trim() ||
           searchParams?.style?.trim() ||
-          activeStateId ||
-          activeCityId,
+          (activeStateId && activeCityId),
       );
 
       if (!hasSearchFilters) {
@@ -134,13 +133,13 @@ export default function MapView({
         if (firstMatch && firstMatch.latitude && firstMatch.longitude) {
           targetLat = Number(firstMatch.latitude);
           targetLng = Number(firstMatch.longitude);
-        } else if (activeStateId || activeCityId) {
-          // Fallback: If no search result found, call with only selected state/city params (limit 1)
+        } else if (activeStateId && activeCityId) {
+          // Fallback: If no search result found, call with only selected state and city params (limit 1)
           const fallbackParams: any = {
             page: 1,
             limit: 1,
-            ...(activeStateId ? { state_id: activeStateId } : {}),
-            ...(activeCityId ? { city_id: activeCityId } : {}),
+            state_id: activeStateId,
+            city_id: activeCityId,
           };
           const fallbackResult = await getPropertyListAll(fallbackParams);
           const fallbackData = fallbackResult?.success !== false ? (Array.isArray(fallbackResult?.data) ? fallbackResult.data : fallbackResult?.data?.data || fallbackResult || []) : [];
@@ -217,17 +216,36 @@ export default function MapView({
     bounds?: { minLat: number; maxLat: number; minLng: number; maxLng: number },
     zoomLevel?: number,
   ) => {
+    const activeStateId =
+      searchParams?.state_id && searchParams.state_id !== "all"
+        ? searchParams.state_id
+        : searchParams?.state && searchParams.state !== "all"
+          ? searchParams.state
+          : undefined;
+    const activeCityId =
+      searchParams?.city_id && searchParams.city_id !== "all"
+        ? searchParams.city_id
+        : searchParams?.city && searchParams.city !== "all"
+          ? searchParams.city
+          : undefined;
+
+    const hasSearchFilters = Boolean(
+      searchParams?.search?.trim() ||
+        searchParams?.brandName?.trim() ||
+        searchParams?.color?.trim() ||
+        searchParams?.style?.trim() ||
+        (activeStateId && activeCityId),
+    );
+
+    if (!hasSearchFilters && !focusCenter) {
+      setMarkers([]);
+      setLoading(false);
+      return;
+    }
+
     const requestId = ++activeRequestRef.current;
     setLoading(true);
     try {
-      const { city, ...restParams } = searchParams || {};
-      const activeCityId =
-        searchParams?.city_id || (city && city !== "all" ? city : undefined);
-      const activeStateId =
-        searchParams?.state_id && searchParams.state_id !== "all"
-          ? searchParams.state_id
-          : undefined;
-
       // Note: getPropertyLocations is only passed viewport bounds and location IDs (no text search query)
       const result = await getPropertyLocations(
         bounds?.minLat,
@@ -349,9 +367,11 @@ export default function MapView({
         loading={loading || isResolvingCenter}
         onViewportChange={handleViewportChange}
         shouldFitBounds={shouldFitBounds}
-        defaultCenter={focusCenter || searchFocusCenter || undefined}
+        defaultCenter={
+          focusCenter || searchFocusCenter || { lat: 39.8283, lng: -98.5795 }
+        }
         defaultZoom={
-          focusCenter ? 17.5 : searchFocusCenter ? 14 : undefined
+          focusCenter ? 17.5 : searchFocusCenter ? 14 : 4.5
         }
         defaultCityName={centerCityName}
         focusedMarkerId={focusId}

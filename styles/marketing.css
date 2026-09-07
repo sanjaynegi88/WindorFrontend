@@ -599,8 +599,34 @@ span.swiper-pagination-bullet.swiper-pagination-bullet-active {
   margin-bottom: 15px;
 
   color: #1f2a44;
-
   padding: 0 50px;
+}
+
+.client-image-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin: 25px auto 15px auto;
+}
+
+.client-image-section img,
+.client-image {
+  display: block;
+  margin: 0 auto;
+  width: 230px;
+  height: 250px;
+  object-fit: cover;
+  border-radius: 16px;
+  max-width: 280px;
+}
+
+.client-title {
+  display: block;
+  text-align: center;
+  margin-top: 12px;
+  margin-bottom: 20px;
 }
 
 .top-sec img {

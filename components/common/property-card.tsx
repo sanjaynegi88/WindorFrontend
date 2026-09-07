@@ -66,6 +66,7 @@ interface PropertyCardProps {
   longitude?: number;
   onOpenInMap?: (lat: number, lng: number, id: string) => void;
   onDelete?: (id: string) => void;
+  onQuotaExhausted?: () => void;
 }
 
 export function PropertyCard({
@@ -88,6 +89,7 @@ export function PropertyCard({
   longitude,
   onOpenInMap,
   onDelete,
+  onQuotaExhausted,
 }: PropertyCardProps) {
   const { user, role } = useUser();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -97,6 +99,10 @@ export function PropertyCard({
   const [purchased, setPurchased] = useState(isPurchased);
 
   const router = useRouter();
+
+  useEffect(() => {
+    setPurchased(isPurchased);
+  }, [isPurchased]);
 
   const getNewProjectUrl = () => {
     const params = new URLSearchParams();
@@ -137,7 +143,8 @@ export function PropertyCard({
   const fetchReportUsage = async () => {
     try {
       const response = await getReportUsage();
-      setReportUsage(response.data);
+      setReportUsage(response?.data || response);
+      return response?.data || response;
     } catch (error: any) {
       console.error("Failed to fetch report usage:", error);
     }
@@ -158,7 +165,10 @@ export function PropertyCard({
         user?.role === "contractor" ||
         user?.role === "property_owner"
       ) {
-        await fetchReportUsage();
+        const usageData = await fetchReportUsage();
+        if (usageData && usageData.remaining === 0) {
+          onQuotaExhausted?.();
+        }
       }
     } catch (error: any) {
       console.error("Download report error:", error);

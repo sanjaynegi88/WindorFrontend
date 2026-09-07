@@ -184,7 +184,7 @@ export const CONTRACTOR_ROLE_FIELDS: RoleFieldConfig[] = [
     required: {
       "add-user": false,
       "edit-user": false,
-      "profile": true,
+      "profile": false,
       "register": false,
       "select-role": false,
     },

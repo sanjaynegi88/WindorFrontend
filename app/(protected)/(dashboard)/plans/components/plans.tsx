@@ -161,9 +161,15 @@ const Plans = () => {
 
   const currentRank = getPlanLevelRank(currentPlanObj, currentPlanLevel);
 
+  const hasMonthlyPlans = plans.some(
+    (plan) => plan.monthlyAmount !== null && plan.monthlyAmount !== undefined,
+  );
+
   const hasAnnualPlans = plans.some(
     (plan) => plan.yearlyAmount !== null && plan.yearlyAmount !== undefined,
   );
+
+  const showBillingToggle = hasMonthlyPlans && hasAnnualPlans;
 
   const handleToggleBilling = () => setIsAnnual(!isAnnual);
 
@@ -284,7 +290,21 @@ const Plans = () => {
       );
 
       if (plansResponse?.data) {
-        setPlans(plansResponse.data);
+        const fetchedPlans: IPlanData[] = plansResponse.data;
+        setPlans(fetchedPlans);
+
+        const hasMonthly = fetchedPlans.some(
+          (plan) => plan.monthlyAmount !== null && plan.monthlyAmount !== undefined,
+        );
+        const hasAnnual = fetchedPlans.some(
+          (plan) => plan.yearlyAmount !== null && plan.yearlyAmount !== undefined,
+        );
+
+        if (!hasMonthly && hasAnnual) {
+          setIsAnnual(true);
+        } else if (hasMonthly && !hasAnnual) {
+          setIsAnnual(false);
+        }
       }
 
       if (profileResponse?.current_subscription?.plan?.id) {
@@ -294,6 +314,9 @@ const Plans = () => {
         setCurrentBillingCycle(
           profileResponse.current_subscription.billing_cycle,
         );
+        if (profileResponse.current_subscription.billing_cycle === "annually") {
+          setIsAnnual(true);
+        }
       }
       const subLevel =
         profileResponse?.level ||
@@ -432,7 +455,7 @@ const Plans = () => {
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-4">
-          {hasAnnualPlans && (
+          {showBillingToggle && (
             <div className="flex items-center gap-4 bg-muted/30 p-2 px-4 rounded-2xl border border-border/50 backdrop-blur-sm shadow-inner">
               <span
                 className={cn(
@@ -530,6 +553,10 @@ const Plans = () => {
             const planRank = getPlanLevelRank(plan);
             const isPlanUpgrade = planRank > currentRank;
             const isPlanDowngrade = planRank < currentRank;
+            const isContractor =
+              role === "contractor" ||
+              user?.role?.toLowerCase() === "contractor" ||
+              plan.targetRole === "CONTRACTOR";
 
             return (
               <motion.div
@@ -563,11 +590,22 @@ const Plans = () => {
 
                   <div className="mb-8">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-4xl text-white tracking-tighter">
+                      <span
+                        className={cn(
+                          "text-white tracking-tighter",
+                          Number(
+                            isAnnual ? plan.yearlyAmount : plan.monthlyAmount,
+                          ) === 0 && isContractor
+                            ? "text-2xl sm:text-3xl font-bold"
+                            : "text-4xl",
+                        )}
+                      >
                         {Number(
                           isAnnual ? plan.yearlyAmount : plan.monthlyAmount,
                         ) === 0
-                          ? "Free"
+                          ? isContractor
+                            ? "15-day free trial"
+                            : "Free"
                           : `$${isAnnual ? plan.yearlyAmount : plan.monthlyAmount}`}
                       </span>
                       {Number(
@@ -595,10 +633,16 @@ const Plans = () => {
                         <Crown className="w-3.5 h-3.5 text-white/70 shrink-0" />
                         <span className="text-xs font-bold text-white uppercase tracking-wider">
                           {plan.targetRole.toLowerCase()}s
-                          {plan.targetRole === "CONTRACTOR" && plan.level && (
-                            <span className="ml-1 text-white/60 normal-case font-medium">
-                              — {plan.level} level
-                            </span>
+                          {plan.targetRole === "CONTRACTOR" && (
+                            plan.level?.toLowerCase().includes("free") ? (
+                              <span className="ml-1 text-white/60 normal-case font-medium">
+                                — 15-day free trial
+                              </span>
+                            ) : plan.level ? (
+                              <span className="ml-1 text-white/60 normal-case font-medium">
+                                — {plan.level} level
+                              </span>
+                            ) : null
                           )}
                           {plan.targetRole === "INSURANCE" &&
                             plan.maxReports && (

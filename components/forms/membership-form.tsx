@@ -188,14 +188,25 @@ export function MembershipForm({
     },
   });
   const level = form.watch("level");
+  const targetRole = form.watch("targetRole");
   const isFree = level === "FREE";
+  const isOwner =
+    targetRole === "PROPERTY_OWNER" ||
+    targetRole?.toLowerCase() === "property_owner" ||
+    targetRole?.toLowerCase() === "owner" ||
+    targetRole?.toLowerCase().includes("owner");
 
   React.useEffect(() => {
     if (isFree) {
-      form.setValue("monthlyPrice", "0");
-      form.setValue("yearlyPrice", "");
+      if (isOwner) {
+        form.setValue("monthlyPrice", "");
+        form.setValue("yearlyPrice", "0");
+      } else {
+        form.setValue("monthlyPrice", "0");
+        form.setValue("yearlyPrice", "");
+      }
     }
-  }, [isFree, form]);
+  }, [isFree, isOwner, form]);
 
   const onSubmit = async (data: MembershipFormValues) => {
     const transformedFeatures = convertFeaturesArrayToObject(data.features);

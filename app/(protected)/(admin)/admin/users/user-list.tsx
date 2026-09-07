@@ -279,7 +279,18 @@ export default function UserList() {
           return (
             <div className="flex items-center gap-3">
               <Avatar className="size-8">
-                <AvatarImage src={`${process.env.NEXT_PUBLIC_BASE_URL}${row.original.profile_image_url}`} alt={row.original.email} />
+                <AvatarImage
+                  src={
+                    row.original.profile_image_url &&
+                    row.original.profile_image_url !== "undefined" &&
+                    row.original.profile_image_url !== "null"
+                      ? row.original.profile_image_url.startsWith("http")
+                        ? row.original.profile_image_url
+                        : `${process.env.NEXT_PUBLIC_BASE_URL}${row.original.profile_image_url.startsWith("/") ? row.original.profile_image_url : `/${row.original.profile_image_url}`}`
+                      : ""
+                  }
+                  alt={row.original.email}
+                />
                 <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">
                   {row.original?.first_name?.charAt(0) || "A"}
                 </AvatarFallback>
@@ -528,7 +539,15 @@ export default function UserList() {
               <div className="flex items-start gap-4 p-4 rounded-xl bg-muted/30 border border-border/50">
                 <Avatar className="size-16 border-2 border-background shadow-sm">
                   <AvatarImage
-                    src={viewingUserData.profile?.profile_image_url ? `${process.env.NEXT_PUBLIC_BASE_URL}${viewingUserData.profile.profile_image_url}` : ''}
+                    src={
+                      viewingUserData.profile?.profile_image_url &&
+                      viewingUserData.profile.profile_image_url !== "undefined" &&
+                      viewingUserData.profile.profile_image_url !== "null"
+                        ? viewingUserData.profile.profile_image_url.startsWith("http")
+                          ? viewingUserData.profile.profile_image_url
+                          : `${process.env.NEXT_PUBLIC_BASE_URL}${viewingUserData.profile.profile_image_url.startsWith("/") ? viewingUserData.profile.profile_image_url : `/${viewingUserData.profile.profile_image_url}`}`
+                        : ""
+                    }
                     className="object-cover"
                   />
                   <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">

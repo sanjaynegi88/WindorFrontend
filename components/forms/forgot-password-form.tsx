@@ -66,6 +66,7 @@ export function ForgotPasswordForm({
           width={136}
           height={118}
           priority
+          style={{ width: 'auto', height: 'auto' }}
           className="h-[60px] md:h-[118px] w-[70px] md:w-[136px] object-contain"
         />
       </div>

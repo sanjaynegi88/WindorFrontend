@@ -26,6 +26,7 @@ export interface RoleFormProps {
   labelCls?: string;
   errCls?: string;
   statesList?: { id: string; name: string }[];
+  isStateLoading?: boolean;
   isCityLoading?: boolean;
 }
 
@@ -45,6 +46,7 @@ export function RoleForm({
   labelCls,
   errCls,
   statesList = [],
+  isStateLoading = false,
   isCityLoading = false,
 }: RoleFormProps) {
   const fields = getRoleFields(role);
@@ -77,6 +79,7 @@ export function RoleForm({
             labelCls={labelCls}
             errCls={errCls}
             statesList={statesList}
+            isStateLoading={isStateLoading}
             isCityLoading={isCityLoading}
           />
         ))}
@@ -116,6 +119,9 @@ export function RoleForm({
                   inputCls={inputCls}
                   labelCls={labelCls}
                   errCls={errCls}
+                  statesList={statesList}
+                  isStateLoading={isStateLoading}
+                  isCityLoading={isCityLoading}
                 />
                 {companyPhoneConfig && (
                   <DynamicField
@@ -132,6 +138,9 @@ export function RoleForm({
                     inputCls={inputCls}
                     labelCls={labelCls}
                     errCls={errCls}
+                    statesList={statesList}
+                    isStateLoading={isStateLoading}
+                    isCityLoading={isCityLoading}
                   />
                 )}
               </div>
@@ -258,6 +267,7 @@ export function RoleForm({
             labelCls={labelCls}
             errCls={errCls}
             statesList={statesList}
+            isStateLoading={isStateLoading}
             isCityLoading={isCityLoading}
           />
         );

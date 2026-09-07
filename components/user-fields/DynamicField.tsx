@@ -35,6 +35,7 @@ export interface DynamicFieldProps {
   labelCls?: string;
   errCls?: string;
   statesList?: { id: string; name: string }[];
+  isStateLoading?: boolean;
   isCityLoading?: boolean;
 }
 
@@ -63,6 +64,7 @@ export function DynamicField({
   labelCls,
   errCls,
   statesList = [],
+  isStateLoading = false,
   isCityLoading = false,
 }: DynamicFieldProps) {
   const required = isFieldRequired(config, context);
@@ -91,6 +93,7 @@ export function DynamicField({
             selectedCityName,
             isPresent,
             statesList,
+            isStateLoading,
             isCityLoading,
           })}
         </div>
@@ -120,6 +123,9 @@ export function DynamicField({
             onPresentChange={onPresentChange}
             resolvedInputCls={resolvedInputCls}
             errCls={errCls}
+            statesList={statesList}
+            isStateLoading={isStateLoading}
+            isCityLoading={isCityLoading}
           />
         </div>
       </div>
@@ -160,6 +166,9 @@ export function DynamicField({
               isPresent={isPresent}
               onPresentChange={onPresentChange}
               resolvedInputCls={resolvedInputCls}
+              statesList={statesList}
+              isStateLoading={isStateLoading}
+              isCityLoading={isCityLoading}
             />
           </FormControl>
           <FormMessage className={errCls} />
@@ -182,6 +191,9 @@ function RenderFieldInput({
   onPresentChange,
   resolvedInputCls,
   errCls,
+  statesList,
+  isStateLoading,
+  isCityLoading,
 }: {
   config: RoleFieldConfig;
   form: UseFormReturn<any>;
@@ -195,6 +207,9 @@ function RenderFieldInput({
   onPresentChange?: (checked: boolean) => void;
   resolvedInputCls: string;
   errCls?: string;
+  statesList?: { id: string; name: string }[];
+  isStateLoading?: boolean;
+  isCityLoading?: boolean;
 }) {
   return (
     <FormField
@@ -215,6 +230,9 @@ function RenderFieldInput({
               isPresent={isPresent}
               onPresentChange={onPresentChange}
               resolvedInputCls={resolvedInputCls}
+              statesList={statesList}
+              isStateLoading={isStateLoading}
+              isCityLoading={isCityLoading}
             />
           </FormControl>
           <FormMessage className={errCls} />
@@ -236,6 +254,9 @@ function FieldInputContent({
   isPresent,
   onPresentChange,
   resolvedInputCls,
+  statesList,
+  isStateLoading,
+  isCityLoading,
 }: {
   config: RoleFieldConfig;
   field: any;
@@ -248,6 +269,9 @@ function FieldInputContent({
   isPresent?: boolean;
   onPresentChange?: (checked: boolean) => void;
   resolvedInputCls: string;
+  statesList?: { id: string; name: string }[];
+  isStateLoading?: boolean;
+  isCityLoading?: boolean;
 }) {
   const currentFormStateId = form.watch("state_id") || selectedStateId || "";
 
@@ -273,9 +297,11 @@ function FieldInputContent({
       return (
         <div className={context === "register" || context === "select-role" ? "[&_button]:h-[65px] [&_button]:rounded-[6px] [&_button]:border-[rgba(112,128,144,0.23)] [&_button]:text-[20px] [&_button]:font-asap [&_button]:font-medium [&_button]:text-[#708090] [&_button]:shadow-none [&_button]:bg-white" : context === "profile" ? "[&_button]:h-11 [&_button]:rounded-xl [&_button]:bg-muted/30 [&_button]:border-input [&_button]:shadow-none" : ""}>
           <StateSelect
+            states={statesList && statesList.length > 0 ? statesList : undefined}
             value={field.value || ""}
             valueType="id"
             disabled={disabled}
+            loading={isStateLoading}
             placeholder={config.placeholder || "Select a state"}
             className={context === "edit-user" ? resolvedInputCls : undefined}
             onSelectState={(st) => {
@@ -296,6 +322,7 @@ function FieldInputContent({
             stateValue={currentFormStateId}
             valueType="id"
             disabled={disabled}
+            loading={isCityLoading}
             placeholder={config.placeholder || "Select a city"}
             syncState={true}
             onSelectCity={(city) => {
@@ -487,6 +514,7 @@ function renderProfileReadOnlyValue({
   selectedCityName,
   isPresent,
   statesList,
+  isStateLoading,
   isCityLoading,
 }: {
   config: RoleFieldConfig;
@@ -495,15 +523,27 @@ function renderProfileReadOnlyValue({
   selectedCityName?: string;
   isPresent?: boolean;
   statesList: { id: string; name: string }[];
+  isStateLoading?: boolean;
   isCityLoading?: boolean;
 }) {
   const value = form.watch(config.name);
 
   if (config.name === "state_id") {
+    if (isStateLoading) {
+      return (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
+          <Loader2 className="size-4 animate-spin text-primary" />
+          <span>Loading state...</span>
+        </div>
+      );
+    }
+    const isUuid = (val: any) =>
+      typeof val === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
     const stateObj = statesList.find((s) => s.id === String(value));
     return (
       <p className="text-sm font-bold">
-        {stateObj?.name || value || "Not provided"}
+        {stateObj?.name || (value && !isUuid(value) ? value : "Not provided")}
       </p>
     );
   }

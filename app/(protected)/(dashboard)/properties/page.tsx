@@ -7,14 +7,13 @@ import { Button } from "@/components/ui/button";
 import React from "react";
 import { UnifiedSearchBar } from "@/components/common/unified-search-bar";
 import { FileText, List, Loader2, Map } from "lucide-react";
-import { generateMultipleReports, checkoutReports } from "@/lib/actions";
 import { useUser } from "@/components/providers/user-provider";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import type { SearchScope } from "@/components/common/unified-search-bar";
-import { PdfGenerationLoader } from "@/components/common/pdf-generation-loader";
+import { useTop10Report } from "@/hooks/use-top-10-report";
 import MapView from "../../(dashboard)/dashboard/map-view";
-import { cn, downloadPdfFromUrl } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 function PropertyPageContent() {
   const { user } = useUser();
@@ -24,7 +23,18 @@ function PropertyPageContent() {
     null,
   );
   const [mapFocusId, setMapFocusId] = useState<string | null>(null);
-  const [isGeneratingTop10, setIsGeneratingTop10] = useState(false);
+
+  const userStateId = useMemo(() => {
+    return String(
+      user?.state_id || user?.user?.state_id || user?.form_details?.state_id || ""
+    ).trim();
+  }, [user]);
+
+  const userCityId = useMemo(() => {
+    return String(
+      user?.city_id || user?.user?.city_id || user?.form_details?.city_id || ""
+    ).trim();
+  }, [user]);
 
   const searchParamsHook = useSearchParams();
 
@@ -36,16 +46,19 @@ function PropertyPageContent() {
     const id = searchParamsHook.get("id");
 
     const urlSearch = searchParamsHook.get("search") || "";
-    const urlSearchBy = (searchParamsHook.get("searchBy") as SearchScope) || "all";
-    const urlStateId = searchParamsHook.get("state_id") || searchParamsHook.get("state") || "";
-    const urlCityId = searchParamsHook.get("city_id") || searchParamsHook.get("city") || "";
+    const urlSearchBy =
+      (searchParamsHook.get("searchBy") as SearchScope) || "all";
+    const urlStateId =
+      searchParamsHook.get("state_id") || searchParamsHook.get("state") || "";
+    const urlCityId =
+      searchParamsHook.get("city_id") || searchParamsHook.get("city") || "";
 
     const hasUrlSearchParams = Boolean(
       urlSearch.trim() &&
-        urlStateId &&
-        urlStateId !== "all" &&
-        urlCityId &&
-        urlCityId !== "all",
+      urlStateId &&
+      urlStateId !== "all" &&
+      urlCityId &&
+      urlCityId !== "all"
     );
 
     if (hasUrlSearchParams) {
@@ -62,6 +75,19 @@ function PropertyPageContent() {
       setShowResults(true);
     } else if (view === "map") {
       setShowResults(true);
+    } else {
+      const defaultState = userStateId || "all";
+      const defaultCity = userCityId || "all";
+      const userFilters = {
+        search: "",
+        searchBy: "all" as SearchScope,
+        state: defaultState,
+        city: defaultCity,
+        state_id: userStateId,
+        city_id: userCityId,
+      };
+      setFilters(userFilters);
+      setAppliedFilters(userFilters);
     }
 
     if (lat && lng) {
@@ -70,7 +96,7 @@ function PropertyPageContent() {
     if (id) {
       setMapFocusId(id);
     }
-  }, [searchParamsHook]);
+  }, [searchParamsHook, userStateId, userCityId]);
 
   const [filters, setFilters] = useState({
     search: "",
@@ -142,49 +168,48 @@ function PropertyPageContent() {
     window.history.pushState(null, "", newUrl);
   };
 
-  const handleGenerateTop10 = async () => {
-    if (!user) {
-      toast.error("Please log in to generate a report");
-      return;
-    }
+  const { isGeneratingTop10, handleGenerateTop10, Top10Dialogs } =
+    useTop10Report({
+      reportFilters,
+      isAdminOrInspector,
+      user,
+    });
 
-    setIsGeneratingTop10(true);
+  const activeStateId = useMemo(() => {
+    return appliedFilters.state_id && appliedFilters.state_id !== "all"
+      ? appliedFilters.state_id
+      : appliedFilters.state && appliedFilters.state !== "all"
+        ? appliedFilters.state
+        : "";
+  }, [appliedFilters]);
 
-    try {
-      if (isAdminOrInspector) {
-        const url = await generateMultipleReports(reportFilters);
-        await downloadPdfFromUrl(url, "top-10-properties-report.pdf");
-        toast.success("Report downloaded successfully");
-      } else {
-        const checkoutResponse = await checkoutReports(reportFilters);
-        if (!checkoutResponse.success) {
-          toast.error(checkoutResponse.message);
-          return;
-        }
-        if (
-          checkoutResponse.data?.requiresPayment &&
-          checkoutResponse.data?.checkoutUrl
-        ) {
-          localStorage.setItem(
-            "pending_report_filters",
-            JSON.stringify(reportFilters),
-          );
-          localStorage.setItem("pending_report_type", "multiple");
-          window.location.href = checkoutResponse.data.checkoutUrl;
-          return;
-        }
+  const activeCityId = useMemo(() => {
+    return appliedFilters.city_id && appliedFilters.city_id !== "all"
+      ? appliedFilters.city_id
+      : appliedFilters.city && appliedFilters.city !== "all"
+        ? appliedFilters.city
+        : "";
+  }, [appliedFilters]);
 
-        const url = await generateMultipleReports(reportFilters);
-        await downloadPdfFromUrl(url, "top-10-properties-report.pdf");
-        toast.success("Report downloaded successfully");
-      }
-    } catch (error: any) {
-      console.error("Generate top 10 report error:", error);
-      toast.error(error.message || "Failed to generate report");
-    } finally {
-      setIsGeneratingTop10(false);
-    }
-  };
+  const hasStateAndCity = Boolean(activeStateId && activeCityId);
+  const hasSearchText = Boolean(appliedFilters.search?.trim().length > 0);
+  const hasValidSearchInputs = hasStateAndCity && hasSearchText;
+
+  const resultsVisible = showResults && hasValidSearchInputs;
+
+  const mapElement = hasStateAndCity ? (
+    <div id="contractor-properties-map-view" className="my-6">
+      <MapView
+        searchParams={searchParams}
+        focusCenter={mapFocus || undefined}
+        focusId={mapFocusId || undefined}
+        onFocusCleared={() => {
+          setMapFocus(null);
+          setMapFocusId(null);
+        }}
+      />
+    </div>
+  ) : null;
 
   return (
     <Content className="p-0 bg-linear-to-b from-[#F5FFFF] to-[#FFFFFF] min-h-[calc(100vh-80px)] flex flex-col items-center">
@@ -198,13 +223,15 @@ function PropertyPageContent() {
           isMapView={false}
         />
 
-        {showResults && (
+        {!resultsVisible && mapElement}
+
+        {resultsVisible && (
           <div className="space-y-4 md:space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl md:text-4xl font-black text-[#1e293b] tracking-tighter uppercase font-asap">
                 Properties
               </h2>
-              {/* {role !== "contractor" && (
+              {role !== "contractor" && (
                 <Button
                   onClick={handleGenerateTop10}
                   disabled={isGeneratingTop10}
@@ -220,42 +247,30 @@ function PropertyPageContent() {
                   </span>
                   <span className="sm:hidden">Top 10</span>
                 </Button>
-              )} */}
+              )}
             </div>
             <PropertyGrid
               searchParams={searchParams}
               showActionButtons={true}
               showDetail={true}
+              resultsShow={resultsVisible}
               onOpenInMap={(lat, lng, id) => {
                 setMapFocus({ lat, lng });
                 setMapFocusId(id);
-                const mapElement = document.getElementById("contractor-properties-map-view");
-                if (mapElement) {
-                  mapElement.scrollIntoView({ behavior: "smooth" });
+                const mapEl = document.getElementById(
+                  "contractor-properties-map-view",
+                );
+                if (mapEl) {
+                  mapEl.scrollIntoView({ behavior: "smooth" });
                 }
               }}
-              mapSlot={
-                <div id="contractor-properties-map-view" className="my-6">
-                  <MapView
-                    searchParams={searchParams}
-                    focusCenter={mapFocus || undefined}
-                    focusId={mapFocusId || undefined}
-                    onFocusCleared={() => {
-                      setMapFocus(null);
-                      setMapFocusId(null);
-                    }}
-                  />
-                </div>
-              }
+              mapSlot={mapElement}
             />
           </div>
         )}
       </div>
 
-      <PdfGenerationLoader
-        isOpen={isGeneratingTop10}
-        message="Generating Reports..."
-      />
+      <Top10Dialogs />
     </Content>
   );
 }

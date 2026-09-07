@@ -661,30 +661,21 @@ export function CategorySelection({
         </div>
 
         {isAdmin && (
-          <div>
-            <Select
-              value={contractorId}
-              onValueChange={(value) =>
-                handleFieldChange(() => setContractorId(value))
+          <div className="w-full">
+            <SearchableSelect
+              options={contractors.map((c) => ({
+                id: c.id,
+                name: c.email || c.name || c.id,
+              }))}
+              value={contractorId ? String(contractorId) : ""}
+              onValueChange={(val) =>
+                handleFieldChange(() => setContractorId(val))
               }
-            >
-              <SelectTrigger className="w-full border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] rounded-[6px] md:rounded-[10px]">
-                <SelectValue placeholder="Contractor" />
-              </SelectTrigger>
-              <SelectContent>
-                {contractors.length === 0 ? (
-                  <SelectItem value="__none__" disabled>
-                    No contractors found
-                  </SelectItem>
-                ) : (
-                  contractors.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.email}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+              placeholder="Contractor"
+              searchPlaceholder="Search contractor..."
+              emptyMessage="No contractors found"
+              triggerClassName="w-full h-[46px] md:h-[65px] px-[20px] md:px-[29px] rounded-[6px] md:rounded-[10px] border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] bg-white text-[14px] md:text-[20px] font-medium text-[#1F2A44] font-asap flex items-center justify-between shadow-none hover:bg-white focus:ring-[#1CA7A6]/20 transition-all"
+            />
           </div>
         )}
 

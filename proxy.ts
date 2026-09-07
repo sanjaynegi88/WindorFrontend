@@ -106,9 +106,14 @@ export async function proxy(request: NextRequest) {
     ? landingEnv.split('#')[0]
     : null;
 
+  const isProtectedByRbac = RBAC_CONFIG.some(config =>
+    config.path === pathname || pathname.startsWith(config.path + '/')
+  );
+
   const isPublicRoute =
-    (landingPath ? (landingPath === '/' ? pathname === '/' : pathname.startsWith(landingPath)) : false) ||
-    publicRoutes.some(route => route === '/' ? pathname === '/' : pathname.startsWith(route));
+    !isProtectedByRbac &&
+    ((landingPath ? (landingPath === '/' ? pathname === '/' : (pathname === landingPath || pathname.startsWith(landingPath + '/'))) : false) ||
+    publicRoutes.some(route => route === '/' ? pathname === '/' : (pathname === route || pathname.startsWith(route + '/'))));
   const hasSession = authToken || refreshToken;
 
   const authOnlyRoutes = [loginUrl, '/register', '/login', '/forgot-password', '/verify-otp', '/reset-password'];
@@ -190,7 +195,6 @@ export async function proxy(request: NextRequest) {
       pathname.startsWith('/profile') ||
       pathname.startsWith('/profile-setup') ||
       pathname.startsWith('/change-password') ||
-      pathname.startsWith('/property-details') ||
       pathname.startsWith('/reports');
 
     if (isSubUser) {

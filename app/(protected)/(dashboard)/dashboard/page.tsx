@@ -17,8 +17,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  generateMultipleReports,
-  checkoutReports,
   getFreeTrialStatus,
   type FreeTrialStatusData,
 } from "@/lib/actions";
@@ -28,9 +26,9 @@ import { PropertyGrid } from "@/components/common/property-grid";
 import MapView from "./map-view";
 import { useUser } from "@/components/providers/user-provider";
 import { ScreenLoader } from "@/components/common/screen-loader";
-import { PdfGenerationLoader } from "@/components/common/pdf-generation-loader";
+import { useTop10Report } from "@/hooks/use-top-10-report";
 import { toast } from "sonner";
-import { cn, downloadPdfFromUrl } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { SearchScope } from "@/components/common/unified-search-bar";
 import Image from "next/image";
 import Link from "next/link";
@@ -48,7 +46,6 @@ function DashboardPageContent() {
     null,
   );
   const [mapFocusId, setMapFocusId] = useState<string | null>(null);
-  const [isGeneratingTop10, setIsGeneratingTop10] = useState(false);
   const [trialStatus, setTrialStatus] = useState<FreeTrialStatusData | null>(
     null,
   );
@@ -84,6 +81,18 @@ function DashboardPageContent() {
     isAdminOrInspector ||
     Boolean(user?.has_membership ?? user?.hasMembership ?? hasMembershipCookie);
 
+  const userStateId = useMemo(() => {
+    return String(
+      user?.state_id || user?.user?.state_id || user?.form_details?.state_id || ""
+    ).trim();
+  }, [user]);
+
+  const userCityId = useMemo(() => {
+    return String(
+      user?.city_id || user?.user?.city_id || user?.form_details?.city_id || ""
+    ).trim();
+  }, [user]);
+
   useEffect(() => {
     if (!searchParamsHook) return;
     const view = searchParamsHook.get("view");
@@ -100,10 +109,11 @@ function DashboardPageContent() {
       searchParamsHook.get("city_id") || searchParamsHook.get("city") || "";
 
     const hasUrlSearchParams = Boolean(
-      urlSearch.trim() ||
-      urlSearchBy !== "all" ||
-      (urlStateId && urlStateId !== "all") ||
-      (urlCityId && urlCityId !== "all"),
+      urlSearch.trim() &&
+      urlStateId &&
+      urlStateId !== "all" &&
+      urlCityId &&
+      urlCityId !== "all"
     );
 
     if (hasUrlSearchParams) {
@@ -125,6 +135,19 @@ function DashboardPageContent() {
         setViewMode("map");
         setShowResults(true);
       }
+    } else {
+      const defaultState = userStateId || "all";
+      const defaultCity = userCityId || "all";
+      const userFilters = {
+        search: "",
+        searchBy: "all" as SearchScope,
+        state: defaultState,
+        city: defaultCity,
+        state_id: userStateId,
+        city_id: userCityId,
+      };
+      setFilters(userFilters);
+      setAppliedFilters(userFilters);
     }
 
     if (lat && lng) {
@@ -133,7 +156,7 @@ function DashboardPageContent() {
     if (id) {
       setMapFocusId(id);
     }
-  }, [searchParamsHook, hasMembership]);
+  }, [searchParamsHook, hasMembership, userStateId, userCityId]);
 
   const [filters, setFilters] = useState({
     search: "",
@@ -174,8 +197,28 @@ function DashboardPageContent() {
     };
   }, [appliedFilters]);
 
+  const activeStateId = useMemo(() => {
+    return appliedFilters.state_id && appliedFilters.state_id !== "all"
+      ? appliedFilters.state_id
+      : appliedFilters.state && appliedFilters.state !== "all"
+        ? appliedFilters.state
+        : "";
+  }, [appliedFilters]);
+
+  const activeCityId = useMemo(() => {
+    return appliedFilters.city_id && appliedFilters.city_id !== "all"
+      ? appliedFilters.city_id
+      : appliedFilters.city && appliedFilters.city !== "all"
+        ? appliedFilters.city
+        : "";
+  }, [appliedFilters]);
+
+  const hasStateAndCity = Boolean(activeStateId && activeCityId);
+  const hasSearchText = Boolean(appliedFilters.search?.trim().length > 0);
+  const hasValidSearchInputs = hasStateAndCity && hasSearchText;
+
   const resultsVisible =
-    hasMembership && (!isAdmin || !isContractor) && showResults;
+    hasMembership && (!isAdmin || !isContractor) && showResults && hasValidSearchInputs;
 
   const handleSearchTriggered = (newFilters?: typeof filters) => {
     if (!hasMembership) {
@@ -216,49 +259,26 @@ function DashboardPageContent() {
     window.history.pushState(null, "", newUrl);
   };
 
-  const handleGenerateTop10 = async () => {
-    if (!user) {
-      toast.error("Please log in to generate a report");
-      return;
-    }
+  const { isGeneratingTop10, handleGenerateTop10, Top10Dialogs } =
+    useTop10Report({
+      reportFilters,
+      isAdminOrInspector,
+      user,
+    });
 
-    setIsGeneratingTop10(true);
-
-    try {
-      if (isAdminOrInspector) {
-        const url = await generateMultipleReports(reportFilters);
-        await downloadPdfFromUrl(url, "top-10-properties-report.pdf");
-        toast.success("Report downloaded successfully");
-      } else {
-        const checkoutResponse = await checkoutReports(reportFilters);
-        if (!checkoutResponse.success) {
-          toast.error(checkoutResponse.message);
-          return;
-        }
-        if (
-          checkoutResponse.data?.requiresPayment &&
-          checkoutResponse.data?.checkoutUrl
-        ) {
-          localStorage.setItem(
-            "pending_report_filters",
-            JSON.stringify(reportFilters),
-          );
-          localStorage.setItem("pending_report_type", "multiple");
-          window.location.href = checkoutResponse.data.checkoutUrl;
-          return;
-        }
-
-        const url = await generateMultipleReports(reportFilters);
-        await downloadPdfFromUrl(url, "top-10-properties-report.pdf");
-        toast.success("Report downloaded successfully");
-      }
-    } catch (error: any) {
-      console.error("Generate top 10 report error:", error);
-      toast.error(error.message || "Failed to generate report");
-    } finally {
-      setIsGeneratingTop10(false);
-    }
-  };
+  const dashboardMapElement = (!isContractor && hasStateAndCity) ? (
+    <div id="dashboard-map-view" className="my-6">
+      <MapView
+        searchParams={searchParams}
+        focusCenter={mapFocus || undefined}
+        focusId={mapFocusId || undefined}
+        onFocusCleared={() => {
+          setMapFocus(null);
+          setMapFocusId(null);
+        }}
+      />
+    </div>
+  ) : null;
 
   if (loading) {
     return <ScreenLoader />;
@@ -683,13 +703,15 @@ function DashboardPageContent() {
             />
           )}
 
+          {!resultsVisible && !isContractor && dashboardMapElement}
+
           {resultsVisible && (
             <div className="space-y-4 md:space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl md:text-4xl font-black text-[#1e293b] tracking-tighter uppercase font-asap">
                   Properties
                 </h2>
-                {/* <Button
+                <Button
                   onClick={handleGenerateTop10}
                   disabled={isGeneratingTop10}
                   className="h-9 md:h-11 px-4 md:px-6 rounded-[10px] bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs md:text-sm uppercase tracking-widest gap-2 shadow-none"
@@ -703,7 +725,7 @@ function DashboardPageContent() {
                     Generate reports (max 10)
                   </span>
                   <span className="sm:hidden">Top 10</span>
-                </Button> */}
+                </Button>
               </div>
 
               <PropertyGrid
@@ -719,19 +741,7 @@ function DashboardPageContent() {
                     mapElement.scrollIntoView({ behavior: "smooth" });
                   }
                 }}
-                mapSlot={
-                  <div id="dashboard-map-view" className="my-6">
-                    <MapView
-                      searchParams={searchParams}
-                      focusCenter={mapFocus || undefined}
-                      focusId={mapFocusId || undefined}
-                      onFocusCleared={() => {
-                        setMapFocus(null);
-                        setMapFocusId(null);
-                      }}
-                    />
-                  </div>
-                }
+                mapSlot={dashboardMapElement}
               />
             </div>
           )}
@@ -816,10 +826,7 @@ function DashboardPageContent() {
         </div>
       )}
 
-      <PdfGenerationLoader
-        isOpen={isGeneratingTop10}
-        message="Generating Reports..."
-      />
+      <Top10Dialogs />
     </Content>
   );
 }

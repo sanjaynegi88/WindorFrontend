@@ -37,15 +37,29 @@ interface PropertyRowProps {
   zip: string;
   propertyId: string;
   isPurchased?: boolean;
+  onQuotaExhausted?: () => void;
 }
 
-function PropertyRow({ address, city, state, zip, propertyId, isPurchased = false }: PropertyRowProps) {
+function PropertyRow({
+  address,
+  city,
+  state,
+  zip,
+  propertyId,
+  isPurchased = false,
+  onQuotaExhausted,
+}: PropertyRowProps) {
   const { user, role } = useUser();
   const [isGenerating, setIsGenerating] = useState(false);
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
   const [reportUsage, setReportUsage] = useState<any>(null);
   const [purchased, setPurchased] = useState(isPurchased);
 
+  useEffect(() => {
+    setPurchased(isPurchased);
+  }, [isPurchased]);
+
+  const isOwnerOfProperty = role === "property_owner";
   const isAdmin = role === "admin";
   const isCityInspector = role === "city_inspector";
 
@@ -64,7 +78,8 @@ function PropertyRow({ address, city, state, zip, propertyId, isPurchased = fals
   const fetchReportUsage = async () => {
     try {
       const response = await getReportUsage();
-      setReportUsage(response.data);
+      setReportUsage(response?.data || response);
+      return response?.data || response;
     } catch (error: any) {
       console.error("Failed to fetch report usage:", error);
     }
@@ -111,7 +126,10 @@ function PropertyRow({ address, city, state, zip, propertyId, isPurchased = fals
         user?.role === "contractor" ||
         user?.role === "property_owner"
       ) {
-        await fetchReportUsage();
+        const usageData = await fetchReportUsage();
+        if (usageData && usageData.remaining === 0) {
+          onQuotaExhausted?.();
+        }
       }
     } catch (error: any) {
       console.error("Download report error:", error);
@@ -350,6 +368,7 @@ export function PropertyList({ searchParams, isPurchased }: PropertyListProps) {
             zip={prop.zip || ""}
             propertyId={prop.id}
             isPurchased={prop.is_purchased || false}
+            onQuotaExhausted={() => fetchProperties(1, false)}
           />
         ))}
       </div>

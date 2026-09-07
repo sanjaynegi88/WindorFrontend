@@ -68,7 +68,7 @@ export const ROLE_MEMBERSHIP_FIELDS: DynamicFieldConfig<MembershipFormValues>[] 
     name: "level",
     label: "Level",
     type: "select",
-    roles: ["PROPERTY_OWNER", "REALTOR", "CONTRACTOR", "MANUFACTURER"],
+    roles: ["PROPERTY_OWNER", "REALTOR", "CONTRACTOR"],
     options: (targetRole) => MEMBERSHIP_LEVEL_OPTIONS[targetRole] || [],
   },
   {

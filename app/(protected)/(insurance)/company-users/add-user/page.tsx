@@ -60,6 +60,19 @@ export default function AddInsuranceStaffPage() {
             toast.error(result.message || 'Failed to add staff');
             return;
         }
+
+        const checkoutUrl =
+            result.data?.checkout_session?.url ||
+            result.data?.data?.checkout_session?.url ||
+            result.data?.url;
+
+        if (checkoutUrl) {
+            localStorage.setItem('pending_report_type', 'users');
+            toast.info(result.data?.message || 'Redirecting to checkout...');
+            window.location.href = checkoutUrl;
+            return;
+        }
+
         toast.success(`Insurance staff "${values.firstName} ${values.lastName}" added successfully!`);
         router.push('/company-users');
     };

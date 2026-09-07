@@ -711,8 +711,12 @@ export async function resendSubUserOtp(body: { email: string }): Promise<ActionR
 }
 
 
-export async function resetPassword(body: any): Promise<ActionResult> {
-    const parseResult = resetPasswordSchema.safeParse(body);
+export async function resetPassword(body: { reset_token?: string; newPassword?: string; new_password?: string; password?: string }): Promise<ActionResult> {
+    const payload = {
+        reset_token: body.reset_token || '',
+        newPassword: body.newPassword || body.new_password || body.password || '',
+    };
+    const parseResult = resetPasswordSchema.safeParse(payload);
     if (!parseResult.success) {
         return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
     }
@@ -959,7 +963,7 @@ export async function getPropertyListAll(filters?: PropertyFilters) {
             if (query) url += `?${query}`;
         }
 
-        console.log("api url with params", url)
+       // console.log("api url with params", url)
 
         const response = await fetchApi({
             url,
@@ -1028,6 +1032,7 @@ export async function getUserProfile() {
 }
 
 export async function updateUserProfile(body: any): Promise<ActionResult> {
+    console.log("request body", body);
     const response = await fetchApi({
         url: "/api/users/profile",
         method: "PUT",
@@ -2966,3 +2971,51 @@ export async function savePaymentMethod(paymentMethodId: string): Promise<Action
     return { success: true, data: response.data };
 }
 
+
+export async function getCmsPageContent(pageSlug: string): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: `/api/cms/content?page=${encodeURIComponent(pageSlug)}`,
+        method: 'GET',
+        isAuth: false,
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to fetch CMS content') };
+    }
+    return { success: true, data: response.data };
+}
+
+export async function saveCmsSection(payload: {
+    page_slug: string;
+    section_key: string;
+    type?: string;
+    title?: string | null;
+    description?: string | null;
+    items?: any[];
+}): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: '/api/cms/admin/section',
+        method: 'PUT',
+        data: payload,
+        isAuth: true,
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to save CMS section') };
+    }
+    return { success: true, data: response.data };
+}
+
+export async function saveCmsPage(payload: {
+    page_slug: string;
+    sections: Record<string, any>;
+}): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: '/api/cms/admin/page',
+        method: 'PUT',
+        data: payload,
+        isAuth: true,
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to save CMS page') };
+    }
+    return { success: true, data: response.data };
+}

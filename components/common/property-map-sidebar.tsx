@@ -106,19 +106,29 @@ export function PropertyMapSidebar({
     useState(false);
   const [showHomeownerListDialog, setShowHomeownerListDialog] = useState(false);
 
+  const fetchReportUsage = async () => {
+    if (
+      role === "insurance_company" ||
+      role === "realtor" ||
+      role === "manufacturer" ||
+      role === "contractor" ||
+      role === "property_owner"
+    ) {
+      try {
+        const res = await getReportUsage();
+        const usageData = res?.data || res;
+        setReportUsage(usageData);
+        return usageData;
+      } catch (err) {
+        console.error("Failed to fetch report usage:", err);
+      }
+    }
+  };
+
   // Fetch report usage
   useEffect(() => {
-    if (
-      (role === "insurance_company" ||
-        role === "realtor" ||
-        role === "manufacturer" ||
-        role === "contractor" ||
-        role === "property_owner") &&
-      isOpen
-    ) {
-      getReportUsage()
-        .then((res) => setReportUsage(res.data))
-        .catch(() => {});
+    if (isOpen) {
+      fetchReportUsage();
     }
   }, [role, isOpen]);
 
@@ -211,6 +221,14 @@ export function PropertyMapSidebar({
       setLoadingHomeowner(false);
     }
   };
+
+  // Trigger loading projects when sidebar opens with propertyId
+  useEffect(() => {
+    if (propertyId && isOpen) {
+      loadContractorProjects();
+      loadHomeownerProjects();
+    }
+  }, [propertyId, isOpen]);
 
   // Trigger loading projects when list dialogs are opened
   useEffect(() => {
@@ -305,7 +323,7 @@ export function PropertyMapSidebar({
     user?.email?.toLowerCase() === propertyOwnerEmail.toLowerCase();
   const isAdmin = role === "admin";
   const isCityInspector = role === "city_inspector";
-  const hasReport = !!property?.has_report;
+  const hasReport = !!property?.has_report || totalProjectsCount > 0;
 
   const hasLimitAccess = Boolean(reportUsage && reportUsage.remaining > 0);
 
@@ -349,6 +367,11 @@ export function PropertyMapSidebar({
       await downloadPdfFromUrl(url, `property-report-${propertyId}.pdf`);
       toast.success("Report downloaded successfully");
       setPurchased(true);
+      const usageRes = await fetchReportUsage();
+      if (usageRes && usageRes.remaining === 0) {
+        loadContractorProjects();
+        loadHomeownerProjects();
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to download report");
     } finally {
@@ -393,6 +416,11 @@ export function PropertyMapSidebar({
       );
       toast.success("Report downloaded successfully");
       setAllContractorPurchased(true);
+      const usageRes = await fetchReportUsage();
+      if (usageRes && usageRes.remaining === 0) {
+        loadContractorProjects();
+        loadHomeownerProjects();
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to download report");
     } finally {
@@ -445,6 +473,31 @@ export function PropertyMapSidebar({
         : `owner-projects-report-${projectName}.pdf`;
       await downloadPdfFromUrl(url, filename);
       toast.success("Report downloaded successfully");
+
+      setContractorProjects((prev) =>
+        prev.map((proj) => {
+          const pid = proj.id ?? proj.project_id ?? proj._id;
+          if (String(pid) === String(projectId)) {
+            return { ...proj, is_purchased: true, project_purchased: true };
+          }
+          return proj;
+        }),
+      );
+      setHomeownerProjects((prev) =>
+        prev.map((proj) => {
+          const pid = proj.id ?? proj.project_id ?? proj._id;
+          if (String(pid) === String(projectId)) {
+            return { ...proj, is_purchased: true, project_purchased: true };
+          }
+          return proj;
+        }),
+      );
+
+      const usageRes = await fetchReportUsage();
+      if (usageRes && usageRes.remaining === 0) {
+        loadContractorProjects();
+        loadHomeownerProjects();
+      }
     } catch (error: any) {
       console.error("Download project report error:", error);
       toast.error(getErrorMessage(error, "Failed to download report"));
@@ -880,8 +933,12 @@ export function PropertyMapSidebar({
                                   setShowAllContractorDialog(true);
                                 }
                               }}
-                              disabled={isGeneratingAllContractor}
-                              className="h-8 px-3 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[10px] uppercase tracking-widest gap-1 shadow-none"
+                              disabled={
+                                isGeneratingAllContractor ||
+                                loadingContractor ||
+                                contractorProjects.length === 0
+                              }
+                              className="h-8 px-3 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[10px] uppercase tracking-widest gap-1 shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {isGeneratingAllContractor ? (
                                 <Loader2 className="w-3 h-3 animate-spin" />
@@ -978,8 +1035,12 @@ export function PropertyMapSidebar({
             </Button>
             <Button
               onClick={handleAllContractorPurchase}
-              disabled={isGeneratingAllContractor}
-              className="flex-1 h-10 bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-none gap-1"
+              disabled={
+                isGeneratingAllContractor ||
+                loadingContractor ||
+                contractorProjects.length === 0
+              }
+              className="flex-1 h-10 bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-none gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isGeneratingAllContractor ? (
                 <>

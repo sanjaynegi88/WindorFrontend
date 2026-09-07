@@ -48,6 +48,7 @@ export function Footer1() {
                   alt="Windor Logo"
                   width={136}
                   height={118}
+                  style={{ width: "auto", height: "auto" }}
                   className="w-auto h-auto object-contain brightness-0 invert block"
                 />
               </Link>
