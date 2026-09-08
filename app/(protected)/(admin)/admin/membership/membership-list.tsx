@@ -79,12 +79,16 @@ export default function MembershipList() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRole, setSelectedRole] = useState<string>("all");
-  const [roles, setRoles] = useState<{ id?: string; name?: string; role?: string }[]>([]);
+  const [roles, setRoles] = useState<
+    { id?: string; name?: string; role?: string }[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [membershipToDelete, setMembershipToDelete] = useState<any | null>(null);
+  const [membershipToDelete, setMembershipToDelete] = useState<any | null>(
+    null,
+  );
   const [selectedMembershipId, setSelectedMembershipId] = useState<
     string | null
   >(null);
@@ -150,10 +154,10 @@ export default function MembershipList() {
     setIsDeleteOpen(false);
     setMembershipToDelete(null);
     if (!result.success) {
-      toast.error(result.message || 'Failed to delete membership');
+      toast.error(result.message || "Failed to delete membership");
       return;
     }
-    toast.success('Membership deleted successfully');
+    toast.success("Membership deleted successfully");
     fetchData(selectedRole);
   };
 
@@ -523,15 +527,27 @@ export default function MembershipList() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Roles</SelectItem>
-                      {roles.map((r: any) => {
-                        const roleVal = typeof r === 'string' ? r : r.role_name || r.name || r.role || r.id || '';
-                        if (!roleVal) return null;
-                        return (
-                          <SelectItem key={r.id || roleVal} value={roleVal}>
-                            {toPascalCase(roleVal)}
-                          </SelectItem>
-                        );
-                      })}
+                      {roles
+                        .filter((r: any) => {
+                          const roleName = (
+                            typeof r === "string"
+                              ? r
+                              : r.role_name || r.name || r.role || ""
+                          ).toLowerCase();
+                          return roleName !== "admin";
+                        })
+                        .map((r: any) => {
+                          const roleVal =
+                            typeof r === "string"
+                              ? r
+                              : r.role_name || r.name || r.role || r.id || "";
+                          if (!roleVal) return null;
+                          return (
+                            <SelectItem key={r.id || roleVal} value={roleVal}>
+                              {toPascalCase(roleVal)}
+                            </SelectItem>
+                          );
+                        })}
                     </SelectContent>
                   </Select>
                 </div>
@@ -539,7 +555,10 @@ export default function MembershipList() {
             </CardHeading>
             <CardToolbar className="w-full sm:w-auto">
               <div className="flex items-center gap-2.5">
-                <Link href="/admin/membership/add-membership" className="w-full sm:w-auto">
+                <Link
+                  href="/admin/membership/add-membership"
+                  className="w-full sm:w-auto"
+                >
                   <Button size="sm" className="w-full sm:w-auto">
                     <Plus className="size-4 mr-2" /> New Membership
                   </Button>

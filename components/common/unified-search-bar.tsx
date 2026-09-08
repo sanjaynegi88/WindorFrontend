@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Search, Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import {
   Select,
@@ -200,8 +200,6 @@ export function UnifiedSearchBar({
         setIsInitialLoading(true);
         const statesRes = await getStates(1, 1000);
         setStates(Array.isArray(statesRes) ? statesRes : statesRes?.data || []);
-        const citiesRes = await getCities();
-        setCities(Array.isArray(citiesRes) ? citiesRes : citiesRes?.data || []);
       } catch (error) {
         console.error("Failed to fetch search options:", error);
       } finally {
@@ -212,10 +210,11 @@ export function UnifiedSearchBar({
   }, []);
 
   useEffect(() => {
+    let active = true;
     const fetchCities = async () => {
       try {
         setIsCitiesLoading(true);
-        const stateId = state !== "all" ? state : undefined;
+        const stateId = state !== "all" && state !== "" ? state : undefined;
         const citiesRes = await getCities(
           undefined,
           undefined,
@@ -224,6 +223,7 @@ export function UnifiedSearchBar({
           stateId,
         );
         const fetchedCities = Array.isArray(citiesRes) ? citiesRes : citiesRes?.data || [];
+        if (!active) return;
         setCities(fetchedCities);
         setCity((prevCity) => {
           if (prevCity === "all") return "all";
@@ -235,11 +235,22 @@ export function UnifiedSearchBar({
       } catch (error) {
         console.error("Failed to fetch cities:", error);
       } finally {
-        setIsCitiesLoading(false);
+        if (active) setIsCitiesLoading(false);
       }
     };
     fetchCities();
+    return () => {
+      active = false;
+    };
   }, [state]);
+
+  const displayedCities = useMemo(() => {
+    if (!state || state === "all") return cities;
+    return cities.filter((c: any) => {
+      const cityStateId = c.state_id || c.state?.id || c.state_id;
+      return !cityStateId || String(cityStateId) === String(state);
+    });
+  }, [cities, state]);
 
   useEffect(() => {
     if (onChange) {
@@ -484,7 +495,7 @@ export function UnifiedSearchBar({
                           />
                           City
                         </CommandItem>
-                        {cities.map((c: any) => {
+                        {displayedCities.map((c: any) => {
                           const name = c.city_name || c.name || "";
                           const cityStateId = c.state_id || c.state?.id || c.state_id;
                           return (

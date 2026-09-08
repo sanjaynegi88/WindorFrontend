@@ -12,7 +12,8 @@ export const RBAC_CONFIG: RouteConfig[] = [
     // Shared Routes
     { path: '/dashboard', allowedRoles: 'all' },
     { path: '/notifications', allowedRoles: 'all' },
-    { path: '/plans', allowedRoles: 'all', mainAccountOnly: true },
+    { path: '/plans', allowedRoles: ['property_owner', 'city_inspector', 'insurance_company', 'contractor', 'manufacturer', 'realtor'], mainAccountOnly: true },
+    { path: '/plan', allowedRoles: ['property_owner', 'city_inspector', 'insurance_company', 'contractor', 'manufacturer', 'realtor'], mainAccountOnly: true },
     { path: '/reports', allowedRoles: 'all' },
     { path: '/property-details', allowedRoles: 'all' },
     { path: '/added-properties', allowedRoles: 'all' },
@@ -59,7 +60,6 @@ export const publicRoutes = [
     '/about-us',
     '/services',
     '/pricing',
-    '/plans',
     '/contact',
     '/faq',
     '/resources',

@@ -2,12 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
-import {
-  getPropertyLocations,
-  getPropertyListAll,
-  getCities,
-  getReportUsage,
-} from "@/lib/actions";
+import { getPropertyLocations, getCities, getReportUsage } from "@/lib/actions";
 import GoogleMap from "@/components/common/google-map";
 import { getWorkingAwsImageUrl } from "@/lib/utils";
 import { useUser } from "@/components/providers/user-provider";
@@ -104,10 +99,10 @@ export default function MapView({
 
       const hasSearchFilters = Boolean(
         searchParams?.search?.trim() ||
-          searchParams?.brandName?.trim() ||
-          searchParams?.color?.trim() ||
-          searchParams?.style?.trim() ||
-          (activeStateId && activeCityId),
+        searchParams?.brandName?.trim() ||
+        searchParams?.color?.trim() ||
+        searchParams?.style?.trim() ||
+        (activeStateId && activeCityId),
       );
 
       if (!hasSearchFilters) {
@@ -118,42 +113,32 @@ export default function MapView({
 
       setIsResolvingCenter(true);
       try {
-        const cleanFilterParams: any = {
-          ...searchParams,
-          page: 1,
-          limit: 1,
-        };
-        const searchResult = await getPropertyListAll(cleanFilterParams);
-        const dataList = searchResult?.success !== false ? (Array.isArray(searchResult?.data) ? searchResult.data : searchResult?.data?.data || searchResult || []) : [];
-        const firstMatch = Array.isArray(dataList) ? dataList[0] : null;
-
         let targetLat: number | null = null;
         let targetLng: number | null = null;
 
-        if (firstMatch && firstMatch.latitude && firstMatch.longitude) {
-          targetLat = Number(firstMatch.latitude);
-          targetLng = Number(firstMatch.longitude);
-        } else if (activeStateId && activeCityId) {
-          // Fallback: If no search result found, call with only selected state and city params (limit 1)
-          const fallbackParams: any = {
-            page: 1,
-            limit: 1,
-            state_id: activeStateId,
-            city_id: activeCityId,
-          };
-          const fallbackResult = await getPropertyListAll(fallbackParams);
-          const fallbackData = fallbackResult?.success !== false ? (Array.isArray(fallbackResult?.data) ? fallbackResult.data : fallbackResult?.data?.data || fallbackResult || []) : [];
-          const firstFallback = Array.isArray(fallbackData) ? fallbackData[0] : null;
+        // Prioritize coordinates from City API response if a city is selected
+        if (activeCityId) {
+          try {
+            const isId =
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                activeCityId,
+              ) || !isNaN(Number(activeCityId));
+            const cityRes = isId
+              ? await getCities(undefined, undefined, activeCityId)
+              : await getCities(1, 1, undefined, activeCityId, activeStateId);
+            const rawData = cityRes?.data?.data || cityRes?.data || cityRes;
+            const cityObj = Array.isArray(rawData) ? rawData[0] : rawData;
 
-          if (
-            firstFallback &&
-            firstFallback.latitude &&
-            firstFallback.longitude
-          ) {
-            targetLat = Number(firstFallback.latitude);
-            targetLng = Number(firstFallback.longitude);
+            if (cityObj?.latitude && cityObj?.longitude) {
+              targetLat = Number(cityObj.latitude);
+              targetLng = Number(cityObj.longitude);
+            }
+          } catch (cityErr) {
+            console.error("Failed to resolve city coordinates:", cityErr);
           }
         }
+
+        // Coordinates are resolved directly from City API response when a city is selected
 
         if (targetLat !== null && targetLng !== null) {
           const newCenter = { lat: targetLat, lng: targetLng };
@@ -194,7 +179,8 @@ export default function MapView({
     const hasLimitAccess = Boolean(reportUsage && reportUsage.remaining > 0);
 
     const canDownload =
-      (role === "property_owner" && (isOwnerOfProperty || isPurchased || hasLimitAccess)) ||
+      (role === "property_owner" &&
+        (isOwnerOfProperty || isPurchased || hasLimitAccess)) ||
       role === "admin" ||
       role === "city_inspector" ||
       (role === "contractor" && (isPurchased || hasLimitAccess)) ||
@@ -231,10 +217,10 @@ export default function MapView({
 
     const hasSearchFilters = Boolean(
       searchParams?.search?.trim() ||
-        searchParams?.brandName?.trim() ||
-        searchParams?.color?.trim() ||
-        searchParams?.style?.trim() ||
-        (activeStateId && activeCityId),
+      searchParams?.brandName?.trim() ||
+      searchParams?.color?.trim() ||
+      searchParams?.style?.trim() ||
+      (activeStateId && activeCityId),
     );
 
     if (!hasSearchFilters && !focusCenter) {
@@ -370,9 +356,7 @@ export default function MapView({
         defaultCenter={
           focusCenter || searchFocusCenter || { lat: 39.8283, lng: -98.5795 }
         }
-        defaultZoom={
-          focusCenter ? 17.5 : searchFocusCenter ? 14 : 4.5
-        }
+        defaultZoom={focusCenter ? 17.5 : searchFocusCenter ? 14 : 4.5}
         defaultCityName={centerCityName}
         focusedMarkerId={focusId}
         onFocusCleared={onFocusCleared}

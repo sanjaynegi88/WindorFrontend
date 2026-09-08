@@ -197,10 +197,39 @@ function PropertyPageContent() {
 
   const resultsVisible = showResults && hasValidSearchInputs;
 
-  const mapElement = hasStateAndCity ? (
+  const selectedStateId = useMemo(() => {
+    return filters.state_id && filters.state_id !== "all"
+      ? filters.state_id
+      : filters.state && filters.state !== "all"
+        ? filters.state
+        : activeStateId;
+  }, [filters.state_id, filters.state, activeStateId]);
+
+  const selectedCityId = useMemo(() => {
+    return filters.city_id && filters.city_id !== "all"
+      ? filters.city_id
+      : filters.city && filters.city !== "all"
+        ? filters.city
+        : activeCityId;
+  }, [filters.city_id, filters.city, activeCityId]);
+
+  const hasMapStateAndCity = Boolean(selectedStateId && selectedCityId);
+
+  const mapSearchParams = useMemo(() => {
+    return {
+      search: searchParams.search,
+      brandName: searchParams.brandName,
+      color: searchParams.color,
+      style: searchParams.style,
+      state_id: selectedStateId,
+      city_id: selectedCityId,
+    };
+  }, [searchParams, selectedStateId, selectedCityId]);
+
+  const mapElement = hasMapStateAndCity ? (
     <div id="contractor-properties-map-view" className="my-6">
       <MapView
-        searchParams={searchParams}
+        searchParams={mapSearchParams}
         focusCenter={mapFocus || undefined}
         focusId={mapFocusId || undefined}
         onFocusCleared={() => {

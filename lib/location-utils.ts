@@ -12,6 +12,8 @@ export interface CityOption {
     name: string;
     state_id?: string;
     zip_codes?: string[];
+    latitude?: string;
+    longitude?: string;
 }
 
 export async function getStatesForForm(): Promise<StateOption[]> {
@@ -37,6 +39,8 @@ export async function getCitiesForForm(stateId?: string): Promise<CityOption[]> 
             id: String(c.id),
             name: c.city_name || c.name,
             state_id: c.state_id ? String(c.state_id) : undefined,
+            latitude: c.latitude ? String(c.latitude) : undefined,
+            longitude: c.longitude ? String(c.longitude) : undefined,
         }));
     } catch (error) {
         console.error('Failed to fetch cities:', error);

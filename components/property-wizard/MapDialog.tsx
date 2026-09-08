@@ -9,6 +9,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 
 interface MapDialogProps {
@@ -30,15 +31,28 @@ export function MapDialog({
 }: MapDialogProps) {
   const [tempLat, setTempLat] = useState<number | null>(latitude ?? null);
   const [tempLng, setTempLng] = useState<number | null>(longitude ?? null);
+  const [latInput, setLatInput] = useState<string>(
+    latitude !== null && latitude !== undefined ? String(latitude) : "",
+  );
+  const [lngInput, setLngInput] = useState<string>(
+    longitude !== null && longitude !== undefined ? String(longitude) : "",
+  );
   const [mapContainer, setMapContainer] = useState<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Synchronize state when dialog opens
   useEffect(() => {
     if (isOpen) {
       setTempLat(latitude ?? null);
       setTempLng(longitude ?? null);
+      setLatInput(
+        latitude !== null && latitude !== undefined ? String(latitude) : "",
+      );
+      setLngInput(
+        longitude !== null && longitude !== undefined ? String(longitude) : "",
+      );
     } else {
       setMapContainer(null);
     }
@@ -80,6 +94,8 @@ export function MapDialog({
                 centerLng = geocodedLng;
                 setTempLat(geocodedLat);
                 setTempLng(geocodedLng);
+                setLatInput(String(geocodedLat));
+                setLngInput(String(geocodedLng));
               }
             }
           } catch (err) {
@@ -133,8 +149,12 @@ export function MapDialog({
               typeof position.lng === "function"
                 ? (position.lng as any)()
                 : position.lng;
-            setTempLat(Number(latVal));
-            setTempLng(Number(lngVal));
+            const numLat = Number(latVal);
+            const numLng = Number(lngVal);
+            setTempLat(numLat);
+            setTempLng(numLng);
+            setLatInput(String(numLat));
+            setLngInput(String(numLng));
           }
         });
 
@@ -144,6 +164,8 @@ export function MapDialog({
             const lngVal = event.latLng.lng();
             setTempLat(latVal);
             setTempLng(lngVal);
+            setLatInput(String(latVal));
+            setLngInput(String(lngVal));
             marker.position = { lat: latVal, lng: lngVal };
           }
         });
@@ -164,9 +186,85 @@ export function MapDialog({
     };
   }, [isOpen, mapContainer]);
 
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleLatChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setLatInput(val);
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      const parsed = parseFloat(val);
+      if (!isNaN(parsed) && parsed >= -90 && parsed <= 90) {
+        setTempLat(parsed);
+        const currentLng = parseFloat(lngInput);
+        const validLng =
+          !isNaN(currentLng) && currentLng >= -180 && currentLng <= 180
+            ? currentLng
+            : tempLng;
+        if (markerRef.current && validLng !== null) {
+          markerRef.current.position = { lat: parsed, lng: validLng };
+        }
+        if (mapInstanceRef.current && validLng !== null) {
+          mapInstanceRef.current.panTo({ lat: parsed, lng: validLng });
+        }
+      }
+    }, 500);
+  };
+
+  const handleLngChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setLngInput(val);
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      const parsed = parseFloat(val);
+      if (!isNaN(parsed) && parsed >= -180 && parsed <= 180) {
+        setTempLng(parsed);
+        const currentLat = parseFloat(latInput);
+        const validLat =
+          !isNaN(currentLat) && currentLat >= -90 && currentLat <= 90
+            ? currentLat
+            : tempLat;
+        if (markerRef.current && validLat !== null) {
+          markerRef.current.position = { lat: validLat, lng: parsed };
+        }
+        if (mapInstanceRef.current && validLat !== null) {
+          mapInstanceRef.current.panTo({ lat: validLat, lng: parsed });
+        }
+      }
+    }, 500);
+  };
+
   const handleSave = () => {
-    if (tempLat !== null && tempLng !== null) {
-      onSave(tempLat, tempLng);
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    const parsedLat = parseFloat(latInput);
+    const parsedLng = parseFloat(lngInput);
+    const finalLat =
+      !isNaN(parsedLat) && parsedLat >= -90 && parsedLat <= 90
+        ? parsedLat
+        : tempLat;
+    const finalLng =
+      !isNaN(parsedLng) && parsedLng >= -180 && parsedLng <= 180
+        ? parsedLng
+        : tempLng;
+
+    if (finalLat !== null && finalLng !== null) {
+      onSave(finalLat, finalLng);
     }
     onClose();
   };
@@ -181,29 +279,46 @@ export function MapDialog({
         </DialogHeader>
         <div className="flex flex-col gap-4 my-4">
           <p className="text-sm text-[#708090]">
-            Click on the map or drag the pin to set the exact latitude and
-            longitude coordinates.
+            Click on the map or drag the pin to set coordinates, or enter latitude and longitude directly below.
           </p>
           <div
             ref={setMapContainer}
             className="w-full h-[350px] md:h-[450px] rounded-lg border border-slate-200 overflow-hidden"
           />
-          <div className="grid grid-cols-2 gap-4 text-sm font-medium text-[#1F2A44]">
-            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-              <span className="text-[#708090] text-xs block mb-1">
-                SELECTED LATITUDE
-              </span>
-              <span className="font-mono text-sm">
-                {tempLat !== null ? tempLat.toFixed(8) : "Not selected"}
-              </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm font-medium text-[#1F2A44]">
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-1.5">
+              <label
+                htmlFor="map-lat-input"
+                className="text-[#708090] text-xs font-semibold block uppercase"
+              >
+                Latitude
+              </label>
+              <Input
+                id="map-lat-input"
+                type="text"
+                inputMode="decimal"
+                placeholder="e.g. 47.2988590"
+                value={latInput}
+                onChange={handleLatChange}
+                className="h-10 text-sm font-mono bg-white border-slate-200 focus:border-[#1CA7A6]"
+              />
             </div>
-            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-              <span className="text-[#708090] text-xs block mb-1">
-                SELECTED LONGITUDE
-              </span>
-              <span className="font-mono text-sm">
-                {tempLng !== null ? tempLng.toFixed(8) : "Not selected"}
-              </span>
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-1.5">
+              <label
+                htmlFor="map-lng-input"
+                className="text-[#708090] text-xs font-semibold block uppercase"
+              >
+                Longitude
+              </label>
+              <Input
+                id="map-lng-input"
+                type="text"
+                inputMode="decimal"
+                placeholder="e.g. -96.5164980"
+                value={lngInput}
+                onChange={handleLngChange}
+                className="h-10 text-sm font-mono bg-white border-slate-200 focus:border-[#1CA7A6]"
+              />
             </div>
           </div>
         </div>
