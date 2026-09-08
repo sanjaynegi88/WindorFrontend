@@ -317,11 +317,11 @@ export function Navbar() {
     { name: "Set Prices", href: "/admin/report-price", icon: DollarSignIcon },
     { name: "Admin Logs", href: "/admin/admin-logs", icon: History },
     { name: "Import Data", href: "/admin/import-data", icon: FileDownIcon },
-    {
-      name: "Marketing Content",
-      href: "/admin/marketing-content",
-      icon: FileText,
-    },
+    // {
+    //   name: "Marketing Content",
+    //   href: "/admin/marketing-content",
+    //   icon: FileText,
+    // },
   ];
 
   return (
