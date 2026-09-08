@@ -8,6 +8,8 @@ import { getWorkingAwsImageUrl } from "@/lib/utils";
 import { useUser } from "@/components/providers/user-provider";
 import { PropertyMapSidebar } from "@/components/common/property-map-sidebar";
 
+const DEFAULT_MAP_CENTER = { lat: 39.8283, lng: -98.5795 };
+
 interface MarkerData {
   id: string;
   lat: number;
@@ -229,15 +231,27 @@ export default function MapView({
       return;
     }
 
+    const effectiveBounds =
+      bounds ||
+      currentBoundsRef.current ||
+      (searchFocusCenter
+        ? {
+            minLat: searchFocusCenter.lat - 0.05,
+            maxLat: searchFocusCenter.lat + 0.05,
+            minLng: searchFocusCenter.lng - 0.05,
+            maxLng: searchFocusCenter.lng + 0.05,
+          }
+        : undefined);
+
     const requestId = ++activeRequestRef.current;
     setLoading(true);
     try {
       // Note: getPropertyLocations is only passed viewport bounds and location IDs (no text search query)
       const result = await getPropertyLocations(
-        bounds?.minLat,
-        bounds?.maxLat,
-        bounds?.minLng,
-        bounds?.maxLng,
+        effectiveBounds?.minLat,
+        effectiveBounds?.maxLat,
+        effectiveBounds?.minLng,
+        effectiveBounds?.maxLng,
         zoomLevel,
         {
           ...(activeCityId ? { city_id: activeCityId } : {}),
@@ -303,12 +317,30 @@ export default function MapView({
         minLng: focusCenter.lng - delta,
         maxLng: focusCenter.lng + delta,
       };
+      currentBoundsRef.current = focusBounds;
       fetchDataForBounds(focusBounds);
       return;
     }
 
-    fetchDataForBounds(currentBoundsRef.current || undefined);
-  }, [searchParamsString, reportUsage, focusCenterKey]);
+    // When focusCenter is cleared (e.g. sidebar closed), if searchFocusCenter exists,
+    // fetch data for searchFocusCenter bounds immediately so pins are never lost.
+    if (searchFocusCenter) {
+      const delta = 0.05;
+      const targetBounds = {
+        minLat: searchFocusCenter.lat - delta,
+        maxLat: searchFocusCenter.lat + delta,
+        minLng: searchFocusCenter.lng - delta,
+        maxLng: searchFocusCenter.lng + delta,
+      };
+      currentBoundsRef.current = targetBounds;
+      fetchDataForBounds(targetBounds);
+      return;
+    }
+
+    if (currentBoundsRef.current) {
+      fetchDataForBounds(currentBoundsRef.current);
+    }
+  }, [searchParamsString, reportUsage, focusCenterKey, searchFocusCenter]);
 
   useEffect(() => {
     const resolveCenterLocation = async () => {
@@ -354,7 +386,7 @@ export default function MapView({
         onViewportChange={handleViewportChange}
         shouldFitBounds={shouldFitBounds}
         defaultCenter={
-          focusCenter || searchFocusCenter || { lat: 39.8283, lng: -98.5795 }
+          focusCenter || searchFocusCenter || DEFAULT_MAP_CENTER
         }
         defaultZoom={focusCenter ? 17.5 : searchFocusCenter ? 14 : 4.5}
         defaultCityName={centerCityName}
@@ -374,6 +406,17 @@ export default function MapView({
           setSelectedPropertyId(null);
           if (onFocusCleared) {
             onFocusCleared();
+          }
+          if (searchFocusCenter) {
+            const delta = 0.05;
+            const targetBounds = {
+              minLat: searchFocusCenter.lat - delta,
+              maxLat: searchFocusCenter.lat + delta,
+              minLng: searchFocusCenter.lng - delta,
+              maxLng: searchFocusCenter.lng + delta,
+            };
+            currentBoundsRef.current = targetBounds;
+            fetchDataForBounds(targetBounds);
           }
         }}
       />

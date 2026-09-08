@@ -172,7 +172,6 @@ export default function GoogleMap({
     zoom: number;
   } | null>(null);
   const onFocusClearedRef = useRef(onFocusCleared);
-  const skipNextViewportFetchRef = useRef<boolean>(false);
 
   const prevCityNameRef = useRef<string | undefined>(undefined);
   const isFocusActiveRef = useRef<boolean>(false);
@@ -206,17 +205,49 @@ export default function GoogleMap({
     }
   }, [defaultCenter, focusedMarkerId, defaultCityName]);
 
+  const defaultCenterLat = defaultCenter?.lat;
+  const defaultCenterLng = defaultCenter?.lng;
+  const lastAppliedCenterRef = useRef<{
+    lat: number;
+    lng: number;
+    zoom?: number;
+  } | null>(null);
+
   useEffect(() => {
-    if (mapInstanceRef.current && defaultCenter) {
+    if (
+      !mapInstanceRef.current ||
+      defaultCenterLat === undefined ||
+      defaultCenterLng === undefined
+    ) {
+      return;
+    }
+
+    const prev = lastAppliedCenterRef.current;
+    const centerChanged =
+      !prev ||
+      Math.abs(prev.lat - defaultCenterLat) > 0.0001 ||
+      Math.abs(prev.lng - defaultCenterLng) > 0.0001;
+    const zoomChanged =
+      defaultZoom !== undefined &&
+      (!prev || prev.zoom !== defaultZoom || Math.abs(zoom - defaultZoom) >= 0.5);
+
+    if (centerChanged || zoomChanged) {
+      lastAppliedCenterRef.current = {
+        lat: defaultCenterLat,
+        lng: defaultCenterLng,
+        zoom: defaultZoom,
+      };
       lastFetchedRef.current = null;
-      skipNextViewportFetchRef.current = true;
-      mapInstanceRef.current.panTo(defaultCenter);
+      mapInstanceRef.current.panTo({
+        lat: defaultCenterLat,
+        lng: defaultCenterLng,
+      });
       if (defaultZoom !== undefined) {
         mapInstanceRef.current.setZoom(defaultZoom);
         setZoom(defaultZoom);
       }
     }
-  }, [defaultCenter, defaultZoom]);
+  }, [defaultCenterLat, defaultCenterLng, defaultZoom, zoom]);
 
   useEffect(() => {
     if (defaultCenter || focusedMarkerId || isFocusActiveRef.current) {
@@ -294,7 +325,6 @@ export default function GoogleMap({
       mapInstanceRef.current = map;
 
       if (defaultCenter) {
-        skipNextViewportFetchRef.current = true;
         map.panTo(defaultCenter);
         if (defaultZoom !== undefined) {
           map.setZoom(defaultZoom);
@@ -307,11 +337,6 @@ export default function GoogleMap({
         const center = map.getCenter();
         if (currentZoom !== undefined) {
           setZoom(currentZoom);
-        }
-
-        if (skipNextViewportFetchRef.current) {
-          skipNextViewportFetchRef.current = false;
-          return;
         }
 
         if (
@@ -493,7 +518,7 @@ export default function GoogleMap({
           renderer: customClusterRenderer,
           onClusterClick: (event: any, cluster: any, map: any) => {
             if (cluster.bounds) {
-              skipNextViewportFetchRef.current = true;
+              lastFetchedRef.current = null;
               map.fitBounds(cluster.bounds);
             }
           },
@@ -509,7 +534,7 @@ export default function GoogleMap({
         markers.length > 0 &&
         mapInstanceRef.current
       ) {
-        skipNextViewportFetchRef.current = true;
+        lastFetchedRef.current = null;
         if (markers.length === 1) {
           const singleMarker = markers[0];
           mapInstanceRef.current.panTo({
@@ -538,7 +563,7 @@ export default function GoogleMap({
           const markerData = markers[focusedIndex];
           setTimeout(() => {
             if (mapInstanceRef.current) {
-              skipNextViewportFetchRef.current = true;
+              lastFetchedRef.current = null;
               mapInstanceRef.current.panTo({
                 lat: markerData.lat,
                 lng: markerData.lng,
@@ -597,7 +622,11 @@ export default function GoogleMap({
           type="button"
           onClick={() => {
             if (mapInstanceRef.current) {
-              if (markers.length === 1) {
+              lastFetchedRef.current = null;
+              if (defaultCenter && defaultZoom) {
+                mapInstanceRef.current.panTo(defaultCenter);
+                mapInstanceRef.current.setZoom(defaultZoom);
+              } else if (markers.length === 1) {
                 mapInstanceRef.current.panTo({
                   lat: markers[0].lat,
                   lng: markers[0].lng,
