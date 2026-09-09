@@ -16,16 +16,10 @@ import {
 } from "@/lib/actions";
 import { toast } from "sonner";
 import { z } from "zod";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { type CityOption } from "@/lib/location-utils";
 import { useUser } from "@/components/providers/user-provider";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { useRouter } from "next/navigation";
 
 const projectSchema = z
   .object({
@@ -152,8 +146,10 @@ export function CategorySelection({
       : undefined,
   );
   const [governingCity, setGoverningCity] = useState(
-    initialProjectData?.governing_city_id
-      ? String(initialProjectData.governing_city_id)
+    initialProjectData
+      ? initialProjectData.governing_city_id
+        ? String(initialProjectData.governing_city_id)
+        : ""
       : defaultGoverningCityId
         ? String(defaultGoverningCityId)
         : "",
@@ -162,7 +158,9 @@ export function CategorySelection({
   const [notes, setNotes] = useState(initialProjectData?.notes || "");
   const [other, setOther] = useState(initialProjectData?.other || "");
   const [contractorId, setContractorId] = useState<string | null>(
-    initialProjectData?.contractor_id || null,
+    initialProjectData?.contractor_id
+      ? String(initialProjectData.contractor_id)
+      : null,
   );
   const [contractors, setContractors] = useState<
     { id: string; name: string; email: string }[]
@@ -179,6 +177,7 @@ export function CategorySelection({
     Partial<Record<keyof ProjectFormValues, string>>
   >({});
 
+  const router = useRouter();
   const { user } = useUser();
   const userRole = (user?.role || "").toLowerCase();
 
@@ -198,8 +197,10 @@ export function CategorySelection({
         : undefined,
     );
     setGoverningCity(
-      initialProjectData?.governing_city_id
-        ? String(initialProjectData.governing_city_id)
+      initialProjectData
+        ? initialProjectData.governing_city_id
+          ? String(initialProjectData.governing_city_id)
+          : ""
         : defaultGoverningCityId
           ? String(defaultGoverningCityId)
           : "",
@@ -207,7 +208,11 @@ export function CategorySelection({
     setPermit(initialProjectData?.permit || "");
     setNotes(initialProjectData?.notes || "");
     setOther(initialProjectData?.other || "");
-    setContractorId(initialProjectData?.contractor_id || "");
+    setContractorId(
+      initialProjectData?.contractor_id
+        ? String(initialProjectData.contractor_id)
+        : null,
+    );
     setVisibility(
       initialProjectData?.visible_status === "private" ? "private" : "public",
     );
@@ -318,56 +323,80 @@ export function CategorySelection({
     label: getDisplayLabel(type.name),
   }));
 
-  const getCurrentFormPayload = () => ({
-    project_name: projectName,
-    project_type: projectType.toUpperCase(),
-    other,
-    date_of_install: dateOfInstall ? format(dateOfInstall, "yyyy-MM-dd") : "",
-    governing_city_id: governingCity,
-    permit,
-    notes,
-    contractor_id: contractorId,
-    visible_status: visibility,
-  });
+  const isFormChanged = (): boolean => {
+    if (!initialProjectData) return false;
 
-  const compareWithInitial = (next: any) => {
-    if (!initialProjectData) return true;
-    return (
-      JSON.stringify(next) !==
-      JSON.stringify({
-        project_name: initialProjectData.project_name || "",
-        project_type: initialProjectData.project_type || "",
-        other: initialProjectData.other || "",
-        date_of_install: initialProjectData.date_of_install || "",
-        governing_city_id: initialProjectData.governing_city_id || "",
-        permit: initialProjectData.permit || "",
-        need_permit: initialProjectData.need_permit ?? false,
-        notes: initialProjectData.notes || "",
-        contractor_id: initialProjectData.contractor_id || "",
-        visible_status: initialProjectData.visible_status || "",
-      })
-    );
+    const norm = (v: any) =>
+      v === null || v === undefined ? "" : String(v).trim();
+
+    // Project Name
+    if (norm(projectName) !== norm(initialProjectData.project_name))
+      return true;
+
+    // Project Type (case-insensitive)
+    if (
+      norm(projectType).toLowerCase() !==
+      norm(initialProjectData.project_type).toLowerCase()
+    ) {
+      return true;
+    }
+
+    // Other (if applicable)
+    const isOther =
+      projectType.toLowerCase() === "other" ||
+      projectType.toLowerCase() === "other_contractor";
+    if (isOther && norm(other) !== norm(initialProjectData.other)) return true;
+
+    // Permit
+    if (norm(permit) !== norm(initialProjectData.permit)) return true;
+
+    // Governing City
+    if (norm(governingCity) !== norm(initialProjectData.governing_city_id)) {
+      return true;
+    }
+
+    // Contractor (for admin)
+    if (isAdmin) {
+      const currentContractor = contractorId ? String(contractorId) : null;
+      const initialContractor = initialProjectData.contractor_id
+        ? String(initialProjectData.contractor_id)
+        : null;
+      if (currentContractor !== initialContractor) return true;
+    }
+
+    // Notes
+    if (norm(notes) !== norm(initialProjectData.notes)) return true;
+
+    // Visibility (for property owner)
+    if (isPropertyOwner) {
+      const currentVis = visibility === "private" ? "private" : "public";
+      const initialVis =
+        initialProjectData.visible_status === "private" ? "private" : "public";
+      if (currentVis !== initialVis) return true;
+    }
+
+    return false;
   };
 
   useEffect(() => {
-    if (!isEditMode) {
+    if (!isEditMode || !initialProjectData) {
       setHasChanges(false);
       return;
     }
-    setHasChanges(compareWithInitial(getCurrentFormPayload()));
+    setHasChanges(isFormChanged());
   }, [
     projectName,
     projectType,
     other,
-    dateOfInstall,
     governingCity,
     permit,
-    status,
     notes,
     contractorId,
     visibility,
     initialProjectData,
     isEditMode,
+    isAdmin,
+    isPropertyOwner,
   ]);
 
   const handleFieldChange = (updater: () => void) => {
@@ -375,8 +404,17 @@ export function CategorySelection({
   };
 
   const handleSubmit = (action: "save" | "save-next" | "next") => {
+    const selectedComp = componentTypes.find(
+      (t) => t.name.toLowerCase() === projectType.toLowerCase(),
+    );
+    const isOwnerProjectType = selectedComp?.isOwnerProjectType || false;
+
     if (isEditMode && action === "next") {
-      onContinue({ type: projectType, projectData: { id: projectId } });
+      onContinue({
+        type: projectType,
+        projectData: { id: projectId },
+        isOwnerProjectType,
+      });
       return;
     }
 
@@ -415,19 +453,12 @@ export function CategorySelection({
       governing_city_id: result.data.governing_city_id,
       permit: result.data.permit,
       notes: result.data.notes || "",
-      ...(isAdmin
-        ? { contractor_id: result.data.contractor_id ?? null }
-        : {}),
+      ...(isAdmin ? { contractor_id: result.data.contractor_id ?? null } : {}),
       ...(isPropertyOwner ? { visible_status: visibility } : {}),
     };
 
-    const changed = compareWithInitial(body);
+    const changed = isFormChanged();
     setHasChanges(changed);
-
-    const selectedComp = componentTypes.find(
-      (t) => t.name.toLowerCase() === projectType.toLowerCase(),
-    );
-    const isOwnerProjectType = selectedComp?.isOwnerProjectType || false;
 
     if (!isEditMode) {
       const executeAdd = async () => {
@@ -456,6 +487,14 @@ export function CategorySelection({
     }
 
     if (!changed) {
+      if (action === "save") {
+        if (onSaveSuccess) {
+          onSaveSuccess();
+        } else {
+          router.push("/my-projects");
+        }
+        return;
+      }
       onContinue({
         type: projectType,
         projectData: { id: projectId },
@@ -481,7 +520,11 @@ export function CategorySelection({
             isOwnerProjectType,
           });
         } else if (action === "save") {
-          onSaveSuccess?.();
+          if (onSaveSuccess) {
+            onSaveSuccess();
+          } else {
+            router.push("/my-projects");
+          }
         }
       } catch (error: any) {
         toast.error(error?.message || "Failed to update project");
@@ -677,7 +720,7 @@ export function CategorySelection({
               value={contractorId ? String(contractorId) : ""}
               onValueChange={(val) =>
                 handleFieldChange(() =>
-                  setContractorId(!val || val === "__none__" ? null : val)
+                  setContractorId(!val || val === "__none__" ? null : val),
                 )
               }
               placeholder="Contractor"

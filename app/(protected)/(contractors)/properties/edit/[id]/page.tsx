@@ -1084,9 +1084,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                     router.back();
                   }}
                   onSaveSuccess={() => {
-                    if (role !== "admin") {
-                      router.push("/my-projects");
-                    }
+                    router.push("/my-projects");
                   }}
                 />
               )}

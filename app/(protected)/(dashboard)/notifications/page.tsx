@@ -64,7 +64,7 @@ export default function NotificationsPage() {
       await markAsRead(notif.id);
     }
     
-    if (notif.metadata?.propertyId) {
+    if (notif.type !== 'PROPERTY_DELETED' && notif.metadata?.propertyId) {
       router.push(`/property-details/${notif.metadata.propertyId}`);
     }
   };
@@ -178,16 +178,16 @@ export default function NotificationsPage() {
             </div>
           ) : (
             filteredNotifications.map((notif) => {
-              const isClickable = !!notif.metadata?.propertyId;
+              const isClickable = notif.type !== 'PROPERTY_DELETED' && !!notif.metadata?.propertyId;
               return (
                 <div
                   key={notif.id}
-                  onClick={() => isClickable && handleNotificationClick(notif)}
+                  onClick={() => (isClickable || !notif.isRead) && handleNotificationClick(notif)}
                   className={`group relative flex items-start gap-4 p-4 md:p-5 rounded-2xl border transition-all duration-200 ${
                     !notif.isRead 
                       ? 'bg-[#1CA7A6]/5 border-[#1CA7A6]/20 shadow-[0_4px_16px_rgba(28,167,166,0.05)]' 
                       : 'bg-white border-gray-100 hover:border-gray-200'
-                  } ${isClickable ? 'cursor-pointer hover:shadow-md' : ''}`}
+                  } ${isClickable || !notif.isRead ? 'cursor-pointer' : ''} ${isClickable ? 'hover:shadow-md' : ''}`}
                 >
                   {/* Left Icon */}
                   <div className={`size-10 md:size-12 rounded-xl flex items-center justify-center shrink-0 transition-colors ${

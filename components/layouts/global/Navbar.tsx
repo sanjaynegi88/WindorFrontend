@@ -661,7 +661,7 @@ export function Navbar() {
                           key={notif.id}
                           onClick={() => {
                             if (!notif.isRead) markAsRead(notif.id);
-                            if (notif.metadata?.propertyId) {
+                            if (notif.type !== 'PROPERTY_DELETED' && notif.metadata?.propertyId) {
                               router.push(
                                 `/property-details/${notif.metadata.propertyId}`,
                               );
