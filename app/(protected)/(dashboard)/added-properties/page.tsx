@@ -626,10 +626,11 @@ export default function AddedPropertiesPage() {
                           {isAdmin && (
                             <button
                               onClick={() => setPropertyToDelete(property)}
-                              className="inline-flex items-center justify-center p-2 rounded-lg bg-white hover:bg-red-50 text-red-600 border border-red-200 transition-all cursor-pointer hover:scale-105"
                               title="Delete Property"
+                              className="flex items-center gap-1 px-2.5 py-2 sm:px-3 sm:py-1.5 rounded-full bg-red-600 hover:bg-white text-white hover:text-red-600 font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors cursor-pointer border border-red-200/60 font-asap shrink-0"
                             >
-                              <Trash2 className="size-4" />
+                              <Trash2 className="size-3 sm:size-3.5" />
+                              <span>Delete</span>
                             </button>
                           )}
                         </div>
@@ -704,7 +705,9 @@ export default function AddedPropertiesPage() {
       {/* Delete Confirmation Dialog */}
       <AlertDialog
         open={!!propertyToDelete}
-        onOpenChange={(open) => !open && !isDeleting && setPropertyToDelete(null)}
+        onOpenChange={(open) =>
+          !open && !isDeleting && setPropertyToDelete(null)
+        }
       >
         <AlertDialogContent className="sm:max-w-[425px] rounded-[20px] border-none shadow-[0px_4px_34px_rgba(31,42,68,0.1)] font-asap">
           <AlertDialogHeader className="space-y-3">
