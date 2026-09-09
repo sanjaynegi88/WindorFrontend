@@ -876,7 +876,10 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
             installationId,
             allOwnerFiles,
           );
-          if (!r.success) throw new Error(r.message || "Failed to upload owner project images");
+          if (!r.success)
+            throw new Error(
+              r.message || "Failed to upload owner project images",
+            );
         }
       } else {
         if (
@@ -888,14 +891,16 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
             installationId,
             files.categoryFiles,
           );
-          if (!r.success) throw new Error(r.message || "Failed to upload category images");
+          if (!r.success)
+            throw new Error(r.message || "Failed to upload category images");
         } else if (files.contractorFiles && files.contractorFiles.length > 0) {
           const r = await uploadInstallationImages(
             newInstallationType!,
             installationId,
             files.contractorFiles,
           );
-          if (!r.success) throw new Error(r.message || "Failed to upload contractor images");
+          if (!r.success)
+            throw new Error(r.message || "Failed to upload contractor images");
         }
         if (files.ownerFiles && files.ownerFiles.length > 0) {
           const r = await uploadPropertOwnerImages(
@@ -903,7 +908,8 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
             installationId,
             files.ownerFiles,
           );
-          if (!r.success) throw new Error(r.message || "Failed to upload owner images");
+          if (!r.success)
+            throw new Error(r.message || "Failed to upload owner images");
         }
       }
       localStorage.removeItem("current_project_id");

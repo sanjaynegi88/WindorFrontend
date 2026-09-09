@@ -26,7 +26,7 @@ export interface AddressData {
   state: string;
   zip: string;
   property_name: string;
-  property_owner_id: string;
+  property_owner_id: string | null;
   latitude?: number | null;
   longitude?: number | null;
   other_city?: string;
@@ -433,16 +433,23 @@ export function AddressForm({
         />
         <div className="w-full">
           <SearchableSelect
-            options={propertyOwners.map((owner) => ({
-              id: owner.id,
-              name:
-                owner.email ||
-                `${owner.first_name || ""} ${owner.last_name || ""}`.trim() ||
-                owner.id,
-            }))}
+            options={[
+              { id: "__none__", name: "None" },
+              ...propertyOwners.map((owner) => ({
+                id: owner.id,
+                name:
+                  owner.email ||
+                  `${owner.first_name || ""} ${owner.last_name || ""}`.trim() ||
+                  owner.id,
+              })),
+            ]}
             value={data.property_owner_id || ""}
             onValueChange={(val) =>
-              onChange({ ...data, property_owner_id: val })
+              onChange({
+                ...data,
+                property_owner_id:
+                  !val || val === "__none__" ? null : val,
+              })
             }
             placeholder="Property Owner"
             searchPlaceholder="Search property owner..."

@@ -1010,6 +1010,9 @@ export async function getPropertyLocations(
     if (queryString) {
         url += `?${queryString}`;
     }
+
+    console.log("api url",url)
+
     const response = await fetchApi({
         url,
         method: 'GET',
@@ -1292,7 +1295,7 @@ export async function updateProperties(id: string, body: any) {
 
 export async function updateInstallation(type: string, id: string, body: any) {
     const payload = { ...body };
-
+    console.log(payload);
     const response = await fetchApi({
         url: `/api/admin/${toEndpointType(type)}/${id}`,
         method: 'PUT',

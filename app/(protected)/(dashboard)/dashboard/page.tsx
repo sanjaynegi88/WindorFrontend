@@ -275,14 +275,22 @@ function DashboardPageContent() {
   }, [filters.state_id, filters.state, activeStateId]);
 
   const selectedCityId = useMemo(() => {
-    return filters.city_id && filters.city_id !== "all"
-      ? filters.city_id
-      : filters.city && filters.city !== "all"
-        ? filters.city
-        : activeCityId;
-  }, [filters.city_id, filters.city, activeCityId]);
+    const isInvalid = (val?: string) =>
+      !val ||
+      val === "all" ||
+      val.toLowerCase() === "all" ||
+      val.toLowerCase() === "city";
 
-  const hasMapStateAndCity = Boolean(selectedStateId && selectedCityId);
+    if (filters.city_id && !isInvalid(filters.city_id)) {
+      return filters.city_id;
+    }
+    if (filters.city && !isInvalid(filters.city)) {
+      return filters.city;
+    }
+    return "";
+  }, [filters.city_id, filters.city]);
+
+  const hasMapStateAndCity = Boolean(selectedStateId || selectedCityId || activeStateId);
 
   const mapSearchParams = useMemo(() => {
     return {

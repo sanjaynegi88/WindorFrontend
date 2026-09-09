@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useUser } from "@/components/providers/user-provider";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
@@ -17,12 +16,14 @@ import {
   Eye,
   Loader2,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   getAddedPropertiesListing,
   updatePropertyApproval,
+  deleteProperty,
 } from "@/lib/actions";
 import {
   AlertDialog,
@@ -66,6 +67,10 @@ export default function AddedPropertiesPage() {
     propertyId: string;
     propertyName: string;
   } | null>(null);
+  const [propertyToDelete, setPropertyToDelete] = useState<MockProperty | null>(
+    null,
+  );
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const isAdmin = role === "admin";
 
@@ -174,15 +179,9 @@ export default function AddedPropertiesPage() {
       prop.city?.id ||
       "";
     const cityName =
-      prop.city ||
-      prop.raw?.city_name ||
-      prop.raw?.city?.name ||
-      "";
+      prop.city || prop.raw?.city_name || prop.raw?.city?.name || "";
     const propertyName =
-      prop.propertyName ||
-      prop.raw?.property_name ||
-      prop.raw?.name ||
-      "";
+      prop.propertyName || prop.raw?.property_name || prop.raw?.name || "";
 
     const params = new URLSearchParams();
     if (propertyId) params.set("propertyId", String(propertyId));
@@ -226,6 +225,28 @@ export default function AddedPropertiesPage() {
       toast.error(`Error updating property status`);
     } finally {
       setConfirmAction(null);
+    }
+  };
+
+  const handleDeletePropertyConfirm = async () => {
+    if (!propertyToDelete) return;
+    setIsDeleting(true);
+    try {
+      const res = await deleteProperty(propertyToDelete.id);
+      if (res?.success) {
+        setProperties((prev) =>
+          prev.filter((p) => p.id !== propertyToDelete.id),
+        );
+        toast.success("Property deleted successfully!");
+      } else {
+        toast.error(res?.message || "Failed to delete property");
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Error deleting property");
+    } finally {
+      setIsDeleting(false);
+      setPropertyToDelete(null);
     }
   };
 
@@ -436,6 +457,16 @@ export default function AddedPropertiesPage() {
                         </button>
                       </>
                     )}
+                    {isAdmin && (
+                      <button
+                        onClick={() => setPropertyToDelete(property)}
+                        className="inline-flex items-center justify-center gap-1 py-2 px-3 rounded-xl bg-white hover:bg-red-50 text-red-600 border border-red-200 text-xs font-bold transition-all cursor-pointer"
+                        title="Delete Property"
+                      >
+                        <Trash2 className="size-3.5" />
+                        <span>Delete</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               ))
@@ -592,6 +623,15 @@ export default function AddedPropertiesPage() {
                               </button>
                             </>
                           )}
+                          {isAdmin && (
+                            <button
+                              onClick={() => setPropertyToDelete(property)}
+                              className="inline-flex items-center justify-center p-2 rounded-lg bg-white hover:bg-red-50 text-red-600 border border-red-200 transition-all cursor-pointer hover:scale-105"
+                              title="Delete Property"
+                            >
+                              <Trash2 className="size-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -656,6 +696,49 @@ export default function AddedPropertiesPage() {
               )}
             >
               {confirmAction?.type === "APPROVE" ? "Approve" : "Reject"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        open={!!propertyToDelete}
+        onOpenChange={(open) => !open && !isDeleting && setPropertyToDelete(null)}
+      >
+        <AlertDialogContent className="sm:max-w-[425px] rounded-[20px] border-none shadow-[0px_4px_34px_rgba(31,42,68,0.1)] font-asap">
+          <AlertDialogHeader className="space-y-3">
+            <AlertDialogTitle className="text-xl md:text-2xl font-black text-[#1F2A44] uppercase tracking-tight">
+              Delete Property
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-gray-600 font-medium leading-relaxed font-inter">
+              Are you sure you want to delete{" "}
+              <strong className="text-[#1F2A44]">
+                {propertyToDelete?.propertyName}
+              </strong>
+              ? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-2 mt-4">
+            <AlertDialogCancel
+              disabled={isDeleting}
+              className="h-11 rounded-xl font-bold uppercase tracking-widest border-2 hover:bg-slate-50 cursor-pointer"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePropertyConfirm}
+              disabled={isDeleting}
+              className="h-11 text-white bg-red-600 hover:bg-red-700 rounded-xl font-black uppercase tracking-widest cursor-pointer shadow-none border-none inline-flex items-center justify-center gap-2"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                "Delete"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

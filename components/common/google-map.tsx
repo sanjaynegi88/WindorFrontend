@@ -5,7 +5,7 @@ import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 import { MarkerClusterer, Renderer } from "@googlemaps/markerclusterer";
 import { MapPin, RotateCcw } from "lucide-react";
 
-interface MarkerData {
+export interface MarkerData {
   id: string;
   lat: number;
   lng: number;
@@ -16,90 +16,50 @@ interface MarkerData {
   reportStatus?: "view" | "purchase" | "none";
 }
 
+export interface ViewportBounds {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+  zoom: number;
+}
+
+export interface CityCommand {
+  lat: number;
+  lng: number;
+  zoom?: number;
+  id: string;
+}
+
+export interface FocusCommand {
+  lat: number;
+  lng: number;
+  id?: string;
+  zoom?: number;
+  commandId: string;
+}
+
+export const MIN_PROPERTY_ZOOM = 12;
+export const INITIAL_CITY_ZOOM = 14;
+export const PROPERTY_FOCUS_ZOOM = 17.5;
+export const DEFAULT_OVERVIEW_ZOOM = 4.5;
+export const DEFAULT_MAP_CENTER = { lat: 39.8283, lng: -98.5795 };
+
 interface GoogleMapProps {
   markers: MarkerData[];
   loading?: boolean;
   onMarkerClick?: (id: string) => void;
-  onViewportChange?: (
-    bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number },
-    zoomLevel: number,
-  ) => void;
-  shouldFitBounds?: boolean;
-  defaultCenter?: { lat: number; lng: number };
-  defaultZoom?: number;
-  defaultCityName?: string;
-  focusedMarkerId?: string;
-  onFocusCleared?: () => void;
+  onViewportChange?: (viewport: ViewportBounds) => void;
+  onCityViewportSettled?: (viewport: ViewportBounds) => void;
+  cityCommand?: CityCommand | null;
+  focusCommand?: FocusCommand | null;
+  initialCenter?: { lat: number; lng: number };
+  initialZoom?: number;
+  onRecenter?: () => void;
 }
 
-const getDistanceInKm = (
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number => {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
-
-const getViewportRadiusKm = (map: google.maps.Map): number => {
-  const bounds = map.getBounds();
-  const center = map.getCenter();
-  if (!bounds || !center) return 10;
-
-  const ne = bounds.getNorthEast();
-
-  const R = 6371;
-  const lat1 = (center.lat() * Math.PI) / 180;
-  const lat2 = (ne.lat() * Math.PI) / 180;
-  const deltaLat = ((ne.lat() - center.lat()) * Math.PI) / 180;
-  const deltaLng = ((ne.lng() - center.lng()) * Math.PI) / 180;
-
-  const a =
-    Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-    Math.cos(lat1) *
-      Math.cos(lat2) *
-      Math.sin(deltaLng / 2) *
-      Math.sin(deltaLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c;
-
-  return Math.max(0.1, Math.min(distance * 1.3, 50));
-};
-
-const fetchNominatimGeocode = (
-  address: string,
-  callback: (lat: number, lng: number) => void,
-) => {
-  fetch(
-    `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`,
-  )
-    .then((response) => response.json())
-    .then((data) => {
-      if (data && data.length > 0) {
-        const lat = parseFloat(data[0].lat);
-        const lng = parseFloat(data[0].lon);
-        if (!isNaN(lat) && !isNaN(lng)) {
-          callback(lat, lng);
-        }
-      }
-    })
-    .catch((err) => {
-      console.error("[GoogleMap] Nominatim geocoding failed:", err);
-    });
-};
-
 const customClusterRenderer: Renderer = {
-  render: (cluster: any, stats: any, map: any) => {
+  render: (cluster: any) => {
     const count = cluster.count;
     const position = cluster.position;
 
@@ -143,129 +103,67 @@ const customClusterRenderer: Renderer = {
 
 export default function GoogleMap({
   markers,
-  loading,
+  loading = false,
   onMarkerClick,
   onViewportChange,
-  shouldFitBounds = true,
-  defaultCenter,
-  defaultZoom = 14,
-  defaultCityName,
-  focusedMarkerId,
-  onFocusCleared,
+  onCityViewportSettled,
+  cityCommand,
+  focusCommand,
+  initialCenter = DEFAULT_MAP_CENTER,
+  initialZoom = DEFAULT_OVERVIEW_ZOOM,
+  onRecenter,
 }: GoogleMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
-  const markersRef = useRef<any[]>([]);
-  const markerClusterRef = useRef<MarkerClusterer | null>(null);
-  const [zoom, setZoom] = useState<number>(defaultZoom);
+  const [mapReady, setMapReady] = useState(false);
+  const [currentZoom, setCurrentZoom] = useState<number>(initialZoom);
 
+  // Marker management refs
+  const markersMapRef = useRef<
+    Map<
+      string,
+      {
+        marker: google.maps.marker.AdvancedMarkerElement;
+        reportStatus: string;
+      }
+    >
+  >(new Map());
+  const markerClusterRef = useRef<MarkerClusterer | null>(null);
+
+  // Command & timer refs
+  const handledCityCommandRef = useRef<string | null>(null);
+  const pendingCityCommandRef = useRef<string | null>(null);
+  const handledFocusCommandRef = useRef<string | null>(null);
+  const focusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const idleListenerRef = useRef<google.maps.MapsEventListener | null>(null);
+  const lastReportedViewportRef = useRef<ViewportBounds | null>(null);
+
+  // Stable callback refs
   const onViewportChangeRef = useRef(onViewportChange);
   useEffect(() => {
     onViewportChangeRef.current = onViewportChange;
   }, [onViewportChange]);
 
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastFetchedRef = useRef<{
-    lat: number;
-    lng: number;
-    radius: number;
-    zoom: number;
-  } | null>(null);
-  const onFocusClearedRef = useRef(onFocusCleared);
-  const skipNextViewportFetchRef = useRef<boolean>(false);
-
-  const prevCityNameRef = useRef<string | undefined>(undefined);
-  const isFocusActiveRef = useRef<boolean>(false);
-
-  const handledFocusIdRef = useRef<string | null>(null);
-
+  const cityCommandRef = useRef(cityCommand);
   useEffect(() => {
-    if (!focusedMarkerId) {
-      handledFocusIdRef.current = null;
-    }
-  }, [focusedMarkerId]);
+    cityCommandRef.current = cityCommand;
+  }, [cityCommand]);
 
+  const onCityViewportSettledRef = useRef(onCityViewportSettled);
   useEffect(() => {
-    onFocusClearedRef.current = onFocusCleared;
-  }, [onFocusCleared]);
+    onCityViewportSettledRef.current = onCityViewportSettled;
+  }, [onCityViewportSettled]);
 
+  const onMarkerClickRef = useRef(onMarkerClick);
   useEffect(() => {
-    if (shouldFitBounds) {
-      lastFetchedRef.current = null;
-    }
-  }, [shouldFitBounds]);
+    onMarkerClickRef.current = onMarkerClick;
+  }, [onMarkerClick]);
 
+  // 1. Initialize Google Map instance and idle listener safely
   useEffect(() => {
-    if (defaultCenter || focusedMarkerId) {
-      isFocusActiveRef.current = true;
-      if (defaultCityName) {
-        prevCityNameRef.current = defaultCityName;
-      }
-    } else if (defaultCityName && defaultCityName !== prevCityNameRef.current) {
-      isFocusActiveRef.current = false;
-    }
-  }, [defaultCenter, focusedMarkerId, defaultCityName]);
+    let isMounted = true;
 
-  useEffect(() => {
-    if (mapInstanceRef.current && defaultCenter) {
-      lastFetchedRef.current = null;
-      skipNextViewportFetchRef.current = true;
-      mapInstanceRef.current.panTo(defaultCenter);
-      if (defaultZoom !== undefined) {
-        mapInstanceRef.current.setZoom(defaultZoom);
-        setZoom(defaultZoom);
-      }
-    }
-  }, [defaultCenter, defaultZoom]);
-
-  useEffect(() => {
-    if (defaultCenter || focusedMarkerId || isFocusActiveRef.current) {
-      if (defaultCityName) {
-        prevCityNameRef.current = defaultCityName;
-      }
-      return;
-    }
-
-    if (
-      mapInstanceRef.current &&
-      defaultCityName &&
-      !defaultCenter &&
-      (defaultCityName !== prevCityNameRef.current || markers.length === 0)
-    ) {
-      prevCityNameRef.current = defaultCityName;
-      lastFetchedRef.current = null;
-      const centerMap = (lat: number, lng: number) => {
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.panTo({ lat, lng });
-          mapInstanceRef.current.setZoom(12);
-        }
-      };
-
-      if (
-        typeof google !== "undefined" &&
-        google.maps &&
-        google.maps.Geocoder
-      ) {
-        const geocoder = new google.maps.Geocoder();
-        geocoder.geocode({ address: defaultCityName }, (results, status) => {
-          if (status === "OK" && results && results[0]) {
-            const location = results[0].geometry.location;
-            centerMap(location.lat(), location.lng());
-            return;
-          }
-          console.warn(
-            "[GoogleMap] Google Geocoder failed or denied. Falling back to Nominatim.",
-            status,
-          );
-          fetchNominatimGeocode(defaultCityName, centerMap);
-        });
-      } else {
-        fetchNominatimGeocode(defaultCityName, centerMap);
-      }
-    }
-  }, [defaultCityName, defaultCenter, focusedMarkerId]);
-
-  useEffect(() => {
     const initMap = async () => {
       if (!mapRef.current) return;
 
@@ -273,288 +171,319 @@ export default function GoogleMap({
         key: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
       });
 
-      const { Map } = await importLibrary("maps");
+      const { Map } = (await importLibrary("maps")) as google.maps.MapsLibrary;
+      if (!isMounted || !mapRef.current) return;
 
-      const map = new Map(mapRef.current, {
-        center: defaultCenter || {
-          lat: 44.90201523983981,
-          lng: -93.51909931477276,
-        },
-        zoom: defaultZoom,
-        mapId: process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID,
-        clickableIcons: false,
-        styles: [
-          {
-            featureType: "poi",
-            stylers: [{ visibility: "off" }],
-          },
-        ],
-      });
+      if (!mapInstanceRef.current) {
+        const startCenter = cityCommandRef.current
+          ? { lat: cityCommandRef.current.lat, lng: cityCommandRef.current.lng }
+          : initialCenter || DEFAULT_MAP_CENTER;
+        const startZoom = cityCommandRef.current
+          ? (cityCommandRef.current.zoom ?? INITIAL_CITY_ZOOM)
+          : initialZoom || DEFAULT_OVERVIEW_ZOOM;
 
-      mapInstanceRef.current = map;
-
-      if (defaultCenter) {
-        skipNextViewportFetchRef.current = true;
-        map.panTo(defaultCenter);
-        if (defaultZoom !== undefined) {
-          map.setZoom(defaultZoom);
-          setZoom(defaultZoom);
-        }
+        const map = new Map(mapRef.current, {
+          center: startCenter,
+          zoom: startZoom,
+          mapId: process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID,
+          clickableIcons: false,
+          styles: [
+            {
+              featureType: "poi",
+              stylers: [{ visibility: "off" }],
+            },
+          ],
+        });
+        mapInstanceRef.current = map;
       }
 
-      map.addListener("idle", () => {
-        const currentZoom = map.getZoom();
-        const center = map.getCenter();
-        if (currentZoom !== undefined) {
-          setZoom(currentZoom);
+      const map = mapInstanceRef.current;
+      setMapReady(true);
+
+      if (idleListenerRef.current) {
+        idleListenerRef.current.remove();
+      }
+
+      // Single idle listener: debounce and capture bounds + center + zoom together
+      idleListenerRef.current = map.addListener("idle", () => {
+        if (debounceTimeoutRef.current) {
+          clearTimeout(debounceTimeoutRef.current);
         }
 
-        if (skipNextViewportFetchRef.current) {
-          skipNextViewportFetchRef.current = false;
-          return;
-        }
+        debounceTimeoutRef.current = setTimeout(() => {
+          if (!mapInstanceRef.current) return;
+          const currentBounds = map.getBounds();
+          const zoomLevel = map.getZoom();
+          const center = map.getCenter();
 
-        if (
-          currentZoom !== undefined &&
-          currentZoom >= 1 &&
-          center &&
-          onViewportChangeRef.current
-        ) {
-          if (debounceTimeoutRef.current) {
-            clearTimeout(debounceTimeoutRef.current);
+          if (!currentBounds || zoomLevel === undefined || !center) return;
+
+          setCurrentZoom(zoomLevel);
+
+          const sw = currentBounds.getSouthWest();
+          const ne = currentBounds.getNorthEast();
+          const viewport: ViewportBounds = {
+            minLat: sw.lat(),
+            maxLat: ne.lat(),
+            minLng: sw.lng(),
+            maxLng: ne.lng(),
+            zoom: zoomLevel,
+          };
+
+          if (
+            pendingCityCommandRef.current &&
+            zoomLevel >= MIN_PROPERTY_ZOOM &&
+            cityCommandRef.current &&
+            Math.abs(center.lat() - cityCommandRef.current.lat) < 0.05 &&
+            Math.abs(center.lng() - cityCommandRef.current.lng) < 0.05
+          ) {
+            pendingCityCommandRef.current = null;
+            onCityViewportSettledRef.current?.(viewport);
           }
 
-          debounceTimeoutRef.current = setTimeout(() => {
-            const bounds = map.getBounds();
-            if (!bounds) return;
+          const last = lastReportedViewportRef.current;
+          if (
+            last &&
+            Math.abs(last.minLat - viewport.minLat) < 0.00001 &&
+            Math.abs(last.maxLat - viewport.maxLat) < 0.00001 &&
+            Math.abs(last.minLng - viewport.minLng) < 0.00001 &&
+            Math.abs(last.maxLng - viewport.maxLng) < 0.00001 &&
+            last.zoom === viewport.zoom
+          ) {
+            return;
+          }
 
-            const radius = getViewportRadiusKm(map);
-            const lat = center.lat();
-            const lng = center.lng();
-
-            const sw = bounds.getSouthWest();
-            const ne = bounds.getNorthEast();
-            const minLat = sw.lat();
-            const maxLat = ne.lat();
-            const minLng = sw.lng();
-            const maxLng = ne.lng();
-
-            if (lastFetchedRef.current) {
-              const {
-                lat: lastLat,
-                lng: lastLng,
-                radius: lastRadius,
-                zoom: lastZoom,
-              } = lastFetchedRef.current;
-              const distance = getDistanceInKm(lat, lng, lastLat, lastLng);
-
-              const crossedZoomThreshold =
-                lastZoom >= 17.5 !== currentZoom >= 17.5;
-              const zoomChanged = Math.abs(lastZoom - currentZoom) >= 0.5;
-
-              if (
-                !crossedZoomThreshold &&
-                !zoomChanged &&
-                distance + radius / 1.3 <= lastRadius
-              ) {
-                return;
-              }
-            }
-
-            lastFetchedRef.current = { lat, lng, radius, zoom: currentZoom };
-            onViewportChangeRef.current?.(
-              { minLat, maxLat, minLng, maxLng },
-              currentZoom,
-            );
-          }, 400);
-        }
+          lastReportedViewportRef.current = viewport;
+          onViewportChangeRef.current?.(viewport);
+        }, 350);
       });
     };
 
     initMap();
 
     return () => {
+      isMounted = false;
+      if (idleListenerRef.current) {
+        idleListenerRef.current.remove();
+        idleListenerRef.current = null;
+      }
       if (debounceTimeoutRef.current) {
         clearTimeout(debounceTimeoutRef.current);
+        debounceTimeoutRef.current = null;
+      }
+      if (focusTimeoutRef.current) {
+        clearTimeout(focusTimeoutRef.current);
+        focusTimeoutRef.current = null;
       }
       if (markerClusterRef.current) {
         markerClusterRef.current.clearMarkers();
+        markerClusterRef.current = null;
       }
+      markersMapRef.current.forEach((entry) => {
+        entry.marker.map = null;
+      });
+      markersMapRef.current.clear();
+      mapInstanceRef.current = null;
+      setMapReady(false);
     };
   }, []);
 
+  // 2. Explicit city center command
   useEffect(() => {
-    if (!mapInstanceRef.current || loading) return;
+    cityCommandRef.current = cityCommand;
+    if (!mapReady || !cityCommand || !mapInstanceRef.current) return;
+    if (handledCityCommandRef.current === cityCommand.id) return;
+    handledCityCommandRef.current = cityCommand.id;
+    pendingCityCommandRef.current = cityCommand.id;
+    lastReportedViewportRef.current = null;
 
-    const updateMarkers = async () => {
+    const targetZoom = cityCommand.zoom ?? INITIAL_CITY_ZOOM;
+    mapInstanceRef.current.setCenter({ lat: cityCommand.lat, lng: cityCommand.lng });
+    mapInstanceRef.current.setZoom(targetZoom);
+    setCurrentZoom(targetZoom);
+  }, [cityCommand, mapReady]);
+
+  // 3. Explicit property focus command (cancellable timer)
+  useEffect(() => {
+    if (!mapReady || !focusCommand || !mapInstanceRef.current) return;
+    if (handledFocusCommandRef.current === focusCommand.commandId) return;
+    handledFocusCommandRef.current = focusCommand.commandId;
+
+    if (focusTimeoutRef.current) {
+      clearTimeout(focusTimeoutRef.current);
+    }
+
+    const targetZoom = focusCommand.zoom ?? PROPERTY_FOCUS_ZOOM;
+    focusTimeoutRef.current = setTimeout(() => {
+      if (!mapInstanceRef.current) return;
+      mapInstanceRef.current.panTo({
+        lat: focusCommand.lat,
+        lng: focusCommand.lng,
+      });
+      const zoom = mapInstanceRef.current.getZoom() ?? 0;
+      if (zoom < targetZoom) {
+        mapInstanceRef.current.setZoom(targetZoom);
+        setCurrentZoom(targetZoom);
+      }
+    }, 100);
+  }, [focusCommand, mapReady]);
+
+  // 4. Marker lifecycle: diff-based updates using AdvancedMarkerElement
+  useEffect(() => {
+    if (!mapReady || !mapInstanceRef.current || loading) return;
+
+    let isCancelled = false;
+
+    const syncMarkers = async () => {
       const { AdvancedMarkerElement } = (await importLibrary(
         "marker",
       )) as google.maps.MarkerLibrary;
+      if (isCancelled || !mapInstanceRef.current) return;
 
-      // Clear existing markers and clusterer
-      if (markerClusterRef.current) {
-        markerClusterRef.current.clearMarkers();
-      }
-      markersRef.current.forEach((marker) => marker.setMap(null));
-      markersRef.current = [];
-
-      const validMarkers = markers.filter((m) => m.reportStatus !== "none");
-
-      if (validMarkers.length === 0) return;
-
-      // Add new markers using custom HTML elements to reflect status
-      const newMarkers = validMarkers.map((markerData) => {
-        const container = document.createElement("div");
-        container.style.position = "relative";
-        container.style.width = "36px";
-        container.style.height = "36px";
-        container.style.cursor = "pointer";
-        container.style.transition = "transform 0.15s ease-in-out";
-
-        container.addEventListener("mouseenter", () => {
-          container.style.transform = "scale(1.15) translateY(-2px)";
-        });
-        container.addEventListener("mouseleave", () => {
-          container.style.transform = "scale(1)";
-        });
-
-        const img = document.createElement("img");
-        img.src = "/assets/map/map_marker.png";
-        img.alt = markerData.title;
-        img.style.width = "100%";
-        img.style.height = "100%";
-        img.style.objectFit = "contain";
-
-        // if (markerData.reportStatus === 'none') {
-        //     img.style.filter = 'grayscale(100%)';
-        //     img.style.opacity = '0.6';
-        // } else if (markerData.reportStatus === 'purchase') {
-        //     const badge = document.createElement('div');
-        //     badge.style.position = 'absolute';
-        //     badge.style.top = '-6px';
-        //     badge.style.right = '-6px';
-        //     badge.style.width = '18px';
-        //     badge.style.height = '18px';
-        //     badge.style.borderRadius = '50%';
-        //     badge.style.backgroundColor = '#F59E0B'; // Amber for Purchase
-        //     badge.style.border = '1.5px solid #ffffff';
-        //     badge.style.display = 'flex';
-        //     badge.style.alignItems = 'center';
-        //     badge.style.justifyContent = 'center';
-        //     badge.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
-
-        //     badge.innerHTML = `
-        //         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-        //             <circle cx="9" cy="21" r="1"/>
-        //             <circle cx="20" cy="21" r="1"/>
-        //             <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-        //         </svg>
-        //     `;
-        //     container.appendChild(badge);
-        // }
-
-        container.appendChild(img);
-
-        const marker = new AdvancedMarkerElement({
-          position: { lat: markerData.lat, lng: markerData.lng },
-          title: markerData.title,
-          content: container,
-        });
-
-        marker.addListener("click", () => {
-          if (mapInstanceRef.current) {
-            const currentZoom = mapInstanceRef.current.getZoom() || 17.5;
-            mapInstanceRef.current.panTo({
-              lat: markerData.lat,
-              lng: markerData.lng,
-            });
-            if (currentZoom < 17.5) {
-              mapInstanceRef.current.setZoom(17.5);
-            }
-          }
-          if (onMarkerClick) {
-            onMarkerClick(markerData.id);
-          }
-          if (onFocusClearedRef.current) {
-            onFocusClearedRef.current();
-          }
-        });
-
-        return marker;
-      });
-
-      markersRef.current = newMarkers;
-
-      // Initialize or add markers to MarkerClusterer
       if (!markerClusterRef.current) {
         markerClusterRef.current = new MarkerClusterer({
           map: mapInstanceRef.current,
-          markers: newMarkers,
+          markers: [],
           renderer: customClusterRenderer,
-          onClusterClick: (event: any, cluster: any, map: any) => {
+          onClusterClick: (_event: any, cluster: any, map: any) => {
             if (cluster.bounds) {
-              skipNextViewportFetchRef.current = true;
               map.fitBounds(cluster.bounds);
             }
           },
         });
-      } else {
-        markerClusterRef.current.addMarkers(newMarkers);
       }
 
-      // Fit map to markers if requested (only if no specific focused marker)
-      if (
-        shouldFitBounds &&
-        !focusedMarkerId &&
-        markers.length > 0 &&
-        mapInstanceRef.current
-      ) {
-        skipNextViewportFetchRef.current = true;
-        if (markers.length === 1) {
-          const singleMarker = markers[0];
-          mapInstanceRef.current.panTo({
-            lat: singleMarker.lat,
-            lng: singleMarker.lng,
-          });
-          mapInstanceRef.current.setZoom(17.5);
-        } else {
-          const bounds = new google.maps.LatLngBounds();
-          markers.forEach((marker) =>
-            bounds.extend({ lat: marker.lat, lng: marker.lng }),
-          );
-          mapInstanceRef.current.fitBounds(bounds);
+      const clusterer = markerClusterRef.current;
+      const currentMarkersMap = markersMapRef.current;
+
+      const validMarkers = markers.filter(
+        (m) => m.reportStatus !== "none" && !isNaN(m.lat) && !isNaN(m.lng),
+      );
+      const newMarkerIds = new Set(validMarkers.map((m) => m.id));
+
+      // Remove stale markers
+      const removedMarkers: google.maps.marker.AdvancedMarkerElement[] = [];
+      currentMarkersMap.forEach((entry, id) => {
+        if (!newMarkerIds.has(id)) {
+          entry.marker.map = null;
+          removedMarkers.push(entry.marker);
+          currentMarkersMap.delete(id);
         }
+      });
+      if (removedMarkers.length > 0) {
+        clusterer.removeMarkers(removedMarkers);
       }
 
-      // Automatically select/focus marker if specified (only once per focusedMarkerId)
-      if (
-        focusedMarkerId &&
-        mapInstanceRef.current &&
-        handledFocusIdRef.current !== focusedMarkerId
-      ) {
-        const focusedIndex = markers.findIndex((m) => m.id === focusedMarkerId);
-        if (focusedIndex !== -1) {
-          handledFocusIdRef.current = focusedMarkerId;
-          const markerData = markers[focusedIndex];
-          setTimeout(() => {
+      // Add new or update existing
+      const addedMarkers: google.maps.marker.AdvancedMarkerElement[] = [];
+      for (const markerData of validMarkers) {
+        const existing = currentMarkersMap.get(markerData.id);
+        if (existing) {
+          if (existing.reportStatus !== markerData.reportStatus) {
+            existing.reportStatus = markerData.reportStatus || "none";
+          }
+        } else {
+          const container = document.createElement("div");
+          container.style.position = "relative";
+          container.style.width = "36px";
+          container.style.height = "36px";
+          container.style.cursor = "pointer";
+          container.style.transition = "transform 0.15s ease-in-out";
+
+          container.addEventListener("mouseenter", () => {
+            container.style.transform = "scale(1.15) translateY(-2px)";
+          });
+          container.addEventListener("mouseleave", () => {
+            container.style.transform = "scale(1)";
+          });
+
+          const img = document.createElement("img");
+          img.src = "/assets/map/map_marker.png";
+          img.alt = markerData.title || "Property";
+          img.style.width = "100%";
+          img.style.height = "100%";
+          img.style.objectFit = "contain";
+          container.appendChild(img);
+
+          const marker = new AdvancedMarkerElement({
+            position: { lat: markerData.lat, lng: markerData.lng },
+            title: markerData.title,
+            content: container,
+          });
+
+          marker.addListener("click", () => {
             if (mapInstanceRef.current) {
-              skipNextViewportFetchRef.current = true;
+              const zoom =
+                mapInstanceRef.current.getZoom() || PROPERTY_FOCUS_ZOOM;
               mapInstanceRef.current.panTo({
                 lat: markerData.lat,
                 lng: markerData.lng,
               });
-              mapInstanceRef.current.setZoom(17.5);
+              if (zoom < PROPERTY_FOCUS_ZOOM) {
+                mapInstanceRef.current.setZoom(PROPERTY_FOCUS_ZOOM);
+                setCurrentZoom(PROPERTY_FOCUS_ZOOM);
+              }
             }
-            if (onMarkerClick) {
-              onMarkerClick(markerData.id);
-            }
-          }, 300);
+            onMarkerClickRef.current?.(markerData.id);
+          });
+
+          currentMarkersMap.set(markerData.id, {
+            marker,
+            reportStatus: markerData.reportStatus || "none",
+          });
+          addedMarkers.push(marker);
         }
+      }
+
+      if (addedMarkers.length > 0) {
+        clusterer.addMarkers(addedMarkers);
       }
     };
 
-    updateMarkers();
-  }, [markers, loading, onMarkerClick, shouldFitBounds]);
+    syncMarkers();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [markers, loading, mapReady]);
+
+  // Recenter button handler
+  const handleRecenter = () => {
+    if (!mapInstanceRef.current) return;
+
+    if (cityCommand) {
+      mapInstanceRef.current.panTo({
+        lat: cityCommand.lat,
+        lng: cityCommand.lng,
+      });
+      const zoomToUse = cityCommand.zoom ?? INITIAL_CITY_ZOOM;
+      mapInstanceRef.current.setZoom(zoomToUse);
+      setCurrentZoom(zoomToUse);
+    } else if (markers.length > 0) {
+      if (markers.length === 1) {
+        mapInstanceRef.current.panTo({
+          lat: markers[0].lat,
+          lng: markers[0].lng,
+        });
+        mapInstanceRef.current.setZoom(PROPERTY_FOCUS_ZOOM);
+        setCurrentZoom(PROPERTY_FOCUS_ZOOM);
+      } else {
+        const bounds = new google.maps.LatLngBounds();
+        markers.forEach((m) => {
+          if (!isNaN(m.lat) && !isNaN(m.lng)) {
+            bounds.extend({ lat: m.lat, lng: m.lng });
+          }
+        });
+        mapInstanceRef.current.fitBounds(bounds);
+      }
+    } else if (initialCenter) {
+      mapInstanceRef.current.panTo(initialCenter);
+      mapInstanceRef.current.setZoom(initialZoom);
+      setCurrentZoom(initialZoom);
+    }
+
+    onRecenter?.();
+  };
 
   return (
     <div className="relative w-full h-full min-h-[600px] flex flex-col">
@@ -585,7 +514,7 @@ export default function GoogleMap({
         </div>
       )}
 
-      {!loading && markers.length === 0 && (
+      {!loading && markers.length === 0 && currentZoom >= MIN_PROPERTY_ZOOM && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-background/95 backdrop-blur border border-border px-4 py-2 rounded-full shadow-lg z-10 flex items-center gap-2 text-xs font-semibold text-muted-foreground animate-in fade-in slide-in-from-top-2">
           <MapPin className="size-4 text-[#1CA7A6] shrink-0" />
           <span>No properties found in this area or search.</span>
@@ -595,26 +524,7 @@ export default function GoogleMap({
       {markers.length > 0 && (
         <button
           type="button"
-          onClick={() => {
-            if (mapInstanceRef.current) {
-              if (markers.length === 1) {
-                mapInstanceRef.current.panTo({
-                  lat: markers[0].lat,
-                  lng: markers[0].lng,
-                });
-                mapInstanceRef.current.setZoom(17.5);
-              } else {
-                const bounds = new google.maps.LatLngBounds();
-                markers.forEach((m) =>
-                  bounds.extend({ lat: m.lat, lng: m.lng }),
-                );
-                mapInstanceRef.current.fitBounds(bounds);
-              }
-            }
-            if (onFocusClearedRef.current) {
-              onFocusClearedRef.current();
-            }
-          }}
+          onClick={handleRecenter}
           className="absolute bottom-6 right-6 bg-[#1F2A44] hover:bg-[#1a212c] text-white text-xs font-bold uppercase tracking-wider px-3.5 py-2.5 rounded-xl shadow-xl transition-all flex items-center gap-2 z-10 cursor-pointer border border-white/10"
         >
           <RotateCcw className="size-3.5 text-[#1CA7A6]" />
@@ -622,7 +532,7 @@ export default function GoogleMap({
         </button>
       )}
 
-      {zoom < 12 && (
+      {currentZoom < MIN_PROPERTY_ZOOM && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-amber-50/95 dark:bg-amber-950/95 backdrop-blur border border-amber-200 dark:border-amber-900 px-3.5 py-1.5 rounded-full shadow-lg z-10 flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-200 animate-in fade-in slide-in-from-bottom-2">
           <svg
             className="w-4 h-4 shrink-0"

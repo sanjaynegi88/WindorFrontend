@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,14 @@ export default function PurchaseSuccessPage() {
   const [reportGenerated, setReportGenerated] = useState(false);
   const [isUsersPurchase, setIsUsersPurchase] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const handledRef = useRef(false);
+
+  useEffect(() => {
+    const storedType = typeof window !== 'undefined' ? localStorage.getItem('pending_report_type') : null;
+    if (storedType === 'users') {
+      setIsUsersPurchase(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -25,32 +33,47 @@ export default function PurchaseSuccessPage() {
   }, [user]);
 
   const handleSuccess = async () => {
+    if (handledRef.current) return;
+    handledRef.current = true;
     setIsProcessing(true);
     setError(null);
 
     try {
+      const storedReportType = localStorage.getItem('pending_report_type');
+      const isStoredUsers = storedReportType === 'users';
+
       // Step 1: confirm the Stripe session
       const sessionId = searchParams.get('session_id');
+      let responseData: any = null;
       if (sessionId) {
         const response = await confirmPayment(sessionId);
         if (!response.success) {
           toast.error(response.message);
           return;
         }
+        responseData = response.data;
       }
 
-      // Step 2: determine purchase type
-      const reportType = localStorage.getItem('pending_report_type');
+      // Step 2: determine purchase type (from localStorage or session metadata)
+      const isBackendUsers =
+        responseData?.type === 'users' ||
+        responseData?.metadata?.type === 'users' ||
+        responseData?.session?.metadata?.type === 'users' ||
+        responseData?.session?.metadata?.product_type === 'users';
 
-      if (reportType === 'users') {
-        // User purchase flow — just confirm and redirect to profile
+      if (isStoredUsers || isBackendUsers) {
+        // User purchase flow — just confirm and redirect
+        const redirectUrl = localStorage.getItem('pending_redirect_url') || '/profile';
         localStorage.removeItem('pending_report_type');
+        localStorage.removeItem('pending_redirect_url');
         setIsUsersPurchase(true);
         toast.success('Users purchased successfully!');
         setReportGenerated(true);
-        setTimeout(() => router.push('/profile'), 3000);
+        setTimeout(() => router.push(redirectUrl), 3000);
         return;
       }
+
+      const reportType = storedReportType;
 
       if (reportType === 'multiple') {
         try {
@@ -70,6 +93,7 @@ export default function PurchaseSuccessPage() {
       localStorage.removeItem('pending_report_property_id');
       localStorage.removeItem('pending_report_type');
       localStorage.removeItem('pending_report_filters');
+      localStorage.removeItem('pending_redirect_url');
 
       setReportGenerated(true);
       toast.success('Payment confirmed successfully!');
@@ -103,7 +127,9 @@ export default function PurchaseSuccessPage() {
                 Purchase Successful!
               </h1>
               <p className="text-sm md:text-base text-gray-500 font-medium">
-                Your report has been purchased successfully
+                {isUsersPurchase
+                  ? "Your additional user account has been purchased successfully"
+                  : "Your report has been purchased successfully"}
               </p>
             </div>
 
@@ -127,7 +153,7 @@ export default function PurchaseSuccessPage() {
                         </span>
                       </div>
                       <p className="text-xs text-gray-400 animate-pulse">
-                        Redirecting to profile in a moment...
+                        Redirecting in a moment...
                       </p>
                     </>
                   ) : (

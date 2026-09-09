@@ -37,7 +37,7 @@ const projectSchema = z
     permit: z.string().optional(),
     need_permit: z.boolean().optional(),
     notes: z.string().optional(),
-    contractor_id: z.string().optional(),
+    contractor_id: z.string().nullable().optional(),
   })
   .superRefine((data, ctx) => {
     const pType = data.project_type.toUpperCase();
@@ -161,8 +161,8 @@ export function CategorySelection({
   const [permit, setPermit] = useState(initialProjectData?.permit || "");
   const [notes, setNotes] = useState(initialProjectData?.notes || "");
   const [other, setOther] = useState(initialProjectData?.other || "");
-  const [contractorId, setContractorId] = useState(
-    initialProjectData?.contractor_id || "",
+  const [contractorId, setContractorId] = useState<string | null>(
+    initialProjectData?.contractor_id || null,
   );
   const [contractors, setContractors] = useState<
     { id: string; name: string; email: string }[]
@@ -388,7 +388,7 @@ export function CategorySelection({
       governing_city_id: governingCity,
       permit,
       notes,
-      contractor_id: contractorId,
+      contractor_id: contractorId || null,
     };
 
     const result = projectSchema.safeParse(raw);
@@ -415,8 +415,8 @@ export function CategorySelection({
       governing_city_id: result.data.governing_city_id,
       permit: result.data.permit,
       notes: result.data.notes || "",
-      ...(isAdmin && result.data.contractor_id
-        ? { contractor_id: result.data.contractor_id }
+      ...(isAdmin
+        ? { contractor_id: result.data.contractor_id ?? null }
         : {}),
       ...(isPropertyOwner ? { visible_status: visibility } : {}),
     };
@@ -663,13 +663,22 @@ export function CategorySelection({
         {isAdmin && (
           <div className="w-full">
             <SearchableSelect
-              options={contractors.map((c) => ({
-                id: c.id,
-                name: c.email || c.name || c.id,
-              }))}
+              options={
+                contractors.length > 0
+                  ? [
+                      { id: "__none__", name: "None" },
+                      ...contractors.map((c) => ({
+                        id: c.id,
+                        name: c.email || c.name || c.id,
+                      })),
+                    ]
+                  : []
+              }
               value={contractorId ? String(contractorId) : ""}
               onValueChange={(val) =>
-                handleFieldChange(() => setContractorId(val))
+                handleFieldChange(() =>
+                  setContractorId(!val || val === "__none__" ? null : val)
+                )
               }
               placeholder="Contractor"
               searchPlaceholder="Search contractor..."
