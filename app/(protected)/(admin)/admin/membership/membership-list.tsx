@@ -29,6 +29,11 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -592,17 +597,25 @@ export default function MembershipList() {
         membershipId={selectedMembershipId}
       />
 
-      {isEditOpen && selectedMembership && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-background rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <Dialog
+        open={isEditOpen && !!selectedMembership}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleEditCancel();
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto p-0 rounded-3xl border-none shadow-2xl">
+          <DialogTitle className="sr-only">Edit Membership</DialogTitle>
+          {selectedMembership && (
             <MembershipForm
               membership={selectedMembership}
               onSuccess={handleEditSuccess}
               onCancel={handleEditCancel}
             />
-          </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <AlertDialogContent>

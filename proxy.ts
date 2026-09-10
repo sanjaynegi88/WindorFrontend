@@ -4,11 +4,14 @@ import { RBAC_CONFIG, publicRoutes, guestOnlyRoutes, Role } from './config/rbac'
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  let userRole = request.cookies.get('user-role')?.value as Role | undefined;
+  const rawRole = request.cookies.get('user-role')?.value;
+  let userRole = rawRole ? (rawRole.toLowerCase() as Role) : undefined;
   let authToken = request.cookies.get('auth-token')?.value;
   const refreshToken = request.cookies.get('refresh-token')?.value;
-  let isSubUser = request.cookies.get('sub-account')?.value === 'true';
-  let hasMembership = request.cookies.get('has-membership')?.value === 'true';
+  const rawSubAccount = request.cookies.get('sub-account')?.value?.toLowerCase();
+  let isSubUser = rawSubAccount === 'true' || rawSubAccount === '1';
+  const rawMembershipCookie = request.cookies.get('has-membership')?.value?.toLowerCase();
+  let hasMembership = rawMembershipCookie === 'true' || rawMembershipCookie === '1';
 
   let cookiesUpdated = false;
   let newCookies: Record<string, string> = {};
@@ -68,14 +71,30 @@ export async function proxy(request: NextRequest) {
       }
 
       if (userProfile) {
-        const role = (userProfile.role ? userProfile.role.toLowerCase() : null) || userRole || 'guest';
-        const subAccount = String(userProfile.sub_account ?? isSubUser);
-        const rawMembership = userProfile.has_membership ?? userProfile.current_subscription?.is_active;
-        const membershipValue = String(rawMembership !== undefined ? Boolean(rawMembership) : hasMembership);
+        const rawRole = userProfile.role ?? userProfile.roleEntity?.role_name;
+        const role = (rawRole ? rawRole.toLowerCase() : null) || userRole || 'guest';
+        const isSub = Boolean(
+          userProfile.sub_account === true ||
+          userProfile.sub_account === 'true' ||
+          userProfile.user?.sub_account === true ||
+          userProfile.user?.sub_account === 'true' ||
+          isSubUser
+        );
+        const subAccount = String(isSub);
+
+        let membershipValue: string;
+        if (isSub) {
+          const sub = userProfile.current_subscription ?? userProfile.user?.current_subscription;
+          const subActive = Boolean(sub && (sub.status ? sub.status.toUpperCase() === 'ACTIVE' : true));
+          membershipValue = String(subActive);
+        } else {
+          const rawMembership = userProfile.has_membership ?? userProfile.current_subscription?.is_active ?? (userProfile.current_subscription?.status === 'ACTIVE');
+          membershipValue = String(rawMembership !== undefined ? Boolean(rawMembership) : hasMembership);
+        }
 
         authToken = idToken;
         userRole = role as Role;
-        isSubUser = subAccount === 'true';
+        isSubUser = isSub;
         hasMembership = membershipValue === 'true';
 
         newCookies = {
@@ -225,8 +244,7 @@ export async function proxy(request: NextRequest) {
 
     if (routeConfig) {
       const isAllowedRole = routeConfig.allowedRoles === 'all' || routeConfig.allowedRoles.includes(userRole);
-      const isSubAccount = request.cookies.get('sub-account')?.value === 'true';
-      const satisfiesMainAccountRequirement = !routeConfig.mainAccountOnly || !isSubAccount;
+      const satisfiesMainAccountRequirement = !routeConfig.mainAccountOnly || !isSubUser;
 
       if (!isAllowedRole || !satisfiesMainAccountRequirement) {
         return getResponse('/dashboard');

@@ -368,6 +368,18 @@ export default function UserProfile() {
       ? (user as any)?.current_subscription?.plan?.level
       : undefined;
   const effectivelevel = level || subscriptionLevel;
+  const hasActiveMembership = isSubAccount
+    ? Boolean(
+        ((user as any)?.current_subscription ?? (user as any)?.user?.current_subscription) &&
+        (((user as any)?.current_subscription?.status ?? (user as any)?.user?.current_subscription?.status)?.toUpperCase() === "ACTIVE" ||
+         !((user as any)?.current_subscription?.status ?? (user as any)?.user?.current_subscription?.status))
+      )
+    : (
+        (user as any)?.current_subscription?.status === "ACTIVE" ||
+        (user as any)?.has_membership === true ||
+        (contextUser as any)?.has_membership === true ||
+        (user as any)?.current_subscription?.is_active === true
+      );
   const showAddContractorProfile =
     role === "contractor" &&
     (user as any)?.is_directory === false &&
@@ -576,19 +588,21 @@ export default function UserProfile() {
 
   useEffect(() => {
     if (
-      role === "insurance_company" ||
-      role === "contractor" ||
-      role === "realtor" ||
-      role === "manufacturer" ||
-      role === "property_owner"
-    ) {
-      setReportUsageLoading(true);
-      getReportUsage()
-        .then((res) => setReportUsage(res?.data || res))
-        .catch(() => {})
-        .finally(() => setReportUsageLoading(false));
-    }
-  }, [role]);
+      !hasActiveMembership ||
+      !(
+        role === "insurance_company" ||
+        role === "contractor" ||
+        role === "realtor" ||
+        role === "manufacturer" ||
+        role === "property_owner"
+      )
+    ) return;
+    setReportUsageLoading(true);
+    getReportUsage()
+      .then((res) => setReportUsage(res?.data || res))
+      .catch(() => {})
+      .finally(() => setReportUsageLoading(false));
+  }, [role, hasActiveMembership]);
 
   const calculateIntegrity = () => {
     if (!user) return 0;
@@ -1255,7 +1269,7 @@ export default function UserProfile() {
         </div>
 
         <div className="lg:w-[380px] shrink-0 space-y-6">
-          {(role === "insurance_company" || role === "realtor") && (
+          {(role === "insurance_company" || role === "realtor") && hasActiveMembership && (
             <Card className="border shadow-lg rounded-2xl overflow-hidden bg-background">
               <CardHeader className="bg-muted/30 px-5 py-4 border-b flex-row items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -1387,7 +1401,7 @@ export default function UserProfile() {
 
           {(role === "contractor" ||
             role === "manufacturer" ||
-            role === "property_owner") && (
+            role === "property_owner") && hasActiveMembership && (
             <Card className="border shadow-lg rounded-2xl overflow-hidden bg-background">
               <CardHeader className="bg-muted/30 px-5 py-4 border-b flex-row items-center justify-between gap-2">
                 <div className="flex items-center gap-2">

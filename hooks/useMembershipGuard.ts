@@ -25,21 +25,27 @@ export function useMembershipGuard() {
       const freshProfile = await getUserProfile();
       if (freshProfile) {
         setUser(freshProfile);
-        const hasMembership = Boolean(
-          freshProfile.has_membership ?? freshProfile.current_subscription?.is_active
+        const isSubUser = Boolean(
+          freshProfile.sub_account === true ||
+          freshProfile.sub_account === 'true' ||
+          (freshProfile as any).user?.sub_account === true ||
+          (freshProfile as any).user?.sub_account === 'true'
         );
-        const isSubUser = Boolean(freshProfile.sub_account);
 
-        // Sub-account users under contractors or insurance companies are exempt
-        if (isSubUser && (role === 'contractor' || role === 'insurance_company')) {
-          return true;
+        let hasMembership: boolean;
+        if (isSubUser) {
+          const sub = freshProfile.current_subscription ?? (freshProfile as any).user?.current_subscription;
+          hasMembership = Boolean(sub && (sub.status ? sub.status.toUpperCase() === 'ACTIVE' : true));
+        } else {
+          const rawMembership = freshProfile.has_membership ?? freshProfile.current_subscription?.is_active ?? (freshProfile.current_subscription?.status === 'ACTIVE');
+          hasMembership = rawMembership === true || rawMembership === 'true' || rawMembership === 1 || rawMembership === '1';
         }
 
         if (!hasMembership) {
           await updateMembershipCookie(false);
           document.cookie = "has-membership=false; path=/; max-age=" + 30 * 24 * 60 * 60;
-          toast.error("Your membership is inactive or has expired. Please subscribe to continue.");
-          router.push('/plans');
+          toast.error("Active membership is required or has expired.");
+          router.push(isSubUser ? '/dashboard' : '/plans');
           return false;
         }
 
@@ -50,16 +56,25 @@ export function useMembershipGuard() {
     }
 
     // Fallback check against client state if fetch fails
-    const localMembership = Boolean(user?.has_membership ?? user?.current_subscription?.is_active);
-    const isSubUser = Boolean(user?.sub_account);
+    const isSubUser = Boolean(
+      user?.sub_account === true ||
+      user?.sub_account === 'true' ||
+      (user as any)?.user?.sub_account === true ||
+      (user as any)?.user?.sub_account === 'true'
+    );
 
-    if (isSubUser && (role === 'contractor' || role === 'insurance_company')) {
-      return true;
+    let localMembership: boolean;
+    if (isSubUser) {
+      const sub = user?.current_subscription ?? (user as any)?.user?.current_subscription;
+      localMembership = Boolean(sub && (sub.status ? sub.status.toUpperCase() === 'ACTIVE' : true));
+    } else {
+      const rawLocal = user?.has_membership ?? user?.current_subscription?.is_active ?? (user?.current_subscription?.status === 'ACTIVE');
+      localMembership = rawLocal === true || rawLocal === 'true' || rawLocal === 1 || rawLocal === '1';
     }
 
     if (!localMembership) {
-      toast.error("Your membership is inactive or has expired. Please subscribe to continue.");
-      router.push('/plans');
+      toast.error("Active membership is required or has expired.");
+      router.push(isSubUser ? '/dashboard' : '/plans');
       return false;
     }
 

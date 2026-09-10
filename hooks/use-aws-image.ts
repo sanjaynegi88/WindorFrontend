@@ -14,7 +14,7 @@ export function useAwsImage(
     'https://windor-verifications-images.s3.eu-north-1.amazonaws.com';
 
   const getInitialUrl = () => {
-    if (!imageName) return '/assets/prop_placeholder.png';
+    if (!imageName) return '';
     const trimmed = imageName.trim();
     if (
       trimmed.startsWith('http://') ||

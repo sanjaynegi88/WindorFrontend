@@ -6,10 +6,23 @@ import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 
+const AlertDialogContext = React.createContext<{
+  onOpenChange?: (open: boolean) => void;
+}>({});
+
 function AlertDialog({
+  onOpenChange,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Root>) {
-  return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />;
+  return (
+    <AlertDialogContext.Provider value={{ onOpenChange }}>
+      <AlertDialogPrimitive.Root
+        data-slot="alert-dialog"
+        onOpenChange={onOpenChange}
+        {...props}
+      />
+    </AlertDialogContext.Provider>
+  );
 }
 
 function AlertDialogTrigger({
@@ -30,8 +43,30 @@ function AlertDialogPortal({
 
 function AlertDialogOverlay({
   className,
+  closeOnClick = true,
+  onClick,
   ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Overlay>) {
+}: React.ComponentProps<typeof AlertDialogPrimitive.Overlay> & {
+  closeOnClick?: boolean;
+}) {
+  const { onOpenChange } = React.useContext(AlertDialogContext);
+
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    onClick?.(e);
+    if (e.defaultPrevented) return;
+
+    if (closeOnClick) {
+      if (onOpenChange) {
+        onOpenChange(false);
+      } else {
+        const cancelButton = document.querySelector<HTMLElement>(
+          '[data-slot="alert-dialog-cancel"]'
+        );
+        cancelButton?.click();
+      }
+    }
+  };
+
   return (
     <AlertDialogPrimitive.Overlay
       data-slot="alert-dialog-overlay"
@@ -39,6 +74,7 @@ function AlertDialogOverlay({
         'fixed inset-0 z-50 bg-black/30 [backdrop-filter:blur(4px)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
         className,
       )}
+      onClick={handleClick}
       {...props}
     />
   );
@@ -46,11 +82,14 @@ function AlertDialogOverlay({
 
 function AlertDialogContent({
   className,
+  closeOnOutsideClick = true,
   ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Content>) {
+}: React.ComponentProps<typeof AlertDialogPrimitive.Content> & {
+  closeOnOutsideClick?: boolean;
+}) {
   return (
     <AlertDialogPortal>
-      <AlertDialogOverlay />
+      <AlertDialogOverlay closeOnClick={closeOnOutsideClick} />
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
         className={cn(

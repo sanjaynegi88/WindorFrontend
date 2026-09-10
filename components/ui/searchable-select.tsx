@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Search, PlusCircle, ChevronDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, toTitleCase } from "@/lib/utils";
@@ -50,12 +50,12 @@ export function focusNextField(currentElement: HTMLElement | null) {
   const focusableSelector =
     'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
   const focusables = Array.from(
-    form.querySelectorAll<HTMLElement>(focusableSelector)
+    form.querySelectorAll<HTMLElement>(focusableSelector),
   ).filter(
     (el) =>
       (el.offsetWidth > 0 || el.offsetHeight > 0 || el === currentElement) &&
       !el.classList.contains("pointer-events-none") &&
-      el.getAttribute("aria-hidden") !== "true"
+      el.getAttribute("aria-hidden") !== "true",
   );
   const currentIndex = focusables.indexOf(currentElement);
   if (currentIndex !== -1 && currentIndex < focusables.length - 1) {
@@ -83,6 +83,11 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchState, setSearchState] = useState("");
+  const isPointerInteractionRef = useRef(false);
+  const justClosedRef = useRef(false);
+  const pointerTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const shouldFocusNextRef = useRef(false);
 
   const search = searchValue !== undefined ? searchValue : searchState;
   const handleSearchChange = (val: string) => {
@@ -91,6 +96,53 @@ export function SearchableSelect({
     }
     if (onSearchValueChange) {
       onSearchValueChange(val);
+    }
+  };
+
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    isPointerInteractionRef.current = false;
+    if (!isOpen) {
+      justClosedRef.current = true;
+      setTimeout(() => {
+        justClosedRef.current = false;
+      }, 200);
+    }
+  };
+
+  const handlePointerDown = () => {
+    isPointerInteractionRef.current = true;
+    if (pointerTimerRef.current) clearTimeout(pointerTimerRef.current);
+    pointerTimerRef.current = setTimeout(() => {
+      isPointerInteractionRef.current = false;
+    }, 300);
+  };
+
+  const handleFocus = () => {
+    if (disabled) return;
+    if (isPointerInteractionRef.current) {
+      isPointerInteractionRef.current = false;
+      return;
+    }
+    if (justClosedRef.current) {
+      justClosedRef.current = false;
+      return;
+    }
+    setOpen(true);
+  };
+
+  const handleSelectOption = (selectedValue: string) => {
+    onValueChange(selectedValue);
+    handleSearchChange("");
+    shouldFocusNextRef.current = true;
+    setOpen(false);
+  };
+
+  const handleCloseAutoFocus = (e: Event) => {
+    if (shouldFocusNextRef.current) {
+      e.preventDefault();
+      shouldFocusNextRef.current = false;
+      focusNextField(buttonRef.current);
     }
   };
 
@@ -103,7 +155,9 @@ export function SearchableSelect({
           (o.id.startsWith("__header__:") &&
             o.id.slice("__header__:".length) === value) ||
           (o.id.startsWith("__subbrand__:") && o.id.split(":")[1] === value),
-      )?.name ?? displayValueFallback ?? "");
+      )?.name ??
+      displayValueFallback ??
+      "");
 
   const uniqueOptions = options.filter(
     (o, index, self) =>
@@ -134,13 +188,22 @@ export function SearchableSelect({
   const selectableFiltered = filtered.filter((o) => !o.isHeader && !o.disabled);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
+          ref={buttonRef}
           variant="outline"
           role="combobox"
           aria-expanded={open}
           disabled={disabled}
+          onPointerDown={handlePointerDown}
+          onFocus={handleFocus}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              focusNextField(buttonRef.current);
+            }
+          }}
           className={cn(
             triggerClassName ?? triggerClass,
             !displayValue && "text-[#708090]/50",
@@ -149,10 +212,12 @@ export function SearchableSelect({
           <span className="truncate flex-1 text-left">
             {displayValue ? toTitleCase(displayValue) : placeholder}
           </span>
+
           <ChevronDown className="h-4 w-4 md:h-6 md:w-6 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent
+        onCloseAutoFocus={handleCloseAutoFocus}
         className="p-0 rounded-xl overflow-hidden shadow-2xl border-[rgba(28,167,166,0.15)] w-(--radix-popover-trigger-width)"
         align="start"
       >
@@ -164,6 +229,18 @@ export function SearchableSelect({
               placeholder={searchPlaceholder}
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (selectableFiltered.length > 0) {
+                    const first = selectableFiltered[0];
+                    handleSelectOption(first.id === "__none__" ? "" : first.id);
+                  } else if (allowCustom && search.trim().length > 0) {
+                    handleSelectOption(`__custom__:${search.trim()}`);
+                  }
+                }
+              }}
             />
           </div>
 
@@ -193,9 +270,7 @@ export function SearchableSelect({
                         value={`${o.id}___${o.parentName || ""}___${o.name}`}
                         onSelect={() => {
                           const selectedValue = o.id === "__none__" ? "" : o.id;
-                          onValueChange(selectedValue);
-                          handleSearchChange("");
-                          setOpen(false);
+                          handleSelectOption(selectedValue);
                         }}
                         className={cn(
                           "text-[15px] font-asap cursor-pointer py-2 flex items-center",
@@ -224,9 +299,7 @@ export function SearchableSelect({
                       <CommandItem
                         value={`__custom__:${search.trim()}`}
                         onSelect={() => {
-                          onValueChange(`__custom__:${search.trim()}`);
-                          handleSearchChange("");
-                          setOpen(false);
+                          handleSelectOption(`__custom__:${search.trim()}`);
                         }}
                         className="text-[#1CA7A6] text-[15px] font-asap cursor-pointer py-2"
                       >

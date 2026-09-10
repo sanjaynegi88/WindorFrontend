@@ -333,7 +333,7 @@ function EditPropertyModal({
       toast.success("Property address updated successfully");
       if (nextStep === "IMAGES") {
         setActiveTab("photos");
-      } else if (nextStep === "CLOSE") {
+      } else {
         onSuccess();
         onOpenChange(false);
       }

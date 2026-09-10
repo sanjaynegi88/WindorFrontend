@@ -219,13 +219,27 @@ export async function loginUser(body: any): Promise<ActionResult<{
             sameSite: 'lax',
             maxAge: otherCookiesMaxAge
         });
-        cookieStore.set('sub-account', String(response.data.sub_account), {
+        const isSub = Boolean(
+            response.data.sub_account === true ||
+            response.data.sub_account === 'true' ||
+            response.data.user?.sub_account === true ||
+            response.data.user?.sub_account === 'true'
+        );
+        let userHasMembership: boolean;
+        if (isSub) {
+            const sub = response.data.current_subscription ?? response.data.user?.current_subscription;
+            userHasMembership = Boolean(sub && (sub.status ? sub.status.toUpperCase() === 'ACTIVE' : true));
+        } else {
+            userHasMembership = Boolean(response.data.has_membership ?? response.data.current_subscription?.status === 'ACTIVE');
+        }
+
+        cookieStore.set('sub-account', String(isSub), {
             httpOnly: false,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             maxAge: otherCookiesMaxAge
         });
-        cookieStore.set('has-membership', String(response.data.has_membership), {
+        cookieStore.set('has-membership', String(userHasMembership), {
             httpOnly: false,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
@@ -242,8 +256,8 @@ export async function loginUser(body: any): Promise<ActionResult<{
                     name: response.data.email.split('@')[0],
                     email: response.data.email,
                     role: response.data.role.toLowerCase(),
-                    sub_account: response.data.sub_account,
-                    has_membership: response.data.has_membership,
+                    sub_account: isSub,
+                    has_membership: userHasMembership,
                 },
             },
         };
@@ -295,13 +309,27 @@ export async function googleLogin(idToken: string): Promise<ActionResult> {
             sameSite: 'lax',
             maxAge: 30 * 24 * 60 * 60,
         });
-        cookieStore.set('sub-account', String(response.data.sub_account ?? false), {
+        const isSub = Boolean(
+            response.data.sub_account === true ||
+            response.data.sub_account === 'true' ||
+            response.data.user?.sub_account === true ||
+            response.data.user?.sub_account === 'true'
+        );
+        let userHasMembership: boolean;
+        if (isSub) {
+            const sub = response.data.current_subscription ?? response.data.user?.current_subscription;
+            userHasMembership = Boolean(sub && (sub.status ? sub.status.toUpperCase() === 'ACTIVE' : true));
+        } else {
+            userHasMembership = Boolean(response.data.has_membership ?? false);
+        }
+
+        cookieStore.set('sub-account', String(isSub), {
             httpOnly: false,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             maxAge: 30 * 24 * 60 * 60,
         });
-        cookieStore.set('has-membership', String(response.data.has_membership ?? false), {
+        cookieStore.set('has-membership', String(userHasMembership), {
             httpOnly: false,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
@@ -323,8 +351,8 @@ export async function googleLogin(idToken: string): Promise<ActionResult> {
                     lastName: response.data.last_name,
                     email: response.data.email,
                     role: requiresRoleSelection ? 'guest' : response.data.role?.toLowerCase(),
-                    sub_account: response.data.sub_account,
-                    has_membership: response.data.has_membership,
+                    sub_account: isSub,
+                    has_membership: userHasMembership,
                     company_name: response.data.company_name,
                     city: response.data.city,
                 },
@@ -417,9 +445,24 @@ export async function refreshAndSyncSession(refreshTokenValue: string) {
     const existingHasMembership = cookieStore.get('has-membership')?.value === 'true';
 
     const role = (userProfile.role ? userProfile.role.toLowerCase() : null) || existingRole || 'guest';
-    const subAccount = String(userProfile.sub_account ?? existingSubAccount);
-    const rawMembership = userProfile.has_membership ?? userProfile.current_subscription?.is_active;
-    const hasMembership = String(rawMembership !== undefined ? Boolean(rawMembership) : existingHasMembership);
+    const isSub = Boolean(
+        userProfile.sub_account === true ||
+        userProfile.sub_account === 'true' ||
+        userProfile.user?.sub_account === true ||
+        userProfile.user?.sub_account === 'true' ||
+        existingSubAccount
+    );
+    const subAccount = String(isSub);
+
+    let hasMembership: string;
+    if (isSub) {
+        const sub = userProfile.current_subscription ?? userProfile.user?.current_subscription;
+        const subActive = Boolean(sub && (sub.status ? sub.status.toUpperCase() === 'ACTIVE' : true));
+        hasMembership = String(subActive);
+    } else {
+        const rawMembership = userProfile.has_membership ?? userProfile.current_subscription?.is_active ?? (userProfile.current_subscription?.status === 'ACTIVE');
+        hasMembership = String(rawMembership !== undefined ? Boolean(rawMembership) : existingHasMembership);
+    }
 
     cookieStore.set('auth-token', idToken, {
         httpOnly: true,
@@ -666,13 +709,43 @@ export async function verifySubUserOtp(body: { email: string; otp: string }): Pr
                 sameSite: 'lax',
                 maxAge: 30 * 24 * 60 * 60,
             });
-            cookieStore.set('sub-account', String(data.sub_account ?? true), {
+            const isSub = Boolean(data.sub_account ?? true);
+            cookieStore.set('sub-account', String(isSub), {
                 httpOnly: false,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
                 maxAge: 30 * 24 * 60 * 60,
             });
-            cookieStore.set('has-membership', String(data.has_membership ?? false), {
+            let subMembership = false;
+            const sub = data.current_subscription ?? data.user?.current_subscription;
+            if (sub !== undefined && sub !== null) {
+                subMembership = Boolean(sub.status ? sub.status.toUpperCase() === 'ACTIVE' : true);
+            } else if (data.has_membership !== undefined || data.user?.has_membership !== undefined) {
+                subMembership = Boolean(data.has_membership ?? data.user?.has_membership);
+            }
+
+            if (!subMembership && data.tokens?.idToken) {
+                try {
+                    const profileRes = await fetchApi({
+                        url: '/api/users/profile',
+                        method: 'GET',
+                        token: data.tokens.idToken,
+                    });
+                    const profileData = profileRes.data?.data || profileRes.data;
+                    if (profileData) {
+                        const profileSub = profileData.current_subscription ?? profileData.user?.current_subscription;
+                        if (profileSub !== undefined && profileSub !== null) {
+                            subMembership = Boolean(profileSub.status ? profileSub.status.toUpperCase() === 'ACTIVE' : true);
+                        } else if (profileData?.has_membership !== undefined) {
+                            subMembership = Boolean(profileData.has_membership);
+                        }
+                    }
+                } catch (profileErr) {
+                    console.error('Error fetching profile in verifySubUserOtp:', profileErr);
+                }
+            }
+
+            cookieStore.set('has-membership', String(subMembership), {
                 httpOnly: false,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax',

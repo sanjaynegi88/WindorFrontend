@@ -173,7 +173,7 @@ const Plans = () => {
 
   const handleToggleBilling = () => setIsAnnual(!isAnnual);
 
-  const handlePlanClick = (plan: IPlanData, isCurrentPlan: boolean) => {
+  const handlePlanClick = (plan: IPlanData, isCurrentPlan?: boolean) => {
     if (isCurrentPlan) {
       setCancelDialogOpen(true);
       return;
@@ -713,39 +713,35 @@ const Plans = () => {
                     })}
                   </div>
 
-                  <Button
-                    size="lg"
-                    variant={isCurrentPlan ? "destructive" : "outline"}
-                    disabled={subscribingPlanId !== null || isCancelling}
-                    className={cn(
-                      "w-full h-12 rounded-xl text-md font-bold transition-all duration-300",
-                      isCurrentPlan
-                        ? "bg-white text-red-600 border-red-500/20 hover:bg-red-500 hover:text-white"
-                        : " hover:bg-white text-white hover:text-[#339FD0]",
-                    )}
-                    onClick={() => handlePlanClick(plan, isCurrentPlan)}
-                  >
-                    {subscribingPlanId === plan.id ||
-                    (isCancelling && isCurrentPlan) ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : isCurrentPlan ? (
-                      "Cancel Membership"
-                    ) : !isCurrentPlanFree ? (
-                      isPlanUpgrade ? (
-                        "Upgrade Plan"
-                      ) : isPlanDowngrade ? (
-                        "Downgrade Plan"
-                      ) : (
-                        "Switch Plan"
-                      )
-                    ) : (
-                      "Get Started"
-                    )}
-                  </Button>
+                  {!isCurrentPlan && (
+                    <>
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        disabled={subscribingPlanId !== null || isCancelling}
+                        className="w-full h-12 rounded-xl text-md font-bold transition-all duration-300 hover:bg-white text-white hover:text-[#339FD0]"
+                        onClick={() => handlePlanClick(plan)}
+                      >
+                        {subscribingPlanId === plan.id ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : !isCurrentPlanFree ? (
+                          isPlanUpgrade ? (
+                            "Upgrade Plan"
+                          ) : isPlanDowngrade ? (
+                            "Downgrade Plan"
+                          ) : (
+                            "Switch Plan"
+                          )
+                        ) : (
+                          "Get Started"
+                        )}
+                      </Button>
 
-                  <p className="text-[10px] text-center text-white/40 mt-4 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    Secure stripe checkout
-                  </p>
+                      <p className="text-[10px] text-center text-white/40 mt-4 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        Secure stripe checkout
+                      </p>
+                    </>
+                  )}
                 </div>
               </motion.div>
             );

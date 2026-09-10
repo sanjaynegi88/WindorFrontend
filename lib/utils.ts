@@ -19,7 +19,7 @@ export function getAppImageUrl(url: string | null | undefined): string {
   if (!url || url === 'undefined' || url === 'null') return '';
   if (url.startsWith('http')) return url;
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5000';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
   const path = url.startsWith('/') ? url : `/${url}`;
 
   return `${baseUrl}${path}`;
@@ -62,7 +62,7 @@ export function getResourceFileUrl(url: string | null | undefined): string {
   if (!url || url === 'undefined' || url === 'null') return '';
   if (url.startsWith('http')) return url;
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5000';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
   const path = url.startsWith('/') ? url : `/${url}`;
 
   return `${baseUrl}${path}`;
@@ -222,8 +222,8 @@ export async function getWorkingAwsImageUrl(
   imageName: string | null | undefined,
   folders: string[] = ['ramsey', 'hennepin', 'scott', 'dakota', 'washington', 'carver', 'anoka']
 ): Promise<string> {
-  const fallback = '/assets/prop_placeholder.png';
-  if (!imageName) return fallback;
+
+  if (!imageName) return '';
 
   const trimmed = imageName.trim();
   if (
@@ -252,7 +252,7 @@ export async function getWorkingAwsImageUrl(
     }
   }
 
-  return fallback;
+  return '';
 }
 
 const CONTRACTOR_REPORT_TYPES = new Set([

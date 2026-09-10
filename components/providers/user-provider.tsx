@@ -35,40 +35,62 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const role = (user?.role?.toLowerCase() ?? null) as Role | null;
+  const rawRole = user?.role ?? user?.roleEntity?.role_name;
+  const role = (rawRole ? rawRole.toLowerCase() : null) as Role | null;
 
   const refreshProfile = useCallback(async (): Promise<User | null> => {
     try {
       const profile = await getUserProfile();
       if (profile) {
         setUser(profile);
-        const hasMembership = Boolean(profile.has_membership ?? profile.current_subscription?.is_active);
-        const userRole = (profile.role ? profile.role.toLowerCase() : null) || role;
-        const isSubUser = Boolean(profile.sub_account);
+        const isSubUser = Boolean(
+          profile.sub_account === true ||
+          profile.sub_account === 'true' ||
+          (profile as any).user?.sub_account === true ||
+          (profile as any).user?.sub_account === 'true'
+        );
+
+        let hasMembership: boolean;
+        if (isSubUser) {
+          const sub = profile.current_subscription ?? (profile as any).user?.current_subscription;
+          hasMembership = Boolean(sub && (sub.status ? sub.status.toUpperCase() === 'ACTIVE' : true));
+        } else {
+          const rawMembership = profile.has_membership ?? profile.current_subscription?.is_active ?? (profile.current_subscription?.status === 'ACTIVE');
+          hasMembership = rawMembership === true || rawMembership === 'true' || rawMembership === 1 || rawMembership === '1';
+        }
+
+        const rawProfileRole = profile.role ?? profile.roleEntity?.role_name;
+        const userRole = (rawProfileRole ? rawProfileRole.toLowerCase() : null) || role;
 
         await updateMembershipCookie(hasMembership);
         document.cookie = `has-membership=${hasMembership}; path=/; max-age=${30 * 24 * 60 * 60}`;
 
         // Check route restriction if membership is lost
-        if (!hasMembership && userRole !== 'admin' && userRole !== 'city_inspector' &&
-          !(userRole === 'insurance_company' && isSubUser) &&
-          !(userRole === 'contractor' && isSubUser)) {
-
-          const isExemptRoute =
-            pathname.startsWith('/plans') ||
+        if (!hasMembership && userRole !== 'admin' && userRole !== 'city_inspector') {
+          const isBasicAllowed =
             pathname.startsWith('/dashboard') ||
-            pathname.startsWith('/subscription/') ||
-            pathname.startsWith('/purchase/') ||
             pathname.startsWith('/profile') ||
             pathname.startsWith('/profile-setup') ||
             pathname.startsWith('/change-password') ||
+            pathname.startsWith('/reports');
+
+          const isExemptRoute =
+            pathname.startsWith('/plans') ||
+            pathname.startsWith('/subscription/') ||
+            pathname.startsWith('/purchase/') ||
+            isBasicAllowed ||
             pathname.startsWith('/property-details') ||
             pathname === '/' ||
             pathname.startsWith('/login') ||
             pathname.startsWith('/register') ||
             pathname.startsWith('/select-role');
 
-          if (!isExemptRoute) {
+          if (isSubUser) {
+            if (!isBasicAllowed) {
+              toast.error('Active membership is required.');
+              router.push('/dashboard');
+            }
+          } else if (!isExemptRoute) {
             toast.error('Your membership has expired or is inactive.');
             router.push('/plans');
           }
