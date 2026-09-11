@@ -165,7 +165,7 @@ export function RoleSelectionPage({ roles, loadingRoles, onSelect }: RoleSelecti
                     </div>
                   </div>
                   <div className="flex items-center gap-2 mt-6 w-full">
-                    <button type="button" className="font-asap font-bold text-[13px] uppercase cursor-pointer text-white rounded-[10px] py-2.5 hover:opacity-90 active:scale-95 whitespace-nowrap flex-1 min-w-0 bg-[#339FD0]" onClick={() => setDetailRole(role)}>
+                    <button type="button" className="font-asap font-bold text-[10px] md:text-[13px] uppercase cursor-pointer text-white rounded-[10px] py-2.5 hover:opacity-90 active:scale-95 whitespace-nowrap flex-1 min-w-0 bg-[#339FD0]" onClick={() => setDetailRole(role)}>
                       View Details
                     </button>
                     <button type="button" onClick={() => onSelect(role.id, role.role_name)} className="font-asap font-bold text-[10px] md:text-[13px] uppercase cursor-pointer text-white bg-primary rounded-[10px] py-2.5 hover:opacity-90 active:scale-95 whitespace-nowrap flex-1 min-w-0">
