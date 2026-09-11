@@ -95,7 +95,7 @@ export function RoleSelectionPage({ roles, loadingRoles, onSelect }: RoleSelecti
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 px-40 lg:gap-7 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:px-40 lg:gap-7 items-start">
             {roles.map((role) => {
               const n = role.role_name.toLowerCase();
               const isManufDist = n.includes("manufacturer") && n.includes("distributor");
@@ -168,7 +168,7 @@ export function RoleSelectionPage({ roles, loadingRoles, onSelect }: RoleSelecti
                     <button type="button" className="font-asap font-bold text-[13px] uppercase cursor-pointer text-white rounded-[10px] py-2.5 hover:opacity-90 active:scale-95 whitespace-nowrap flex-1 min-w-0 bg-[#339FD0]" onClick={() => setDetailRole(role)}>
                       View Details
                     </button>
-                    <button type="button" onClick={() => onSelect(role.id, role.role_name)} className="font-asap font-bold text-[13px] uppercase cursor-pointer text-white bg-primary rounded-[10px] py-2.5 hover:opacity-90 active:scale-95 whitespace-nowrap flex-1 min-w-0">
+                    <button type="button" onClick={() => onSelect(role.id, role.role_name)} className="font-asap font-bold sm:text-[10px] md:text-[13px] uppercase cursor-pointer text-white bg-primary rounded-[10px] py-2.5 hover:opacity-90 active:scale-95 whitespace-nowrap flex-1 min-w-0">
                       Create An Account
                     </button>
                   </div>
