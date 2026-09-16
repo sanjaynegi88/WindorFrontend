@@ -167,11 +167,7 @@ export async function fetchApi<T = any>({
 }
 
 // Auth
-export async function loginUser(body: any): Promise<ActionResult<{
-    idToken: string;
-    refreshToken: string;
-    user: { id: string; name: string; email: string; role: string; sub_account: boolean; has_membership: boolean };
-}>> {
+export async function loginUser(body: any): Promise<ActionResult<any>> {
     try {
         const parseResult = loginSchema.safeParse(body);
         if (!parseResult.success) {
@@ -195,71 +191,9 @@ export async function loginUser(body: any): Promise<ActionResult<{
             return { success: false, message: msg };
         }
 
-        // Determine cookie expiration based on rememberMe
-        const authTokenMaxAge = rememberMe ? 7 * 24 * 60 * 60 : 24 * 60 * 60;
-        const refreshTokenMaxAge = rememberMe ? 7 * 24 * 60 * 60 : 24 * 60 * 60;
-        const otherCookiesMaxAge = rememberMe ? 7 * 24 * 60 * 60 : 24 * 60 * 60;
-
-        const cookieStore = await cookies();
-        cookieStore.set('auth-token', response.data.tokens.idToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: authTokenMaxAge
-        });
-        cookieStore.set('refresh-token', response.data.tokens.refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: refreshTokenMaxAge
-        });
-        cookieStore.set('user-role', response.data.role.toLowerCase(), {
-            httpOnly: false,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: otherCookiesMaxAge
-        });
-        const isSub = Boolean(
-            response.data.sub_account === true ||
-            response.data.sub_account === 'true' ||
-            response.data.user?.sub_account === true ||
-            response.data.user?.sub_account === 'true'
-        );
-        let userHasMembership: boolean;
-        if (isSub) {
-            const sub = response.data.current_subscription ?? response.data.user?.current_subscription;
-            userHasMembership = Boolean(sub && (sub.status ? sub.status.toUpperCase() === 'ACTIVE' : true));
-        } else {
-            userHasMembership = Boolean(response.data.has_membership ?? response.data.current_subscription?.status === 'ACTIVE');
-        }
-
-        cookieStore.set('sub-account', String(isSub), {
-            httpOnly: false,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: otherCookiesMaxAge
-        });
-        cookieStore.set('has-membership', String(userHasMembership), {
-            httpOnly: false,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: otherCookiesMaxAge
-        });
-
         return {
             success: true,
-            data: {
-                idToken: response.data.tokens.idToken,
-                refreshToken: response.data.tokens.refreshToken,
-                user: {
-                    id: response.data.uid,
-                    name: response.data.email.split('@')[0],
-                    email: response.data.email,
-                    role: response.data.role.toLowerCase(),
-                    sub_account: isSub,
-                    has_membership: userHasMembership,
-                },
-            },
+            data: response.data,
         };
     } catch (error) {
         return {
@@ -315,10 +249,35 @@ export async function googleLogin(idToken: string): Promise<ActionResult> {
             response.data.user?.sub_account === true ||
             response.data.user?.sub_account === 'true'
         );
-        let userHasMembership: boolean;
+        let userHasMembership = false;
         if (isSub) {
             const sub = response.data.current_subscription ?? response.data.user?.current_subscription;
-            userHasMembership = Boolean(sub && (sub.status ? sub.status.toUpperCase() === 'ACTIVE' : true));
+            if (sub !== undefined && sub !== null) {
+                userHasMembership = Boolean(sub.status ? sub.status.toUpperCase() === 'ACTIVE' : true);
+            } else if (response.data.has_membership !== undefined || response.data.user?.has_membership !== undefined) {
+                userHasMembership = Boolean(response.data.has_membership ?? response.data.user?.has_membership);
+            }
+
+            if (!userHasMembership && response.data.tokens?.idToken) {
+                try {
+                    const profileRes = await fetchApi({
+                        url: '/api/users/profile',
+                        method: 'GET',
+                        token: response.data.tokens.idToken,
+                    });
+                    const profileData = profileRes.data?.data || profileRes.data;
+                    if (profileData) {
+                        const profileSub = profileData.current_subscription ?? profileData.user?.current_subscription;
+                        if (profileSub !== undefined && profileSub !== null) {
+                            userHasMembership = Boolean(profileSub.status ? profileSub.status.toUpperCase() === 'ACTIVE' : true);
+                        } else if (profileData?.has_membership !== undefined) {
+                            userHasMembership = Boolean(profileData.has_membership);
+                        }
+                    }
+                } catch (profileErr) {
+                    console.error('Error fetching profile in googleLogin:', profileErr);
+                }
+            }
         } else {
             userHasMembership = Boolean(response.data.has_membership ?? false);
         }
@@ -783,6 +742,181 @@ export async function resendSubUserOtp(body: { email: string }): Promise<ActionR
     return { success: true, data: response.data };
 }
 
+export async function verifyLoginOtp(body: { email: string; otp: string; rememberMe?: boolean }): Promise<ActionResult<{
+    idToken?: string;
+    refreshToken?: string;
+    user?: { id: string; name: string; email: string; role: string; sub_account: boolean; has_membership: boolean };
+    [key: string]: any;
+}>> {
+    try {
+        const parseResult = verifyOtpSchema.safeParse({ email: body.email, otp: body.otp });
+        if (!parseResult.success) {
+            return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
+        }
+        const response = await fetchApi({
+            url: '/api/auth/login/verify-otp',
+            method: 'POST',
+            data: { email: body.email, otp: body.otp },
+            isAuth: false,
+        });
+
+        if (response.type === 'error') {
+            const msg = Array.isArray(response.messages)
+                ? response.messages.join(', ')
+                : typeof response.messages === 'string'
+                    ? response.messages
+                    : 'Failed to verify login OTP';
+            return { success: false, message: msg };
+        }
+
+        const data = response.data || {};
+        const rememberMe = Boolean(body.rememberMe);
+        const authTokenMaxAge = rememberMe ? 7 * 24 * 60 * 60 : 24 * 60 * 60;
+        const refreshTokenMaxAge = rememberMe ? 7 * 24 * 60 * 60 : 24 * 60 * 60;
+        const otherCookiesMaxAge = rememberMe ? 7 * 24 * 60 * 60 : 24 * 60 * 60;
+
+        const tokens = data.tokens || {};
+        const idToken = tokens.idToken || data.idToken || data.token;
+        const refreshToken = tokens.refreshToken || data.refreshToken;
+
+        if (idToken) {
+            const cookieStore = await cookies();
+            cookieStore.set('auth-token', idToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: authTokenMaxAge,
+            });
+
+            if (refreshToken) {
+                cookieStore.set('refresh-token', refreshToken, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'lax',
+                    maxAge: refreshTokenMaxAge,
+                });
+            }
+
+            const rawRole = data.role || data.user?.role || 'contractor';
+            const userRole = String(rawRole).toLowerCase();
+            cookieStore.set('user-role', userRole, {
+                httpOnly: false,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: otherCookiesMaxAge,
+            });
+
+            const isSub = Boolean(
+                data.sub_account === true ||
+                data.sub_account === 'true' ||
+                data.user?.sub_account === true ||
+                data.user?.sub_account === 'true'
+            );
+
+            let userHasMembership = false;
+            if (isSub) {
+                const sub = data.current_subscription ?? data.user?.current_subscription;
+                if (sub !== undefined && sub !== null) {
+                    userHasMembership = Boolean(sub.status ? sub.status.toUpperCase() === 'ACTIVE' : true);
+                } else if (data.has_membership !== undefined || data.user?.has_membership !== undefined) {
+                    userHasMembership = Boolean(data.has_membership ?? data.user?.has_membership);
+                }
+
+                if (!userHasMembership && idToken) {
+                    try {
+                        const profileRes = await fetchApi({
+                            url: '/api/users/profile',
+                            method: 'GET',
+                            token: idToken,
+                        });
+                        const profileData = profileRes.data?.data || profileRes.data;
+                        if (profileData) {
+                            const profileSub = profileData.current_subscription ?? profileData.user?.current_subscription;
+                            if (profileSub !== undefined && profileSub !== null) {
+                                userHasMembership = Boolean(profileSub.status ? profileSub.status.toUpperCase() === 'ACTIVE' : true);
+                            } else if (profileData?.has_membership !== undefined) {
+                                userHasMembership = Boolean(profileData.has_membership);
+                            }
+                        }
+                    } catch (profileErr) {
+                        console.error('Error fetching profile in verifyLoginOtp:', profileErr);
+                    }
+                }
+            } else {
+                userHasMembership = Boolean(data.has_membership ?? data.user?.has_membership ?? data.current_subscription?.status === 'ACTIVE');
+            }
+
+            cookieStore.set('sub-account', String(isSub), {
+                httpOnly: false,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: otherCookiesMaxAge,
+            });
+            cookieStore.set('has-membership', String(userHasMembership), {
+                httpOnly: false,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: otherCookiesMaxAge,
+            });
+
+            const userEmail = data.email || data.user?.email || body.email;
+            const userName = data.name || data.user?.name || userEmail.split('@')[0];
+            const userId = data.uid || data.user?.id || data.user?._id || data.id;
+
+            return {
+                success: true,
+                data: {
+                    ...data,
+                    idToken,
+                    refreshToken,
+                    user: {
+                        id: userId,
+                        name: userName,
+                        email: userEmail,
+                        role: userRole,
+                        sub_account: isSub,
+                        has_membership: userHasMembership,
+                    },
+                },
+            };
+        }
+
+        return {
+            success: true,
+            data: response.data,
+        };
+    } catch (error) {
+        return {
+            success: false,
+            message: error instanceof Error ? error.message : 'Something went wrong during login OTP verification',
+        };
+    }
+}
+
+export async function resendLoginOtp(body: { email: string }): Promise<ActionResult> {
+    const parseResult = forgotPasswordSchema.safeParse(body);
+    if (!parseResult.success) {
+        return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
+    }
+    const response = await fetchApi({
+        url: '/api/auth/login/resend-otp',
+        method: 'POST',
+        data: parseResult.data,
+        isAuth: false,
+    });
+
+    if (response.type === 'error') {
+        const msg = Array.isArray(response.messages)
+            ? response.messages.join(', ')
+            : typeof response.messages === 'string'
+                ? response.messages
+                : 'Failed to resend OTP';
+        return { success: false, message: msg };
+    }
+
+    return { success: true, data: response.data };
+}
+
 
 export async function resetPassword(body: { reset_token?: string; newPassword?: string; new_password?: string; password?: string }): Promise<ActionResult> {
     const payload = {
@@ -1036,8 +1170,6 @@ export async function getPropertyListAll(filters?: PropertyFilters) {
             if (query) url += `?${query}`;
         }
 
-       // console.log("api url with params", url)
-
         const response = await fetchApi({
             url,
             method: 'GET',
@@ -1084,8 +1216,6 @@ export async function getPropertyLocations(
         url += `?${queryString}`;
     }
 
-    console.log("api url",url)
-
     const response = await fetchApi({
         url,
         method: 'GET',
@@ -1108,7 +1238,6 @@ export async function getUserProfile() {
 }
 
 export async function updateUserProfile(body: any): Promise<ActionResult> {
-    console.log("request body", body);
     const response = await fetchApi({
         url: "/api/users/profile",
         method: "PUT",
@@ -1368,7 +1497,6 @@ export async function updateProperties(id: string, body: any) {
 
 export async function updateInstallation(type: string, id: string, body: any) {
     const payload = { ...body };
-    console.log(payload);
     const response = await fetchApi({
         url: `/api/admin/${toEndpointType(type)}/${id}`,
         method: 'PUT',

@@ -11,7 +11,13 @@ import { loginUser, googleLogin } from "@/lib/actions";
 import { type CredentialResponse } from "@/hooks/use-google-login";
 import { GoogleLogin } from "@react-oauth/google";
 import { Navbar1, Footer1 } from "@/components/layouts/global";
-import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
 import Image from "next/image";
 import { useUser } from "@/components/providers/user-provider";
 
@@ -61,16 +67,10 @@ export default function Login1Page() {
       return;
     }
 
-    toast.success("Login successful");
+    toast.success("Login successful! Please verify OTP.");
 
     await new Promise((resolve) => setTimeout(resolve, 100));
-    const user = result.data?.user;
-    const hasMembership = Boolean(user?.has_membership);
-    const isSubUser = Boolean(user?.sub_account);
-    const role = user?.role?.toLowerCase();
-    const isExempt = role === 'admin' || role === 'city_inspector' || isSubUser;
-    const target = (!hasMembership && !isExempt) ? "/plans" : "/dashboard";
-    window.location.href = target;
+    window.location.href = `/verify-otp?email=${encodeURIComponent(values.email)}&type=login&rememberMe=${Boolean(values.rememberMe)}`;
   }
 
   async function handleGoogleSuccess(credentialResponse: CredentialResponse) {
@@ -96,7 +96,7 @@ export default function Login1Page() {
         ? "Account created successfully"
         : result.data.isNewUser
           ? "Account created successfully"
-          : "Login successful"
+          : "Login successful",
     );
 
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -104,9 +104,11 @@ export default function Login1Page() {
     const hasMembership = Boolean(user?.has_membership);
     const isSubUser = Boolean(user?.sub_account);
     const role = user?.role?.toLowerCase();
-    const isExempt = role === 'admin' || role === 'city_inspector' || isSubUser;
-    const target = (!hasMembership && !isExempt) ? "/plans" : "/dashboard";
-    window.location.href = result.data.requiresRoleSelection ? "/select-role" : target;
+    const isExempt = role === "admin" || role === "city_inspector" || isSubUser;
+    const target = !hasMembership && !isExempt ? "/plans" : "/dashboard";
+    window.location.href = result.data.requiresRoleSelection
+      ? "/select-role"
+      : target;
   }
 
   function handleGoogleError() {
@@ -142,14 +144,20 @@ export default function Login1Page() {
             </p>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-5">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="flex flex-col gap-5"
+              >
                 {/* Email Address */}
                 <FormField
                   control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem className="flex flex-col gap-1.5 text-left">
-                      <label htmlFor="login-email" className="font-inter text-sm font-semibold text-white">
+                      <label
+                        htmlFor="login-email"
+                        className="font-inter text-sm font-semibold text-white"
+                      >
                         Email Address
                       </label>
                       <FormControl>
@@ -173,7 +181,10 @@ export default function Login1Page() {
                   name="password"
                   render={({ field }) => (
                     <FormItem className="flex flex-col gap-1.5 text-left relative">
-                      <label htmlFor="login-password" className="font-inter text-sm font-semibold text-white">
+                      <label
+                        htmlFor="login-password"
+                        className="font-inter text-sm font-semibold text-white"
+                      >
                         Password
                       </label>
                       <FormControl>
@@ -242,8 +253,11 @@ export default function Login1Page() {
                 {/* Create Account link */}
                 <p className="text-center font-inter text-sm text-white mt-1">
                   Don't have an account?{" "}
-                  <Link href="/register" className="text-white font-bold hover:underline">
-                     Sign Up
+                  <Link
+                    href="/register"
+                    className="text-white font-bold hover:underline"
+                  >
+                    Sign Up
                   </Link>
                 </p>
 
