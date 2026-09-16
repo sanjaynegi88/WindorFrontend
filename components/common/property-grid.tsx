@@ -15,7 +15,13 @@ interface PropertyGridProps {
   showActionButtons?: boolean;
   showDetail?: boolean;
   isPropertyOwner?: boolean;
-  onOpenInMap?: (lat: number, lng: number, id: string) => void;
+  onOpenInMap?: (
+    lat: number,
+    lng: number,
+    id?: string,
+    shouldScroll?: boolean,
+  ) => void;
+  onFallbackToCity?: () => void;
   onDeleteProperty?: (id: string) => void;
   mapSlot?: React.ReactNode;
   showTempProperties?: boolean;
@@ -29,6 +35,7 @@ export function PropertyGrid({
   showDetail,
   isPropertyOwner,
   onOpenInMap,
+  onFallbackToCity,
   onDeleteProperty,
   mapSlot,
   showTempProperties,
@@ -75,12 +82,14 @@ export function PropertyGrid({
       }
 
       //console.log(cleanFilterParams);
-
       const response = await getPropertyListAll(cleanFilterParams);
 
       if (response && response.success === false) {
         toast.error(response.message || "Failed to fetch properties");
-        if (!append) setProperties([]);
+        if (!append) {
+          setProperties([]);
+          onFallbackToCity?.();
+        }
         setHasMore(false);
         return;
       }
@@ -92,6 +101,45 @@ export function PropertyGrid({
         setProperties((prev) => [...prev, ...newData]);
       } else {
         setProperties(newData);
+
+        const searchString = (
+          cleanFilterParams?.search ||
+          cleanFilterParams?.brandName ||
+          cleanFilterParams?.color ||
+          cleanFilterParams?.style ||
+          ""
+        )?.toString().trim();
+
+        if (searchString) {
+          const firstPropWithCoordsAndReport = newData.find(
+            (p: any) =>
+              p &&
+              Boolean(
+                p.has_report === true ||
+                p.has_report === "true" ||
+                p.has_report === 1 ||
+                (Array.isArray(p.projects) && p.projects.length > 0)
+              ) &&
+              p.latitude !== undefined &&
+              p.latitude !== null &&
+              p.longitude !== undefined &&
+              p.longitude !== null &&
+              !isNaN(Number(p.latitude)) &&
+              !isNaN(Number(p.longitude)) &&
+              Number(p.latitude) !== 0 &&
+              Number(p.longitude) !== 0
+          );
+
+          if (firstPropWithCoordsAndReport && onOpenInMap) {
+            const lat = Number(firstPropWithCoordsAndReport.latitude);
+            const lng = Number(firstPropWithCoordsAndReport.longitude);
+            // Pass empty string for id so the sidebar is not opened on search, and false so it does not auto-scroll
+            onOpenInMap(lat, lng, "", false);
+          } else {
+            // No matching property with report and coords found -> fallback to city
+            onFallbackToCity?.();
+          }
+        }
       }
 
       setHasMore(newData.length === 9);

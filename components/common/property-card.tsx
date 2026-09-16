@@ -116,12 +116,13 @@ export function PropertyCard({
 
   const isAdmin = role === "admin";
   const isCityInspector = role === "city_inspector";
-  const isContractor = role === "contractor";
-  const isPropertyOwner = role === "property_owner" || role === "realtor";
+  const isContractor = role === "contractor" || role === "manufacturer";
+  const isPropertyOwner = role === "property_owner";
   const isOwnerOfProperty =
     isPropertyOwner &&
     !!propertyOwnerEmail &&
     user?.email === propertyOwnerEmail;
+
   const canVerify = isOwnerOfProperty || isAdmin || isCityInspector;
 
   const canAddNewProject = isContractor || isAdmin || isOwnerOfProperty;
@@ -413,8 +414,8 @@ export function PropertyCard({
               </Link>
             </div>
             <div className="flex items-center gap-4">
-              {canVerify &&
-                !(isAdmin || isCityInspector) &&
+              {(isOwnerOfProperty || isContractor) &&
+                hasReport &&
                 showActionButtons && (
                   <button
                     type="button"

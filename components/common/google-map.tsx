@@ -314,18 +314,15 @@ export default function GoogleMap({
     }
 
     const targetZoom = focusCommand.zoom ?? PROPERTY_FOCUS_ZOOM;
-    focusTimeoutRef.current = setTimeout(() => {
-      if (!mapInstanceRef.current) return;
-      mapInstanceRef.current.panTo({
-        lat: focusCommand.lat,
-        lng: focusCommand.lng,
-      });
-      const zoom = mapInstanceRef.current.getZoom() ?? 0;
-      if (zoom < targetZoom) {
-        mapInstanceRef.current.setZoom(targetZoom);
-        setCurrentZoom(targetZoom);
-      }
-    }, 100);
+    mapInstanceRef.current.panTo({
+      lat: focusCommand.lat,
+      lng: focusCommand.lng,
+    });
+    const zoom = mapInstanceRef.current.getZoom() ?? 0;
+    if (zoom < targetZoom) {
+      mapInstanceRef.current.setZoom(targetZoom);
+      setCurrentZoom(targetZoom);
+    }
   }, [focusCommand, mapReady]);
 
   // 4. Marker lifecycle: diff-based updates using AdvancedMarkerElement

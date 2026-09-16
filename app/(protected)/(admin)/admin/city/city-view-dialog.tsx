@@ -72,6 +72,27 @@ export function CityViewDialog({
             </div>
           </div>
 
+          {(city.latitude != null || city.longitude != null) && (
+            <div className="grid grid-cols-2 gap-3 bg-muted/40 p-3.5 rounded-xl border border-border/50">
+              <div>
+                <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider block">
+                  Latitude
+                </span>
+                <span className="text-sm font-semibold text-foreground mt-0.5 block font-mono">
+                  {city.latitude ?? "N/A"}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider block">
+                  Longitude
+                </span>
+                <span className="text-sm font-semibold text-foreground mt-0.5 block font-mono">
+                  {city.longitude ?? "N/A"}
+                </span>
+              </div>
+            </div>
+          )}
+
           <div>
             <span className="text-xs font-semibold text-foreground mb-2 block">
               Zip Codes

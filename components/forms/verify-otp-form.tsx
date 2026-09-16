@@ -25,9 +25,11 @@ import {
   verifyOtp,
   verifyRegisterOtp,
   verifySubUserOtp,
+  verifyLoginOtp,
   forgotPassword,
   resendRegisterOtp,
   resendSubUserOtp,
+  resendLoginOtp,
 } from "@/lib/actions";
 import Image from "next/image";
 
@@ -48,8 +50,10 @@ export function VerifyOtpForm() {
   const token = searchParams.get("token") || "";
   const type = searchParams.get("type") || "forgot-password";
   const role = searchParams.get("role") || "";
+  const rememberMe = searchParams.get("rememberMe") === "true";
 
   const isRegister = type === "register";
+  const isLogin = type === "login";
   const isSubUser = type === "sub-user";
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -106,6 +110,22 @@ export function VerifyOtpForm() {
       toast.success("OTP verified successfully! Logging you in...");
       await new Promise((r) => setTimeout(r, 100));
       window.location.href = "/dashboard";
+    } else if (isLogin) {
+      const result = await verifyLoginOtp({ email, otp: values.otp, rememberMe });
+      if (!result.success) {
+        toast.error(result.message || "Invalid OTP. Please try again.");
+        setLoading(false);
+        return;
+      }
+      toast.success("Login verified successfully!");
+      await new Promise((r) => setTimeout(r, 100));
+      const user = result.data?.user;
+      const hasMembership = Boolean(user?.has_membership);
+      const isSub = Boolean(user?.sub_account);
+      const userRole = user?.role?.toLowerCase();
+      const isExempt = userRole === "admin" || userRole === "city_inspector" || isSub;
+      const target = !hasMembership && !isExempt ? "/plans" : "/dashboard";
+      window.location.href = target;
     } else {
       const result = await verifyOtp({ email, otp: values.otp });
       if (!result.success) {
@@ -124,8 +144,10 @@ export function VerifyOtpForm() {
     const result = isRegister
       ? await resendRegisterOtp({ email })
       : isSubUser
-      ? await resendSubUserOtp({ email })
-      : await forgotPassword({ email });
+        ? await resendSubUserOtp({ email })
+        : isLogin
+          ? await resendLoginOtp({ email })
+          : await forgotPassword({ email });
     if (!result.success) {
       toast.error(result.message || "Failed to resend OTP. Please try again.");
     } else {
@@ -146,7 +168,7 @@ export function VerifyOtpForm() {
           width={136}
           height={118}
           priority
-          style={{ width: 'auto', height: 'auto' }}
+          style={{ width: "auto", height: "auto" }}
           className="h-[60px] md:h-[118px] w-[70px] md:w-[136px] object-contain"
         />
       </div>
@@ -245,7 +267,17 @@ export function VerifyOtpForm() {
 
           <div className="text-center mt-[16px] md:mt-[24px]">
             <span className="text-[16px] md:text-[22px] leading-[35px] font-normal text-[rgba(112,128,144,0.93)] font-asap">
-              {isRegister && !isSubUser ? (
+              {isLogin ? (
+                <>
+                  Go back to{" "}
+                  <Link
+                    href="/login"
+                    className="font-bold text-[#1CA7A6] hover:underline"
+                  >
+                    Login
+                  </Link>
+                </>
+              ) : isRegister && !isSubUser ? (
                 <>
                   Go back to{" "}
                   <Link

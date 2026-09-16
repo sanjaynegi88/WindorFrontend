@@ -23,6 +23,7 @@ function PropertyPageContent() {
     null,
   );
   const [mapFocusId, setMapFocusId] = useState<string | null>(null);
+  const [fallbackCityTrigger, setFallbackCityTrigger] = useState<number>(0);
 
   const userStateId = useMemo(() => {
     return String(
@@ -138,6 +139,9 @@ function PropertyPageContent() {
 
   const handleSearchTriggered = (newFilters?: typeof filters) => {
     const targetFilters = newFilters || filters;
+    setMapFocus(null);
+    setMapFocusId(null);
+    setFallbackCityTrigger(0);
     setAppliedFilters(targetFilters);
     setShowResults(true);
 
@@ -240,6 +244,7 @@ function PropertyPageContent() {
         searchParams={mapSearchParams}
         focusCenter={mapFocus || undefined}
         focusId={mapFocusId || undefined}
+        fallbackCityTrigger={fallbackCityTrigger}
         onFocusCleared={() => {
           setMapFocus(null);
           setMapFocusId(null);
@@ -291,15 +296,24 @@ function PropertyPageContent() {
               showActionButtons={true}
               showDetail={true}
               resultsShow={resultsVisible}
-              onOpenInMap={(lat, lng, id) => {
+              onOpenInMap={(lat, lng, id, shouldScroll = true) => {
                 setMapFocus({ lat, lng });
-                setMapFocusId(id);
-                const mapEl = document.getElementById(
-                  "contractor-properties-map-view",
-                );
-                if (mapEl) {
-                  mapEl.scrollIntoView({ behavior: "smooth" });
+                setMapFocusId(id || null);
+                if (shouldScroll) {
+                  setTimeout(() => {
+                    const mapEl = document.getElementById(
+                      "contractor-properties-map-view",
+                    );
+                    if (mapEl) {
+                      mapEl.scrollIntoView({ behavior: "smooth" });
+                    }
+                  }, 100);
                 }
+              }}
+              onFallbackToCity={() => {
+                setMapFocus(null);
+                setMapFocusId(null);
+                setFallbackCityTrigger(Date.now());
               }}
               mapSlot={mapElement}
             />

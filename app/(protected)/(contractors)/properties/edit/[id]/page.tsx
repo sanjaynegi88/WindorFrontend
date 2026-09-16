@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use, Suspense } from "react";
+import { useState, useEffect, useMemo, use, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { InstallationForm } from "@/components/property-wizard/InstallationForm";
@@ -66,6 +66,8 @@ interface Component {
   production_line?: string;
   order_number?: string;
   elevation_data?: any[];
+  track_radius?: string;
+  glass_type?: string;
   images?: any[];
   windcode?: string;
   u_factor?: string;
@@ -96,6 +98,8 @@ function componentToFormValues(comp: Component): any {
     images: comp.images || [],
     windcode: comp.windcode || "",
     u_factor: comp.u_factor || "",
+    glass_type: comp.glass_type || "",
+    track_radius: comp.track_radius || "",
     //manufacturer: comp.manufacturer || '',
   };
 }
@@ -113,6 +117,11 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
   const [step, setStep] = useState<EditStep>("EDIT_PROJECT");
   const [selectedComponent, setSelectedComponent] = useState<Component | null>(
     null,
+  );
+  const installationInitialValues = useMemo(
+    () =>
+      selectedComponent ? componentToFormValues(selectedComponent) : undefined,
+    [selectedComponent],
   );
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [newInstallationType, setNewInstallationType] =
@@ -650,12 +659,14 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       } else if (
         type === "windows" ||
         type === "doors" ||
-        type === "garage_doors" ||
-        type === "window_door"
+        type === "garage_doors"
       ) {
-        if (type === "windows" || type === "doors" || type === "window_door") {
+        if (type === "doors") {
+          payload.color = values.color;
           payload.production_line = values.productionLine;
           payload.order_number = values.orderNumber;
+          payload.glass_type = values.glass_type;
+          payload.track_radius = values.track_radius;
         }
         if (type === "garage_doors") {
           payload.windcode = values.windcode;
@@ -664,6 +675,8 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
           }
         }
         if (type === "windows") {
+          payload.production_line = values.productionLine;
+          payload.order_number = values.orderNumber;
           payload.u_factor = values.u_factor;
         }
       }
@@ -764,8 +777,6 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
     }
   };
 
-  const projects: any[] = property?.projects ?? [];
-
   const saveNewInstallationBase = async (
     values: any,
   ): Promise<string | null> => {
@@ -800,12 +811,14 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
     } else if (
       type === "windows" ||
       type === "doors" ||
-      type === "garage_doors" ||
-      type === "window_door"
+      type === "garage_doors"
     ) {
-      if (type === "windows" || type === "doors" || type === "window_door") {
+      if (type === "doors") {
+        payload.color = values.color;
         payload.production_line = values.productionLine;
         payload.order_number = values.orderNumber;
+        payload.glass_type = values.glass_type;
+        payload.track_radius = values.track_radius;
       }
       if (type === "garage_doors") {
         payload.windcode = values.windcode;
@@ -814,6 +827,8 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
         }
       }
       if (type === "windows") {
+        payload.production_line = values.productionLine;
+        payload.order_number = values.orderNumber;
         payload.u_factor = values.u_factor;
       }
     }
@@ -1094,13 +1109,13 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
               step === "EDIT_INSTALLATION" &&
               selectedComponent && (
                 <InstallationForm
-                  type={selectedProject.project_type}
+                  type={selectedProject.project_type?.toLowerCase() || ""}
                   tempPropertyId={propertyId}
                   address={property?.address || ""}
                   propertyName={
                     property?.property_name || addressData.property_name
                   }
-                  initialValues={componentToFormValues(selectedComponent)}
+                  initialValues={installationInitialValues}
                   isSubmitting={saving}
                   isOwnerProjectType={isOwnerProjectType}
                   onSave={handleInstallationSave}

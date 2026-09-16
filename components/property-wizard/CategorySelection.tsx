@@ -19,6 +19,10 @@ import { z } from "zod";
 import { type CityOption } from "@/lib/location-utils";
 import { useUser } from "@/components/providers/user-provider";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import {
+  ContractorSelect,
+  type ContractorOption,
+} from "./ContractorSelect";
 import { useRouter } from "next/navigation";
 
 const projectSchema = z
@@ -162,9 +166,7 @@ export function CategorySelection({
       ? String(initialProjectData.contractor_id)
       : null,
   );
-  const [contractors, setContractors] = useState<
-    { id: string; name: string; email: string }[]
-  >([]);
+  const [contractors, setContractors] = useState<ContractorOption[]>([]);
   const [visibility, setVisibility] = useState<"public" | "private">(
     initialProjectData?.visible_status === "private" ? "private" : "public",
   );
@@ -230,12 +232,27 @@ export function CategorySelection({
       .then((res) => {
         const list: any[] = Array.isArray(res) ? res : res?.data || [];
         setContractors(
-          list.map((u: any) => ({
-            id: String(u.id),
-            name:
-              `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() || u.email,
-            email: u.email ?? "",
-          })),
+          list.map((u: any) => {
+            const displayName =
+              u.profile?.display_name ||
+              u.display_name ||
+              `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() ||
+              u.name ||
+              u.email ||
+              "";
+            const companyName =
+              u.profile?.company_name ||
+              u.company_name ||
+              u.form_details?.company_name ||
+              "";
+            return {
+              id: String(u.id || u.firebase_uid || ""),
+              displayName,
+              name: displayName,
+              email: u.email ?? "",
+              companyName,
+            };
+          }),
         );
       })
       .catch(() => toast.error("Failed to load contractors"));
@@ -705,18 +722,8 @@ export function CategorySelection({
 
         {isAdmin && (
           <div className="w-full">
-            <SearchableSelect
-              options={
-                contractors.length > 0
-                  ? [
-                      { id: "__none__", name: "None" },
-                      ...contractors.map((c) => ({
-                        id: c.id,
-                        name: c.email || c.name || c.id,
-                      })),
-                    ]
-                  : []
-              }
+            <ContractorSelect
+              contractors={contractors}
               value={contractorId ? String(contractorId) : ""}
               onValueChange={(val) =>
                 handleFieldChange(() =>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Search, PlusCircle, ChevronDown, Check } from "lucide-react";
+import { Search, PlusCircle, ChevronDown, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, toTitleCase } from "@/lib/utils";
 import {
@@ -39,31 +39,135 @@ interface SearchableSelectProps {
   searchValue?: string;
   onSearchValueChange?: (value: string) => void;
   displayValueFallback?: string;
+  focusNextDelay?: number;
+  autoFocusNext?: boolean;
+  triggerRef?: React.Ref<HTMLButtonElement>;
 }
 
 const triggerClass =
   "h-[46px] md:h-[65px] px-[20px] md:px-[29px] rounded-[6px] md:rounded-[10px] border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] bg-white text-[14px] md:text-[20px] font-medium text-[#1F2A44] font-asap justify-start text-left w-full shadow-none flex items-center justify-between hover:bg-white focus:ring-[#1CA7A6]/20 transition-all";
 
-export function focusNextField(currentElement: HTMLElement | null) {
+function isPopoverElement(el: HTMLElement): boolean {
+  return Boolean(
+    el.hasAttribute("data-radix-focus-guard") ||
+      el.closest("[data-slot='popover-content']") ||
+      el.closest("[data-radix-popover-content]") ||
+      el.closest("[data-radix-popper-content-wrapper]") ||
+      el.closest("[data-radix-portal]") ||
+      el.closest("[role='dialog']") ||
+      el.closest("[cmdk-root]") ||
+      el.closest(".cmdk-root"),
+  );
+}
+
+export function focusNextField(
+  currentElement: HTMLElement | null,
+  delay: number = 200,
+) {
   if (!currentElement) return;
   const form = currentElement.closest("form") || document.body;
-  const focusableSelector =
-    'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-  const focusables = Array.from(
-    form.querySelectorAll<HTMLElement>(focusableSelector),
-  ).filter(
-    (el) =>
-      (el.offsetWidth > 0 || el.offsetHeight > 0 || el === currentElement) &&
-      !el.classList.contains("pointer-events-none") &&
-      el.getAttribute("aria-hidden") !== "true",
-  );
-  const currentIndex = focusables.indexOf(currentElement);
-  if (currentIndex !== -1 && currentIndex < focusables.length - 1) {
-    const nextEl = focusables[currentIndex + 1];
-    setTimeout(() => {
-      nextEl.focus();
-    }, 10);
-  }
+
+  const attemptFocus = (retriesLeft = 3) => {
+    const allCandidateSelector =
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const candidates = Array.from(
+      form.querySelectorAll<HTMLElement>(allCandidateSelector),
+    ).filter(
+      (el) =>
+        (el.offsetWidth > 0 || el.offsetHeight > 0 || el === currentElement) &&
+        !el.classList.contains("pointer-events-none") &&
+        !isPopoverElement(el),
+    );
+
+    let nextEl: HTMLElement | undefined;
+    const currentIndex = candidates.indexOf(currentElement);
+    if (currentIndex !== -1 && currentIndex < candidates.length - 1) {
+      nextEl = candidates[currentIndex + 1];
+    } else {
+      nextEl = candidates.find(
+        (el) =>
+          el !== currentElement &&
+          (currentElement.compareDocumentPosition(el) &
+            Node.DOCUMENT_POSITION_FOLLOWING) !==
+            0,
+      );
+    }
+
+    if (nextEl) {
+      const isDisabled =
+        nextEl.hasAttribute("disabled") ||
+        (nextEl as HTMLButtonElement | HTMLInputElement).disabled;
+
+      if (isDisabled && retriesLeft > 0) {
+        setTimeout(() => attemptFocus(retriesLeft - 1), 150);
+        return;
+      }
+
+      if (!isDisabled) {
+        nextEl.focus();
+      }
+    }
+  };
+
+  setTimeout(() => {
+    attemptFocus();
+  }, delay);
+}
+
+export function focusPreviousField(
+  currentElement: HTMLElement | null,
+  delay: number = 200,
+) {
+  if (!currentElement) return;
+  const form = currentElement.closest("form") || document.body;
+
+  const attemptFocus = (retriesLeft = 3) => {
+    const allCandidateSelector =
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const candidates = Array.from(
+      form.querySelectorAll<HTMLElement>(allCandidateSelector),
+    ).filter(
+      (el) =>
+        (el.offsetWidth > 0 || el.offsetHeight > 0 || el === currentElement) &&
+        !el.classList.contains("pointer-events-none") &&
+        !isPopoverElement(el),
+    );
+
+    let prevEl: HTMLElement | undefined;
+    const currentIndex = candidates.indexOf(currentElement);
+    if (currentIndex > 0) {
+      prevEl = candidates[currentIndex - 1];
+    } else if (currentIndex === -1) {
+      prevEl = [...candidates]
+        .reverse()
+        .find(
+          (el) =>
+            el !== currentElement &&
+            (currentElement.compareDocumentPosition(el) &
+              Node.DOCUMENT_POSITION_PRECEDING) !==
+              0,
+        );
+    }
+
+    if (prevEl) {
+      const isDisabled =
+        prevEl.hasAttribute("disabled") ||
+        (prevEl as HTMLButtonElement | HTMLInputElement).disabled;
+
+      if (isDisabled && retriesLeft > 0) {
+        setTimeout(() => attemptFocus(retriesLeft - 1), 150);
+        return;
+      }
+
+      if (!isDisabled) {
+        prevEl.focus();
+      }
+    }
+  };
+
+  setTimeout(() => {
+    attemptFocus();
+  }, delay);
 }
 
 export function SearchableSelect({
@@ -80,6 +184,9 @@ export function SearchableSelect({
   searchValue,
   onSearchValueChange,
   displayValueFallback,
+  focusNextDelay,
+  autoFocusNext = true,
+  triggerRef,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchState, setSearchState] = useState("");
@@ -88,6 +195,16 @@ export function SearchableSelect({
   const pointerTimerRef = useRef<NodeJS.Timeout | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const shouldFocusNextRef = useRef(false);
+  const isTabbingOutRef = useRef<"next" | "prev" | null>(null);
+
+  const setCombinedRef = (node: HTMLButtonElement | null) => {
+    buttonRef.current = node;
+    if (typeof triggerRef === "function") {
+      triggerRef(node);
+    } else if (triggerRef && "current" in triggerRef) {
+      (triggerRef as React.MutableRefObject<HTMLButtonElement | null>).current = node;
+    }
+  };
 
   const search = searchValue !== undefined ? searchValue : searchState;
   const handleSearchChange = (val: string) => {
@@ -139,10 +256,18 @@ export function SearchableSelect({
   };
 
   const handleCloseAutoFocus = (e: Event) => {
+    e.preventDefault();
+
+    if (isTabbingOutRef.current) {
+      isTabbingOutRef.current = null;
+      return;
+    }
+
     if (shouldFocusNextRef.current) {
-      e.preventDefault();
       shouldFocusNextRef.current = false;
-      focusNextField(buttonRef.current);
+      if (autoFocusNext) {
+        focusNextField(buttonRef.current, focusNextDelay ?? 200);
+      }
     }
   };
 
@@ -156,7 +281,7 @@ export function SearchableSelect({
             o.id.slice("__header__:".length) === value) ||
           (o.id.startsWith("__subbrand__:") && o.id.split(":")[1] === value),
       )?.name ??
-      displayValueFallback ??
+      (value ? displayValueFallback : undefined) ??
       "");
 
   const uniqueOptions = options.filter(
@@ -188,10 +313,10 @@ export function SearchableSelect({
   const selectableFiltered = filtered.filter((o) => !o.isHeader && !o.disabled);
 
   return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
+    <Popover open={open} onOpenChange={handleOpenChange} modal={false}>
       <PopoverTrigger asChild>
         <Button
-          ref={buttonRef}
+          ref={setCombinedRef}
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -202,6 +327,15 @@ export function SearchableSelect({
             if (e.key === "Enter") {
               e.preventDefault();
               focusNextField(buttonRef.current);
+            } else if (e.key === "Tab") {
+              e.preventDefault();
+              setOpen(false);
+              const trigger = buttonRef.current;
+              if (e.shiftKey) {
+                focusPreviousField(trigger, 0);
+              } else {
+                focusNextField(trigger, 0);
+              }
             }
           }}
           className={cn(
@@ -213,11 +347,33 @@ export function SearchableSelect({
             {displayValue ? toTitleCase(displayValue) : placeholder}
           </span>
 
-          <ChevronDown className="h-4 w-4 md:h-6 md:w-6 shrink-0 opacity-50" />
+          {loading ? (
+            <Loader2 className="h-4 w-4 md:h-5 md:w-5 shrink-0 animate-spin text-[#1CA7A6]" />
+          ) : (
+            <ChevronDown className="h-4 w-4 md:h-6 md:w-6 shrink-0 opacity-50" />
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent
         onCloseAutoFocus={handleCloseAutoFocus}
+        onKeyDown={(e) => {
+          if (e.key === "Tab") {
+            e.preventDefault();
+            e.stopPropagation();
+            (e.target as HTMLElement)?.blur();
+            isTabbingOutRef.current = e.shiftKey ? "prev" : "next";
+            setOpen(false);
+            const trigger = buttonRef.current;
+            const isShift = e.shiftKey;
+            setTimeout(() => {
+              if (isShift) {
+                focusPreviousField(trigger, 0);
+              } else {
+                focusNextField(trigger, 0);
+              }
+            }, 30);
+          }
+        }}
         className="p-0 rounded-xl overflow-hidden shadow-2xl border-[rgba(28,167,166,0.15)] w-(--radix-popover-trigger-width)"
         align="start"
       >
@@ -239,6 +395,21 @@ export function SearchableSelect({
                   } else if (allowCustom && search.trim().length > 0) {
                     handleSelectOption(`__custom__:${search.trim()}`);
                   }
+                } else if (e.key === "Tab") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  (e.target as HTMLElement)?.blur();
+                  isTabbingOutRef.current = e.shiftKey ? "prev" : "next";
+                  setOpen(false);
+                  const trigger = buttonRef.current;
+                  const isShift = e.shiftKey;
+                  setTimeout(() => {
+                    if (isShift) {
+                      focusPreviousField(trigger, 0);
+                    } else {
+                      focusNextField(trigger, 0);
+                    }
+                  }, 30);
                 }
               }}
             />
@@ -280,7 +451,9 @@ export function SearchableSelect({
                         <Check
                           className={cn(
                             "mr-2 h-4 w-4 shrink-0",
-                            value === o.id ? "opacity-100" : "opacity-0",
+                            value === o.id || (!value && o.id === "__none__")
+                              ? "opacity-100"
+                              : "opacity-0",
                           )}
                         />
                         {o.isSubBrand && (

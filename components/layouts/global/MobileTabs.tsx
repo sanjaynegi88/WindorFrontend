@@ -114,7 +114,7 @@ export function MobileTabs() {
       });
     }
 
-    if (role === "admin" || role === "contractor") {
+    if (role === "contractor") {
       options.push({
         name: "Added Properties",
         href: "/added-properties",
@@ -148,6 +148,11 @@ export function MobileTabs() {
       options.push({ name: "States", href: "/admin/states", icon: MapIcon });
       options.push({ name: "City", href: "/admin/city", icon: Building2 });
       options.push({ name: "Brands", href: "/admin/brands", icon: Tag });
+      options.push({
+        name: "Properties Pending",
+        href: "/added-properties",
+        icon: Building2,
+      });
       options.push({
         name: "Membership",
         href: "/admin/membership",

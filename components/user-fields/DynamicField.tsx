@@ -12,18 +12,25 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { StateSelect, CitySelect } from "@/components/city-zip-selector";
+import {
+  SearchableSelect,
+  SearchableSelectOption,
+} from "@/components/ui/searchable-select";
 import { ServiceSelect } from "@/components/service-select";
-import { RoleFieldConfig, FormContext, isFieldRequired } from "@/lib/user-role-fields";
+import {
+  RoleFieldConfig,
+  FormContext,
+  isFieldRequired,
+} from "@/lib/user-role-fields";
 import { Loader2 } from "lucide-react";
-import { getServiceProvided } from "@/lib/actions";
-import { toPascalCase } from "@/lib/utils";
+import { getServiceProvided, getStates, getCities } from "@/lib/actions";
+import { cn, toPascalCase } from "@/lib/utils";
 
 export interface DynamicFieldProps {
   config: RoleFieldConfig;
   form: UseFormReturn<any>;
   context: FormContext;
-  isEditing?: boolean; // For profile page read-only vs edit toggle
+  isEditing?: boolean;
   disabled?: boolean;
   selectedStateId?: string;
   onStateSelect?: (stateId: string) => void;
@@ -75,8 +82,8 @@ export function DynamicField({
     (context === "profile"
       ? defaultProfileInputCls
       : context === "edit-user"
-      ? defaultEditInputCls
-      : defaultStep2InputCls);
+        ? defaultEditInputCls
+        : defaultStep2InputCls);
 
   // Profile read-only mode rendering
   if (context === "profile" && !isEditing) {
@@ -118,6 +125,7 @@ export function DynamicField({
             required={required}
             selectedStateId={selectedStateId}
             onStateSelect={onStateSelect}
+            selectedCityName={selectedCityName}
             onCitySelect={onCitySelect}
             isPresent={isPresent}
             onPresentChange={onPresentChange}
@@ -162,6 +170,7 @@ export function DynamicField({
               disabled={disabled}
               selectedStateId={selectedStateId}
               onStateSelect={onStateSelect}
+              selectedCityName={selectedCityName}
               onCitySelect={onCitySelect}
               isPresent={isPresent}
               onPresentChange={onPresentChange}
@@ -186,6 +195,7 @@ function RenderFieldInput({
   required,
   selectedStateId,
   onStateSelect,
+  selectedCityName,
   onCitySelect,
   isPresent,
   onPresentChange,
@@ -202,6 +212,7 @@ function RenderFieldInput({
   required?: boolean;
   selectedStateId?: string;
   onStateSelect?: (stateId: string) => void;
+  selectedCityName?: string;
   onCitySelect?: (cityId: string, cityName?: string) => void;
   isPresent?: boolean;
   onPresentChange?: (checked: boolean) => void;
@@ -226,6 +237,7 @@ function RenderFieldInput({
               disabled={disabled}
               selectedStateId={selectedStateId}
               onStateSelect={onStateSelect}
+              selectedCityName={selectedCityName}
               onCitySelect={onCitySelect}
               isPresent={isPresent}
               onPresentChange={onPresentChange}
@@ -250,6 +262,7 @@ function FieldInputContent({
   disabled,
   selectedStateId,
   onStateSelect,
+  selectedCityName,
   onCitySelect,
   isPresent,
   onPresentChange,
@@ -265,6 +278,7 @@ function FieldInputContent({
   disabled?: boolean;
   selectedStateId?: string;
   onStateSelect?: (stateId: string) => void;
+  selectedCityName?: string;
   onCitySelect?: (cityId: string, cityName?: string) => void;
   isPresent?: boolean;
   onPresentChange?: (checked: boolean) => void;
@@ -295,49 +309,35 @@ function FieldInputContent({
 
     case "state":
       return (
-        <div className={context === "register" || context === "select-role" ? "[&_button]:h-[65px] [&_button]:rounded-[6px] [&_button]:border-[rgba(112,128,144,0.23)] [&_button]:text-[20px] [&_button]:font-asap [&_button]:font-medium [&_button]:text-[#708090] [&_button]:shadow-none [&_button]:bg-white" : context === "profile" ? "[&_button]:h-11 [&_button]:rounded-xl [&_button]:bg-muted/30 [&_button]:border-input [&_button]:shadow-none" : ""}>
-          <StateSelect
-            states={statesList && statesList.length > 0 ? statesList : undefined}
-            value={field.value || ""}
-            valueType="id"
-            disabled={disabled}
-            loading={isStateLoading}
-            placeholder={config.placeholder || "Select a state"}
-            className={context === "edit-user" ? resolvedInputCls : undefined}
-            onSelectState={(st) => {
-              field.onChange(st.id);
-              form.setValue("state_id", st.id);
-              form.setValue("city_id", "");
-              if (onStateSelect) onStateSelect(st.id);
-            }}
-          />
-        </div>
+        <DynamicStateSelect
+          field={field}
+          form={form}
+          config={config}
+          context={context}
+          disabled={disabled}
+          statesList={statesList}
+          isStateLoading={isStateLoading}
+          resolvedInputCls={resolvedInputCls}
+          onStateSelect={onStateSelect}
+          onCitySelect={onCitySelect}
+        />
       );
 
     case "city":
       return (
-        <div className={context === "register" || context === "select-role" ? "[&_button]:h-[65px] [&_button]:rounded-[6px] [&_button]:border-[rgba(112,128,144,0.23)] [&_button]:text-[20px] [&_button]:font-asap [&_button]:font-medium [&_button]:text-[#708090] [&_button]:shadow-none [&_button]:bg-white" : context === "profile" ? "[&_button]:h-11 [&_button]:rounded-xl [&_button]:bg-muted/30 [&_button]:border-input [&_button]:shadow-none" : ""}>
-          <CitySelect
-            value={field.value || ""}
-            stateValue={currentFormStateId}
-            valueType="id"
-            disabled={disabled}
-            loading={isCityLoading}
-            placeholder={config.placeholder || "Select a city"}
-            syncState={true}
-            onSelectCity={(city) => {
-              const cityIdStr = String(city.id);
-              field.onChange(cityIdStr);
-              form.setValue("city_id", cityIdStr);
-              if (!currentFormStateId && city.state_id) {
-                const stateIdStr = String(city.state_id);
-                form.setValue("state_id", stateIdStr);
-                if (onStateSelect) onStateSelect(stateIdStr);
-              }
-              if (onCitySelect) onCitySelect(cityIdStr, city.name);
-            }}
-          />
-        </div>
+        <DynamicCitySelect
+          field={field}
+          form={form}
+          config={config}
+          context={context}
+          disabled={disabled}
+          selectedStateId={selectedStateId}
+          selectedCityName={selectedCityName}
+          isCityLoading={isCityLoading}
+          resolvedInputCls={resolvedInputCls}
+          onStateSelect={onStateSelect}
+          onCitySelect={onCitySelect}
+        />
       );
 
     case "service":
@@ -346,7 +346,13 @@ function FieldInputContent({
           value={field.value || []}
           onChange={field.onChange}
           disabled={disabled}
-          variant={context === "register" || context === "select-role" ? "button" : context === "profile" ? "badge" : "checkbox"}
+          variant={
+            context === "register" || context === "select-role"
+              ? "button"
+              : context === "profile"
+                ? "badge"
+                : "checkbox"
+          }
           className={context === "edit-user" ? "md:col-span-2" : undefined}
         />
       );
@@ -478,7 +484,11 @@ function ServiceReadOnlyList({ serviceIds }: { serviceIds: string[] }) {
   }, []);
 
   if (!serviceIds.length) {
-    return <span className="text-sm font-bold text-muted-foreground">Not provided</span>;
+    return (
+      <span className="text-sm font-bold text-muted-foreground">
+        Not provided
+      </span>
+    );
   }
 
   if (loading) {
@@ -539,7 +549,9 @@ function renderProfileReadOnlyValue({
     }
     const isUuid = (val: any) =>
       typeof val === "string" &&
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        val,
+      );
     const stateObj = statesList.find((s) => s.id === String(value));
     return (
       <p className="text-sm font-bold">
@@ -558,9 +570,7 @@ function renderProfileReadOnlyValue({
       );
     }
     return (
-      <p className="text-sm font-bold">
-        {selectedCityName || "Not provided"}
-      </p>
+      <p className="text-sm font-bold">{selectedCityName || "Not provided"}</p>
     );
   }
 
@@ -571,7 +581,11 @@ function renderProfileReadOnlyValue({
       String(value)?.toLowerCase() === "present";
     return (
       <p className="text-sm font-bold">
-        {isPres ? "Present" : value ? String(value).split("T")[0] : "Not provided"}
+        {isPres
+          ? "Present"
+          : value
+            ? String(value).split("T")[0]
+            : "Not provided"}
       </p>
     );
   }
@@ -593,9 +607,235 @@ function renderProfileReadOnlyValue({
     return <ServiceReadOnlyList serviceIds={serviceList} />;
   }
 
+  return <p className="text-sm font-bold">{value || "Not provided"}</p>;
+}
+
+function DynamicStateSelect({
+  field,
+  form,
+  config,
+  context,
+  disabled,
+  statesList,
+  isStateLoading,
+  resolvedInputCls,
+  onStateSelect,
+  onCitySelect,
+}: {
+  field: any;
+  form: UseFormReturn<any>;
+  config: RoleFieldConfig;
+  context: FormContext;
+  disabled?: boolean;
+  statesList?: { id: string; name: string }[];
+  isStateLoading?: boolean;
+  resolvedInputCls: string;
+  onStateSelect?: (stateId: string) => void;
+  onCitySelect?: (cityId: string, cityName?: string) => void;
+}) {
+  const [internalStates, setInternalStates] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [fetchingStates, setFetchingStates] = useState(false);
+
+  useEffect(() => {
+    if (statesList && statesList.length > 0) {
+      setInternalStates(statesList);
+      return;
+    }
+    let active = true;
+    async function loadStates() {
+      try {
+        setFetchingStates(true);
+        const response = await getStates(1, 1000);
+        const raw: any[] = Array.isArray(response)
+          ? response
+          : response?.data || [];
+        if (active) {
+          setInternalStates(
+            raw.map((s: any) => ({
+              id: String(s.id),
+              name: s.state_name || s.name,
+            })),
+          );
+        }
+      } catch (err) {
+        console.error("Failed to fetch states in DynamicField:", err);
+      } finally {
+        if (active) setFetchingStates(false);
+      }
+    }
+    loadStates();
+    return () => {
+      active = false;
+    };
+  }, [statesList]);
+
+  const availableStates =
+    statesList && statesList.length > 0 ? statesList : internalStates;
+  const isLoading = isStateLoading || fetchingStates;
+
+  const options: SearchableSelectOption[] = [
+    { id: "__none__", name: "None" },
+    ...availableStates.map((s) => ({ id: s.id, name: s.name })),
+  ];
+
+  const triggerClassName = cn(
+    "w-full justify-between font-normal",
+    context === "register" || context === "select-role"
+      ? "h-[65px] px-[19px] border border-[rgba(112,128,144,0.23)] rounded-[6px] text-[20px] font-medium text-[#1F2A44] bg-white font-asap shadow-none hover:bg-white"
+      : context === "profile"
+        ? "h-11 rounded-xl bg-muted/30 border border-input shadow-none text-sm font-medium hover:bg-muted/40"
+        : "h-11 rounded-md border border-input bg-muted/20 text-sm font-medium hover:bg-background",
+    context === "edit-user" && resolvedInputCls,
+  );
+
+  const rawVal =
+    field.value !== undefined && field.value !== null
+      ? field.value
+      : (form.watch(config.name) ?? form.watch("state_id") ?? "");
+  const selectValue = rawVal === "__none__" ? "" : rawVal;
+
   return (
-    <p className="text-sm font-bold">
-      {value || "Not provided"}
-    </p>
+    <SearchableSelect
+      options={options}
+      value={selectValue}
+      onValueChange={(val) => {
+        const finalVal = val === "__none__" ? "" : val;
+        field.onChange(finalVal);
+        form.setValue(config.name, finalVal, { shouldValidate: true, shouldDirty: true });
+        form.setValue("state_id", finalVal, { shouldValidate: true, shouldDirty: true });
+        form.setValue("city_id", "", { shouldValidate: true, shouldDirty: true });
+        if (onStateSelect) onStateSelect(finalVal);
+        if (onCitySelect) onCitySelect("", "");
+      }}
+      placeholder={config.placeholder || "Select a state"}
+      searchPlaceholder="Search state..."
+      disabled={disabled}
+      loading={isLoading}
+      triggerClassName={triggerClassName}
+    />
+  );
+}
+
+function DynamicCitySelect({
+  field,
+  form,
+  config,
+  context,
+  disabled,
+  selectedStateId,
+  selectedCityName,
+  isCityLoading,
+  resolvedInputCls,
+  onStateSelect,
+  onCitySelect,
+}: {
+  field: any;
+  form: UseFormReturn<any>;
+  config: RoleFieldConfig;
+  context: FormContext;
+  disabled?: boolean;
+  selectedStateId?: string;
+  selectedCityName?: string;
+  isCityLoading?: boolean;
+  resolvedInputCls: string;
+  onStateSelect?: (stateId: string) => void;
+  onCitySelect?: (cityId: string, cityName?: string) => void;
+}) {
+  const currentFormStateId = form.watch("state_id") || selectedStateId || "";
+  const [cities, setCities] = useState<
+    { id: string; name: string; state_id?: string }[]
+  >([]);
+  const [fetchingCities, setFetchingCities] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    async function loadCities() {
+      try {
+        setFetchingCities(true);
+        const stateParam =
+          currentFormStateId && currentFormStateId !== "__none__"
+            ? currentFormStateId
+            : undefined;
+        const response = await getCities(
+          1,
+          1000,
+          undefined,
+          undefined,
+          stateParam,
+        );
+        const raw: any[] = Array.isArray(response)
+          ? response
+          : response?.data || [];
+        if (active) {
+          setCities(
+            raw.map((c: any) => ({
+              id: String(c.id),
+              name: c.name || c.city_name,
+              state_id: c.state_id ? String(c.state_id) : undefined,
+            })),
+          );
+        }
+      } catch (err) {
+        console.error("Failed to fetch cities in DynamicField:", err);
+      } finally {
+        if (active) setFetchingCities(false);
+      }
+    }
+    loadCities();
+    return () => {
+      active = false;
+    };
+  }, [currentFormStateId]);
+
+  const isLoading = isCityLoading || fetchingCities;
+
+  const options: SearchableSelectOption[] = [
+    { id: "__none__", name: "None" },
+    ...cities.map((c) => ({ id: c.id, name: c.name })),
+  ];
+
+  const triggerClassName = cn(
+    "w-full justify-between font-normal",
+    context === "register" || context === "select-role"
+      ? "h-[65px] px-[19px] border border-[rgba(112,128,144,0.23)] rounded-[6px] text-[20px] font-medium text-[#1F2A44] bg-white font-asap shadow-none hover:bg-white"
+      : context === "profile"
+        ? "h-11 rounded-xl bg-muted/30 border border-input shadow-none text-sm font-medium hover:bg-muted/40"
+        : "h-11 rounded-md border border-input bg-muted/20 text-sm font-medium hover:bg-background",
+    context === "edit-user" && resolvedInputCls,
+  );
+
+  const rawVal =
+    field.value !== undefined && field.value !== null
+      ? field.value
+      : (form.watch(config.name) ?? form.watch("city_id") ?? "");
+  const selectValue = rawVal === "__none__" ? "" : rawVal;
+
+  return (
+    <SearchableSelect
+      options={options}
+      value={selectValue}
+      displayValueFallback={selectValue ? selectedCityName : undefined}
+      onValueChange={(val) => {
+        const finalVal = val === "__none__" ? "" : val;
+        field.onChange(finalVal);
+        form.setValue(config.name, finalVal, { shouldValidate: true, shouldDirty: true });
+        form.setValue("city_id", finalVal, { shouldValidate: true, shouldDirty: true });
+        const foundCity = cities.find((c) => c.id === finalVal);
+        if (!currentFormStateId && foundCity?.state_id) {
+          const stateIdStr = String(foundCity.state_id);
+          form.setValue("state_id", stateIdStr, { shouldValidate: true, shouldDirty: true });
+          if (onStateSelect) onStateSelect(stateIdStr);
+        }
+        if (onCitySelect) onCitySelect(finalVal, foundCity?.name || "");
+      }}
+      placeholder={config.placeholder || "Select a city"}
+      searchPlaceholder="Search city..."
+      disabled={disabled}
+      loading={isLoading}
+      emptyMessage={isLoading ? "Loading cities..." : "No cities found"}
+      triggerClassName={triggerClassName}
+    />
   );
 }

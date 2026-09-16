@@ -39,6 +39,26 @@ const citySchema = z.object({
   zip_codes: z
     .string()
     .min(1, "At least one zip code is required (comma separated)"),
+  latitude: z
+    .string()
+    .optional()
+    .refine(
+      (val) =>
+        !val ||
+        val.trim() === "" ||
+        (!isNaN(Number(val)) && Number(val) >= -90 && Number(val) <= 90),
+      { message: "Latitude must be a number between -90 and 90" },
+    ),
+  longitude: z
+    .string()
+    .optional()
+    .refine(
+      (val) =>
+        !val ||
+        val.trim() === "" ||
+        (!isNaN(Number(val)) && Number(val) >= -180 && Number(val) <= 180),
+      { message: "Longitude must be a number between -180 and 180" },
+    ),
 });
 
 interface CityFormDialogProps {
@@ -87,6 +107,8 @@ export function CityFormDialog({
       name: "",
       state_id: "",
       zip_codes: "",
+      latitude: "",
+      longitude: "",
     },
   });
 
@@ -99,12 +121,22 @@ export function CityFormDialog({
           zip_codes: Array.isArray(city.zip_codes)
             ? city.zip_codes.join(", ")
             : city.zip_codes || "",
+          latitude:
+            city.latitude !== null && city.latitude !== undefined
+              ? String(city.latitude)
+              : "",
+          longitude:
+            city.longitude !== null && city.longitude !== undefined
+              ? String(city.longitude)
+              : "",
         });
       } else {
         form.reset({
           name: "",
           state_id: "",
           zip_codes: "",
+          latitude: "",
+          longitude: "",
         });
       }
     }
@@ -116,10 +148,18 @@ export function CityFormDialog({
       .split(",")
       .map((z) => z.trim())
       .filter((z) => z !== "");
-    const payload = {
+    const payload: any = {
       name: values.name,
       state_id: values.state_id,
       zip_codes: zipCodesArray,
+      latitude:
+        values.latitude && values.latitude.trim() !== ""
+          ? Number(values.latitude.trim())
+          : null,
+      longitude:
+        values.longitude && values.longitude.trim() !== ""
+          ? Number(values.longitude.trim())
+          : null,
     };
     const result = city
       ? await updateCity(city.id, payload)
@@ -138,7 +178,7 @@ export function CityFormDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[425px] rounded-2xl text-foreground">
+      <DialogContent className="sm:max-w-[480px] rounded-2xl text-foreground">
         <DialogHeader>
           <DialogTitle className="text-foreground">
             {city ? "Edit City" : "Add New City"}
@@ -245,6 +285,58 @@ export function CityFormDialog({
                 </FormItem>
               )}
             />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="latitude"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-semibold text-foreground">
+                      Latitude{" "}
+                      <span className="text-xs font-normal text-muted-foreground">
+                        (Optional)
+                      </span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder=""
+                        className="rounded-xl h-11"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="longitude"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-semibold text-foreground">
+                      Longitude{" "}
+                      <span className="text-xs font-normal text-muted-foreground">
+                        (Optional)
+                      </span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder=""
+                        className="rounded-xl h-11"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <DialogFooter className="pt-2 gap-3 sm:gap-0">
               <Button

@@ -370,18 +370,24 @@ export default function UserProfile() {
   const effectivelevel = level || subscriptionLevel;
   const hasActiveMembership = isSubAccount
     ? Boolean(
-        ((user as any)?.current_subscription ?? (user as any)?.user?.current_subscription) &&
-        (((user as any)?.current_subscription?.status ?? (user as any)?.user?.current_subscription?.status)?.toUpperCase() === "ACTIVE" ||
-         !((user as any)?.current_subscription?.status ?? (user as any)?.user?.current_subscription?.status))
+        ((user as any)?.current_subscription ??
+          (user as any)?.user?.current_subscription) &&
+        ((
+          (user as any)?.current_subscription?.status ??
+          (user as any)?.user?.current_subscription?.status
+        )?.toUpperCase() === "ACTIVE" ||
+          !(
+            (user as any)?.current_subscription?.status ??
+            (user as any)?.user?.current_subscription?.status
+          )),
       )
-    : (
-        (user as any)?.current_subscription?.status === "ACTIVE" ||
-        (user as any)?.has_membership === true ||
-        (contextUser as any)?.has_membership === true ||
-        (user as any)?.current_subscription?.is_active === true
-      );
+    : (user as any)?.current_subscription?.status === "ACTIVE" ||
+      (user as any)?.has_membership === true ||
+      (contextUser as any)?.has_membership === true ||
+      (user as any)?.current_subscription?.is_active === true;
   const showAddContractorProfile =
     role === "contractor" &&
+    isSubAccount &&
     (user as any)?.is_directory === false &&
     (effectivelevel === "GOLD" || effectivelevel === "SILVER");
   const showEditContractorProfile =
@@ -596,7 +602,8 @@ export default function UserProfile() {
         role === "manufacturer" ||
         role === "property_owner"
       )
-    ) return;
+    )
+      return;
     setReportUsageLoading(true);
     getReportUsage()
       .then((res) => setReportUsage(res?.data || res))
@@ -1041,12 +1048,12 @@ export default function UserProfile() {
                     form={form}
                     isEditing={isEditing}
                     disabled={isSubAccount}
+                    isStateDisabled={role === "city_inspector"}
+                    isCityDisabled={role === "city_inspector"}
                     selectedStateId={selectedStateId}
                     onStateSelect={setSelectedStateId}
                     selectedCityName={selectedCityName}
-                    onCitySelect={(_, name) =>
-                      name && setSelectedCityName(name)
-                    }
+                    onCitySelect={(_, name) => setSelectedCityName(name || "")}
                     isPresent={isPresent}
                     onPresentChange={setIsPresent}
                     statesList={states}
@@ -1269,206 +1276,308 @@ export default function UserProfile() {
         </div>
 
         <div className="lg:w-[380px] shrink-0 space-y-6">
-          {(role === "insurance_company" || role === "realtor") && hasActiveMembership && (
-            <Card className="border shadow-lg rounded-2xl overflow-hidden bg-background">
-              <CardHeader className="bg-muted/30 px-5 py-4 border-b flex-row items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="size-4 text-primary" />
-                  <CardTitle className="text-sm font-bold tracking-tight">
-                    Membership Plan & Report Quota
-                  </CardTitle>
-                </div>
-                <Badge
-                  variant="outline"
-                  className="bg-background text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
-                >
-                  Membership Allowance
-                </Badge>
-              </CardHeader>
-              <CardContent className="p-5">
-                <div className="space-y-4">
-                  {reportUsageLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Membership Tier Banner */}
-                      <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4 rounded-2xl border border-primary/15 relative overflow-hidden">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-1.5">
-                              <Sparkles className="size-3 text-primary" />{" "}
-                              Active Membership
-                            </p>
-                            <p className="text-xl font-black text-primary tracking-tight">
-                              {reportUsage?.plan ||
-                                user?.current_subscription?.plan?.name ||
-                                "Standard Plan"}
-                            </p>
-                          </div>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground mt-2 leading-snug">
-                          Your monthly report inspection access and balance are
-                          allocated by this membership tier.
-                        </p>
+          {(role === "insurance_company" || role === "realtor") &&
+            hasActiveMembership && (
+              <Card className="border shadow-lg rounded-2xl overflow-hidden bg-background">
+                <CardHeader className="bg-muted/30 px-5 py-4 border-b flex-row items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="size-4 text-primary" />
+                    <CardTitle className="text-sm font-bold tracking-tight">
+                      Membership Plan & Report Quota
+                    </CardTitle>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className="bg-background text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+                  >
+                    Membership Allowance
+                  </Badge>
+                </CardHeader>
+                <CardContent className="p-5">
+                  <div className="space-y-4">
+                    {reportUsageLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                       </div>
+                    ) : (
+                      <>
+                        {/* Membership Tier Banner */}
+                        <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4 rounded-2xl border border-primary/15 relative overflow-hidden">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                                <Sparkles className="size-3 text-primary" />{" "}
+                                Active Membership
+                              </p>
+                              <p className="text-xl font-black text-primary tracking-tight">
+                                {reportUsage?.plan ||
+                                  user?.current_subscription?.plan?.name ||
+                                  "Standard Plan"}
+                              </p>
+                            </div>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-2 leading-snug">
+                            Your monthly report inspection access and balance
+                            are allocated by this membership tier.
+                          </p>
+                        </div>
 
-                      {/* Reports Access Quota Grid */}
-                      <div className="space-y-3 pt-1">
-                        <div className="flex items-center justify-between pb-1.5 border-b border-border/50">
-                          <div className="flex items-center gap-1.5">
-                            <FileText className="size-3.5 text-primary" />
-                            <span className="text-[11px] font-bold text-foreground uppercase tracking-wider">
-                              Report Access Allowance
+                        {/* Reports Access Quota Grid */}
+                        <div className="space-y-3 pt-1">
+                          <div className="flex items-center justify-between pb-1.5 border-b border-border/50">
+                            <div className="flex items-center gap-1.5">
+                              <FileText className="size-3.5 text-primary" />
+                              <span className="text-[11px] font-bold text-foreground uppercase tracking-wider">
+                                Report Access Allowance
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-medium text-muted-foreground">
+                              Monthly Cycle
                             </span>
                           </div>
-                          <span className="text-[10px] font-medium text-muted-foreground">
-                            Monthly Cycle
+
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <div className="bg-muted/30 p-3 rounded-xl border border-border/50">
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                Plan Allowance
+                              </p>
+                              <p className="text-lg font-black text-foreground mt-0.5">
+                                {reportUsage?.baseLimit ?? 0}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                                Included with plan
+                              </p>
+                            </div>
+
+                            <div className="bg-muted/30 p-3 rounded-xl border border-border/50">
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                Purchased
+                              </p>
+                              <p className="text-lg font-black text-foreground mt-0.5">
+                                {reportUsage?.purchasedReports ?? 0}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                                Extra add-on credits
+                              </p>
+                            </div>
+
+                            <div className="bg-muted/30 p-3 rounded-xl border border-border/50">
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                Reports Used
+                              </p>
+                              <p className="text-lg font-black text-foreground mt-0.5">
+                                {reportUsage?.used ?? 0}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                                Accessed this period
+                              </p>
+                            </div>
+
+                            <div className="bg-primary/5 p-3 rounded-xl border border-primary/20">
+                              <p className="text-[10px] font-bold text-primary uppercase tracking-wider">
+                                Available
+                              </p>
+                              <p className="text-lg font-black text-primary mt-0.5">
+                                {reportUsage?.remaining ?? 0}
+                              </p>
+                              <p className="text-[10px] text-primary/80 leading-tight mt-0.5 font-medium">
+                                Reports balance left
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Upgrade helper link */}
+                        <div className="pt-2 border-t border-border/40 flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground text-[11px]">
+                            Need more report credits?
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => router.push("/plans")}
+                            className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1"
+                          >
+                            View Plans <ArrowRight className="size-3" />
+                          </button>
                         </div>
-
-                        <div className="grid grid-cols-2 gap-2.5">
-                          <div className="bg-muted/30 p-3 rounded-xl border border-border/50">
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                              Plan Allowance
-                            </p>
-                            <p className="text-lg font-black text-foreground mt-0.5">
-                              {reportUsage?.baseLimit ?? 0}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                              Included with plan
-                            </p>
-                          </div>
-
-                          <div className="bg-muted/30 p-3 rounded-xl border border-border/50">
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                              Purchased
-                            </p>
-                            <p className="text-lg font-black text-foreground mt-0.5">
-                              {reportUsage?.purchasedReports ?? 0}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                              Extra add-on credits
-                            </p>
-                          </div>
-
-                          <div className="bg-muted/30 p-3 rounded-xl border border-border/50">
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                              Reports Used
-                            </p>
-                            <p className="text-lg font-black text-foreground mt-0.5">
-                              {reportUsage?.used ?? 0}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                              Accessed this period
-                            </p>
-                          </div>
-
-                          <div className="bg-primary/5 p-3 rounded-xl border border-primary/20">
-                            <p className="text-[10px] font-bold text-primary uppercase tracking-wider">
-                              Available
-                            </p>
-                            <p className="text-lg font-black text-primary mt-0.5">
-                              {reportUsage?.remaining ?? 0}
-                            </p>
-                            <p className="text-[10px] text-primary/80 leading-tight mt-0.5 font-medium">
-                              Reports balance left
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Upgrade helper link */}
-                      <div className="pt-2 border-t border-border/40 flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground text-[11px]">
-                          Need more report credits?
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => router.push("/plans")}
-                          className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1"
-                        >
-                          View Plans <ArrowRight className="size-3" />
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
           {(role === "contractor" ||
             role === "manufacturer" ||
-            role === "property_owner") && hasActiveMembership && (
-            <Card className="border shadow-lg rounded-2xl overflow-hidden bg-background">
-              <CardHeader className="bg-muted/30 px-5 py-4 border-b flex-row items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="size-4 text-primary" />
-                  <CardTitle className="text-sm font-bold tracking-tight">
-                    Membership Plan & Quotas
-                  </CardTitle>
-                </div>
-                <Badge
-                  variant="outline"
-                  className="bg-background text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
-                >
-                  Membership Usage
-                </Badge>
-              </CardHeader>
-              <CardContent className="p-5">
-                <div className="space-y-4">
-                  {reportUsageLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Active Membership Banner */}
-                      <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4 rounded-2xl border border-primary/15 relative overflow-hidden">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-1.5">
-                              <Sparkles className="size-3 text-primary" />{" "}
-                              Active Membership
-                            </p>
-                            <p className="text-xl font-black text-primary tracking-tight">
-                              {reportUsage?.plan ||
-                                user?.current_subscription?.plan?.name ||
-                                "Standard Plan"}
-                            </p>
-                          </div>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground mt-2 leading-snug">
-                          Your workspace creation limits and monthly report
-                          access are allocated by this membership tier.
-                        </p>
+            role === "property_owner") &&
+            hasActiveMembership && (
+              <Card className="border shadow-lg rounded-2xl overflow-hidden bg-background">
+                <CardHeader className="bg-muted/30 px-5 py-4 border-b flex-row items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="size-4 text-primary" />
+                    <CardTitle className="text-sm font-bold tracking-tight">
+                      Membership Plan & Quotas
+                    </CardTitle>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className="bg-background text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+                  >
+                    Membership Usage
+                  </Badge>
+                </CardHeader>
+                <CardContent className="p-5">
+                  <div className="space-y-4">
+                    {reportUsageLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                       </div>
+                    ) : (
+                      <>
+                        {/* Active Membership Banner */}
+                        <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4 rounded-2xl border border-primary/15 relative overflow-hidden">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                                <Sparkles className="size-3 text-primary" />{" "}
+                                Active Membership
+                              </p>
+                              <p className="text-xl font-black text-primary tracking-tight">
+                                {reportUsage?.plan ||
+                                  user?.current_subscription?.plan?.name ||
+                                  "Standard Plan"}
+                              </p>
+                            </div>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-2 leading-snug">
+                            Your workspace creation limits and monthly report
+                            access are allocated by this membership tier.
+                          </p>
+                        </div>
 
-                      {/* Part 1: Workspace Limits (Projects & Properties) */}
-                      <div className="space-y-3 pt-1">
-                        <div className="flex items-center justify-between pb-1.5 border-b border-border/50">
-                          <div className="flex items-center gap-1.5">
-                            <FolderKanban className="size-3.5 text-primary" />
-                            <span className="text-[11px] font-bold text-foreground uppercase tracking-wider">
-                              {role === "property_owner"
-                                ? "Project Membership Quotas"
-                                : "Project & Property Membership Quotas"}
+                        {/* Part 1: Workspace Limits (Projects & Properties) */}
+                        <div className="space-y-3 pt-1">
+                          <div className="flex items-center justify-between pb-1.5 border-b border-border/50">
+                            <div className="flex items-center gap-1.5">
+                              <FolderKanban className="size-3.5 text-primary" />
+                              <span className="text-[11px] font-bold text-foreground uppercase tracking-wider">
+                                {role === "property_owner"
+                                  ? "Project Membership Quotas"
+                                  : "Project & Property Membership Quotas"}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-medium text-muted-foreground">
+                              Plan Allowance
                             </span>
                           </div>
-                          <span className="text-[10px] font-medium text-muted-foreground">
-                            Plan Allowance
-                          </span>
-                        </div>
 
-                        {/* Properties Usage - Hidden for property_owner */}
-                        {role !== "property_owner" && (
+                          {/* Properties Usage - Hidden for property_owner */}
+                          {role !== "property_owner" && (
+                            <div className="space-y-2 p-3.5 rounded-xl bg-muted/30 border border-border/50 transition-all">
+                              <div className="flex items-center justify-between text-xs font-bold">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-foreground">
+                                    Properties
+                                  </span>
+                                  <span className="text-[10px] font-normal text-muted-foreground">
+                                    (active)
+                                  </span>
+                                </div>
+                                <span className="text-xs font-medium">
+                                  <span className="font-bold text-foreground">
+                                    {reportUsage?.propertiesUsed ?? 0}
+                                  </span>{" "}
+                                  <span className="text-muted-foreground">
+                                    used
+                                  </span>
+                                  <span className="text-muted-foreground/60 mx-1">
+                                    /
+                                  </span>
+                                  {reportUsage?.propertiesUnlimited ? (
+                                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                      Unlimited
+                                    </span>
+                                  ) : (
+                                    <>
+                                      <span className="font-bold text-foreground">
+                                        {reportUsage?.propertiesProvided ?? 0}
+                                      </span>{" "}
+                                      <span className="text-muted-foreground">
+                                        project max
+                                      </span>
+                                    </>
+                                  )}
+                                </span>
+                              </div>
+                              {reportUsage?.propertiesUnlimited ? (
+                                <div className="flex justify-between items-center text-[11px] text-emerald-600 dark:text-emerald-400 font-medium pt-0.5">
+                                  <span className="flex items-center gap-1.5">
+                                    <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    Unlimited plan tier
+                                  </span>
+                                  <span>No limit on properties</span>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full transition-all duration-500 ${
+                                        (reportUsage?.propertiesUsed ?? 0) /
+                                          (reportUsage?.propertiesProvided ||
+                                            1) >=
+                                        1
+                                          ? "bg-destructive"
+                                          : (reportUsage?.propertiesUsed ?? 0) /
+                                                (reportUsage?.propertiesProvided ||
+                                                  1) >=
+                                              0.8
+                                            ? "bg-amber-500"
+                                            : "bg-primary"
+                                      }`}
+                                      style={{
+                                        width: `${Math.min(
+                                          100,
+                                          ((reportUsage?.propertiesUsed ?? 0) /
+                                            (reportUsage?.propertiesProvided ||
+                                              1)) *
+                                            100,
+                                        )}%`,
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="flex justify-between items-center text-[10px] text-muted-foreground font-medium pt-0.5">
+                                    <span>
+                                      {Math.round(
+                                        Math.min(
+                                          100,
+                                          ((reportUsage?.propertiesUsed ?? 0) /
+                                            (reportUsage?.propertiesProvided ||
+                                              1)) *
+                                            100,
+                                        ),
+                                      )}
+                                      % of allowance used
+                                    </span>
+                                    <span>
+                                      {Math.max(
+                                        0,
+                                        (reportUsage?.propertiesProvided ?? 0) -
+                                          (reportUsage?.propertiesUsed ?? 0),
+                                      )}{" "}
+                                      project remaining
+                                    </span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Projects Usage */}
                           <div className="space-y-2 p-3.5 rounded-xl bg-muted/30 border border-border/50 transition-all">
                             <div className="flex items-center justify-between text-xs font-bold">
                               <div className="flex items-center gap-1.5">
                                 <span className="text-foreground">
-                                  Properties
+                                  Projects
                                 </span>
                                 <span className="text-[10px] font-normal text-muted-foreground">
                                   (active)
@@ -1476,7 +1585,7 @@ export default function UserProfile() {
                               </div>
                               <span className="text-xs font-medium">
                                 <span className="font-bold text-foreground">
-                                  {reportUsage?.propertiesUsed ?? 0}
+                                  {reportUsage?.projectsUsed ?? 0}
                                 </span>{" "}
                                 <span className="text-muted-foreground">
                                   used
@@ -1484,14 +1593,14 @@ export default function UserProfile() {
                                 <span className="text-muted-foreground/60 mx-1">
                                   /
                                 </span>
-                                {reportUsage?.propertiesUnlimited ? (
+                                {reportUsage?.projectsUnlimited ? (
                                   <span className="font-semibold text-emerald-600 dark:text-emerald-400">
                                     Unlimited
                                   </span>
                                 ) : (
                                   <>
                                     <span className="font-bold text-foreground">
-                                      {reportUsage?.propertiesProvided ?? 0}
+                                      {reportUsage?.projectsProvided ?? 0}
                                     </span>{" "}
                                     <span className="text-muted-foreground">
                                       project max
@@ -1500,26 +1609,25 @@ export default function UserProfile() {
                                 )}
                               </span>
                             </div>
-                            {reportUsage?.propertiesUnlimited ? (
+                            {reportUsage?.projectsUnlimited ? (
                               <div className="flex justify-between items-center text-[11px] text-emerald-600 dark:text-emerald-400 font-medium pt-0.5">
                                 <span className="flex items-center gap-1.5">
                                   <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
                                   Unlimited plan tier
                                 </span>
-                                <span>No limit on properties</span>
+                                <span>No limit on projects</span>
                               </div>
                             ) : (
                               <>
                                 <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                                   <div
                                     className={`h-full rounded-full transition-all duration-500 ${
-                                      (reportUsage?.propertiesUsed ?? 0) /
-                                        (reportUsage?.propertiesProvided ||
-                                          1) >=
+                                      (reportUsage?.projectsUsed ?? 0) /
+                                        (reportUsage?.projectsProvided || 1) >=
                                       1
                                         ? "bg-destructive"
-                                        : (reportUsage?.propertiesUsed ?? 0) /
-                                              (reportUsage?.propertiesProvided ||
+                                        : (reportUsage?.projectsUsed ?? 0) /
+                                              (reportUsage?.projectsProvided ||
                                                 1) >=
                                             0.8
                                           ? "bg-amber-500"
@@ -1528,8 +1636,8 @@ export default function UserProfile() {
                                     style={{
                                       width: `${Math.min(
                                         100,
-                                        ((reportUsage?.propertiesUsed ?? 0) /
-                                          (reportUsage?.propertiesProvided ||
+                                        ((reportUsage?.projectsUsed ?? 0) /
+                                          (reportUsage?.projectsProvided ||
                                             1)) *
                                           100,
                                       )}%`,
@@ -1541,8 +1649,8 @@ export default function UserProfile() {
                                     {Math.round(
                                       Math.min(
                                         100,
-                                        ((reportUsage?.propertiesUsed ?? 0) /
-                                          (reportUsage?.propertiesProvided ||
+                                        ((reportUsage?.projectsUsed ?? 0) /
+                                          (reportUsage?.projectsProvided ||
                                             1)) *
                                           100,
                                       ),
@@ -1552,182 +1660,87 @@ export default function UserProfile() {
                                   <span>
                                     {Math.max(
                                       0,
-                                      (reportUsage?.propertiesProvided ?? 0) -
-                                        (reportUsage?.propertiesUsed ?? 0),
+                                      (reportUsage?.projectsProvided ?? 0) -
+                                        (reportUsage?.projectsUsed ?? 0),
                                     )}{" "}
-                                    project remaining
+                                    projects remaining
                                   </span>
                                 </div>
                               </>
                             )}
                           </div>
-                        )}
+                        </div>
 
-                        {/* Projects Usage */}
-                        <div className="space-y-2 p-3.5 rounded-xl bg-muted/30 border border-border/50 transition-all">
-                          <div className="flex items-center justify-between text-xs font-bold">
+                        {/* Part 2: Reports Access Quota */}
+                        <div className="space-y-3 pt-2">
+                          <div className="flex items-center justify-between pb-1.5 border-b border-border/50">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-foreground">Projects</span>
-                              <span className="text-[10px] font-normal text-muted-foreground">
-                                (active)
+                              <FileText className="size-3.5 text-primary" />
+                              <span className="text-[11px] font-bold text-foreground uppercase tracking-wider">
+                                Reports Membership Quotas
                               </span>
                             </div>
-                            <span className="text-xs font-medium">
-                              <span className="font-bold text-foreground">
-                                {reportUsage?.projectsUsed ?? 0}
-                              </span>{" "}
-                              <span className="text-muted-foreground">
-                                used
-                              </span>
-                              <span className="text-muted-foreground/60 mx-1">
-                                /
-                              </span>
-                              {reportUsage?.projectsUnlimited ? (
-                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                                  Unlimited
-                                </span>
-                              ) : (
-                                <>
-                                  <span className="font-bold text-foreground">
-                                    {reportUsage?.projectsProvided ?? 0}
-                                  </span>{" "}
-                                  <span className="text-muted-foreground">
-                                    project max
-                                  </span>
-                                </>
-                              )}
+                            <span className="text-[10px] font-medium text-muted-foreground">
+                              Monthly Quota
                             </span>
                           </div>
-                          {reportUsage?.projectsUnlimited ? (
-                            <div className="flex justify-between items-center text-[11px] text-emerald-600 dark:text-emerald-400 font-medium pt-0.5">
-                              <span className="flex items-center gap-1.5">
-                                <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                Unlimited plan tier
-                              </span>
-                              <span>No limit on projects</span>
+
+                          <div className="grid grid-cols-2 gap-2.5">
+                            <div className="bg-muted/30 p-3 rounded-xl border border-border/50">
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                Plan Allowance
+                              </p>
+                              <p className="text-lg font-black text-foreground mt-0.5">
+                                {reportUsage?.baseLimit ?? 0}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                                Included with plan
+                              </p>
                             </div>
-                          ) : (
-                            <>
-                              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full transition-all duration-500 ${
-                                    (reportUsage?.projectsUsed ?? 0) /
-                                      (reportUsage?.projectsProvided || 1) >=
-                                    1
-                                      ? "bg-destructive"
-                                      : (reportUsage?.projectsUsed ?? 0) /
-                                            (reportUsage?.projectsProvided ||
-                                              1) >=
-                                          0.8
-                                        ? "bg-amber-500"
-                                        : "bg-primary"
-                                  }`}
-                                  style={{
-                                    width: `${Math.min(
-                                      100,
-                                      ((reportUsage?.projectsUsed ?? 0) /
-                                        (reportUsage?.projectsProvided || 1)) *
-                                        100,
-                                    )}%`,
-                                  }}
-                                />
-                              </div>
-                              <div className="flex justify-between items-center text-[10px] text-muted-foreground font-medium pt-0.5">
-                                <span>
-                                  {Math.round(
-                                    Math.min(
-                                      100,
-                                      ((reportUsage?.projectsUsed ?? 0) /
-                                        (reportUsage?.projectsProvided || 1)) *
-                                        100,
-                                    ),
-                                  )}
-                                  % of allowance used
-                                </span>
-                                <span>
-                                  {Math.max(
-                                    0,
-                                    (reportUsage?.projectsProvided ?? 0) -
-                                      (reportUsage?.projectsUsed ?? 0),
-                                  )}{" "}
-                                  projects remaining
-                                </span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
 
-                      {/* Part 2: Reports Access Quota */}
-                      <div className="space-y-3 pt-2">
-                        <div className="flex items-center justify-between pb-1.5 border-b border-border/50">
-                          <div className="flex items-center gap-1.5">
-                            <FileText className="size-3.5 text-primary" />
-                            <span className="text-[11px] font-bold text-foreground uppercase tracking-wider">
-                              Reports Membership Quotas
-                            </span>
-                          </div>
-                          <span className="text-[10px] font-medium text-muted-foreground">
-                            Monthly Quota
-                          </span>
-                        </div>
+                            <div className="bg-muted/30 p-3 rounded-xl border border-border/50">
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                Purchased
+                              </p>
+                              <p className="text-lg font-black text-foreground mt-0.5">
+                                {reportUsage?.purchasedReports ?? 0}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                                Extra add-on credits
+                              </p>
+                            </div>
 
-                        <div className="grid grid-cols-2 gap-2.5">
-                          <div className="bg-muted/30 p-3 rounded-xl border border-border/50">
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                              Plan Allowance
-                            </p>
-                            <p className="text-lg font-black text-foreground mt-0.5">
-                              {reportUsage?.baseLimit ?? 0}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                              Included with plan
-                            </p>
-                          </div>
+                            <div className="bg-muted/30 p-3 rounded-xl border border-border/50">
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                Reports Used
+                              </p>
+                              <p className="text-lg font-black text-foreground mt-0.5">
+                                {reportUsage?.used ?? 0}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                                Accessed this period
+                              </p>
+                            </div>
 
-                          <div className="bg-muted/30 p-3 rounded-xl border border-border/50">
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                              Purchased
-                            </p>
-                            <p className="text-lg font-black text-foreground mt-0.5">
-                              {reportUsage?.purchasedReports ?? 0}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                              Extra add-on credits
-                            </p>
-                          </div>
-
-                          <div className="bg-muted/30 p-3 rounded-xl border border-border/50">
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                              Reports Used
-                            </p>
-                            <p className="text-lg font-black text-foreground mt-0.5">
-                              {reportUsage?.used ?? 0}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                              Accessed this period
-                            </p>
-                          </div>
-
-                          <div className="bg-primary/5 p-3 rounded-xl border border-primary/20">
-                            <p className="text-[10px] font-bold text-primary uppercase tracking-wider">
-                              Available
-                            </p>
-                            <p className="text-lg font-black text-primary mt-0.5">
-                              {reportUsage?.remaining ?? 0}
-                            </p>
-                            <p className="text-[10px] text-primary/80 leading-tight mt-0.5 font-medium">
-                              Reports balance left
-                            </p>
+                            <div className="bg-primary/5 p-3 rounded-xl border border-primary/20">
+                              <p className="text-[10px] font-bold text-primary uppercase tracking-wider">
+                                Available
+                              </p>
+                              <p className="text-lg font-black text-primary mt-0.5">
+                                {reportUsage?.remaining ?? 0}
+                              </p>
+                              <p className="text-[10px] text-primary/80 leading-tight mt-0.5 font-medium">
+                                Reports balance left
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
           {showMembership && (
             <Card className="border shadow-lg bg-background text-foreground overflow-hidden relative group rounded-3xl">
@@ -1749,7 +1762,7 @@ export default function UserProfile() {
                     </h2>
                     <p className="text-sm text-muted-foreground font-medium mb-6 leading-relaxed max-w-[260px]">
                       {user.current_subscription?.plan?.description ||
-                        "You have access to all premium features and exclusive verification reports."}
+                        "You have access to all the features and exclusive verification reports."}
                     </p>
 
                     {user.current_subscription?.plan?.level?.toUpperCase() !==
@@ -1807,7 +1820,7 @@ export default function UserProfile() {
                       <Sparkles className="size-10 text-white" />
                     </div>
                     <h2 className="text-3xl font-black leading-[1.1] mb-6 uppercase tracking-tighter text-foreground">
-                      Premium <br />
+                      Select <br />
                       <span className="text-primary italic">Membership</span>
                     </h2>
                     <p className="text-sm text-muted-foreground font-medium mb-10 leading-relaxed max-w-[260px]">
@@ -1818,7 +1831,7 @@ export default function UserProfile() {
                       onClick={() => router.push("/plans")}
                       className="w-full bg-primary hover:bg-primary/90 text-white rounded-2xl h-14 font-black transition-all hover:shadow-[0_10px_30px_rgba(59,130,246,0.3)] active:scale-95 text-xs uppercase tracking-[0.2em]"
                     >
-                      Upgrade Now
+                      Select Plan
                     </Button>
                   </>
                 )}
@@ -1937,12 +1950,20 @@ export default function UserProfile() {
         isOpen={isProfileImagePickerOpen}
         onClose={() => setIsProfileImagePickerOpen(false)}
         onSelectCamera={() => {
+          const input = cameraImageInputRef.current;
+          if (input) {
+            input.value = "";
+            input.click();
+          }
           setIsProfileImagePickerOpen(false);
-          setTimeout(() => cameraImageInputRef.current?.click(), 100);
         }}
         onSelectGallery={() => {
+          const input = galleryImageInputRef.current;
+          if (input) {
+            input.value = "";
+            input.click();
+          }
           setIsProfileImagePickerOpen(false);
-          setTimeout(() => galleryImageInputRef.current?.click(), 100);
         }}
         title="Upload Profile Picture"
         description="Choose how you would like to upload your profile picture:"

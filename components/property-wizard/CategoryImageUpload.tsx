@@ -132,9 +132,9 @@ export function CategoryImageUpload({
             return (
               <div
                 key={id}
-                className="flex items-center gap-2 md:gap-[23px] w-full"
+                className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 md:gap-[23px] w-full"
               >
-                <span className="text-[16px] md:text-[24px] font-bold text-[#708090] w-[100px] md:w-[200px] wrap-break-word">
+                <span className="text-[16px] md:text-[24px] font-bold text-[#708090] sm:w-[100px] md:w-[200px] shrink-0 break-words">
                   {label}
                 </span>
 
@@ -149,42 +149,44 @@ export function CategoryImageUpload({
                 />
 
                 {photo?.preview ? (
-                  <div className="flex-1 flex items-center gap-3 h-[46px] md:h-[70px] bg-[rgba(28,167,166,0.08)] border border-[rgba(28,167,166,0.3)] rounded-[6px] px-4">
+                  <div className="w-full sm:flex-1 min-w-0 flex items-center gap-2 md:gap-3 h-[46px] md:h-[70px] bg-[rgba(28,167,166,0.08)] border border-[rgba(28,167,166,0.3)] rounded-[6px] px-2.5 sm:px-4">
                     <Image
                       src={photo.preview}
                       alt={label}
                       width={76}
                       height={52}
                       unoptimized
-                      className="h-[34px] md:h-[52px] w-[50px] md:w-[76px] object-cover rounded-[4px]"
+                      className="h-[34px] md:h-[52px] w-[46px] sm:w-[50px] md:w-[76px] object-cover rounded-[4px] shrink-0"
                     />
-                    <span className="flex-1 text-[13px] md:text-[16px] font-medium text-[#1F2A44] max-w-[700px] truncate">
+                    <span className="flex-1 min-w-0 text-[13px] md:text-[16px] font-medium text-[#1F2A44] truncate">
                       {photo.file?.name}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(fieldName)}
-                      className="text-[#708090] hover:text-red-500 transition-colors shrink-0"
-                      aria-label={`Remove ${label} photo`}
-                    >
-                      <X className="size-4 md:size-5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => inputRefs.current[fieldName]?.click()}
-                      className="text-[#1CA7A6] text-[12px] md:text-[14px] font-bold hover:opacity-80 transition-opacity shrink-0"
-                    >
-                      Change
-                    </button>
+                    <div className="flex items-center gap-2 md:gap-3 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(fieldName)}
+                        className="text-[#708090] hover:text-red-500 transition-colors shrink-0 p-1"
+                        aria-label={`Remove ${label} photo`}
+                      >
+                        <X className="size-4 md:size-5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => inputRefs.current[fieldName]?.click()}
+                        className="text-[#1CA7A6] text-[12px] md:text-[14px] font-bold hover:opacity-80 transition-opacity shrink-0 whitespace-nowrap"
+                      >
+                        Change
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <button
                     type="button"
-                    className="flex-1 h-[46px] md:h-[70px] bg-[rgba(112,128,144,0.2)] hover:bg-[rgba(112,128,144,0.3)] transition-colors rounded-[6px] flex items-center justify-center gap-2 text-[16px] md:text-[24px] font-bold text-[#1F2A44] font-asap shadow-none"
+                    className="w-full sm:flex-1 h-[46px] md:h-[70px] bg-[rgba(112,128,144,0.2)] hover:bg-[rgba(112,128,144,0.3)] transition-colors rounded-[6px] flex items-center justify-center gap-2 text-[16px] md:text-[24px] font-bold text-[#1F2A44] font-asap shadow-none"
                     onClick={() => inputRefs.current[fieldName]?.click()}
                   >
-                    <ImageIcon className="size-5 md:size-6 opacity-60" />
-                    Take & Upload
+                    <ImageIcon className="size-5 md:size-6 opacity-60 shrink-0" />
+                    <span>Take & Upload</span>
                   </button>
                 )}
               </div>

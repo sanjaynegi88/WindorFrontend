@@ -80,14 +80,17 @@ const sidingSchema = z.object({
 
 const windowsSchema = z.object({
   ...commonSchema,
-  productionLine: z.string().min(1, "Production line is required"),
+  productionLine: z.string().min(1, "Model Number is required"),
   orderNumber: z.string().min(1, "Order number is required"),
   u_factor: z.string().min(1, "U-Factor is required"),
 });
 const doorsSchema = z.object({
   ...commonSchema,
-  productionLine: z.string().min(1, "Production line is required"),
+  productionLine: z.string().min(1, "Model Number is required"),
+  color: z.string().min(1, "Color is required"),
   orderNumber: z.string().min(1, "Order number is required"),
+  glass_type: z.string().min(1, "Glass type is required"),
+  track_radius: z.string().min(1, "Track radius is required"),
 });
 const garageDoorsSchema = z.object({
   ...commonSchema,
@@ -173,9 +176,15 @@ export function InstallationForm({
   const [categoryPhotos, setCategoryPhotos] = useState<
     Record<string, { file: File | null; preview: string | null }>
   >({});
-  const [activeCategoryPickerKey, setActiveCategoryPickerKey] = useState<string | null>(null);
-  const categoryGalleryInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  const categoryCameraInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [activeCategoryPickerKey, setActiveCategoryPickerKey] = useState<
+    string | null
+  >(null);
+  const categoryGalleryInputRefs = useRef<
+    Record<string, HTMLInputElement | null>
+  >({});
+  const categoryCameraInputRefs = useRef<
+    Record<string, HTMLInputElement | null>
+  >({});
 
   const getTotalUploadSizeBytes = (
     overrideCategoryPhotos?: Record<
@@ -247,20 +256,24 @@ export function InstallationForm({
   const handleCategorySelectCamera = () => {
     if (activeCategoryPickerKey) {
       const targetKey = activeCategoryPickerKey;
+      const input = categoryCameraInputRefs.current[targetKey];
+      if (input) {
+        input.value = "";
+        input.click();
+      }
       setActiveCategoryPickerKey(null);
-      setTimeout(() => {
-        categoryCameraInputRefs.current[targetKey]?.click();
-      }, 100);
     }
   };
 
   const handleCategorySelectGallery = () => {
     if (activeCategoryPickerKey) {
       const targetKey = activeCategoryPickerKey;
+      const input = categoryGalleryInputRefs.current[targetKey];
+      if (input) {
+        input.value = "";
+        input.click();
+      }
       setActiveCategoryPickerKey(null);
-      setTimeout(() => {
-        categoryGalleryInputRefs.current[targetKey]?.click();
-      }, 100);
     }
   };
 
@@ -370,6 +383,8 @@ export function InstallationForm({
       impactResistant: values?.impactResistant ?? false,
       classRating: values?.classRating || "",
       elevationdata: values?.elevationdata || [],
+      glass_type: values?.glass_type || "",
+      track_radius: values?.track_radius || "",
       contractorImages: [],
       ownerImages: [],
     }) as any;
@@ -885,6 +900,67 @@ export function InstallationForm({
                   )}
                 />
               )}
+              {type === "doors" && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="color"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold text-foreground">
+                          Color
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Installation color"
+                            className="h-11 bg-muted/20 focus:bg-background transition-all"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="glass_type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold text-foreground">
+                          Glass Type
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder=""
+                            className="h-11 bg-muted/20 focus:bg-background transition-all"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="track_radius"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold text-foreground">
+                          Track Radius
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder=""
+                            className="h-11 bg-muted/20 focus:bg-background transition-all"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
 
               <div className="md:col-span-2 space-y-6">
                 {/* ── Contractor Images (category-based) ── */}
@@ -899,7 +975,8 @@ export function InstallationForm({
                         : "Leave empty to keep the current image."}
                     </span>
                     <span className="text-[11px] text-amber-600 font-semibold">
-                      Acceptable size: Max 20MB total combined size for all images
+                      Acceptable size: Max 20MB total combined size for all
+                      images
                     </span>
                     {getTotalUploadSizeBytes() > 0 && (
                       <span
@@ -911,7 +988,8 @@ export function InstallationForm({
                         )}
                       >
                         Current Total Upload Size:{" "}
-                        {(getTotalUploadSizeBytes() / (1024 * 1024)).toFixed(2)} MB / 20 MB
+                        {(getTotalUploadSizeBytes() / (1024 * 1024)).toFixed(2)}{" "}
+                        MB / 20 MB
                       </span>
                     )}
                   </p>
@@ -997,9 +1075,13 @@ export function InstallationForm({
                                         [key]: { file: null, preview: null },
                                       }));
                                       if (categoryGalleryInputRefs.current[key])
-                                        categoryGalleryInputRefs.current[key]!.value = "";
+                                        categoryGalleryInputRefs.current[
+                                          key
+                                        ]!.value = "";
                                       if (categoryCameraInputRefs.current[key])
-                                        categoryCameraInputRefs.current[key]!.value = "";
+                                        categoryCameraInputRefs.current[
+                                          key
+                                        ]!.value = "";
                                     }}
                                     className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
                                   >
@@ -1085,7 +1167,8 @@ export function InstallationForm({
                         Property Owner Images (Up to 5)
                       </FormLabel>
                       <span className="text-[11px] text-amber-600 font-semibold">
-                        Acceptable size: Max 20MB total combined size for all images
+                        Acceptable size: Max 20MB total combined size for all
+                        images
                       </span>
                     </div>
 
@@ -1149,7 +1232,8 @@ export function InstallationForm({
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
-                              const input = e.currentTarget.querySelector("input");
+                              const input =
+                                e.currentTarget.querySelector("input");
                               if (input) input.click();
                             }
                           }}

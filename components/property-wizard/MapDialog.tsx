@@ -11,12 +11,22 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
+import { getCities } from "@/lib/actions";
+import {
+  DEFAULT_MAP_CENTER,
+  DEFAULT_OVERVIEW_ZOOM,
+  INITIAL_CITY_ZOOM,
+} from "@/components/common/google-map";
 
 interface MapDialogProps {
   isOpen: boolean;
   onClose: () => void;
   latitude?: number | null;
   longitude?: number | null;
+  cityId?: string;
+  stateId?: string;
+  cityLat?: number | null;
+  cityLng?: number | null;
   addressString?: string;
   onSave: (lat: number, lng: number) => void;
 }
@@ -26,6 +36,10 @@ export function MapDialog({
   onClose,
   latitude,
   longitude,
+  cityId,
+  stateId,
+  cityLat,
+  cityLng,
   addressString,
   onSave,
 }: MapDialogProps) {
@@ -76,41 +90,98 @@ export function MapDialog({
 
         if (!active) return;
 
-        let centerLat = tempLat || 44.90201523983981;
-        let centerLng = tempLng || -93.51909931477276;
+        let centerLat = DEFAULT_MAP_CENTER.lat;
+        let centerLng = DEFAULT_MAP_CENTER.lng;
+        let initialZoom = DEFAULT_OVERVIEW_ZOOM;
+        let hasPin = false;
 
-        // Geocode address string if no lat/lng provided
-        if (!tempLat && !tempLng && addressString) {
-          try {
-            const response = await fetch(
-              `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addressString)}&format=json&limit=1`,
-            );
-            const data = await response.json();
-            if (active && data && data.length > 0) {
-              const geocodedLat = parseFloat(data[0].lat);
-              const geocodedLng = parseFloat(data[0].lon);
-              if (!isNaN(geocodedLat) && !isNaN(geocodedLng)) {
-                centerLat = geocodedLat;
-                centerLng = geocodedLng;
-                setTempLat(geocodedLat);
-                setTempLng(geocodedLng);
-                setLatInput(String(geocodedLat));
-                setLngInput(String(geocodedLng));
+        const hasPropertyCoords =
+          tempLat !== null &&
+          tempLat !== undefined &&
+          tempLng !== null &&
+          tempLng !== undefined;
+
+        if (hasPropertyCoords) {
+          centerLat = tempLat!;
+          centerLng = tempLng!;
+          initialZoom = 15;
+          hasPin = true;
+        } else {
+          // Check if city coords were provided directly
+          let resolvedCityLat =
+            cityLat !== null && cityLat !== undefined && !isNaN(cityLat)
+              ? cityLat
+              : null;
+          let resolvedCityLng =
+            cityLng !== null && cityLng !== undefined && !isNaN(cityLng)
+              ? cityLng
+              : null;
+
+          // If cityId is provided but no lat/long yet, resolve city coordinates via API
+          if ((resolvedCityLat === null || resolvedCityLng === null) && cityId) {
+            try {
+              const isUuidOrNum =
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                  cityId,
+                ) || !isNaN(Number(cityId));
+
+              const cityRes = isUuidOrNum
+                ? await getCities(undefined, undefined, cityId)
+                : await getCities(1, 1, undefined, cityId, stateId);
+
+              if (active) {
+                const rawData =
+                  cityRes?.data?.data ?? cityRes?.data ?? cityRes;
+                const cityObj = Array.isArray(rawData) ? rawData[0] : rawData;
+                if (cityObj?.latitude && cityObj?.longitude) {
+                  const latNum = Number(cityObj.latitude);
+                  const lngNum = Number(cityObj.longitude);
+                  if (!isNaN(latNum) && !isNaN(lngNum)) {
+                    resolvedCityLat = latNum;
+                    resolvedCityLng = lngNum;
+                  }
+                }
               }
+            } catch (err) {
+              console.error("Failed to resolve city coordinates:", err);
             }
-          } catch (err) {
-            console.error("Nominatim geocoding failed:", err);
           }
-        } else if (!tempLat && !tempLng) {
-          setTempLat(centerLat);
-          setTempLng(centerLng);
+
+          if (resolvedCityLat !== null && resolvedCityLng !== null) {
+            centerLat = resolvedCityLat;
+            centerLng = resolvedCityLng;
+            initialZoom = INITIAL_CITY_ZOOM;
+            hasPin = true;
+            setTempLat(resolvedCityLat);
+            setTempLng(resolvedCityLng);
+            setLatInput(String(resolvedCityLat));
+            setLngInput(String(resolvedCityLng));
+          } else {
+            // City does not have lat/long (or no city selected) -> show full US map
+            centerLat = DEFAULT_MAP_CENTER.lat;
+            centerLng = DEFAULT_MAP_CENTER.lng;
+            initialZoom = DEFAULT_OVERVIEW_ZOOM;
+            hasPin = false;
+            setTempLat(null);
+            setTempLng(null);
+            setLatInput("");
+            setLngInput("");
+          }
         }
+
+        if (!active) return;
 
         const map = new Map(mapContainer, {
           center: { lat: centerLat, lng: centerLng },
-          zoom: 15,
+          zoom: initialZoom,
           mapId: process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID,
           clickableIcons: false,
+          gestureHandling: "auto",
+          scrollwheel: true,
+          zoomControl: true,
+          mapTypeControl: true,
+          streetViewControl: false,
+          fullscreenControl: true,
           styles: [
             {
               featureType: "poi",
@@ -131,8 +202,8 @@ export function MapDialog({
         markerContainer.appendChild(img);
 
         const marker = new AdvancedMarkerElement({
-          map,
-          position: { lat: centerLat, lng: centerLng },
+          map: hasPin ? map : null,
+          position: hasPin ? { lat: centerLat, lng: centerLng } : null,
           gmpDraggable: true,
           content: markerContainer,
         });
@@ -166,6 +237,7 @@ export function MapDialog({
             setTempLng(lngVal);
             setLatInput(String(latVal));
             setLngInput(String(lngVal));
+            marker.map = map;
             marker.position = { lat: latVal, lng: lngVal };
           }
         });
@@ -184,7 +256,16 @@ export function MapDialog({
       }
       mapInstanceRef.current = null;
     };
-  }, [isOpen, mapContainer]);
+  }, [
+    isOpen,
+    mapContainer,
+    latitude,
+    longitude,
+    cityId,
+    stateId,
+    cityLat,
+    cityLng,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -212,6 +293,7 @@ export function MapDialog({
             ? currentLng
             : tempLng;
         if (markerRef.current && validLng !== null) {
+          markerRef.current.map = mapInstanceRef.current;
           markerRef.current.position = { lat: parsed, lng: validLng };
         }
         if (mapInstanceRef.current && validLng !== null) {
@@ -239,6 +321,7 @@ export function MapDialog({
             ? currentLat
             : tempLat;
         if (markerRef.current && validLat !== null) {
+          markerRef.current.map = mapInstanceRef.current;
           markerRef.current.position = { lat: validLat, lng: parsed };
         }
         if (mapInstanceRef.current && validLat !== null) {

@@ -46,6 +46,7 @@ function DashboardPageContent() {
     null,
   );
   const [mapFocusId, setMapFocusId] = useState<string | null>(null);
+  const [fallbackCityTrigger, setFallbackCityTrigger] = useState<number>(0);
   const [trialStatus, setTrialStatus] = useState<FreeTrialStatusData | null>(
     null,
   );
@@ -229,6 +230,9 @@ function DashboardPageContent() {
       return;
     }
     const targetFilters = newFilters || filters;
+    setMapFocus(null);
+    setMapFocusId(null);
+    setFallbackCityTrigger(0);
     setAppliedFilters(targetFilters);
     setShowResults(true);
 
@@ -309,6 +313,7 @@ function DashboardPageContent() {
         searchParams={mapSearchParams}
         focusCenter={mapFocus || undefined}
         focusId={mapFocusId || undefined}
+        fallbackCityTrigger={fallbackCityTrigger}
         onFocusCleared={() => {
           setMapFocus(null);
           setMapFocusId(null);
@@ -769,14 +774,23 @@ function DashboardPageContent() {
                 searchParams={searchParams}
                 showActionButtons={true}
                 showDetail={true}
-                onOpenInMap={(lat, lng, id) => {
+                onOpenInMap={(lat, lng, id, shouldScroll = true) => {
                   setMapFocus({ lat, lng });
-                  setMapFocusId(id);
-                  const mapElement =
-                    document.getElementById("dashboard-map-view");
-                  if (mapElement) {
-                    mapElement.scrollIntoView({ behavior: "smooth" });
+                  setMapFocusId(id || null);
+                  if (shouldScroll) {
+                    setTimeout(() => {
+                      const mapElement =
+                        document.getElementById("dashboard-map-view");
+                      if (mapElement) {
+                        mapElement.scrollIntoView({ behavior: "smooth" });
+                      }
+                    }, 100);
                   }
+                }}
+                onFallbackToCity={() => {
+                  setMapFocus(null);
+                  setMapFocusId(null);
+                  setFallbackCityTrigger(Date.now());
                 }}
                 mapSlot={dashboardMapElement}
               />

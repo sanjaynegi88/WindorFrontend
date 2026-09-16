@@ -181,7 +181,7 @@ export const InstallationCard = ({
           { label: "Material", value: item.material },
           { label: "Class Rating", value: item.class_rating },
           { label: "Install Date", value: formattedDate },
-          { label: "Contractor", value: item.installer },
+          { label: "Installer", value: item.installer },
           { label: "Supplier", value: item.supplier },
           ...(item.other ? [{ label: "Other", value: item.other }] : []),
         ].map(({ label, value }) => (

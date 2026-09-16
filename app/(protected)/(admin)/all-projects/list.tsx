@@ -26,6 +26,7 @@ import {
   downloadPdfFromUrl,
   getErrorMessage,
   toPascalCase,
+  toTitleCase,
   isContractorProject,
   cn,
 } from "@/lib/utils";
@@ -35,6 +36,9 @@ import { useRouter } from "next/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { AwsImage } from "@/components/common/aws-image";
+import { useUser } from "@/components/providers/user-provider";
+import { InstallationCard } from "@/app/(protected)/(dashboard)/property-details/[id]/installation-card";
+import { mapProjectToInstallation } from "@/app/(protected)/(dashboard)/property-details/[id]/types";
 
 type TabType = "all" | "completed" | "draft";
 
@@ -59,6 +63,9 @@ export default function AllProjectsList({ user }: { user: string }) {
   >({});
   const isAnyDownloading = Object.values(generatingReports).some(Boolean);
   const router = useRouter();
+  const currentUser = useUser();
+  const role = currentUser?.role?.toLowerCase() || user?.toLowerCase() || "";
+  const isAdmin = role === "admin" || user === "admin";
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<{
@@ -334,7 +341,8 @@ export default function AllProjectsList({ user }: { user: string }) {
                     })
                   : null;
               const hasReport = project.property?.has_report || false;
-              const isLocked = project?.is_locked_by_cancellation || false;
+              const isLocked =
+                !isAdmin && (project?.is_locked_by_cancellation || false);
               const hasInstallation = project.details !== null;
               const normalizeImageUrl = (value: any) => {
                 if (!value) return null;
@@ -408,6 +416,55 @@ export default function AllProjectsList({ user }: { user: string }) {
                   `/properties/edit/${property.id}?projectId=${actualProjectId}&noInstallation=true`,
                 );
               };
+
+              const comp = mapProjectToInstallation(
+                {
+                  ...project,
+                  images:
+                    Array.isArray(project.images) && project.images.length > 0
+                      ? project.images
+                      : project.details?.images ||
+                        project.components?.images ||
+                        [],
+                },
+                property.id,
+              );
+
+              const creatorObj = project.createdBy || project.contractor;
+              const addedBy = creatorObj
+                ? `${creatorObj.first_name || ""} ${creatorObj.last_name || ""}`.trim() ||
+                  creatorObj.name
+                : project.created_by_email ||
+                  project.contractor_email ||
+                  "N/A";
+              const addedByEmail =
+                creatorObj?.email ||
+                project.created_by_email ||
+                project.contractor_email;
+
+              const ownerName = clientName;
+              const propType =
+                property.property_type?.type_name ||
+                property.property_type?.name ||
+                (typeof property.property_type === "string"
+                  ? property.property_type
+                  : null) ||
+                property.type ||
+                project.property_type ||
+                "N/A";
+              const resolvedPropertyType = propType
+                ? toTitleCase(propType)
+                : "N/A";
+
+              const isOtherType =
+                String(project.project_type).toLowerCase() === "other" ||
+                String(project.project_type).toLowerCase() ===
+                  "other_contractor";
+              const otherText =
+                project.other ||
+                project.other_project_type ||
+                project.other_component_type ||
+                project.details?.other;
 
               return (
                 <ExpandableProjectCard
@@ -548,38 +605,64 @@ export default function AllProjectsList({ user }: { user: string }) {
                       </div>
                     </div>
 
-                    <div className="rounded-b-[12px] border border-[#E8EDF2] bg-white p-4 sm:p-5">
-                      <div className="gap-4">
-                        <div className="space-y-3">
-                          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                            {[
-                              { label: "Project Name", value: projectName },
-                              {
-                                label: "Client Name (Full Name)",
-                                value: clientName,
-                              },
-                              {
-                                label: "Property Address",
-                                value: propertyAddress,
-                              },
-                              { label: "State Name", value: stateName },
-                              { label: "Owner Email", value: ownerEmail },
-                            ].map((item) => (
-                              <div key={item.label}>
-                                <p className="text-[10px] font-semibold uppercase tracking-widest text-[#B0BEC5] font-inter">
-                                  {item.label}
-                                </p>
-                                <p className="mt-1 text-[12px] font-medium text-[#1F2A44] font-asap break-all">
-                                  {item.value}
-                                </p>
-                              </div>
-                            ))}
+                    <div className="rounded-b-[12px] border border-[#E8EDF2] border-t-0 bg-white p-4 sm:p-5">
+                      <div className="space-y-6">
+                        <div className="pb-4 border-b border-[#E8EDF2]">
+                          <div className="space-y-1">
+                            <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-[#B0BEC5] font-inter">
+                              Owner Name
+                            </p>
+                            <p className="text-sm font-semibold text-[#1F2A44] font-asap">
+                              {ownerName || "N/A"}
+                            </p>
+                            {ownerEmail && (
+                              <p className="text-xs text-[#708090] font-normal font-inter">
+                                {ownerEmail}
+                              </p>
+                            )}
                           </div>
+                        </div>
+                        <div className="pb-4 border-b border-[#E8EDF2]">
+                          <div className="space-y-1">
+                            <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-[#B0BEC5] font-inter">
+                              Property Type
+                            </p>
+                            <p className="text-sm font-semibold text-[#1F2A44] font-asap">
+                              {resolvedPropertyType || "N/A"}
+                            </p>
+                          </div>
+                        </div>
 
-                          {!hasInstallation ? (
-                            <div className="flex flex-col items-center justify-center h-full border border-[#E8EDF2] py-5">
-                              <h1>No Installation Found</h1>
+                        {(isOtherType || Boolean(otherText)) && (
+                          <div className="pb-4 border-b border-[#E8EDF2]">
+                            <div className="space-y-1">
+                              <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-[#B0BEC5] font-inter">
+                                Other Specification
+                              </p>
+                              <p className="text-sm font-semibold text-[#1F2A44] font-asap">
+                                {otherText || "N/A"}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {project?.details && comp ? (
+                          <InstallationCard
+                            key={comp.id}
+                            item={comp}
+                            canUpload={false}
+                            embedded
+                            addedBy={addedBy}
+                            addedByEmail={addedByEmail}
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-6 text-center border border-[#E8EDF2] rounded-lg">
+                            <p className="text-[13px] font-medium uppercase tracking-widest text-[#B0BEC5]">
+                              No installation added yet
+                            </p>
+                            {property.id && actualProjectId && (
                               <Button
+                                className="mt-3 h-8 px-3 rounded-full border border-[#1CA7A6] bg-white text-[#1CA7A6] font-bold text-[10px] uppercase tracking-widest hover:bg-[rgba(28,167,166,0.08)]"
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   handleAddInstallation(project);
@@ -587,95 +670,9 @@ export default function AllProjectsList({ user }: { user: string }) {
                               >
                                 Add Installation
                               </Button>
-                            </div>
-                          ) : (
-                            <>
-                              <div>
-                                <p className="text-[10px] font-semibold uppercase tracking-widest text-[#B0BEC5] font-inter">
-                                  Description
-                                </p>
-                                <p className="mt-1 text-[13px] font-medium text-[#1F2A44] font-asap leading-6">
-                                  {detail.description ||
-                                    "No description available"}
-                                </p>
-                              </div>
-                              <div className="space-y-3">
-                                <div className="grid gap-3 sm:grid-cols-2  md:grid-cols-3 lg:grid-cols-4">
-                                  {[
-                                    {
-                                      label: "Install Date",
-                                      value: projectDateLabel || "N/A",
-                                    },
-                                    {
-                                      label: "Brand",
-                                      value: detail.brand || "N/A",
-                                    },
-                                    {
-                                      label: "Material",
-                                      value: detail.material || "N/A",
-                                    },
-                                    {
-                                      label: "Contractor",
-                                      value: detail.installer || "N/A",
-                                    },
-                                    {
-                                      label: "Supplier",
-                                      value: detail.supplier || "N/A",
-                                    },
-                                    {
-                                      label: "Style",
-                                      value: detail.style || "N/A",
-                                    },
-                                    {
-                                      label: "Color",
-                                      value: detail.color || "N/A",
-                                    },
-                                    {
-                                      label: "Class",
-                                      value: detail.class_rating || "N/A",
-                                    },
-                                  ].map((item) => (
-                                    <div key={item.label}>
-                                      <p className="text-[10px] font-semibold uppercase tracking-widest text-[#B0BEC5] font-inter">
-                                        {item.label}
-                                      </p>
-                                      <p className="mt-1 text-[12px] font-medium text-[#1F2A44] font-asap">
-                                        {item.value}
-                                      </p>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                              {allImages.length > 0 && (
-                                <div className="pt-4 mt-4 border-t border-[#E8EDF2]">
-                                  <p className="text-[10px] font-semibold uppercase tracking-widest text-[#B0BEC5] font-inter mb-3">
-                                    Images
-                                  </p>
-                                  <div
-                                    className="relative h-24 w-32 sm:h-32 sm:w-48 rounded-lg overflow-hidden border border-[#E8EDF2] cursor-pointer group"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedImages(allImages);
-                                      setCurrentImageIndex(0);
-                                      setIsImageModalOpen(true);
-                                    }}
-                                  >
-                                    <AwsImage
-                                      src={allImages[0]}
-                                      alt="Project cover"
-                                      className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                                    />
-                                    {allImages.length > 1 && (
-                                      <div className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-bold px-2 py-1 rounded">
-                                        +{allImages.length - 1} Photos
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

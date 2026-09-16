@@ -182,6 +182,8 @@ export function AddressForm({
           id: String(c.id),
           name: c.city_name || c.name,
           state_id: c.state_id ? String(c.state_id) : undefined,
+          latitude: c.latitude ? String(c.latitude) : undefined,
+          longitude: c.longitude ? String(c.longitude) : undefined,
         }));
         if (active) {
           setFetchedCities(formatted);
@@ -207,6 +209,15 @@ export function AddressForm({
     }
     return fetchedCities;
   }, [cities, fetchedCities, citySearch, data.state]);
+
+  const selectedCity = useMemo(() => {
+    if (!data.city_id) return null;
+    return (
+      cityOptions.find((c) => c.id === data.city_id) ||
+      cities.find((c) => c.id === data.city_id) ||
+      null
+    );
+  }, [data.city_id, cityOptions, cities]);
 
   const propertyTypeOptions = useMemo(() => {
     if (!propertyTypes || propertyTypes.length === 0) return [];
@@ -553,6 +564,10 @@ export function AddressForm({
         onClose={() => setIsMapPopupOpen(false)}
         latitude={data.latitude}
         longitude={data.longitude}
+        cityId={data.city_id}
+        stateId={data.state || data.state_id}
+        cityLat={selectedCity?.latitude ? Number(selectedCity.latitude) : null}
+        cityLng={selectedCity?.longitude ? Number(selectedCity.longitude) : null}
         addressString={
           data.address
             ? `${data.address}, ${data.city || ""}, ${data.state || ""} ${data.zip || ""}`

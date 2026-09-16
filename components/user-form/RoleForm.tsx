@@ -16,6 +16,8 @@ export interface RoleFormProps {
   context: FormContext;
   isEditing?: boolean;
   disabled?: boolean;
+  isStateDisabled?: boolean;
+  isCityDisabled?: boolean;
   selectedStateId?: string;
   onStateSelect?: (stateId: string) => void;
   selectedCityName?: string;
@@ -36,6 +38,8 @@ export function RoleForm({
   context,
   isEditing = true,
   disabled = false,
+  isStateDisabled,
+  isCityDisabled,
   selectedStateId,
   onStateSelect,
   selectedCityName,
@@ -56,6 +60,24 @@ export function RoleForm({
   }
 
   const group = getRoleGroup(role);
+  const isInspector = role?.toLowerCase() === "city_inspector";
+
+  const isFieldDisabled = (config: RoleFieldConfig) => {
+    if (disabled) return true;
+    if (
+      (config.type === "state" || config.name === "state_id") &&
+      (isStateDisabled ?? (context === "profile" && isInspector))
+    ) {
+      return true;
+    }
+    if (
+      (config.type === "city" || config.name === "city_id") &&
+      (isCityDisabled ?? (context === "profile" && isInspector))
+    ) {
+      return true;
+    }
+    return false;
+  };
 
   // Layout wrapper for profile vs standard form
   if (context === "profile") {
@@ -68,7 +90,7 @@ export function RoleForm({
             form={form}
             context={context}
             isEditing={isEditing}
-            disabled={disabled}
+            disabled={isFieldDisabled(config)}
             selectedStateId={selectedStateId}
             onStateSelect={onStateSelect}
             selectedCityName={selectedCityName}
@@ -256,7 +278,7 @@ export function RoleForm({
             form={form}
             context={context}
             isEditing={isEditing}
-            disabled={disabled}
+            disabled={isFieldDisabled(config)}
             selectedStateId={selectedStateId}
             onStateSelect={onStateSelect}
             selectedCityName={selectedCityName}

@@ -80,10 +80,12 @@ export function PropertyVerifySidebar({
   onClose,
   onUpdate,
 }: PropertyVerifySidebarProps) {
-  const { role } = useUser();
+  const { user, role } = useUser();
+  const currentUserEmail = user?.email;
   const isAdmin = role === "admin";
   const isInspector = role === "city_inspector";
   const isOwner = role === "property_owner";
+  const isContractor = role === "contractor" || role === "manufacturer";
 
   const [property, setProperty] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -303,7 +305,7 @@ export function PropertyVerifySidebar({
         >
           <SheetHeader className="px-6 py-4 border-b flex flex-row items-center justify-between space-y-0">
             <SheetTitle className="text-lg font-bold">
-              Verify Property
+              {isContractor || isOwner ? "Upload Documents" : "Verify Property"}
             </SheetTitle>
           </SheetHeader>
 
@@ -443,6 +445,11 @@ export function PropertyVerifySidebar({
 
                       {projectsWithComponent.map((project: any) => {
                         const comp = project.components;
+                        const hasAddedProject =
+                          project.createdBy.email === currentUserEmail;
+
+                        console.log("currentUserEmail", currentUserEmail);
+                        console.log("api user", project.createdBy.email);
                         const compImages: string[] = (
                           comp.images ?? []
                         ).flatMap((img: any) =>
@@ -592,61 +599,65 @@ export function PropertyVerifySidebar({
                                   )}
 
                                 {/* Upload Permit button: need_permit is true and no permit uploaded yet */}
-                                {permitMissing && (
-                                  <Button
-                                    size="sm"
-                                    onClick={() =>
-                                      openPermitDialog(comp, project.id)
-                                    }
-                                    className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 text-white rounded-lg gap-1.5 shadow-2xs transition-colors cursor-pointer"
-                                  >
-                                    <FilePlus className="size-3" />
-                                    Upload Permit
-                                  </Button>
-                                )}
-
-                                {/* CASE 1: PENDING -> Show BOTH Verify and Reject buttons (for non-owners when permit is not missing) */}
-                                {isPending && !isOwner && !permitMissing && (
-                                  <>
-                                    <Button
-                                      size="sm"
-                                      onClick={() => {
-                                        setVerifyParams({
-                                          projectId: project.id,
-                                          componentId: comp.id,
-                                        });
-                                        setConfirmVerifyOpen(true);
-                                      }}
-                                      disabled={isVerifying}
-                                      className="h-7 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg gap-1.5 bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                                    >
-                                      {isVerifying ? (
-                                        <Loader2 className="size-3 animate-spin" />
-                                      ) : (
-                                        <ShieldCheck className="size-3" />
-                                      )}
-                                      {isVerifying ? "Verifying…" : "Verify"}
-                                    </Button>
+                                {permitMissing &&
+                                  !isInspector &&
+                                  (isAdmin || isOwner || hasAddedProject) && (
                                     <Button
                                       size="sm"
                                       onClick={() =>
-                                        handleMarkUnverified(
-                                          project.id,
-                                          comp.id,
-                                        )
+                                        openPermitDialog(comp, project.id)
                                       }
-                                      disabled={isVerifying}
-                                      className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-red-600 hover:bg-red-700 text-white rounded-lg gap-1.5 shadow-2xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                      className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 text-white rounded-lg gap-1.5 shadow-2xs transition-colors cursor-pointer"
                                     >
-                                      {isVerifying ? (
-                                        <Loader2 className="size-3 animate-spin" />
-                                      ) : (
-                                        <ShieldX className="size-3" />
-                                      )}
-                                      {isVerifying ? "Updating…" : "Reject"}
+                                      <FilePlus className="size-3" />
+                                      Upload Permit
                                     </Button>
-                                  </>
-                                )}
+                                  )}
+
+                                {/* CASE 1: PENDING -> Show BOTH Verify and Reject buttons  */}
+                                {isPending &&
+                                  (isAdmin || isInspector) &&
+                                  !permitMissing && (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => {
+                                          setVerifyParams({
+                                            projectId: project.id,
+                                            componentId: comp.id,
+                                          });
+                                          setConfirmVerifyOpen(true);
+                                        }}
+                                        disabled={isVerifying}
+                                        className="h-7 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg gap-1.5 bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                                      >
+                                        {isVerifying ? (
+                                          <Loader2 className="size-3 animate-spin" />
+                                        ) : (
+                                          <ShieldCheck className="size-3" />
+                                        )}
+                                        {isVerifying ? "Verifying…" : "Verify"}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        onClick={() =>
+                                          handleMarkUnverified(
+                                            project.id,
+                                            comp.id,
+                                          )
+                                        }
+                                        disabled={isVerifying}
+                                        className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-red-600 hover:bg-red-700 text-white rounded-lg gap-1.5 shadow-2xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                      >
+                                        {isVerifying ? (
+                                          <Loader2 className="size-3 animate-spin" />
+                                        ) : (
+                                          <ShieldX className="size-3" />
+                                        )}
+                                        {isVerifying ? "Updating…" : "Reject"}
+                                      </Button>
+                                    </>
+                                  )}
 
                                 {/* CASE 2: VERIFIED -> Show Reject button (only for admin when permit not missing), show Verified indicator for non-admin */}
                                 {isVerified && (
@@ -725,8 +736,9 @@ export function PropertyVerifySidebar({
                                 <div className="flex items-center gap-2 min-w-0">
                                   <FilePlus className="size-3.5 text-amber-700 shrink-0" />
                                   <span className="text-[11px] font-medium leading-tight">
-                                    To change the status you need to upload the
-                                    permit first.
+                                    {hasAddedProject || isOwner
+                                      ? "Please upload required documents"
+                                      : "To change the status you need to upload the permit first."}
                                   </span>
                                 </div>
                               </div>
@@ -739,7 +751,7 @@ export function PropertyVerifySidebar({
                                 { label: "Style", value: comp.style },
                                 { label: "Color", value: comp.color },
                                 { label: "Material", value: comp.material },
-                                { label: "Contractor", value: comp.installer },
+                                { label: "Installer", value: comp.installer },
                                 { label: "Supplier", value: comp.supplier },
                                 {
                                   label: "Install Date",

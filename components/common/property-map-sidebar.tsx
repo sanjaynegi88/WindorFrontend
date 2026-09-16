@@ -32,6 +32,7 @@ import {
   downloadPdfFromUrl,
   getErrorMessage,
   getWorkingAwsImageUrl,
+  toPascalCase,
 } from "@/lib/utils";
 import {
   getPropertyListAll,
@@ -254,8 +255,43 @@ export function PropertyMapSidebar({
   const projectsList = property?.projects ?? [];
   const totalProjectsCount = projectsList.length;
 
-  const isProjectVerified = (p: any): boolean => {
+  const isProjectRejected = (p: any): boolean => {
     if (!p) return false;
+    const pStatus = (p.status || p.approval_status || p.verified_status || "")
+      .toString()
+      .toUpperCase();
+    if (pStatus === "REJECTED" || pStatus === "REJECT") return true;
+
+    if (p.components) {
+      const comp = p.components;
+      const cStatus = (
+        comp.status ||
+        comp.verified_status ||
+        comp.approval_status ||
+        comp.permit_status ||
+        ""
+      )
+        .toString()
+        .toUpperCase();
+      if (cStatus === "REJECTED" || cStatus === "REJECT") return true;
+      if (comp.verified_status === false) return true;
+      if (comp.installer_verified === false && comp.verified_at === null) {
+        return true;
+      }
+    }
+    if (
+      p.permit_upload?.status === "REJECTED" ||
+      p.permit_upload?.status === "REJECT" ||
+      p.permit_status === "REJECTED" ||
+      p.permit_status === "REJECT"
+    ) {
+      return true;
+    }
+    return false;
+  };
+
+  const isProjectVerified = (p: any): boolean => {
+    if (!p || isProjectRejected(p)) return false;
     if (
       p.verified_status === true ||
       p.installer_verified === true ||
@@ -313,9 +349,15 @@ export function PropertyMapSidebar({
     return false;
   };
 
+  const getProjectStatus = (p: any): "VERIFIED" | "REJECTED" | "PENDING" => {
+    if (isProjectRejected(p)) return "REJECTED";
+    if (isProjectVerified(p)) return "VERIFIED";
+    return "PENDING";
+  };
+
   const isAllProjectsVerified =
     projectsList.length > 0 &&
-    projectsList.every((p: any) => isProjectVerified(p));
+    projectsList.every((p: any) => getProjectStatus(p) === "VERIFIED");
 
   const isOwnerOfProperty =
     role === "property_owner" &&
@@ -750,22 +792,78 @@ export function PropertyMapSidebar({
                       </div>
                       <div
                         className={cn(
-                          "flex items-center justify-between text-xs",
+                          "space-y-2 text-xs",
                           property.street_view_link &&
                             "pb-2.5 border-b border-gray-100",
                         )}
                       >
-                        <span className="font-bold text-gray-400 uppercase tracking-widest">
-                          Verification Status
-                        </span>
-                        {isAllProjectsVerified ? (
-                          <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[9px] uppercase tracking-wider rounded-md">
-                            Verified
-                          </Badge>
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-gray-400 uppercase tracking-widest">
+                            Project Verification Status
+                          </span>
+                          {projectsList.length > 0 && (
+                            <span className="text-[10px] font-semibold text-gray-400">
+                              {projectsList.length}{" "}
+                              {projectsList.length === 1
+                                ? "Project"
+                                : "Projects"}
+                            </span>
+                          )}
+                        </div>
+
+                        {projectsList.length === 0 ? (
+                          <div className="text-gray-400 text-xs italic">
+                            No projects listed
+                          </div>
                         ) : (
-                          <Badge className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-[9px] uppercase tracking-wider rounded-md">
-                            Pending
-                          </Badge>
+                          <div className="max-h-[140px] overflow-y-auto space-y-1.5 pr-1">
+                            {projectsList.map((proj: any, idx: number) => {
+                              const status = getProjectStatus(proj);
+                              const projName =
+                                proj.project_name ||
+                                (proj.components?.component_type
+                                  ? `${proj.components.component_type.replace(/_/g, " ")} Installation`
+                                  : `Project #${idx + 1}`);
+
+                              return (
+                                <div
+                                  key={proj.id || idx}
+                                  className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white border border-gray-100 shadow-2xs"
+                                >
+                                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                    <span
+                                      className="font-bold text-[#1F2A44] truncate text-xs"
+                                      title={projName}
+                                    >
+                                      {projName}
+                                    </span>
+                                    {proj.project_type && (
+                                      <span className="shrink-0 text-[8px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                                        {toPascalCase(proj.project_type)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="shrink-0">
+                                    {status === "VERIFIED" && (
+                                      <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[9px] uppercase tracking-wider rounded-md px-1.5 py-0.5">
+                                        Verified
+                                      </Badge>
+                                    )}
+                                    {status === "REJECTED" && (
+                                      <Badge className="bg-red-500 hover:bg-red-600 text-white font-bold text-[9px] uppercase tracking-wider rounded-md px-1.5 py-0.5">
+                                        Rejected
+                                      </Badge>
+                                    )}
+                                    {status === "PENDING" && (
+                                      <Badge className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-[9px] uppercase tracking-wider rounded-md px-1.5 py-0.5">
+                                        Pending
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
                       {property.street_view_link && (

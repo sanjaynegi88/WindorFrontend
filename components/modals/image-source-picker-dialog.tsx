@@ -28,7 +28,10 @@ export function ImageSourcePickerDialog({
 }: ImageSourcePickerDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[90vw] sm:max-w-[400px] rounded-[20px] p-6 bg-white shadow-2xl font-asap border border-slate-100">
+      <DialogContent
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        className="max-w-[90vw] sm:max-w-[400px] rounded-[20px] p-6 bg-white shadow-2xl font-asap border border-slate-100"
+      >
         <DialogHeader className="text-center space-y-2 mb-4">
           <DialogTitle className="text-xl font-extrabold text-[#1F2A44] uppercase tracking-tight text-center">
             {title}

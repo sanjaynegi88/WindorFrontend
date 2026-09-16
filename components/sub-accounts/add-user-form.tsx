@@ -46,7 +46,9 @@ export function AddSubUserForm({ route, roleLabel }: AddSubUserFormProps) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [pendingCheckoutUrl, setPendingCheckoutUrl] = useState<string | null>(null);
+  const [pendingCheckoutUrl, setPendingCheckoutUrl] = useState<string | null>(
+    null,
+  );
   const [checkoutMessage, setCheckoutMessage] = useState<string>("");
 
   const form = useForm<StaffFormValues>({
@@ -76,8 +78,7 @@ export function AddSubUserForm({ route, roleLabel }: AddSubUserFormProps) {
 
     const checkoutUrl =
       result.data?.checkout_session?.url ||
-      result.data?.data?.checkout_session?.url ||
-      result.data?.url;
+      result.data?.data?.checkout_session?.url;
 
     if (checkoutUrl) {
       setPendingCheckoutUrl(checkoutUrl);

@@ -200,6 +200,9 @@ const Plans = () => {
         localStorage.setItem("pending_level", selectedPlan.level);
       }
 
+      console.log("planId", planId);
+      console.log("isAnnual", isAnnual);
+
       const result = await subscribeToMembership({
         plan_id: planId,
         billing_cycle: isAnnual ? "annually" : "monthly",
@@ -294,10 +297,12 @@ const Plans = () => {
         setPlans(fetchedPlans);
 
         const hasMonthly = fetchedPlans.some(
-          (plan) => plan.monthlyAmount !== null && plan.monthlyAmount !== undefined,
+          (plan) =>
+            plan.monthlyAmount !== null && plan.monthlyAmount !== undefined,
         );
         const hasAnnual = fetchedPlans.some(
-          (plan) => plan.yearlyAmount !== null && plan.yearlyAmount !== undefined,
+          (plan) =>
+            plan.yearlyAmount !== null && plan.yearlyAmount !== undefined,
         );
 
         if (!hasMonthly && hasAnnual) {
@@ -633,8 +638,8 @@ const Plans = () => {
                         <Crown className="w-3.5 h-3.5 text-white/70 shrink-0" />
                         <span className="text-xs font-bold text-white uppercase tracking-wider">
                           {plan.targetRole.toLowerCase()}s
-                          {plan.targetRole === "CONTRACTOR" && (
-                            plan.level?.toLowerCase().includes("free") ? (
+                          {plan.targetRole === "CONTRACTOR" &&
+                            (plan.level?.toLowerCase().includes("free") ? (
                               <span className="ml-1 text-white/60 normal-case font-medium">
                                 — 15-day free trial
                               </span>
@@ -642,8 +647,7 @@ const Plans = () => {
                               <span className="ml-1 text-white/60 normal-case font-medium">
                                 — {plan.level} level
                               </span>
-                            ) : null
-                          )}
+                            ) : null)}
                           {plan.targetRole === "INSURANCE" &&
                             plan.maxReports && (
                               <span className="ml-1 text-white/60 normal-case font-medium">

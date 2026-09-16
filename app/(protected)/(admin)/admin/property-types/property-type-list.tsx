@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 import {
   ColumnDef,
   getCoreRowModel,
@@ -10,7 +10,7 @@ import {
   PaginationState,
   SortingState,
   useReactTable,
-} from '@tanstack/react-table';
+} from "@tanstack/react-table";
 import {
   Search,
   MoreVertical,
@@ -21,8 +21,8 @@ import {
   Settings2,
   Filter,
   Plus,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardFooter,
@@ -30,18 +30,18 @@ import {
   CardHeading,
   CardTable,
   CardToolbar,
-} from '@/components/ui/card';
-import { DataGrid } from '@/components/ui/data-grid';
-import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
-import { DataGridColumnVisibility } from '@/components/ui/data-grid-column-visibility';
-import { DataGridPagination } from '@/components/ui/data-grid-pagination';
+} from "@/components/ui/card";
+import { DataGrid } from "@/components/ui/data-grid";
+import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
+import { DataGridColumnVisibility } from "@/components/ui/data-grid-column-visibility";
+import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import {
   DataGridTable,
   DataGridTableRowSelect,
   DataGridTableRowSelectAll,
-} from '@/components/ui/data-grid-table';
-import { Input } from '@/components/ui/input';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+} from "@/components/ui/data-grid-table";
+import { Input } from "@/components/ui/input";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,36 +49,49 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
-import { getPropertyTypeOptions, deletePropertyType } from '@/lib/actions';
-import { Skeleton } from '@/components/ui/skeleton';
-import { toast } from 'sonner';
-import { PropertyTypeFormDialog } from './property-type-form-dialog';
-import { ConfirmDialog } from '@/components/confirm-dialog';
-import { formatDate } from '@/lib/helpers';
-import { toPascalCase } from '@/lib/utils';
+} from "@/components/ui/dropdown-menu";
+import { getPropertyTypeOptions, deletePropertyType } from "@/lib/actions";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import { PropertyTypeFormDialog } from "./property-type-form-dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { formatDate } from "@/lib/helpers";
+import { toPascalCase } from "@/lib/utils";
 
-export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { refreshTrigger: number, onSuccess: () => void }) {
+export default function PropertyTypeListPage({
+  refreshTrigger,
+  onSuccess,
+}: {
+  refreshTrigger: number;
+  onSuccess: () => void;
+}) {
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
   });
 
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>([]);
-  const [editingPropertyType, setEditingPropertyType] = useState<any | null>(null);
+  const [editingPropertyType, setEditingPropertyType] = useState<any | null>(
+    null,
+  );
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [propertyTypeToDelete, setPropertyTypeToDelete] = useState<any | null>(null);
+  const [propertyTypeToDelete, setPropertyTypeToDelete] = useState<any | null>(
+    null,
+  );
   const [isDeleting, setIsDeleting] = useState(false);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
-
-  const fetchData = async (page: number = 1, limit: number = 10, name?: string) => {
+  const fetchData = async (
+    page: number = 1,
+    limit: number = 10,
+    name?: string,
+  ) => {
     setLoading(true);
     try {
       const response = await getPropertyTypeOptions(page, limit, name);
@@ -92,8 +105,8 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
         setData([]);
       }
     } catch (error: any) {
-      console.error('Error fetching state list:', error);
-      toast.error(error.message || 'Failed to load property types');
+      console.error("Error fetching state list:", error);
+      toast.error(error.message || "Failed to load property types");
     } finally {
       setLoading(false);
     }
@@ -114,7 +127,12 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
 
   useEffect(() => {
     fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
-  }, [refreshTrigger, pagination.pageIndex, pagination.pageSize, debouncedSearch]);
+  }, [
+    refreshTrigger,
+    pagination.pageIndex,
+    pagination.pageSize,
+    debouncedSearch,
+  ]);
 
   const handleDeleteClick = (propertyType: any) => {
     setPropertyTypeToDelete(propertyType);
@@ -127,13 +145,13 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
     try {
       const response = await deletePropertyType(propertyTypeToDelete.id);
       if (!response.success) {
-        toast.error(response.message || 'Failed to delete Property Type');
+        toast.error(response.message || "Failed to delete Property Type");
         return;
       }
-      toast.success('Property Type deleted successfully');
+      toast.success("Property Type deleted successfully");
       fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete Property Type');
+      toast.error(error.message || "Failed to delete Property Type");
     } finally {
       setIsDeleting(false);
       setDeleteDialogOpen(false);
@@ -150,9 +168,13 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
   const columns = useMemo<ColumnDef<any>[]>(
     () => [
       {
-        accessorKey: 'index',
-        id: 'index',
-        header: () => <div className="text-center text-[0.8125rem] font-normal text-foreground/70">Id</div>,
+        accessorKey: "index",
+        id: "index",
+        header: () => (
+          <div className="text-center text-[0.8125rem] font-normal text-foreground/70">
+            Id
+          </div>
+        ),
         cell: ({ row }) => (
           <div className="text-center font-medium text-muted-foreground/70">
             {pageIndex * pageSize + row.index + 1}
@@ -161,16 +183,16 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
         enableSorting: false,
         size: 60,
         meta: {
-          headerClassName: 'ps-4',
-          cellClassName: 'ps-4',
-          skeleton: <Skeleton className="w-6 h-7" />
+          headerClassName: "ps-4",
+          cellClassName: "ps-4",
+          skeleton: <Skeleton className="w-6 h-7" />,
         },
         enableHiding: false,
         enableResizing: false,
       },
       {
-        accessorKey: 'type_name',
-        id: 'name',
+        accessorKey: "type_name",
+        id: "name",
         header: ({ column }) => (
           <DataGridColumnHeader
             title="Property Type Name"
@@ -197,12 +219,12 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
         enableHiding: false,
         enableResizing: true,
         meta: {
-          skeleton: <Skeleton className="w-6 h-7" />
-        }
+          skeleton: <Skeleton className="w-6 h-7" />,
+        },
       },
       {
-        accessorKey: 'created_at',
-        id: 'created_at',
+        accessorKey: "created_at",
+        id: "created_at",
         header: ({ column }) => (
           <DataGridColumnHeader
             title="Created At"
@@ -221,12 +243,12 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
         enableHiding: true,
         enableResizing: true,
         meta: {
-          skeleton: <Skeleton className="w-6 h-7" />
-        }
+          skeleton: <Skeleton className="w-6 h-7" />,
+        },
       },
       {
-        accessorKey: 'updated_at',
-        id: 'updated_at',
+        accessorKey: "updated_at",
+        id: "updated_at",
         header: ({ column }) => (
           <DataGridColumnHeader
             title="Last Updated"
@@ -245,11 +267,11 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
         enableHiding: true,
         enableResizing: true,
         meta: {
-          skeleton: <Skeleton className="w-6 h-7" />
-        }
+          skeleton: <Skeleton className="w-6 h-7" />,
+        },
       },
       {
-        id: 'actions',
+        id: "actions",
         cell: ({ row }) => {
           return (
             <DropdownMenu>
@@ -260,11 +282,14 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuItem className='cursor-pointer' onClick={() => handleEdit(row.original)}>
+                {/* <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => handleEdit(row.original)}
+                >
                   <Edit className="size-3.5 mr-2" />
                   Edit Property Type
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator /> */}
                 <DropdownMenuItem
                   className="text-destructive cursor-pointer"
                   onClick={() => handleDeleteClick(row.original)}
@@ -300,7 +325,7 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
       sorting,
       columnOrder,
     },
-    columnResizeMode: 'onChange',
+    columnResizeMode: "onChange",
     onColumnOrderChange: setColumnOrder,
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
@@ -316,7 +341,7 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
         recordCount={totalRecords}
         isLoading={loading}
         tableClassNames={{
-          bodyRow: 'group/row',
+          bodyRow: "group/row",
         }}
         tableLayout={{
           dense: true,
@@ -340,13 +365,13 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
               </div>
             </CardHeading>
             <CardToolbar className="w-full sm:w-auto">
-              <Button
+              {/* <Button
                 className="w-full sm:w-auto rounded-xl px-4 bg-primary text-white hover:bg-primary/90 shadow-sm"
                 onClick={() => setIsAddDialogOpen(true)}
               >
                 <Plus className="size-4 mr-2" />
                 Add Property Type
-              </Button>
+              </Button> */}
             </CardToolbar>
           </CardHeader>
           <CardTable>
@@ -372,7 +397,9 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
           setEditingPropertyType(null);
         }}
         state={editingPropertyType}
-        onSuccess={() => fetchData(pagination.pageIndex + 1, pagination.pageSize)}
+        onSuccess={() =>
+          fetchData(pagination.pageIndex + 1, pagination.pageSize)
+        }
       />
 
       <ConfirmDialog
@@ -382,13 +409,13 @@ export default function PropertyTypeListPage({ refreshTrigger, onSuccess }: { re
         description={
           propertyTypeToDelete?.name
             ? `Are you sure you want to delete "${propertyTypeToDelete.name}"? This action cannot be undone.`
-            : 'Are you sure you want to delete this Property Type? This action cannot be undone.'
+            : "Are you sure you want to delete this Property Type? This action cannot be undone."
         }
-        confirmText={isDeleting ? 'Deleting...' : 'Delete'}
+        confirmText={isDeleting ? "Deleting..." : "Delete"}
         cancelText="Cancel"
         onConfirm={handleConfirmDelete}
         variant="destructive"
       />
     </>
   );
-};
+}

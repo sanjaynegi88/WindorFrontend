@@ -684,14 +684,22 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
       type === "doors" ||
       type === "garage_doors"
     ) {
-      if (type === "windows" || type === "doors") {
+      if (type === "doors") {
+        payload.color = values.color;
         payload.production_line = values.productionLine;
         payload.order_number = values.orderNumber;
+        payload.glass_type = values.glass_type;
+        payload.track_radius = values.track_radius;
       }
       if (type === "garage_doors") {
         payload.windcode = values.windcode;
+        if (values.orderNumber) {
+          payload.order_number = values.orderNumber;
+        }
       }
       if (type === "windows") {
+        payload.production_line = values.productionLine;
+        payload.order_number = values.orderNumber;
         payload.u_factor = values.u_factor;
       }
     }

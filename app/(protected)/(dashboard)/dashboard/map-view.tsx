@@ -30,6 +30,7 @@ interface MapViewProps {
   };
   focusCenter?: { lat: number; lng: number };
   focusId?: string;
+  fallbackCityTrigger?: number;
   onFocusCleared?: () => void;
 }
 
@@ -105,6 +106,7 @@ export default function MapView({
   searchParams,
   focusCenter,
   focusId,
+  fallbackCityTrigger,
   onFocusCleared,
 }: MapViewProps) {
   const { user, role } = useUser();
@@ -115,6 +117,21 @@ export default function MapView({
   const [isResolvingCity, setIsResolvingCity] = useState(false);
   const [cityCommand, setCityCommand] = useState<CityCommand | null>(null);
   const [focusCommand, setFocusCommand] = useState<FocusCommand | null>(null);
+
+  // Focus ref to avoid late city resolution race conditions
+  const focusCenterRef = useRef<{ lat: number; lng: number } | null>(null);
+  useEffect(() => {
+    focusCenterRef.current = focusCenter || null;
+  }, [focusCenter]);
+
+  const hasSearchString = useMemo(() => {
+    return Boolean(
+      searchParams?.search?.trim() ||
+      searchParams?.brandName?.trim() ||
+      searchParams?.color?.trim() ||
+      searchParams?.style?.trim()
+    );
+  }, [searchParams]);
 
   // Sidebar states
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(
@@ -298,12 +315,21 @@ export default function MapView({
           isAwaitingStartingCityViewportRef.current = true;
           startingCityViewportRef.current = null;
           shouldRecenterOnSidebarCloseRef.current = false;
-          setCityCommand({
-            lat: coords.lat,
-            lng: coords.lng,
-            zoom: INITIAL_CITY_ZOOM,
-            id: `city-${activeCityId}-${Date.now()}`,
-          });
+
+          // If there is an active search string, property coordinates take precedence over city.
+          // Only dispatch city command if there is no search string OR if fallback to city was triggered.
+          const canDispatchCity =
+            (!hasSearchString || Boolean(fallbackCityTrigger)) &&
+            !focusCenterRef.current;
+
+          if (canDispatchCity) {
+            setCityCommand({
+              lat: coords.lat,
+              lng: coords.lng,
+              zoom: INITIAL_CITY_ZOOM,
+              id: `city-${activeCityId}-${Date.now()}`,
+            });
+          }
         } else {
           startingCityViewportRef.current = null;
           currentCityCenterRef.current = null;
@@ -320,7 +346,19 @@ export default function MapView({
     };
 
     resolveCity();
-  }, [activeCityId, activeStateId, role, user?.user?.city_id]);
+  }, [activeCityId, activeStateId, role, user?.user?.city_id, hasSearchString, fallbackCityTrigger]);
+
+  // Fallback to city coordinates when search yields no matching property
+  useEffect(() => {
+    if (fallbackCityTrigger && currentCityCenterRef.current && activeCityId) {
+      setCityCommand({
+        lat: currentCityCenterRef.current.lat,
+        lng: currentCityCenterRef.current.lng,
+        zoom: INITIAL_CITY_ZOOM,
+        id: `city-fallback-${activeCityId}-${fallbackCityTrigger}`,
+      });
+    }
+  }, [fallbackCityTrigger, activeCityId]);
 
   // 4. Handle external focus command (e.g. from Dashboard "View on map" button)
   useEffect(() => {

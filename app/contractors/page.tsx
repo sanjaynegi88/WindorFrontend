@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import {
   Navbar,
@@ -28,6 +28,7 @@ import {
   Trash2,
   MoreVertical,
 } from "lucide-react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -83,6 +84,9 @@ export default function ContractorDirectoryPage() {
   ]);
   const [states, setStates] = useState<{ id: string; name: string }[]>([]);
   const [cities, setCities] = useState<{ id: string; name: string }[]>([]);
+  const [isCitiesLoading, setIsCitiesLoading] = useState(false);
+  const citySelectTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const shouldFocusCityAfterFetchRef = useRef(false);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -153,17 +157,35 @@ export default function ContractorDirectoryPage() {
   }, []);
 
   useEffect(() => {
+    let isCancelled = false;
     const fetchCities = async () => {
       try {
+        setIsCitiesLoading(true);
         const stateId = selectedState === "ALL" ? undefined : selectedState;
         const response = await getCities(1, 1000, undefined, undefined, stateId);
-        setCities(response.data || []);
+        if (!isCancelled) {
+          const raw: any[] = Array.isArray(response) ? response : response?.data || [];
+          setCities(raw.map((c: any) => ({ id: String(c.id), name: c.name || c.city_name })));
+        }
       } catch (error) {
         console.error("Failed to fetch cities:", error);
+      } finally {
+        if (!isCancelled) {
+          setIsCitiesLoading(false);
+          if (shouldFocusCityAfterFetchRef.current) {
+            shouldFocusCityAfterFetchRef.current = false;
+            setTimeout(() => {
+              citySelectTriggerRef.current?.focus();
+            }, 60);
+          }
+        }
       }
     };
     setSelectedCity("ALL");
     fetchCities();
+    return () => {
+      isCancelled = true;
+    };
   }, [selectedState]);
 
   useEffect(() => {
@@ -317,18 +339,27 @@ export default function ContractorDirectoryPage() {
                   <MapPin className="size-4 text-[#1CA7A6]" />
                   Filter by State
                 </h3>
-                <select
+                <SearchableSelect
+                  options={[
+                    { id: "ALL", name: "All States" },
+                    ...states.map((s) => ({ id: s.id, name: s.name })),
+                  ]}
                   value={selectedState}
-                  onChange={(e) => setSelectedState(e.target.value)}
-                  className="w-full px-5 py-3 rounded-xl text-sm font-bold border border-gray-100 bg-white text-gray-500 hover:border-[#1CA7A6]/30 hover:text-[#1CA7A6] shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1CA7A6]/20"
-                >
-                  <option value="ALL">All States</option>
-                  {states.map((state) => (
-                    <option key={state.id} value={state.id}>
-                      {toTitleCase(state.name)}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(val) => {
+                    if (val === selectedState) {
+                      setTimeout(() => {
+                        citySelectTriggerRef.current?.focus();
+                      }, 60);
+                      return;
+                    }
+                    shouldFocusCityAfterFetchRef.current = true;
+                    setSelectedState(val);
+                  }}
+                  autoFocusNext={false}
+                  placeholder="All States"
+                  searchPlaceholder="Search state..."
+                  triggerClassName="h-auto py-3 px-5 rounded-xl text-sm font-bold border border-gray-100 bg-white text-gray-700 hover:border-[#1CA7A6]/30 hover:text-[#1CA7A6] shadow-sm focus:ring-[#1CA7A6]/20 w-full"
+                />
               </div>
 
               <div>
@@ -336,18 +367,22 @@ export default function ContractorDirectoryPage() {
                   <MapPin className="size-4 text-[#1CA7A6]" />
                   Filter by City
                 </h3>
-                <select
+                <SearchableSelect
+                  options={[
+                    { id: "ALL", name: "All Cities" },
+                    ...cities.map((c) => ({ id: c.id, name: c.name })),
+                  ]}
                   value={selectedCity}
-                  onChange={(e) => setSelectedCity(e.target.value)}
-                  className="w-full px-5 py-3 rounded-xl text-sm font-bold border border-gray-100 bg-white text-gray-500 hover:border-[#1CA7A6]/30 hover:text-[#1CA7A6] shadow-sm focus:outline-none focus:ring-2 focus:ring-[#1CA7A6]/20"
-                >
-                  <option value="ALL">All Cities</option>
-                  {cities.map((city) => (
-                    <option key={city.id} value={city.id}>
-                      {toTitleCase(city.name)}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(val) => setSelectedCity(val)}
+                  placeholder="All Cities"
+                  searchPlaceholder="Search city..."
+                  emptyMessage={isCitiesLoading ? "Loading cities..." : "No cities found"}
+                  loading={isCitiesLoading}
+                  disabled={isCitiesLoading}
+                  triggerRef={citySelectTriggerRef}
+                  triggerClassName="h-auto py-3 px-5 rounded-xl text-sm font-bold border border-gray-100 bg-white text-gray-700 hover:border-[#1CA7A6]/30 hover:text-[#1CA7A6] shadow-sm focus:ring-[#1CA7A6]/20 w-full"
+                  focusNextDelay={200}
+                />
               </div>
             </aside>
 

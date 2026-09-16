@@ -138,20 +138,24 @@ export function PropertyAddressPhotos({
   const handleSelectCamera = () => {
     if (activePickerTarget) {
       const targetId = activePickerTarget;
+      const input = cameraInputRefs.current[targetId];
+      if (input) {
+        input.value = "";
+        input.click();
+      }
       setActivePickerTarget(null);
-      setTimeout(() => {
-        cameraInputRefs.current[targetId]?.click();
-      }, 100);
     }
   };
 
   const handleSelectGallery = () => {
     if (activePickerTarget) {
       const targetId = activePickerTarget;
+      const input = galleryInputRefs.current[targetId];
+      if (input) {
+        input.value = "";
+        input.click();
+      }
       setActivePickerTarget(null);
-      setTimeout(() => {
-        galleryInputRefs.current[targetId]?.click();
-      }, 100);
     }
   };
 
@@ -232,9 +236,9 @@ export function PropertyAddressPhotos({
           return (
             <div
               key={item.id}
-              className="flex items-center gap-2 md:gap-[23px] w-full"
+              className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 md:gap-[23px] w-full"
             >
-              <span className="text-[16px] md:text-[24px] font-bold text-[#708090] min-w-[100px] md:min-w-[200px]">
+              <span className="text-[16px] md:text-[24px] font-bold text-[#708090] sm:min-w-[100px] md:min-w-[200px] shrink-0">
                 {item.label}
               </span>
 
@@ -262,24 +266,24 @@ export function PropertyAddressPhotos({
               />
 
               {photo.preview ? (
-                <div className="flex-1 flex items-center gap-3 h-[46px] md:h-[70px] bg-[rgba(28,167,166,0.08)] border border-[rgba(28,167,166,0.3)] rounded-[6px] px-4">
+                <div className="w-full sm:flex-1 min-w-0 flex items-center gap-2 md:gap-3 h-[46px] md:h-[70px] bg-[rgba(28,167,166,0.08)] border border-[rgba(28,167,166,0.3)] rounded-[6px] px-2.5 sm:px-4">
                   <Image
                     src={photo.preview}
                     alt={item.label}
                     width={76}
                     height={52}
                     unoptimized
-                    className="h-[34px] md:h-[52px] w-[50px] md:w-[76px] object-cover rounded-[4px]"
+                    className="h-[34px] md:h-[52px] w-[46px] sm:w-[50px] md:w-[76px] object-cover rounded-[4px] shrink-0"
                   />
-                  <span className="flex-1 text-[13px] md:text-[16px] font-medium text-[#1F2A44] max-w-[700px] truncate">
+                  <span className="flex-1 min-w-0 text-[13px] md:text-[16px] font-medium text-[#1F2A44] truncate">
                     {photo.file ? photo.file.name : "Saved Image"}
                   </span>
                   {photo.file ? (
-                    <>
+                    <div className="flex items-center gap-2 md:gap-3 shrink-0">
                       <button
                         type="button"
                         onClick={() => handleRemove(item.id)}
-                        className="text-[#708090] hover:text-red-500 transition-colors shrink-0"
+                        className="text-[#708090] hover:text-red-500 transition-colors shrink-0 p-1"
                         aria-label={`Remove ${item.label} photo`}
                       >
                         <X className="size-4 md:size-5" />
@@ -287,13 +291,13 @@ export function PropertyAddressPhotos({
                       <button
                         type="button"
                         onClick={() => triggerFileInput(item.id)}
-                        className="text-[#1CA7A6] text-[12px] md:text-[14px] font-bold hover:opacity-80 transition-opacity shrink-0"
+                        className="text-[#1CA7A6] text-[12px] md:text-[14px] font-bold hover:opacity-80 transition-opacity shrink-0 whitespace-nowrap"
                       >
                         Change
                       </button>
-                    </>
+                    </div>
                   ) : (
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-2 md:gap-3 shrink-0">
                       <button
                         type="button"
                         onClick={() => {
@@ -301,14 +305,14 @@ export function PropertyAddressPhotos({
                             window.open(photo.preview, "_blank");
                           }
                         }}
-                        className="text-[#1CA7A6] text-[12px] md:text-[14px] font-bold hover:opacity-80 transition-opacity font-asap"
+                        className="text-[#1CA7A6] text-[12px] md:text-[14px] font-bold hover:opacity-80 transition-opacity font-asap whitespace-nowrap"
                       >
                         View Image
                       </button>
                       <button
                         type="button"
                         onClick={() => triggerFileInput(item.id)}
-                        className="text-[#1CA7A6] text-[12px] md:text-[14px] font-bold hover:opacity-80 transition-opacity"
+                        className="text-[#1CA7A6] text-[12px] md:text-[14px] font-bold hover:opacity-80 transition-opacity whitespace-nowrap"
                       >
                         Change
                       </button>
@@ -318,11 +322,11 @@ export function PropertyAddressPhotos({
               ) : (
                 <button
                   type="button"
-                  className="flex-1 h-[46px] md:h-[70px] bg-[rgba(112,128,144,0.2)] hover:bg-[rgba(112,128,144,0.3)] transition-colors rounded-[6px] flex items-center justify-center gap-2 text-[16px] md:text-[24px] font-bold text-[#1F2A44] font-asap shadow-none"
+                  className="w-full sm:flex-1 h-[46px] md:h-[70px] bg-[rgba(112,128,144,0.2)] hover:bg-[rgba(112,128,144,0.3)] transition-colors rounded-[6px] flex items-center justify-center gap-2 text-[16px] md:text-[24px] font-bold text-[#1F2A44] font-asap shadow-none"
                   onClick={() => triggerFileInput(item.id)}
                 >
-                  <ImageIcon className="size-5 md:size-6 opacity-60" />
-                  Take & Upload
+                  <ImageIcon className="size-5 md:size-6 opacity-60 shrink-0" />
+                  <span>Take & Upload</span>
                 </button>
               )}
             </div>
