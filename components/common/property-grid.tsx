@@ -108,7 +108,9 @@ export function PropertyGrid({
           cleanFilterParams?.color ||
           cleanFilterParams?.style ||
           ""
-        )?.toString().trim();
+        )
+          ?.toString()
+          .trim();
 
         if (searchString) {
           const firstPropWithCoordsAndReport = newData.find(
@@ -118,7 +120,7 @@ export function PropertyGrid({
                 p.has_report === true ||
                 p.has_report === "true" ||
                 p.has_report === 1 ||
-                (Array.isArray(p.projects) && p.projects.length > 0)
+                (Array.isArray(p.projects) && p.projects.length > 0),
               ) &&
               p.latitude !== undefined &&
               p.latitude !== null &&
@@ -127,7 +129,7 @@ export function PropertyGrid({
               !isNaN(Number(p.latitude)) &&
               !isNaN(Number(p.longitude)) &&
               Number(p.latitude) !== 0 &&
-              Number(p.longitude) !== 0
+              Number(p.longitude) !== 0,
           );
 
           if (firstPropWithCoordsAndReport && onOpenInMap) {
@@ -201,6 +203,7 @@ export function PropertyGrid({
                 : "";
             const stateId =
               prop.state_id ||
+              prop.stateId ||
               prop.state?.id ||
               prop.property?.state_id ||
               prop.property?.state?.id ||
@@ -212,9 +215,11 @@ export function PropertyGrid({
               (typeof prop.state === "string" && prop.state.includes("-")
                 ? prop.state
                 : undefined) ||
+              searchParams?.state_id ||
               "";
             const cityId =
               prop.city_id ||
+              prop.cityId ||
               prop.city?.id ||
               prop.property?.city_id ||
               prop.property?.city?.id ||
@@ -226,6 +231,7 @@ export function PropertyGrid({
               (typeof prop.city === "string" && prop.city.includes("-")
                 ? prop.city
                 : undefined) ||
+              searchParams?.city_id ||
               "";
 
             return (

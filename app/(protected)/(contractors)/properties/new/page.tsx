@@ -316,16 +316,30 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
 
         setHasExistingReport(reportFlag);
         setExistingPropertyName(propertyName);
-        const targetCityId = propertyPayload?.city_id
+        let targetCityId = propertyPayload?.city_id
           ? String(propertyPayload.city_id)
           : paramCityId
             ? String(paramCityId)
             : "";
-        const targetStateId = propertyPayload?.state_id
+        let targetStateId = propertyPayload?.state_id
           ? String(propertyPayload.state_id)
           : paramStateId
             ? String(paramStateId)
             : "";
+
+        if (!targetCityId && (paramCityName || propertyPayload?.city_name || propertyPayload?.city)) {
+          const nameToMatch = (paramCityName || propertyPayload?.city_name || propertyPayload?.city || "").toLowerCase().trim();
+          const foundCity = rawCities.find(
+            (c: any) => (c.city_name || c.name || "").toLowerCase().trim() === nameToMatch,
+          );
+          if (foundCity) {
+            targetCityId = String(foundCity.id);
+            if (!targetStateId && (foundCity.state_id || foundCity.state?.id)) {
+              targetStateId = String(foundCity.state_id || foundCity.state?.id);
+            }
+          }
+        }
+
         const matchedCityObj = rawCities.find(
           (c: any) => String(c.id) === String(targetCityId),
         );
@@ -333,6 +347,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           propertyPayload?.city_name ||
           propertyPayload?.city?.name ||
           matchedCityObj?.name ||
+          matchedCityObj?.city_name ||
           paramCityName ||
           "";
 
@@ -955,6 +970,9 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
                     : paramCityId
                       ? String(paramCityId)
                       : ""
+                }
+                defaultGoverningCityName={
+                  addressData.city || paramCityName || ""
                 }
                 cities={cities}
                 onContinue={handleProjectCreate}

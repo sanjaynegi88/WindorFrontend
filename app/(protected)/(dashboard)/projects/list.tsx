@@ -85,6 +85,30 @@ export default function ProjectList() {
     setShowResults(true);
   };
 
+  const getRedirectUrl = () => {
+    const params = new URLSearchParams();
+    const stateId =
+      searchParams.state_id ||
+      appliedFilters.state_id ||
+      (appliedFilters.state !== "all" ? appliedFilters.state : "");
+    const cityId =
+      searchParams.city_id ||
+      appliedFilters.city_id ||
+      (appliedFilters.city !== "all" ? appliedFilters.city : "");
+
+    if (stateId) {
+      params.set("state_id", String(stateId));
+    }
+    if (cityId) {
+      params.set("city_id", String(cityId));
+    }
+
+    const queryString = params.toString();
+    return queryString
+      ? `/properties/new?${queryString}&propertyId=`
+      : `/properties/new?propertyId=`;
+  };
+
   const resultsVisible = showResults;
   return (
     <Content className="p-0 bg-linear-to-b from-[#F5FFFF] to-[#FFFFFF] min-h-[calc(100vh-80px)] flex flex-col items-center">
@@ -116,7 +140,7 @@ export default function ProjectList() {
                 Properties
               </h2>
 
-              {role !== "contractor" && (
+              {role !== "contractor" && role !== "property_owner" && (
                 <Button
                   onClick={handleGenerateTop10}
                   disabled={isGeneratingTop10}
@@ -140,7 +164,7 @@ export default function ProjectList() {
         {resultsVisible && (
           <PropertyGrid
             searchParams={searchParams}
-            redirectUrl="properties/new?propertyId="
+            redirectUrl={getRedirectUrl()}
             isPropertyOwner={isPropertyOwner}
             showTempProperties={true}
           />

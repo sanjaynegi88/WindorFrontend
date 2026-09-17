@@ -39,6 +39,7 @@ import { AwsImage } from "@/components/common/aws-image";
 import { useUser } from "@/components/providers/user-provider";
 import { InstallationCard } from "@/app/(protected)/(dashboard)/property-details/[id]/installation-card";
 import { mapProjectToInstallation } from "@/app/(protected)/(dashboard)/property-details/[id]/types";
+import Link from "next/link";
 
 type TabType = "all" | "completed" | "draft";
 
@@ -434,9 +435,7 @@ export default function AllProjectsList({ user }: { user: string }) {
               const addedBy = creatorObj
                 ? `${creatorObj.first_name || ""} ${creatorObj.last_name || ""}`.trim() ||
                   creatorObj.name
-                : project.created_by_email ||
-                  project.contractor_email ||
-                  "N/A";
+                : project.created_by_email || project.contractor_email || "N/A";
               const addedByEmail =
                 creatorObj?.email ||
                 project.created_by_email ||
@@ -505,6 +504,14 @@ export default function AllProjectsList({ user }: { user: string }) {
                               <span className="sm:hidden">Edit</span>
                             </button>
                           </>
+                        )}
+                        {property.id && (
+                          <Link
+                            href={`/property-details/${property.id}`}
+                            className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-[#1CA7A6]/10 hover:bg-[#1CA7A6]/20 text-[#1CA7A6] font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors cursor-pointer border border-[#1CA7A6]/20 font-asap shrink-0"
+                          >
+                            <span>View Property</span>
+                          </Link>
                         )}
                         {property.id &&
                           actualProjectId &&

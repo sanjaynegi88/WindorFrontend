@@ -2116,6 +2116,22 @@ export async function deleteUserAdmin(id: string): Promise<ActionResult> {
     return { success: true, data: response.data };
 }
 
+export async function setUserPasswordAdmin(
+    userId: string,
+    body: { password: string }
+): Promise<ActionResult> {
+    let response = await fetchApi({
+        url: `/api/users/${userId}/set-password`,
+        method: "POST",
+        data: body,
+    });
+
+    if (response.type === "error") {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to update password') };
+    }
+    return { success: true, data: response.data };
+}
+
 export async function editStaff(id: string, body: any): Promise<ActionResult> {
     const response = await fetchApi({
         url: `/api/auth/update-staff/${id}`,

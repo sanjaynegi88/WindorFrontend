@@ -65,6 +65,7 @@ interface CategorySelectionProps {
   isEditMode?: boolean;
   projectId?: string;
   defaultGoverningCityId?: string;
+  defaultGoverningCityName?: string;
   cities?: CityOption[];
   initialProjectData?: {
     project_name?: string;
@@ -102,6 +103,7 @@ export function CategorySelection({
   projectId,
   initialProjectData,
   defaultGoverningCityId,
+  defaultGoverningCityName,
   cities = [],
 }: CategorySelectionProps) {
   const [stateCities, setStateCities] = useState<CityOption[]>(cities);
@@ -225,6 +227,20 @@ export function CategorySelection({
     defaultGoverningCityId,
     isPropertyOwner,
   ]);
+
+  useEffect(() => {
+    if (!governingCity && defaultGoverningCityName) {
+      const allCities = stateCities.length > 0 ? stateCities : cities;
+      const matched = allCities.find(
+        (c) =>
+          c.name?.toLowerCase().trim() ===
+          defaultGoverningCityName.toLowerCase().trim(),
+      );
+      if (matched) {
+        setGoverningCity(String(matched.id));
+      }
+    }
+  }, [stateCities, cities, governingCity, defaultGoverningCityName]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -711,6 +727,7 @@ export function CategorySelection({
               }),
             )}
             value={governingCity ? String(governingCity) : ""}
+            displayValueFallback={defaultGoverningCityName}
             onValueChange={(val) =>
               handleFieldChange(() => setGoverningCity(val))
             }

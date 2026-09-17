@@ -16,10 +16,7 @@ import {
   Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  getFreeTrialStatus,
-  type FreeTrialStatusData,
-} from "@/lib/actions";
+import { getFreeTrialStatus, type FreeTrialStatusData } from "@/lib/actions";
 import { useRouter, useSearchParams } from "next/navigation";
 import { UnifiedSearchBar } from "@/components/common/unified-search-bar";
 import { PropertyGrid } from "@/components/common/property-grid";
@@ -84,13 +81,16 @@ function DashboardPageContent() {
 
   const userStateId = useMemo(() => {
     return String(
-      user?.state_id || user?.user?.state_id || user?.form_details?.state_id || ""
+      user?.state_id ||
+        user?.user?.state_id ||
+        user?.form_details?.state_id ||
+        "",
     ).trim();
   }, [user]);
 
   const userCityId = useMemo(() => {
     return String(
-      user?.city_id || user?.user?.city_id || user?.form_details?.city_id || ""
+      user?.city_id || user?.user?.city_id || user?.form_details?.city_id || "",
     ).trim();
   }, [user]);
 
@@ -114,7 +114,7 @@ function DashboardPageContent() {
       urlStateId &&
       urlStateId !== "all" &&
       urlCityId &&
-      urlCityId !== "all"
+      urlCityId !== "all",
     );
 
     if (hasUrlSearchParams) {
@@ -219,7 +219,10 @@ function DashboardPageContent() {
   const hasValidSearchInputs = hasStateAndCity && hasSearchText;
 
   const resultsVisible =
-    hasMembership && (!isAdmin || !isContractor) && showResults && hasValidSearchInputs;
+    hasMembership &&
+    (!isAdmin || !isContractor) &&
+    showResults &&
+    hasValidSearchInputs;
 
   const handleSearchTriggered = (newFilters?: typeof filters) => {
     if (!hasMembership) {
@@ -294,7 +297,9 @@ function DashboardPageContent() {
     return "";
   }, [filters.city_id, filters.city]);
 
-  const hasMapStateAndCity = Boolean(selectedStateId || selectedCityId || activeStateId);
+  const hasMapStateAndCity = Boolean(
+    selectedStateId || selectedCityId || activeStateId,
+  );
 
   const mapSearchParams = useMemo(() => {
     return {
@@ -307,20 +312,21 @@ function DashboardPageContent() {
     };
   }, [searchParams, selectedStateId, selectedCityId]);
 
-  const dashboardMapElement = (!isContractor && hasMapStateAndCity) ? (
-    <div id="dashboard-map-view" className="my-6">
-      <MapView
-        searchParams={mapSearchParams}
-        focusCenter={mapFocus || undefined}
-        focusId={mapFocusId || undefined}
-        fallbackCityTrigger={fallbackCityTrigger}
-        onFocusCleared={() => {
-          setMapFocus(null);
-          setMapFocusId(null);
-        }}
-      />
-    </div>
-  ) : null;
+  const dashboardMapElement =
+    !isContractor && hasMapStateAndCity ? (
+      <div id="dashboard-map-view" className="my-6">
+        <MapView
+          searchParams={mapSearchParams}
+          focusCenter={mapFocus || undefined}
+          focusId={mapFocusId || undefined}
+          fallbackCityTrigger={fallbackCityTrigger}
+          onFocusCleared={() => {
+            setMapFocus(null);
+            setMapFocusId(null);
+          }}
+        />
+      </div>
+    ) : null;
 
   if (loading) {
     return <ScreenLoader />;
@@ -753,21 +759,23 @@ function DashboardPageContent() {
                 <h2 className="text-2xl md:text-4xl font-black text-[#1e293b] tracking-tighter uppercase font-asap">
                   Properties
                 </h2>
-                <Button
-                  onClick={handleGenerateTop10}
-                  disabled={isGeneratingTop10}
-                  className="h-9 md:h-11 px-4 md:px-6 rounded-[10px] bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs md:text-sm uppercase tracking-widest gap-2 shadow-none"
-                >
-                  {isGeneratingTop10 ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <FileText className="size-4" />
-                  )}
-                  <span className="hidden sm:inline">
-                    Generate reports (max 10)
-                  </span>
-                  <span className="sm:hidden">Top 10</span>
-                </Button>
+                {role !== "contractor" && role !== "property_owner" && (
+                  <Button
+                    onClick={handleGenerateTop10}
+                    disabled={isGeneratingTop10}
+                    className="h-9 md:h-11 px-4 md:px-6 rounded-[10px] bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs md:text-sm uppercase tracking-widest gap-2 shadow-none"
+                  >
+                    {isGeneratingTop10 ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <FileText className="size-4" />
+                    )}
+                    <span className="hidden sm:inline">
+                      Generate reports (max 10)
+                    </span>
+                    <span className="sm:hidden">Top 10</span>
+                  </Button>
+                )}
               </div>
 
               <PropertyGrid

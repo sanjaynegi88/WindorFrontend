@@ -106,9 +106,28 @@ export function PropertyCard({
 
   const getNewProjectUrl = () => {
     const params = new URLSearchParams();
+    if (redirectUrl && typeof redirectUrl === "string" && redirectUrl.includes("?")) {
+      const urlQuery = redirectUrl.split("?")[1];
+      const parsedParams = new URLSearchParams(urlQuery);
+      parsedParams.forEach((val, key) => {
+        if (key !== "propertyId" && val) {
+          params.set(key, val);
+        }
+      });
+    }
     if (propertyId) params.set("propertyId", propertyId);
-    if (stateId) params.set("stateId", String(stateId));
-    if (cityId) params.set("cityId", String(cityId));
+    const resolvedStateId =
+      stateId || params.get("state_id") || params.get("stateId");
+    if (resolvedStateId) {
+      params.set("state_id", String(resolvedStateId));
+    }
+    const resolvedCityId =
+      cityId || params.get("city_id") || params.get("cityId");
+    if (resolvedCityId) {
+      params.set("city_id", String(resolvedCityId));
+    }
+    params.delete("stateId");
+    params.delete("cityId");
     if (city) params.set("cityName", String(city));
     if (propertyName) params.set("propertyName", propertyName);
     return `/properties/new?${params.toString()}`;
@@ -402,7 +421,11 @@ export function PropertyCard({
           <div className="mt-auto pt-4 md:pt-6 flex flex-row justify-between items-center">
             <div>
               <Link
-                href={`/property-details/${propertyId}`}
+                href={
+                  showDetail
+                    ? `/property-details/${propertyId}`
+                    : getNewProjectUrl()
+                }
                 className="inline-flex items-center gap-2 text-[#1CA7A6] font-black text-xs md:text-sm uppercase tracking-[0.2em] group/link font-asap"
               >
                 {showDetail ? "Learn More" : "Add Project"}

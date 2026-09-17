@@ -27,13 +27,16 @@ function PropertyPageContent() {
 
   const userStateId = useMemo(() => {
     return String(
-      user?.state_id || user?.user?.state_id || user?.form_details?.state_id || ""
+      user?.state_id ||
+        user?.user?.state_id ||
+        user?.form_details?.state_id ||
+        "",
     ).trim();
   }, [user]);
 
   const userCityId = useMemo(() => {
     return String(
-      user?.city_id || user?.user?.city_id || user?.form_details?.city_id || ""
+      user?.city_id || user?.user?.city_id || user?.form_details?.city_id || "",
     ).trim();
   }, [user]);
 
@@ -59,7 +62,7 @@ function PropertyPageContent() {
       urlStateId &&
       urlStateId !== "all" &&
       urlCityId &&
-      urlCityId !== "all"
+      urlCityId !== "all",
     );
 
     if (hasUrlSearchParams) {
@@ -225,7 +228,9 @@ function PropertyPageContent() {
     return "";
   }, [filters.city_id, filters.city]);
 
-  const hasMapStateAndCity = Boolean(selectedStateId || selectedCityId || activeStateId);
+  const hasMapStateAndCity = Boolean(
+    selectedStateId || selectedCityId || activeStateId,
+  );
 
   const mapSearchParams = useMemo(() => {
     return {
@@ -273,7 +278,7 @@ function PropertyPageContent() {
               <h2 className="text-2xl md:text-4xl font-black text-[#1e293b] tracking-tighter uppercase font-asap">
                 Properties
               </h2>
-              {role !== "contractor" && (
+              {role !== "contractor" && role !== "property_owner" && (
                 <Button
                   onClick={handleGenerateTop10}
                   disabled={isGeneratingTop10}

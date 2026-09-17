@@ -185,8 +185,12 @@ export default function AddedPropertiesPage() {
 
     const params = new URLSearchParams();
     if (propertyId) params.set("propertyId", String(propertyId));
-    if (stateId) params.set("stateId", String(stateId));
-    if (cityId) params.set("cityId", String(cityId));
+    if (stateId) {
+      params.set("state_id", String(stateId));
+    }
+    if (cityId) {
+      params.set("city_id", String(cityId));
+    }
     if (cityName) params.set("cityName", String(cityName));
     if (propertyName) params.set("propertyName", propertyName);
 

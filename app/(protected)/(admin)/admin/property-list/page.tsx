@@ -85,6 +85,7 @@ interface PropertyItem {
   city?: { name?: string };
   state?: { name?: string };
   is_purchased?: boolean;
+  thumbnail_url?: string;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -453,6 +454,30 @@ function EditPropertyModal({
   );
 }
 
+function PropertyThumbnail({ src, alt }: { src?: string; alt: string }) {
+  const [imgSrc, setImgSrc] = useState(src || "/assets/home-icon.png");
+
+  useEffect(() => {
+    setImgSrc(src || "/assets/home-icon.png");
+  }, [src]);
+
+  const isFallback = imgSrc === "/assets/home-icon.png";
+
+  return (
+    <div className="shrink-0 size-10 sm:size-11 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center overflow-hidden">
+      <Image
+        src={imgSrc}
+        alt={alt}
+        width={44}
+        height={44}
+        unoptimized={!isFallback}
+        onError={() => setImgSrc("/assets/home-icon.png")}
+        className={`size-full ${isFallback ? "p-2 object-contain" : "object-cover"}`}
+      />
+    </div>
+  );
+}
+
 /* ─────────────────────────────────────────────────────────────
    MAIN ADMIN PROPERTY LISTING PAGE
 ─────────────────────────────────────────────────────────────── */
@@ -714,6 +739,7 @@ export default function PropertyListPage() {
           page: pageNum,
           limit: limit,
         });
+        console.log(response, "Response of properties");
         const pagination =
           response?.pagination ||
           response?.data?.pagination ||
@@ -755,6 +781,18 @@ export default function PropertyListPage() {
           state_name: item.state_name || item.state?.name || selectedState.name,
           zip: item.zip || "",
           is_purchased: item.is_purchased,
+          thumbnail_url:
+            item.thumbnail_url ||
+            item.thumbnail ||
+            item.image_url ||
+            item.photo_url ||
+            item.front_image ||
+            (Array.isArray(item.images) && item.images[0]
+              ? typeof item.images[0] === "string"
+                ? item.images[0]
+                : item.images[0]?.thumbnail_url || item.images[0]?.image_url
+              : undefined) ||
+            undefined,
         }));
 
         if (append) {
@@ -875,16 +913,23 @@ export default function PropertyListPage() {
             <span>States</span>
           </button>
           {level === "state" &&
-            (paginationInfo.total_properties !== undefined ||
-              totalStatesProperties > 0) && (
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
-                {paginationInfo.total_properties ?? totalStatesProperties}{" "}
-                {(paginationInfo.total_properties ?? totalStatesProperties) ===
-                1
-                  ? "Property"
-                  : "Properties"}
+            (loading ? (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#1CA7A6]/10 text-[#1CA7A6]/70 border border-[#1CA7A6]/20 shrink-0 font-asap animate-pulse">
+                <Loader2 className="size-3 animate-spin text-[#1CA7A6]" />
+                <span>Loading counts...</span>
               </span>
-            )}
+            ) : (
+              (paginationInfo.total_properties !== undefined ||
+                totalStatesProperties > 0) && (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
+                  {paginationInfo.total_properties ?? totalStatesProperties}{" "}
+                  {(paginationInfo.total_properties ??
+                    totalStatesProperties) === 1
+                    ? "Property"
+                    : "Properties"}
+                </span>
+              )
+            ))}
         </div>
 
         {selectedState && (
@@ -907,14 +952,23 @@ export default function PropertyListPage() {
                   {selectedState.name}
                 </span>
               </button>
-              {level === "city" && (
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
-                  {totalSelectedStateProperties}{" "}
-                  {totalSelectedStateProperties === 1
-                    ? "Property"
-                    : "Properties"}
-                </span>
-              )}
+              {level === "city" &&
+                (loading ? (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#1CA7A6]/10 text-[#1CA7A6]/70 border border-[#1CA7A6]/20 shrink-0 font-asap animate-pulse">
+                    <Loader2 className="size-3 animate-spin text-[#1CA7A6]" />
+                    <span>Loading properties...</span>
+                  </span>
+                ) : (
+                  totalSelectedStateProperties !== undefined &&
+                  totalSelectedStateProperties !== null && (
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
+                      {totalSelectedStateProperties}{" "}
+                      {totalSelectedStateProperties === 1
+                        ? "Property"
+                        : "Properties"}
+                    </span>
+                  )
+                ))}
             </div>
           </>
         )}
@@ -929,10 +983,22 @@ export default function PropertyListPage() {
                   {selectedCity.name}
                 </span>
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
-                {totalSelectedCityProperties}{" "}
-                {totalSelectedCityProperties === 1 ? "Property" : "Properties"}
-              </span>
+              {loading ? (
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#1CA7A6]/10 text-[#1CA7A6]/70 border border-[#1CA7A6]/20 shrink-0 font-asap animate-pulse">
+                  <Loader2 className="size-3 animate-spin text-[#1CA7A6]" />
+                  <span>Loading properties...</span>
+                </span>
+              ) : (
+                totalSelectedCityProperties !== undefined &&
+                totalSelectedCityProperties !== null && (
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-[#1CA7A6]/10 text-[#1CA7A6] border border-[#1CA7A6]/20 shrink-0 font-asap">
+                    {totalSelectedCityProperties}{" "}
+                    {totalSelectedCityProperties === 1
+                      ? "Property"
+                      : "Properties"}
+                  </span>
+                )
+              )}
             </div>
           </>
         )}
@@ -1033,22 +1099,32 @@ export default function PropertyListPage() {
 
                         <div className="flex items-center gap-1.5 flex-wrap mt-1">
                           {stateItem.city_count !== undefined &&
-                            stateItem.city_count !== null && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-[#1CA7A6] border border-[#1CA7A6]/20 font-asap shrink-0">
-                                {stateItem.city_count}{" "}
-                                {stateItem.city_count === 1 ? "City" : "Cities"}
-                              </span>
-                            )}
+                          stateItem.city_count !== null ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-[#1CA7A6] border border-[#1CA7A6]/20 font-asap shrink-0">
+                              {stateItem.city_count}{" "}
+                              {stateItem.city_count === 1 ? "City" : "Cities"}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50/50 text-[#1CA7A6]/70 border border-[#1CA7A6]/20 font-asap shrink-0 animate-pulse">
+                              <Loader2 className="size-3 animate-spin text-[#1CA7A6]" />
+                              <span>Loading cities...</span>
+                            </span>
+                          )}
 
                           {stateItem.property_count !== undefined &&
-                            stateItem.property_count !== null && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-[#1CA7A6] border border-[#1CA7A6]/20 font-asap shrink-0">
-                                {stateItem.property_count}{" "}
-                                {stateItem.property_count === 1
-                                  ? "Property"
-                                  : "Properties"}
-                              </span>
-                            )}
+                          stateItem.property_count !== null ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-[#1CA7A6] border border-[#1CA7A6]/20 font-asap shrink-0">
+                              {stateItem.property_count}{" "}
+                              {stateItem.property_count === 1
+                                ? "Property"
+                                : "Properties"}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50/50 text-[#1CA7A6]/70 border border-[#1CA7A6]/20 font-asap shrink-0 animate-pulse">
+                              <Loader2 className="size-3 animate-spin text-[#1CA7A6]" />
+                              <span>Loading properties...</span>
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1106,14 +1182,19 @@ export default function PropertyListPage() {
                           </h3>
 
                           {cityItem.property_count !== undefined &&
-                            cityItem.property_count !== null && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-[#1CA7A6] border border-[#1CA7A6]/20 font-asap shrink-0">
-                                {cityItem.property_count}{" "}
-                                {cityItem.property_count === 1
-                                  ? "Property"
-                                  : "Properties"}
-                              </span>
-                            )}
+                          cityItem.property_count !== null ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-[#1CA7A6] border border-[#1CA7A6]/20 font-asap shrink-0">
+                              {cityItem.property_count}{" "}
+                              {cityItem.property_count === 1
+                                ? "Property"
+                                : "Properties"}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50/50 text-[#1CA7A6]/70 border border-[#1CA7A6]/20 font-asap shrink-0 animate-pulse">
+                              <Loader2 className="size-3 animate-spin text-[#1CA7A6]" />
+                              <span>Loading properties...</span>
+                            </span>
+                          )}
                         </div>
 
                         <p className="text-xs font-semibold text-gray-400 mt-0.5">
@@ -1166,15 +1247,10 @@ export default function PropertyListPage() {
                     className="group relative bg-white border border-slate-200 hover:border-[#1CA7A6] rounded-[14px] p-3.5 sm:p-4 hover:shadow-md transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
                   >
                     <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
-                      <div className="shrink-0 p-2 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center">
-                        <Image
-                          src="/assets/home-icon.png"
-                          alt="property"
-                          width={36}
-                          height={36}
-                          className="sm:w-[40px] sm:h-[40px] object-contain"
-                        />
-                      </div>
+                      <PropertyThumbnail
+                        src={prop.thumbnail_url}
+                        alt={prop.address || "property"}
+                      />
 
                       <div className="min-w-0 flex-1">
                         <h3 className="text-sm sm:text-base font-black text-[#1e293b] uppercase tracking-tight font-asap truncate">

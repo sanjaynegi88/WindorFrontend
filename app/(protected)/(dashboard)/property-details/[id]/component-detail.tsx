@@ -278,6 +278,61 @@ export default function ComponentDetail({
     ] as PropertyImage[],
   };
 
+  const handleAddProject = () => {
+    const prop = (componentData || {}) as any;
+    const propertyId = prop.id || componentId || property.propertyId;
+    const stateId =
+      prop.state_id ||
+      prop.stateId ||
+      prop.state?.id ||
+      prop.state?.state_id ||
+      prop.property?.state_id ||
+      prop.property?.state?.id ||
+      prop.property?.state?.state_id ||
+      prop.raw?.state_id ||
+      prop.raw?.state?.id ||
+      (typeof prop.state === "string" && prop.state.includes("-") ? prop.state : "") ||
+      "";
+    const cityId =
+      prop.city_id ||
+      prop.cityId ||
+      prop.city?.id ||
+      prop.city?.city_id ||
+      prop.property?.city_id ||
+      prop.property?.city?.id ||
+      prop.raw?.city_id ||
+      prop.raw?.city?.id ||
+      (typeof prop.city === "string" && prop.city.includes("-") ? prop.city : "") ||
+      "";
+    const cityName =
+      prop.city_name ||
+      prop.raw?.city_name ||
+      prop.raw?.city?.name ||
+      prop.city?.name ||
+      (typeof prop.city === "string" ? prop.city : "") ||
+      "";
+    const propertyName =
+      prop.propertyName ||
+      prop.property_name ||
+      prop.raw?.property_name ||
+      prop.raw?.name ||
+      property.propertyName ||
+      "";
+
+    const params = new URLSearchParams();
+    if (propertyId) params.set("propertyId", String(propertyId));
+    if (stateId) {
+      params.set("state_id", String(stateId));
+    }
+    if (cityId) {
+      params.set("city_id", String(cityId));
+    }
+    if (cityName) params.set("cityName", String(cityName));
+    if (propertyName) params.set("propertyName", propertyName);
+
+    router.push(`/properties/new?${params.toString()}`);
+  };
+
   const imagesByTab: Record<ImageTab, PropertyImage[]> = {
     ROOFING: property.roofingImages,
     "WINDOWS AND DOORS": property.doorWindowImages,
@@ -315,13 +370,14 @@ export default function ComponentDetail({
 
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               {showAddProject && (
-                <Link
-                  href={`/properties/new?propertyId=${property.propertyId}`}
-                  className="flex items-center gap-1.5 sm:gap-2 h-9 sm:h-10 px-3 sm:px-4 rounded-lg bg-secondary-new hover:bg-secondary-new/80 text-white font-bold text-[11px] sm:text-[12px] uppercase tracking-wider sm:tracking-widest transition-colors shrink-0"
+                <button
+                  type="button"
+                  onClick={handleAddProject}
+                  className="flex items-center gap-1.5 sm:gap-2 h-9 sm:h-10 px-3 sm:px-4 rounded-lg bg-secondary-new hover:bg-secondary-new/80 text-white font-bold text-[11px] sm:text-[12px] uppercase tracking-wider sm:tracking-widest transition-colors shrink-0 cursor-pointer"
                 >
                   <PlusIcon className="size-4" />
                   <span>Add Project</span>
-                </Link>
+                </button>
               )}
               {isDeterminingAccess ? (
                 <Button

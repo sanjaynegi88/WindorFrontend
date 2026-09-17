@@ -853,32 +853,6 @@ export function InstallationForm({
                 />
               )}
 
-              {(type === "windows" ||
-                type === "doors" ||
-                type === "garage_doors") && (
-                <>
-                  <FormField
-                    control={form.control}
-                    name="orderNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-semibold text-foreground">
-                          Order Number
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Order number"
-                            className="h-11 bg-muted/20 focus:bg-background transition-all"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </>
-              )}
-
               {(type === "windows" || type === "doors") && (
                 <FormField
                   control={form.control}
@@ -886,11 +860,11 @@ export function InstallationForm({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="font-semibold text-foreground">
-                        Model
+                        Model Number
                       </FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Model"
+                          placeholder="Model Number"
                           className="h-11 bg-muted/20 focus:bg-background transition-all"
                           {...field}
                         />
@@ -931,7 +905,7 @@ export function InstallationForm({
                         </FormLabel>
                         <FormControl>
                           <Input
-                            placeholder=""
+                            placeholder="Glass Type"
                             className="h-11 bg-muted/20 focus:bg-background transition-all"
                             {...field}
                           />
@@ -950,7 +924,33 @@ export function InstallationForm({
                         </FormLabel>
                         <FormControl>
                           <Input
-                            placeholder=""
+                            placeholder="Track Radius"
+                            className="h-11 bg-muted/20 focus:bg-background transition-all"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+
+              {(type === "windows" ||
+                type === "doors" ||
+                type === "garage_doors") && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="orderNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold text-foreground">
+                          Order Number
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Order number"
                             className="h-11 bg-muted/20 focus:bg-background transition-all"
                             {...field}
                           />

@@ -446,10 +446,8 @@ export function PropertyVerifySidebar({
                       {projectsWithComponent.map((project: any) => {
                         const comp = project.components;
                         const hasAddedProject =
-                          project.createdBy.email === currentUserEmail;
+                          project?.createdBy?.email === currentUserEmail;
 
-                        console.log("currentUserEmail", currentUserEmail);
-                        console.log("api user", project.createdBy.email);
                         const compImages: string[] = (
                           comp.images ?? []
                         ).flatMap((img: any) =>

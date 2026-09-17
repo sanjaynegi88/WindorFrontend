@@ -28,6 +28,8 @@ import {
   UserPlus,
   User,
   Eye,
+  EyeOff,
+  KeyRound,
   Loader2,
   ExternalLink,
   CreditCard,
@@ -36,9 +38,22 @@ import { cn, toPascalCase } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -69,6 +84,7 @@ import {
   deleteUserAdmin,
   getUserById,
   getRoles,
+  setUserPasswordAdmin,
 } from "@/lib/actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -141,14 +157,17 @@ const roleColors: Record<string, string> = {
 const planLevelColors: Record<string, string> = {
   FREE: "bg-slate-500/10 text-slate-700 border-slate-200 dark:border-slate-500/20",
   GOLD: "bg-amber-500/10 text-amber-700 border-amber-200 dark:border-amber-500/20",
-  SILVER: "bg-slate-400/15 text-slate-700 border-slate-300 dark:border-slate-500/20",
+  SILVER:
+    "bg-slate-400/15 text-slate-700 border-slate-300 dark:border-slate-500/20",
   PRO: "bg-violet-500/10 text-violet-700 border-violet-200 dark:border-violet-500/20",
-  ENTERPRISE: "bg-blue-500/10 text-blue-700 border-blue-200 dark:border-blue-500/20",
+  ENTERPRISE:
+    "bg-blue-500/10 text-blue-700 border-blue-200 dark:border-blue-500/20",
   STANDARD: "bg-sky-500/10 text-sky-700 border-sky-200 dark:border-sky-500/20",
 };
 
 const getPlanLevelColor = (level?: string | null) => {
-  if (!level) return "bg-slate-500/10 text-slate-700 border-slate-200 dark:border-slate-500/20";
+  if (!level)
+    return "bg-slate-500/10 text-slate-700 border-slate-200 dark:border-slate-500/20";
   const upper = level.toUpperCase();
   for (const [key, val] of Object.entries(planLevelColors)) {
     if (upper.includes(key)) return val;
@@ -172,6 +191,208 @@ const statusIcons: Record<string, any> = {
   Pending: <Clock className="size-3 text-amber-500" />,
   Inactive: <X className="size-3 text-red-500" />,
 };
+
+const changePasswordSchema = z
+  .object({
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
+
+interface ChangePasswordDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  user: {
+    id: string;
+    name: string;
+    email?: string;
+  } | null;
+}
+
+function ChangePasswordDialog({
+  open,
+  onOpenChange,
+  user,
+}: ChangePasswordDialogProps) {
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const form = useForm<ChangePasswordFormValues>({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: {
+      password: "",
+      confirmPassword: "",
+    },
+  });
+
+  useEffect(() => {
+    if (open) {
+      form.reset({ password: "", confirmPassword: "" });
+      setShowPassword(false);
+      setShowConfirmPassword(false);
+    }
+  }, [open, form]);
+
+  const handleSubmit = async (values: ChangePasswordFormValues) => {
+    if (!user?.id) return;
+    setIsSubmitting(true);
+    try {
+      const result = await setUserPasswordAdmin(user.id, {
+        password: values.password,
+      });
+
+      if (!result.success) {
+        toast.error(result.message || "Failed to change password");
+        return;
+      }
+
+      toast.success("Password changed successfully");
+      onOpenChange(false);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to change password");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px] rounded-2xl p-6">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl font-bold text-[#1F2A44]">
+            <KeyRound className="size-5 text-primary" />
+            Change Password
+          </DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground pt-1">
+            Enter a new password for{" "}
+            <span className="font-semibold text-foreground">
+              {user?.name || "the user"}
+            </span>
+            {user?.email && (
+              <span className="block text-xs text-muted-foreground/80 mt-0.5">
+                {user.email}
+              </span>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-4 pt-1"
+          >
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-semibold text-foreground/80">
+                    New Password
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Enter new password"
+                        autoComplete="new-password"
+                        className="pr-10 h-10 rounded-lg text-sm"
+                        {...field}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label={
+                          showPassword ? "Hide password" : "Show password"
+                        }
+                      >
+                        {showPassword ? (
+                          <EyeOff className="size-4" />
+                        ) : (
+                          <Eye className="size-4" />
+                        )}
+                      </button>
+                    </div>
+                  </FormControl>
+                  <FormMessage className="text-xs text-destructive" />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-semibold text-foreground/80">
+                    Confirm Password
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirm new password"
+                        autoComplete="new-password"
+                        className="pr-10 h-10 rounded-lg text-sm"
+                        {...field}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label={
+                          showConfirmPassword
+                            ? "Hide password"
+                            : "Show password"
+                        }
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="size-4" />
+                        ) : (
+                          <Eye className="size-4" />
+                        )}
+                      </button>
+                    </div>
+                  </FormControl>
+                  <FormMessage className="text-xs text-destructive" />
+                </FormItem>
+              )}
+            />
+
+            <DialogFooter className="pt-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="size-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  "Change Password"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function UserList() {
   const router = useRouter();
@@ -197,6 +418,12 @@ export default function UserList() {
   } | null>(null);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [viewingUserData, setViewingUserData] = useState<any | null>(null);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [changePasswordUser, setChangePasswordUser] = useState<{
+    id: string;
+    name: string;
+    email?: string;
+  } | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
   useEffect(() => {
@@ -543,6 +770,22 @@ export default function UserList() {
                 >
                   <Pencil className="size-3.5 mr-2" />
                   Edit User
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setChangePasswordUser({
+                      id: row.original.id,
+                      name:
+                        `${row.original.first_name} ${row.original.last_name}`.trim() ||
+                        row.original.email,
+                      email: row.original.email,
+                    });
+                    setChangePasswordOpen(true);
+                  }}
+                >
+                  <KeyRound className="size-3.5 mr-2" />
+                  Change Password
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -1103,6 +1346,15 @@ export default function UserList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ChangePasswordDialog
+        open={changePasswordOpen}
+        onOpenChange={(open) => {
+          setChangePasswordOpen(open);
+          if (!open) setChangePasswordUser(null);
+        }}
+        user={changePasswordUser}
+      />
 
       <DataGrid
         table={table}
