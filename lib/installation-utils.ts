@@ -45,9 +45,6 @@ export function buildInstallationPayload(
       payload.class_rating = values?.classRating;
     } else if (normType === "siding") {
       payload.elevation_data = values?.elevationdata;
-      if (values?.type) {
-        payload.type = values.type;
-      }
     }
   } else if (
     normType === "windows" ||
@@ -61,6 +58,7 @@ export function buildInstallationPayload(
       payload.order_number = values?.orderNumber;
       payload.glass_type = values?.glass_type;
       payload.track_radius = values?.track_radius;
+       payload.u_factor = values?.u_factor;
     }
     if (normType === "garage_doors" || normType === "garage-doors") {
       payload.windcode = values?.windcode;
