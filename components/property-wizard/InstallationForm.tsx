@@ -59,6 +59,7 @@ const roofingSchema = z.object({
   material: z.string().min(1, "Material is required"),
   impactResistant: z.boolean().default(false),
   classRating: z.string().min(1, "Class  Rating is required"),
+  type: z.string().optional(),
 });
 
 const sidingSchema = z.object({
@@ -66,6 +67,7 @@ const sidingSchema = z.object({
   style: z.string().min(1, "Style is required"),
   color: z.string().min(1, "Color is required"),
   material: z.string().min(1, "Material is required"),
+  type: z.string().optional(),
   elevationdata: z
     .array(
       z.object({
@@ -90,7 +92,6 @@ const doorsSchema = z.object({
   orderNumber: z.string().min(1, "Order number is required"),
   glass_type: z.string().min(1, "Glass type is required"),
   track_radius: z.string().min(1, "Track radius is required"),
-  u_factor: z.string().min(1, "U-Factor is required"),
 });
 const garageDoorsSchema = z.object({
   ...commonSchema,
@@ -143,6 +144,12 @@ const INSTALLATION_FIELDS_CONFIG: InstallationFieldConfig[] = [
     visibleFor: ["roofing", "siding"],
   },
   {
+    name: "type",
+    label: "Type",
+    placeholder: "Installation type",
+    visibleFor: ["siding"],
+  },
+  {
     name: "classRating",
     label: "Class Rating",
     placeholder: "Rating",
@@ -158,7 +165,7 @@ const INSTALLATION_FIELDS_CONFIG: InstallationFieldConfig[] = [
     name: "u_factor",
     label: "U-Factor",
     placeholder: "U-Factor",
-    visibleFor: ["windows", "doors"],
+    visibleFor: ["windows"],
   },
   {
     name: "glass_type",
