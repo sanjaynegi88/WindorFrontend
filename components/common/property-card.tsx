@@ -11,6 +11,7 @@ import {
   Trash2,
   MapPin,
   FileUp,
+  ClipboardCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -106,7 +107,11 @@ export function PropertyCard({
 
   const getNewProjectUrl = () => {
     const params = new URLSearchParams();
-    if (redirectUrl && typeof redirectUrl === "string" && redirectUrl.includes("?")) {
+    if (
+      redirectUrl &&
+      typeof redirectUrl === "string" &&
+      redirectUrl.includes("?")
+    ) {
       const urlQuery = redirectUrl.split("?")[1];
       const parsedParams = new URLSearchParams(urlQuery);
       parsedParams.forEach((val, key) => {
@@ -447,9 +452,9 @@ export function PropertyCard({
                       setIsVerifySidebarOpen(true);
                     }}
                     className="flex items-center gap-2 cursor-pointer text-[#1CA7A6] hover:opacity-80 transition-opacity"
-                    title="Upload Documents"
+                    title="View Verification"
                   >
-                    <FileUp className="size-5 text-[#1CA7A6]" />
+                    <FileText className="size-5 text-[#1CA7A6]" />
                   </button>
                 )}
               {hasReport && latitude && longitude && showActionButtons && (

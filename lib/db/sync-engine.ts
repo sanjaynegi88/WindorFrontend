@@ -271,7 +271,7 @@ function transformInstallationDataForAPI(type: string, formData: any): any {
     } else if (type === 'window' || type === 'door') {
         return {
             ...baseData,
-            production_line: formData.productionLine,
+            model_number: formData.model_number || formData.productionLine,
             order_number: formData.orderNumber,
             component_type: type.toUpperCase(),
         };

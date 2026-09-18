@@ -14,6 +14,7 @@ import {
   updateImagesofPropertyOwnersAdmin,
   uploadOwnerProjectImagesAdmin,
 } from "@/lib/actions";
+import { buildInstallationPayload } from "@/lib/installation-utils";
 import { toast } from "sonner";
 
 interface InstallationFormDialogProps {
@@ -43,32 +44,7 @@ export function InstallationFormDialog({
   ) => {
     try {
       const type = installation.type.toLowerCase();
-
-      const payload = {
-        description: values.description,
-        install_date: values.installDate,
-        supplier: values.supplier,
-        installer: values.installer,
-        brand: values.brand,
-        manufacturer: values.manufacturer,
-        type: values.type,
-        style: values.style,
-        color: values.color,
-        material: values.material,
-        impact_resistant: values.impactResistant,
-        class_rating: values.classRating,
-        production_line: values.productionLine,
-        order_number: values.orderNumber,
-        elevation_data: values.elevationdata,
-        windcode: values.windcode,
-        u_factor: values.u_factor,
-      };
-
-      Object.keys(payload).forEach((key) => {
-        if (payload[key as keyof typeof payload] === undefined) {
-          delete payload[key as keyof typeof payload];
-        }
-      });
+      const payload = buildInstallationPayload(type, values);
 
       const response = await updateInstallation(type, installation.id, payload);
 

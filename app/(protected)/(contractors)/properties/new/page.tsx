@@ -34,7 +34,7 @@ import { InstallationForm } from "@/components/property-wizard/InstallationForm"
 import { ConfirmSubmitDialog } from "@/components/property-wizard/ConfirmSubmitDialog";
 import { useUser } from "@/components/providers/user-provider";
 import { useMembershipGuard } from "@/hooks/useMembershipGuard";
-import { parseBrandValue } from "@/lib/brand-utils";
+import { buildInstallationPayload } from "@/lib/installation-utils";
 
 interface PropertyAddProps {
   initialStep?: Step;
@@ -327,10 +327,22 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
             ? String(paramStateId)
             : "";
 
-        if (!targetCityId && (paramCityName || propertyPayload?.city_name || propertyPayload?.city)) {
-          const nameToMatch = (paramCityName || propertyPayload?.city_name || propertyPayload?.city || "").toLowerCase().trim();
+        if (
+          !targetCityId &&
+          (paramCityName || propertyPayload?.city_name || propertyPayload?.city)
+        ) {
+          const nameToMatch = (
+            paramCityName ||
+            propertyPayload?.city_name ||
+            propertyPayload?.city ||
+            ""
+          )
+            .toLowerCase()
+            .trim();
           const foundCity = rawCities.find(
-            (c: any) => (c.city_name || c.name || "").toLowerCase().trim() === nameToMatch,
+            (c: any) =>
+              (c.city_name || c.name || "").toLowerCase().trim() ===
+              nameToMatch,
           );
           if (foundCity) {
             targetCityId = String(foundCity.id);
@@ -669,55 +681,9 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
 
     const type = selectedTypes[currentTypeIndex];
 
-    const { brand_id, other_brand } = parseBrandValue(values.brand);
-
-    const payload: any = {
-      description: values.description,
-      install_date: values.installDate,
-      supplier: values.supplier,
-      installer: values.installer,
-      // manufacturer: values.manufacturer || null,
-      ...(brand_id && { brand_id }),
-      ...(other_brand && { other_brand }),
-      ...(currentProjectId && { project_id: currentProjectId }),
-    };
-
-    if (type === "roofing" || type === "siding") {
-      payload.style = values.style;
-      payload.color = values.color;
-      payload.material = values.material;
-      payload.type = values.type;
-
-      if (type === "roofing") {
-        payload.impact_resistant = values.impactResistant;
-        payload.class_rating = values.classRating;
-      } else if (type === "siding") {
-        payload.elevation_data = values.elevationdata;
-      }
-    } else if (
-      type === "windows" ||
-      type === "doors" ||
-      type === "garage_doors"
-    ) {
-      if (type === "doors") {
-        payload.color = values.color;
-        payload.production_line = values.productionLine;
-        payload.order_number = values.orderNumber;
-        payload.glass_type = values.glass_type;
-        payload.track_radius = values.track_radius;
-      }
-      if (type === "garage_doors") {
-        payload.windcode = values.windcode;
-        if (values.orderNumber) {
-          payload.order_number = values.orderNumber;
-        }
-      }
-      if (type === "windows") {
-        payload.production_line = values.productionLine;
-        payload.order_number = values.orderNumber;
-        payload.u_factor = values.u_factor;
-      }
-    }
+    const payload = buildInstallationPayload(type, values, {
+      projectId: currentProjectId,
+    });
 
     const apiType = type === "garage_doors" ? "garage-doors" : type;
     const isOwnerProject = user.role === "property_owner" || isOwnerProjectType;

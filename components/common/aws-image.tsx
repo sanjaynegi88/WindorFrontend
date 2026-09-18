@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import Image, { ImageProps } from 'next/image';
-import { getWorkingAwsImageUrl } from '@/lib/utils';
+import React, { useState, useEffect } from "react";
+import Image, { ImageProps } from "next/image";
+import { getWorkingAwsImageUrl } from "@/lib/utils";
 
-interface AwsImageProps extends Omit<ImageProps, 'src'> {
+interface AwsImageProps extends Omit<ImageProps, "src"> {
   src?: string | null;
   folders?: string[];
   fallbackSrc?: string;
@@ -12,26 +12,33 @@ interface AwsImageProps extends Omit<ImageProps, 'src'> {
 
 export function AwsImage({
   src,
-  folders = ['ramsey', 'hennepin', 'scott', 'dakota', 'washington', 'carver', 'anoka'],
-  fallbackSrc = '/assets/prop_placeholder.png',
-  alt = '',
+  folders = [
+    "ramsey",
+    "hennepin",
+    "scott",
+    "dakota",
+    "washington",
+    "carver",
+    "anoka",
+  ],
+  fallbackSrc = "",
+  alt = "",
   ...props
 }: AwsImageProps) {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_AWS_IMAGE_BASE_URL;
+  const baseUrl = process.env.NEXT_PUBLIC_AWS_IMAGE_BASE_URL;
 
   const getInitialUrl = () => {
     if (!src) return fallbackSrc;
     const trimmed = src.trim();
     if (
-      trimmed.startsWith('http://') ||
-      trimmed.startsWith('https://') ||
-      trimmed.startsWith('/') ||
-      trimmed.startsWith('data:')
+      trimmed.startsWith("http://") ||
+      trimmed.startsWith("https://") ||
+      trimmed.startsWith("/") ||
+      trimmed.startsWith("data:")
     ) {
       return trimmed;
     }
-    const defaultFolder = folders[0] || 'Ramsey';
+    const defaultFolder = folders[0] || "ramsey";
     return `${baseUrl}/${defaultFolder}/${trimmed}`;
   };
 
@@ -51,7 +58,7 @@ export function AwsImage({
 
   const hasDimension = props.width !== undefined || props.height !== undefined;
   const isFill = props.fill === true;
-  const layoutProps = (!hasDimension && !isFill) ? { fill: true } : {};
+  const layoutProps = !hasDimension && !isFill ? { fill: true } : {};
 
   return (
     <Image

@@ -25,6 +25,7 @@ import {
   X,
   Eye,
   Download,
+  Info,
 } from "lucide-react";
 import { cn, toPascalCase } from "@/lib/utils";
 import {
@@ -296,6 +297,12 @@ export function PropertyVerifySidebar({
     }
   };
 
+  const projects = property?.projects ?? [];
+  const userHasAddedProject = projects.some(
+    (p: any) => p?.createdBy?.email === currentUserEmail,
+  );
+  const canUploadAnyPermit = isAdmin || isOwner || userHasAddedProject;
+
   return (
     <>
       <Sheet open={isOpen} onOpenChange={onClose}>
@@ -305,9 +312,22 @@ export function PropertyVerifySidebar({
         >
           <SheetHeader className="px-6 py-4 border-b flex flex-row items-center justify-between space-y-0">
             <SheetTitle className="text-lg font-bold">
-              {isContractor || isOwner ? "Upload Documents" : "Verify Property"}
+              {isAdmin || isInspector
+                ? "Verify Property"
+                : canUploadAnyPermit
+                  ? "Upload Documents"
+                  : "View Verification"}
             </SheetTitle>
           </SheetHeader>
+
+          {!loading && property && !canUploadAnyPermit && (
+            <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 flex items-center gap-2.5 text-amber-900 text-xs shrink-0">
+              <Info className="size-4 text-amber-700 shrink-0" />
+              <span className="font-medium text-[11px]">
+                You do not have permission to upload permit, you can only view.
+              </span>
+            </div>
+          )}
 
           <SheetBody className="flex-1 overflow-y-auto p-6 space-y-6">
             {loading && (
@@ -549,7 +569,7 @@ export function PropertyVerifySidebar({
                                     ? "Verified"
                                     : isRejected
                                       ? "Rejected"
-                                      : "Pending"}
+                                      : "Verification Pending"}
                                 </Badge>
                               </div>
 
@@ -595,6 +615,14 @@ export function PropertyVerifySidebar({
                                       </a>
                                     </>
                                   )}
+
+                                {/* Notice when permit is not required for the project */}
+                                {!needPermit && (
+                                  <div className="flex items-center gap-1.5 text-muted-foreground/80 text-[11px] font-medium tracking-tight select-none">
+                                    <Info className="size-3.5 text-muted-foreground/60 shrink-0" />
+                                    <span>No need to upload the permit</span>
+                                  </div>
+                                )}
 
                                 {/* Upload Permit button: need_permit is true and no permit uploaded yet */}
                                 {permitMissing &&
@@ -736,7 +764,21 @@ export function PropertyVerifySidebar({
                                   <span className="text-[11px] font-medium leading-tight">
                                     {hasAddedProject || isOwner
                                       ? "Please upload required documents"
-                                      : "To change the status you need to upload the permit first."}
+                                      : isAdmin || isInspector
+                                        ? "To change the status you need to upload the permit first."
+                                        : "You do not have permission to upload permit, you can only view."}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Informational notice when permit is uploaded and pending verification */}
+                            {isPending && !permitMissing && hasPermit && (
+                              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" />
+                                  <span className="text-[11px] font-medium leading-tight">
+                                    Permit is uploaded
                                   </span>
                                 </div>
                               </div>

@@ -80,13 +80,14 @@ const sidingSchema = z.object({
 
 const windowsSchema = z.object({
   ...commonSchema,
-  productionLine: z.string().min(1, "Model Number is required"),
+  model_number: z.string().min(1, "Model Number is required"),
   orderNumber: z.string().min(1, "Order number is required"),
   u_factor: z.string().min(1, "U-Factor is required"),
+  color: z.string().optional(),
 });
 const doorsSchema = z.object({
   ...commonSchema,
-  productionLine: z.string().min(1, "Model Number is required"),
+  model_number: z.string().min(1, "Model Number is required"),
   color: z.string().min(1, "Color is required"),
   orderNumber: z.string().min(1, "Order number is required"),
   glass_type: z.string().min(1, "Glass type is required"),
@@ -96,6 +97,9 @@ const garageDoorsSchema = z.object({
   ...commonSchema,
   windcode: z.string().min(1, "Wind Code is required"),
   orderNumber: z.string().optional(),
+  model_number: z.string().optional(),
+  color: z.string().optional(),
+  window_style: z.string().optional(),
 });
 
 const otherContractorSchema = z.object({
@@ -105,6 +109,128 @@ const otherContractorSchema = z.object({
 const otherSchema = z.object({
   ...commonSchema,
 });
+
+interface InstallationFieldConfig {
+  name: string;
+  label: string;
+  placeholder?: string;
+  visibleFor: string[];
+  type?: string;
+}
+
+const INSTALLATION_FIELDS_CONFIG: InstallationFieldConfig[] = [
+  {
+    name: "model_number",
+    label: "Model Number",
+    placeholder: "Model Number",
+    visibleFor: ["windows", "doors", "garage_doors"],
+  },
+  {
+    name: "style",
+    label: "Style",
+    placeholder: "Installation style",
+    visibleFor: ["roofing", "siding"],
+  },
+  {
+    name: "color",
+    label: "Color",
+    placeholder: "Installation color",
+    visibleFor: ["roofing", "siding", "doors", "garage_doors", "windows"],
+  },
+  {
+    name: "material",
+    label: "Material",
+    placeholder: "Installation material",
+    visibleFor: ["roofing", "siding"],
+  },
+  {
+    name: "type",
+    label: "Type",
+    placeholder: "Installation type",
+    visibleFor: ["siding"],
+  },
+  {
+    name: "classRating",
+    label: "Class Rating",
+    placeholder: "Rating",
+    visibleFor: ["roofing"],
+  },
+  {
+    name: "windcode",
+    label: "Wind Code",
+    placeholder: "Wind Code",
+    visibleFor: ["garage_doors"],
+  },
+  {
+    name: "u_factor",
+    label: "U-Factor",
+    placeholder: "U-Factor",
+    visibleFor: ["windows"],
+  },
+  {
+    name: "glass_type",
+    label: "Glass Type",
+    placeholder: "Glass Type",
+    visibleFor: ["doors"],
+  },
+  {
+    name: "track_radius",
+    label: "Track Radius",
+    placeholder: "Track Radius",
+    visibleFor: ["doors"],
+  },
+  {
+    name: "orderNumber",
+    label: "Order Number",
+    placeholder: "Order number",
+    visibleFor: ["windows", "doors", "garage_doors"],
+  },
+  {
+    name: "window_style",
+    label: "Window Style",
+    placeholder: "Window style",
+    visibleFor: ["garage_doors"],
+  },
+];
+
+interface SimpleFormFieldProps {
+  control: any;
+  name: string;
+  label: string;
+  placeholder?: string;
+  type?: string;
+}
+
+function SimpleFormField({
+  control,
+  name,
+  label,
+  placeholder,
+  type = "text",
+}: SimpleFormFieldProps) {
+  return (
+    <FormField
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel className="font-semibold text-foreground">
+            {label}
+          </FormLabel>
+          <FormControl>
+            <Input
+              type={type}
+              placeholder={placeholder}
+              className="h-11 bg-muted/20 focus:bg-background transition-all"
+              {...field}
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
 
 interface InstallationFormProps {
   type: any | null;
@@ -373,7 +499,16 @@ export function InstallationForm({
       brand: values?.brand || "",
       //manufacturer: values?.manufacturer || '',
       orderNumber: values?.orderNumber || values?.order_number || "",
-      productionLine: values?.productionLine || "",
+      model_number:
+        values?.model_number ||
+        values?.productionLine ||
+        values?.production_line ||
+        "",
+      productionLine:
+        values?.model_number ||
+        values?.productionLine ||
+        values?.production_line ||
+        "",
       windcode: values?.windcode || "",
       u_factor: values?.u_factor || "",
       style: values?.style || "",
@@ -385,6 +520,7 @@ export function InstallationForm({
       elevationdata: values?.elevationdata || [],
       glass_type: values?.glass_type || "",
       track_radius: values?.track_radius || "",
+      window_style: values?.window_style || "",
       contractorImages: [],
       ownerImages: [],
     }) as any;
@@ -661,139 +797,44 @@ export function InstallationForm({
                 )}
               />
 
-              {(type === "roofing" || type === "siding") && (
-                <>
-                  <FormField
-                    control={form.control}
-                    name="style"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-semibold text-foreground">
-                          Style
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Installation style"
-                            className="h-11 bg-muted/20 focus:bg-background transition-all"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="color"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-semibold text-foreground">
-                          Color
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Installation color"
-                            className="h-11 bg-muted/20 focus:bg-background transition-all"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="material"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-semibold text-foreground">
-                          Material
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Installation material"
-                            className="h-11 bg-muted/20 focus:bg-background transition-all"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-semibold text-foreground">
-                          Type
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Installation type"
-                            className="h-11 bg-muted/20 focus:bg-background transition-all"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </>
-              )}
+              {/* Dynamic installation-type specific simple fields */}
+              {INSTALLATION_FIELDS_CONFIG.filter((cfg) =>
+                cfg.visibleFor.includes(type),
+              ).map((cfg) => (
+                <SimpleFormField
+                  key={cfg.name}
+                  control={form.control}
+                  name={cfg.name}
+                  label={cfg.label}
+                  placeholder={cfg.placeholder}
+                  type={cfg.type}
+                />
+              ))}
 
+              {/* Special fields with custom UI */}
               {type === "roofing" && (
-                <>
-                  <FormField
-                    control={form.control}
-                    name="classRating"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-semibold text-foreground">
-                          Class Rating
+                <FormField
+                  control={form.control}
+                  name="impactResistant"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 bg-muted/10">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="font-semibold">
+                          Impact Resistant
                         </FormLabel>
-                        <FormControl>
-                          {/* <Rating
-                                                        rating={field.value || 0}
-                                                        maxRating={10}
-                                                        editable={true}
-                                                        showValue={true}
-                                                        onRatingChange={(rating) => field.onChange(rating)}
-                                                        className="py-2"
-                                                    /> */}
-                          <Input
-                            placeholder="Rating"
-                            className="h-11 bg-muted/20 focus:bg-background transition-all"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="impactResistant"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 bg-muted/10">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel className="font-semibold">
-                            Impact Resistant
-                          </FormLabel>
-                          <FormDescription>
-                            System meets impact resistance standards.
-                          </FormDescription>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                </>
+                        <FormDescription>
+                          System meets impact resistance standards.
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
               )}
 
               {type === "siding" && (
@@ -807,159 +848,6 @@ export function InstallationForm({
                     addButtonText="Add New Feature Line"
                   />
                 </div>
-              )}
-
-              {type === "windows" && (
-                <FormField
-                  control={form.control}
-                  name="u_factor"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-semibold text-foreground">
-                        U-Factor
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="U-Factor"
-                          className="h-11 bg-muted/20 focus:bg-background transition-all"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              {type === "garage_doors" && (
-                <FormField
-                  control={form.control}
-                  name="windcode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-semibold text-foreground">
-                        Wind Code
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Wind Code"
-                          className="h-11 bg-muted/20 focus:bg-background transition-all"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              {(type === "windows" || type === "doors") && (
-                <FormField
-                  control={form.control}
-                  name="productionLine"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-semibold text-foreground">
-                        Model Number
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Model Number"
-                          className="h-11 bg-muted/20 focus:bg-background transition-all"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-              {type === "doors" && (
-                <>
-                  <FormField
-                    control={form.control}
-                    name="color"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-semibold text-foreground">
-                          Color
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Installation color"
-                            className="h-11 bg-muted/20 focus:bg-background transition-all"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="glass_type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-semibold text-foreground">
-                          Glass Type
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Glass Type"
-                            className="h-11 bg-muted/20 focus:bg-background transition-all"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="track_radius"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-semibold text-foreground">
-                          Track Radius
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Track Radius"
-                            className="h-11 bg-muted/20 focus:bg-background transition-all"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </>
-              )}
-
-              {(type === "windows" ||
-                type === "doors" ||
-                type === "garage_doors") && (
-                <>
-                  <FormField
-                    control={form.control}
-                    name="orderNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-semibold text-foreground">
-                          Order Number
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Order number"
-                            className="h-11 bg-muted/20 focus:bg-background transition-all"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </>
               )}
 
               <div className="md:col-span-2 space-y-6">

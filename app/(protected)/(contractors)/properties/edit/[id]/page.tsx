@@ -33,6 +33,7 @@ import {
 import { Loader2, ChevronLeft, MapPin, FolderOpen, Trash2 } from "lucide-react";
 import { ConfirmDeleteDialog } from "@/components/property-wizard/ConfirmDeleteDialog";
 import { parseBrandValue } from "@/lib/brand-utils";
+import { buildInstallationPayload } from "@/lib/installation-utils";
 import { CategoryImageUpload } from "@/components/property-wizard/CategoryImageUpload";
 import { PropertyAddressPhotos } from "@/components/property-wizard/PropertyAddressPhotos";
 import { type StateOption, type CityOption } from "@/lib/location-utils";
@@ -63,11 +64,13 @@ interface Component {
   material?: string;
   impact_resistant?: boolean;
   class_rating?: number | string;
+  model_number?: string;
   production_line?: string;
   order_number?: string;
   elevation_data?: any[];
   track_radius?: string;
   glass_type?: string;
+  window_style?: string;
   images?: any[];
   windcode?: string;
   u_factor?: string;
@@ -92,7 +95,7 @@ function componentToFormValues(comp: Component): any {
     material: comp.material || "",
     impactResistant: comp.impact_resistant ?? false,
     classRating: comp.class_rating ? String(comp.class_rating) : "",
-    productionLine: comp.production_line || "",
+    model_number: comp.model_number || comp.production_line || "",
     orderNumber: comp.order_number || "",
     elevationdata: comp.elevation_data || [],
     images: comp.images || [],
@@ -100,6 +103,7 @@ function componentToFormValues(comp: Component): any {
     u_factor: comp.u_factor || "",
     glass_type: comp.glass_type || "",
     track_radius: comp.track_radius || "",
+    window_style: comp.window_style || "",
     //manufacturer: comp.manufacturer || '',
   };
 }
@@ -634,52 +638,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
     const type = (selectedComponent.component_type || "").toLowerCase();
     setSaving(true);
     try {
-      const { brand_id, other_brand } = parseBrandValue(values.brand);
-      const payload: any = {
-        description: values.description,
-        install_date: values.installDate,
-        supplier: values.supplier,
-        installer: values.installer,
-        // manufacturer: values.manufacturer || null,
-        ...(brand_id && { brand_id }),
-        ...(other_brand && { other_brand }),
-        ...(!brand_id && !other_brand && { brand_id: null, other_brand: null }),
-      };
-      if (type === "roofing" || type === "siding") {
-        payload.style = values.style;
-        payload.color = values.color;
-        payload.material = values.material;
-        payload.type = values.type;
-        if (type === "roofing") {
-          payload.impact_resistant = values.impactResistant;
-          payload.class_rating = values.classRating;
-        } else if (type === "siding") {
-          payload.elevation_data = values.elevationdata;
-        }
-      } else if (
-        type === "windows" ||
-        type === "doors" ||
-        type === "garage_doors"
-      ) {
-        if (type === "doors") {
-          payload.color = values.color;
-          payload.production_line = values.productionLine;
-          payload.order_number = values.orderNumber;
-          payload.glass_type = values.glass_type;
-          payload.track_radius = values.track_radius;
-        }
-        if (type === "garage_doors") {
-          payload.windcode = values.windcode;
-          if (values.orderNumber) {
-            payload.order_number = values.orderNumber;
-          }
-        }
-        if (type === "windows") {
-          payload.production_line = values.productionLine;
-          payload.order_number = values.orderNumber;
-          payload.u_factor = values.u_factor;
-        }
-      }
+      const payload = buildInstallationPayload(type, values);
       const response = isOwnerProjectType
         ? await updatePropertyOwnerInstallation(selectedComponent.id, payload)
         : await updateInstallation(type, selectedComponent.id, payload);
@@ -786,59 +745,12 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       selectedProject?.project_id ??
       selectedProject?._id ??
       localStorage.getItem("current_project_id");
-    const { brand_id, other_brand } = parseBrandValue(values.brand);
-    const payload: any = {
-      description: values.description,
-      install_date: values.installDate,
-      supplier: values.supplier,
-      installer: values.installer,
-      ...(brand_id && { brand_id }),
-      ...(other_brand && { other_brand }),
-      ...(projectId && { project_id: projectId }),
-    };
-    const type = newInstallationType;
-    if (type === "roofing" || type === "siding") {
-      payload.style = values.style;
-      payload.color = values.color;
-      payload.material = values.material;
-      payload.type = values.type;
-      if (type === "roofing") {
-        payload.impact_resistant = values.impactResistant;
-        payload.class_rating = values.classRating;
-      } else if (type === "siding") {
-        payload.elevation_data = values.elevationdata;
-      }
-    } else if (
-      type === "windows" ||
-      type === "doors" ||
-      type === "garage_doors"
-    ) {
-      if (type === "doors") {
-        payload.color = values.color;
-        payload.production_line = values.productionLine;
-        payload.order_number = values.orderNumber;
-        payload.glass_type = values.glass_type;
-        payload.track_radius = values.track_radius;
-      }
-      if (type === "garage_doors") {
-        payload.windcode = values.windcode;
-        if (values.orderNumber) {
-          payload.order_number = values.orderNumber;
-        }
-      }
-      if (type === "windows") {
-        payload.production_line = values.productionLine;
-        payload.order_number = values.orderNumber;
-        payload.u_factor = values.u_factor;
-      }
-    }
+    const payload = buildInstallationPayload(newInstallationType, values, {
+      projectId,
+    });
     const { postInstallation, postPropertyOwnerInstallations } =
       await import("@/lib/actions");
-    const isOwnerProject =
-      role === "property_owner" ||
-      isOwnerProjectType ||
-      newInstallationType === "windows and doors" ||
-      newInstallationType === "WINDOWS AND DOORS";
+    const isOwnerProject = role === "property_owner" || isOwnerProjectType;
     const installResult = isOwnerProject
       ? await postPropertyOwnerInstallations(propertyId, payload)
       : await postInstallation(propertyId, newInstallationType, payload);
