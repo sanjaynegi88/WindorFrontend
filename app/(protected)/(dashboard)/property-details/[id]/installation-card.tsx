@@ -7,6 +7,146 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Installation, normalizeImageUrl, toApiType } from "./types";
 
+interface InstallationFieldConfig {
+  name: string;
+  label: string;
+  placeholder?: string;
+  visibleFor: string[];
+}
+
+const INSTALLATION_FIELDS_CONFIG: InstallationFieldConfig[] = [
+  {
+    name: "model_number",
+    label: "Model Number",
+    placeholder: "Model Number",
+    visibleFor: ["windows", "doors", "garage_doors"],
+  },
+  {
+    name: "style",
+    label: "Style",
+    placeholder: "Installation style",
+    visibleFor: ["roofing", "siding"],
+  },
+  {
+    name: "color",
+    label: "Color",
+    placeholder: "Installation color",
+    visibleFor: ["roofing", "siding", "doors", "garage_doors", "windows"],
+  },
+  {
+    name: "material",
+    label: "Material",
+    placeholder: "Installation material",
+    visibleFor: ["roofing", "siding"],
+  },
+  {
+    name: "classRating",
+    label: "Class Rating",
+    placeholder: "Rating",
+    visibleFor: ["roofing"],
+  },
+  {
+    name: "windcode",
+    label: "Wind Code",
+    placeholder: "Wind Code",
+    visibleFor: ["garage_doors"],
+  },
+  {
+    name: "u_factor",
+    label: "U-Factor",
+    placeholder: "U-Factor",
+    visibleFor: ["windows", "doors"],
+  },
+  {
+    name: "glass_type",
+    label: "Glass Type",
+    placeholder: "Glass Type",
+    visibleFor: ["doors"],
+  },
+  {
+    name: "track_radius",
+    label: "Track Radius",
+    placeholder: "Track Radius",
+    visibleFor: ["doors"],
+  },
+  {
+    name: "orderNumber",
+    label: "Order Number",
+    placeholder: "Order number",
+    visibleFor: ["windows", "doors", "garage_doors"],
+  },
+  {
+    name: "window_style",
+    label: "Window Style",
+    placeholder: "Window style",
+    visibleFor: ["garage_doors"],
+  },
+];
+
+const normalizeComponentType = (type?: string): string => {
+  if (!type) return "";
+  const t = type.toLowerCase().trim().replace(/[-\s]/g, "_");
+  if (t === "garage_door" || t === "garage_doors") return "garage_doors";
+  if (t === "window" || t === "windows") return "windows";
+  if (t === "door" || t === "doors") return "doors";
+  if (t === "roof" || t === "roofing") return "roofing";
+  if (t === "side" || t === "siding") return "siding";
+  return t;
+};
+
+const isFieldVisible = (
+  visibleFor: string[],
+  componentType?: string,
+  hasValue?: boolean,
+): boolean => {
+  if (!componentType) return !!hasValue;
+  const norm = normalizeComponentType(componentType);
+  if (visibleFor.includes(norm)) return true;
+  if (
+    norm === "windows_and_doors" ||
+    norm === "window_door" ||
+    norm === "windows_doors"
+  ) {
+    return visibleFor.includes("windows") || visibleFor.includes("doors");
+  }
+  return false;
+};
+
+const getFieldValue = (
+  item: Installation,
+  fieldName: string,
+): string | undefined => {
+  const itemAny = item as any;
+  switch (fieldName) {
+    case "model_number":
+      return (
+        item.model_number || itemAny.production_line || itemAny.productionLine
+      );
+    case "classRating":
+      return item.class_rating || itemAny.classRating;
+    case "orderNumber":
+      return item.order_number || itemAny.orderNumber;
+    case "style":
+      return item.style;
+    case "color":
+      return item.color;
+    case "material":
+      return item.material;
+    case "windcode":
+      return item.windcode;
+    case "u_factor":
+      return item.u_factor;
+    case "glass_type":
+      return item.glass_type;
+    case "track_radius":
+      return item.track_radius;
+    case "window_style":
+      return item.window_style;
+    default:
+      return itemAny[fieldName];
+  }
+};
+
 interface InstallationCardProps {
   item: Installation;
   canUpload: boolean;
@@ -47,13 +187,19 @@ export const InstallationCard = ({
       })
     : "N/A";
 
+  const normType = normalizeComponentType(item.component_type);
   const typeColor: Record<string, string> = {
-    ROOFING: "bg-[rgba(28,167,166,0.12)] text-[#1CA7A6] border-[#1CA7A6]",
-    SIDING: "bg-[rgba(31,42,68,0.1)] text-[#1F2A44] border-[#1F2A44]",
-    "WINDOWS AND DOORS":
+    roofing: "bg-[rgba(28,167,166,0.12)] text-[#1CA7A6] border-[#1CA7A6]",
+    siding: "bg-[rgba(31,42,68,0.1)] text-[#1F2A44] border-[#1F2A44]",
+    windows: "bg-[rgba(67,160,71,0.12)] text-[#43A047] border-[#43A047]",
+    doors: "bg-[rgba(67,160,71,0.12)] text-[#43A047] border-[#43A047]",
+    windows_and_doors:
       "bg-[rgba(67,160,71,0.12)] text-[#43A047] border-[#43A047]",
+    window_door: "bg-[rgba(67,160,71,0.12)] text-[#43A047] border-[#43A047]",
+    garage_doors: "bg-[rgba(156,39,176,0.12)] text-[#9C27B0] border-[#9C27B0]",
   };
   const badgeClass =
+    typeColor[normType] ??
     typeColor[item.component_type] ??
     "bg-[rgba(112,128,144,0.12)] text-[#708090] border-[#708090]";
 
@@ -89,6 +235,23 @@ export const InstallationCard = ({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const dynamicFields = INSTALLATION_FIELDS_CONFIG.filter((cfg) => {
+    const val = getFieldValue(item, cfg.name);
+    return isFieldVisible(cfg.visibleFor, item.component_type, Boolean(val));
+  }).map((cfg) => ({
+    label: cfg.label,
+    value: getFieldValue(item, cfg.name),
+  }));
+
+  const detailFields = [
+    { label: "Brand", value: item.brand },
+    ...dynamicFields,
+    { label: "Install Date", value: formattedDate },
+    { label: "Contractor", value: item.installer },
+    { label: "Supplier", value: item.supplier },
+    ...(item.other ? [{ label: "Other", value: item.other }] : []),
+  ];
+
   return (
     <div
       className={cn(
@@ -107,7 +270,9 @@ export const InstallationCard = ({
               badgeClass,
             )}
           >
-            {toTitleCase(item.component_type)}
+            {toTitleCase(
+              item.component_type ? item.component_type.replace(/_/g, " ") : "",
+            )}
           </span>
           {item.impact_resistant && (
             <span className="text-[10px] md:text-[11px] font-semibold uppercase tracking-widest px-3 py-1 rounded-full border bg-[rgba(255,193,7,0.12)] text-[#F59E0B] border-[#F59E0B] font-inter">
@@ -174,17 +339,7 @@ export const InstallationCard = ({
 
       {/* Details grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3">
-        {[
-          { label: "Brand", value: item.brand },
-          { label: "Style", value: item.style },
-          { label: "Color", value: item.color },
-          { label: "Material", value: item.material },
-          { label: "Class Rating", value: item.class_rating },
-          { label: "Install Date", value: formattedDate },
-          { label: "Installer", value: item.installer },
-          { label: "Supplier", value: item.supplier },
-          ...(item.other ? [{ label: "Other", value: item.other }] : []),
-        ].map(({ label, value }) => (
+        {detailFields.map(({ label, value }) => (
           <div key={label} className="space-y-0.5">
             <p className="text-[10px] md:text-[11px] font-semibold uppercase tracking-widest text-[#B0BEC5] font-inter">
               {label}

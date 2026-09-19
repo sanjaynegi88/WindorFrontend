@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn, toTitleCase } from "@/lib/utils";
+import { cn, toTitleCase, formatProjectType } from "@/lib/utils";
 
 import { format, parseISO } from "date-fns";
 import {
@@ -19,10 +19,7 @@ import { z } from "zod";
 import { type CityOption } from "@/lib/location-utils";
 import { useUser } from "@/components/providers/user-provider";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import {
-  ContractorSelect,
-  type ContractorOption,
-} from "./ContractorSelect";
+import { ContractorSelect, type ContractorOption } from "./ContractorSelect";
 import { useRouter } from "next/navigation";
 
 const projectSchema = z
@@ -188,6 +185,17 @@ export function CategorySelection({
   const isAdmin = userRole === "admin";
   const isPropertyOwner = userRole === "property_owner";
 
+  const selectedComp = componentTypes.find(
+    (t) => t.name.toLowerCase() === projectType.toLowerCase(),
+  );
+  const isOwnerProjectType = selectedComp?.isOwnerProjectType || false;
+
+  useEffect(() => {
+    if (isOwnerProjectType && contractorId !== null) {
+      setContractorId(null);
+    }
+  }, [isOwnerProjectType, contractorId]);
+
   useEffect(() => {
     setProjectName(initialProjectData?.project_name || "");
     setProjectType(
@@ -344,9 +352,12 @@ export function CategorySelection({
   }, [isPropertyOwner, isAdmin]);
 
   const getDisplayLabel = (name: string) => {
-    if (name.toUpperCase() === "WINDOW_DOOR") return "Window & Door";
-    if (name.toLowerCase() === "other_contractor") {
-      return isAdmin ? "OTHER CONTRACTOR" : "OTHER";
+    if (isAdmin) {
+      return formatProjectType(name);
+    }
+    const upper = name.trim().toUpperCase();
+    if (upper === "OTHER" || upper === "OTHER_CONTRACTOR") {
+      return "OTHER";
     }
     return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   };
@@ -390,7 +401,11 @@ export function CategorySelection({
 
     // Contractor (for admin)
     if (isAdmin) {
-      const currentContractor = contractorId ? String(contractorId) : null;
+      const currentContractor = isOwnerProjectType
+        ? null
+        : contractorId
+          ? String(contractorId)
+          : null;
       const initialContractor = initialProjectData.contractor_id
         ? String(initialProjectData.contractor_id)
         : null;
@@ -430,6 +445,7 @@ export function CategorySelection({
     isEditMode,
     isAdmin,
     isPropertyOwner,
+    isOwnerProjectType,
   ]);
 
   const handleFieldChange = (updater: () => void) => {
@@ -459,7 +475,7 @@ export function CategorySelection({
       governing_city_id: governingCity,
       permit,
       notes,
-      contractor_id: contractorId || null,
+      contractor_id: isOwnerProjectType ? null : contractorId || null,
     };
 
     const result = projectSchema.safeParse(raw);
@@ -486,7 +502,13 @@ export function CategorySelection({
       governing_city_id: result.data.governing_city_id,
       permit: result.data.permit,
       notes: result.data.notes || "",
-      ...(isAdmin ? { contractor_id: result.data.contractor_id ?? null } : {}),
+      ...(isAdmin
+        ? {
+            contractor_id: isOwnerProjectType
+              ? null
+              : (result.data.contractor_id ?? null),
+          }
+        : {}),
       ...(isPropertyOwner ? { visible_status: visibility } : {}),
     };
 
@@ -737,7 +759,7 @@ export function CategorySelection({
           {fieldError("governing_city_id")}
         </div>
 
-        {isAdmin && (
+        {isAdmin && !isOwnerProjectType && (
           <div className="w-full">
             <ContractorSelect
               contractors={contractors}

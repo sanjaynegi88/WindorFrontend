@@ -639,6 +639,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
     setSaving(true);
     try {
       const payload = buildInstallationPayload(type, values);
+      console.log(payload);
       const response = isOwnerProjectType
         ? await updatePropertyOwnerInstallation(selectedComponent.id, payload)
         : await updateInstallation(type, selectedComponent.id, payload);
@@ -775,14 +776,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       const installationId = await saveNewInstallationBase(values);
       if (!installationId) return;
 
-      const isOwnerProject =
-        role === "property_owner" ||
-        isOwnerProjectType ||
-        newInstallationType === "windows and doors" ||
-        newInstallationType === "WINDOWS AND DOORS" ||
-        newInstallationType === "new appliances" ||
-        newInstallationType === "NEW APPLIANCES" ||
-        newInstallationType === "NEW_APPLIANCES";
+      const isOwnerProject = role === "property_owner" || isOwnerProjectType;
 
       if (isOwnerProject) {
         const allOwnerFiles: File[] = [];

@@ -41,6 +41,7 @@ interface SearchableSelectProps {
   displayValueFallback?: string;
   focusNextDelay?: number;
   autoFocusNext?: boolean;
+  keyboardSelectHighlighted?: boolean;
   triggerRef?: React.Ref<HTMLButtonElement>;
 }
 
@@ -50,13 +51,13 @@ const triggerClass =
 function isPopoverElement(el: HTMLElement): boolean {
   return Boolean(
     el.hasAttribute("data-radix-focus-guard") ||
-      el.closest("[data-slot='popover-content']") ||
-      el.closest("[data-radix-popover-content]") ||
-      el.closest("[data-radix-popper-content-wrapper]") ||
-      el.closest("[data-radix-portal]") ||
-      el.closest("[role='dialog']") ||
-      el.closest("[cmdk-root]") ||
-      el.closest(".cmdk-root"),
+    el.closest("[data-slot='popover-content']") ||
+    el.closest("[data-radix-popover-content]") ||
+    el.closest("[data-radix-popper-content-wrapper]") ||
+    el.closest("[data-radix-portal]") ||
+    el.closest("[role='dialog']") ||
+    el.closest("[cmdk-root]") ||
+    el.closest(".cmdk-root"),
   );
 }
 
@@ -187,6 +188,7 @@ export function SearchableSelect({
   focusNextDelay,
   autoFocusNext = true,
   triggerRef,
+  keyboardSelectHighlighted = false,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchState, setSearchState] = useState("");
@@ -202,7 +204,8 @@ export function SearchableSelect({
     if (typeof triggerRef === "function") {
       triggerRef(node);
     } else if (triggerRef && "current" in triggerRef) {
-      (triggerRef as React.MutableRefObject<HTMLButtonElement | null>).current = node;
+      (triggerRef as React.MutableRefObject<HTMLButtonElement | null>).current =
+        node;
     }
   };
 
@@ -387,13 +390,28 @@ export function SearchableSelect({
               onChange={(e) => handleSearchChange(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (selectableFiltered.length > 0) {
-                    const first = selectableFiltered[0];
-                    handleSelectOption(first.id === "__none__" ? "" : first.id);
-                  } else if (allowCustom && search.trim().length > 0) {
-                    handleSelectOption(`__custom__:${search.trim()}`);
+                  if (keyboardSelectHighlighted) {
+                    if (
+                      selectableFiltered.length === 0 &&
+                      allowCustom &&
+                      search.trim().length > 0
+                    ) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSelectOption(`__custom__:${search.trim()}`);
+                    }
+                  } else {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    if (selectableFiltered.length > 0) {
+                      const first = selectableFiltered[0];
+                      handleSelectOption(
+                        first.id === "__none__" ? "" : first.id,
+                      );
+                    } else if (allowCustom && search.trim().length > 0) {
+                      handleSelectOption(`__custom__:${search.trim()}`);
+                    }
                   }
                 } else if (e.key === "Tab") {
                   e.preventDefault();

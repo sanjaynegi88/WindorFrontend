@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { cn, toPascalCase, toTitleCase } from "@/lib/utils";
+import { cn, formatProjectType, toPascalCase, toTitleCase } from "@/lib/utils";
 import {
   getprojectTypesInProperty,
   getprojectListingOfProperty,
@@ -281,8 +281,8 @@ export const ProjectsListView = ({
                   {
                     label:
                       isOtherType && otherText
-                        ? `${projectType}: ${otherText}`
-                        : projectType,
+                        ? `${formatProjectType(projectType)}: ${otherText}`
+                        : formatProjectType(projectType),
                     className:
                       "bg-[rgba(28,167,166,0.08)] text-[#1CA7A6] border-[#1CA7A6]",
                   },
@@ -335,7 +335,7 @@ export const ProjectsListView = ({
                         Property Type
                       </p>
                       <p className="text-sm font-semibold text-[#1F2A44] font-asap">
-                        {propertyType || "N/A"}
+                        {toTitleCase(propertyType) || "N/A"}
                       </p>
                     </div>
                   </div>

@@ -458,13 +458,13 @@ export function AddressForm({
             onValueChange={(val) =>
               onChange({
                 ...data,
-                property_owner_id:
-                  !val || val === "__none__" ? null : val,
+                property_owner_id: !val || val === "__none__" ? null : val,
               })
             }
             placeholder="Property Owner"
             searchPlaceholder="Search property owner..."
             triggerClassName={triggerClass}
+            keyboardSelectHighlighted
           />
         </div>
         <div className="space-y-3.75 md:space-y-5 p-5 border border-dashed border-[rgba(28,167,166,0.3)] rounded-[10px] bg-slate-50/50">
@@ -567,7 +567,9 @@ export function AddressForm({
         cityId={data.city_id}
         stateId={data.state || data.state_id}
         cityLat={selectedCity?.latitude ? Number(selectedCity.latitude) : null}
-        cityLng={selectedCity?.longitude ? Number(selectedCity.longitude) : null}
+        cityLng={
+          selectedCity?.longitude ? Number(selectedCity.longitude) : null
+        }
         addressString={
           data.address
             ? `${data.address}, ${data.city || ""}, ${data.state || ""} ${data.zip || ""}`

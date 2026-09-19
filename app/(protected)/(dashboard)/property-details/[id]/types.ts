@@ -27,6 +27,13 @@ export interface Installation {
   component_type: string;
   permit_status: string | null;
   other?: string | null;
+  model_number?: string;
+  windcode?: string;
+  u_factor?: string;
+  glass_type?: string;
+  track_radius?: string;
+  order_number?: string;
+  window_style?: string;
   images: {
     id: string;
     image_url: string | null;
@@ -103,6 +110,13 @@ export function mapProjectToInstallation(project: any, fallbackPropertyId?: stri
     component_type: project?.project_type ?? detail?.type ?? '',
     permit_status: detail?.permit_status ?? null,
     other: project?.other ?? detail?.other ?? project?.other_project_type ?? null,
+    model_number: detail?.model_number ?? detail?.production_line ?? project?.components?.model_number ?? project?.components?.production_line ?? '',
+    order_number: detail?.order_number ?? detail?.orderNumber ?? project?.components?.order_number ?? project?.components?.orderNumber ?? '',
+    windcode: detail?.windcode ?? project?.components?.windcode ?? '',
+    u_factor: detail?.u_factor ?? project?.components?.u_factor ?? '',
+    glass_type: detail?.glass_type ?? project?.components?.glass_type ?? '',
+    track_radius: detail?.track_radius ?? project?.components?.track_radius ?? '',
+    window_style: detail?.window_style ?? project?.components?.window_style ?? '',
     images: (images ?? []).map((img: any, index: number) => ({
       id: img?.id ?? `${project?.id ?? 'project'}-${index}`,
       image_url: img?.image_url ?? null,

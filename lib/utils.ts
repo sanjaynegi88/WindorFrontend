@@ -315,3 +315,27 @@ export function isContractorProject(project: any): boolean {
   return false;
 }
 
+/**
+ * Formats a project type for display:
+ * - "WINDOW_DOOR" -> "Window & Door"
+ * - "OTHER" -> "Other (Homeowner)"
+ * - "OTHER_CONTRACTOR" -> "Other (Contractor)"
+ * - others -> Title Case (e.g. "Roofing", "Siding")
+ */
+export function formatProjectType(name: string | null | undefined): string {
+  if (!name) return '';
+  const trimmed = name.trim();
+  const upper = trimmed.toUpperCase();
+
+  if (upper === 'OTHER') {
+    return 'OTHER (Homeowner)';
+  }
+  if (upper === 'OTHER_CONTRACTOR') {
+    return 'OTHER (Contractor)';
+  }
+
+  return trimmed
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+

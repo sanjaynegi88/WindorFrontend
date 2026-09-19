@@ -29,6 +29,7 @@ import {
   toTitleCase,
   isContractorProject,
   cn,
+  formatProjectType,
 } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -464,7 +465,7 @@ export default function MyProjectList() {
                   subtitle={`${propertyAddress} • Client: ${clientName}${projectDateLabel ? ` • ${projectDateLabel}` : ""}`}
                   badges={[
                     {
-                      label: toPascalCase(projectType),
+                      label: formatProjectType(projectType),
                       className:
                         "bg-[rgba(28,167,166,0.08)] text-[#1CA7A6] border-[#1CA7A6]",
                     },

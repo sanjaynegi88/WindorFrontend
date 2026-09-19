@@ -75,6 +75,148 @@ function ImageWithLoader({ src, alt }: { src: string; alt: string }) {
   );
 }
 
+interface InstallationFieldConfig {
+  name: string;
+  label: string;
+  placeholder?: string;
+  visibleFor: string[];
+}
+
+const INSTALLATION_FIELDS_CONFIG: InstallationFieldConfig[] = [
+  {
+    name: "model_number",
+    label: "Model Number",
+    placeholder: "Model Number",
+    visibleFor: ["windows", "doors", "garage_doors"],
+  },
+  {
+    name: "style",
+    label: "Style",
+    placeholder: "Installation style",
+    visibleFor: ["roofing", "siding"],
+  },
+  {
+    name: "color",
+    label: "Color",
+    placeholder: "Installation color",
+    visibleFor: ["roofing", "siding", "doors", "garage_doors", "windows"],
+  },
+  {
+    name: "material",
+    label: "Material",
+    placeholder: "Installation material",
+    visibleFor: ["roofing", "siding"],
+  },
+  {
+    name: "classRating",
+    label: "Class Rating",
+    placeholder: "Rating",
+    visibleFor: ["roofing"],
+  },
+  {
+    name: "windcode",
+    label: "Wind Code",
+    placeholder: "Wind Code",
+    visibleFor: ["garage_doors"],
+  },
+  {
+    name: "u_factor",
+    label: "U-Factor",
+    placeholder: "U-Factor",
+    visibleFor: ["windows", "doors"],
+  },
+  {
+    name: "glass_type",
+    label: "Glass Type",
+    placeholder: "Glass Type",
+    visibleFor: ["doors"],
+  },
+  {
+    name: "track_radius",
+    label: "Track Radius",
+    placeholder: "Track Radius",
+    visibleFor: ["doors"],
+  },
+  {
+    name: "orderNumber",
+    label: "Order Number",
+    placeholder: "Order number",
+    visibleFor: ["windows", "doors", "garage_doors"],
+  },
+  {
+    name: "window_style",
+    label: "Window Style",
+    placeholder: "Window style",
+    visibleFor: ["garage_doors"],
+  },
+];
+
+const normalizeComponentType = (type?: string): string => {
+  if (!type) return "";
+  const t = type.toLowerCase().trim().replace(/[-\s]/g, "_");
+  if (t === "garage_door" || t === "garage_doors") return "garage_doors";
+  if (t === "window" || t === "windows") return "windows";
+  if (t === "door" || t === "doors") return "doors";
+  if (t === "roof" || t === "roofing") return "roofing";
+  if (t === "side" || t === "siding") return "siding";
+  return t;
+};
+
+const isFieldVisible = (
+  visibleFor: string[],
+  componentType?: string,
+  hasValue?: boolean,
+): boolean => {
+  if (!componentType) return !!hasValue;
+  const norm = normalizeComponentType(componentType);
+  if (visibleFor.includes(norm)) return true;
+  if (
+    norm === "windows_and_doors" ||
+    norm === "window_door" ||
+    norm === "windows_doors"
+  ) {
+    return visibleFor.includes("windows") || visibleFor.includes("doors");
+  }
+  return false;
+};
+
+const getFieldValue = (
+  item: any,
+  fieldName: string,
+): string | undefined => {
+  if (!item) return undefined;
+  switch (fieldName) {
+    case "model_number":
+      return (
+        item.model_number ||
+        item.production_line ||
+        item.productionLine
+      );
+    case "classRating":
+      return item.class_rating || item.classRating;
+    case "orderNumber":
+      return item.order_number || item.orderNumber;
+    case "style":
+      return item.style;
+    case "color":
+      return item.color;
+    case "material":
+      return item.material;
+    case "windcode":
+      return item.windcode;
+    case "u_factor":
+      return item.u_factor;
+    case "glass_type":
+      return item.glass_type;
+    case "track_radius":
+      return item.track_radius;
+    case "window_style":
+      return item.window_style;
+    default:
+      return item[fieldName];
+  }
+};
+
 export function PropertyVerifySidebar({
   propertyId,
   isOpen,
@@ -785,13 +927,26 @@ export function PropertyVerifySidebar({
                             )}
 
                             {/* Component details */}
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                              {[
+                            {(() => {
+                              const compType =
+                                comp.component_type || project.project_type;
+                              const dynamicFields =
+                                INSTALLATION_FIELDS_CONFIG.filter((cfg) => {
+                                  const val = getFieldValue(comp, cfg.name);
+                                  return isFieldVisible(
+                                    cfg.visibleFor,
+                                    compType,
+                                    Boolean(val),
+                                  );
+                                }).map((cfg) => ({
+                                  label: cfg.label,
+                                  value: getFieldValue(comp, cfg.name),
+                                }));
+
+                              const detailFields = [
                                 { label: "Brand", value: comp.brand },
-                                { label: "Style", value: comp.style },
-                                { label: "Color", value: comp.color },
-                                { label: "Material", value: comp.material },
-                                { label: "Installer", value: comp.installer },
+                                ...dynamicFields,
+                                { label: "Contractor", value: comp.installer },
                                 { label: "Supplier", value: comp.supplier },
                                 {
                                   label: "Install Date",
@@ -810,22 +965,28 @@ export function PropertyVerifySidebar({
                                         ).toLocaleDateString()
                                       : null,
                                 },
-                              ].map(({ label, value }) =>
-                                value ? (
-                                  <div
-                                    key={label}
-                                    className="flex flex-col gap-0.5"
-                                  >
-                                    <span className="text-[9px] uppercase tracking-widest font-bold text-muted-foreground">
-                                      {label}
-                                    </span>
-                                    <span className="font-semibold text-foreground">
-                                      {value}
-                                    </span>
-                                  </div>
-                                ) : null,
-                              )}
-                            </div>
+                              ];
+
+                              return (
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                                  {detailFields.map(({ label, value }) =>
+                                    value ? (
+                                      <div
+                                        key={label}
+                                        className="flex flex-col gap-0.5"
+                                      >
+                                        <span className="text-[9px] uppercase tracking-widest font-bold text-muted-foreground">
+                                          {label}
+                                        </span>
+                                        <span className="font-semibold text-foreground">
+                                          {value}
+                                        </span>
+                                      </div>
+                                    ) : null,
+                                  )}
+                                </div>
+                              );
+                            })()}
 
                             {comp.description && (
                               <p className="text-xs text-muted-foreground leading-relaxed">
