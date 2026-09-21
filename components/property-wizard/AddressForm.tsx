@@ -319,6 +319,7 @@ export function AddressForm({
               });
             }
           }}
+          keyboardSelectHighlighted
         />
 
         {/* Other Property Type Input (Shown when Other is selected) */}

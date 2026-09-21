@@ -917,6 +917,46 @@ export async function resendLoginOtp(body: { email: string }): Promise<ActionRes
     return { success: true, data: response.data };
 }
 
+export interface OtpTimerData {
+    otp_session_token?: string;
+    seconds_remaining?: number;
+    next_resend_available_at?: string;
+    otp_expires_at?: string;
+    max_resend_allowed?: number;
+    is_max_limit_reached?: boolean;
+    message?: string;
+}
+
+export async function getOtpTimer(token: string): Promise<ActionResult<OtpTimerData>> {
+    try {
+        if (!token) {
+            return { success: false, message: 'Token is required' };
+        }
+        const response = await fetchApi<OtpTimerData>({
+            url: `/api/auth/otp-timer?token=${encodeURIComponent(token)}`,
+            method: 'GET',
+            isAuth: false,
+        });
+
+        if (response.type === 'error' || !response.data) {
+            const msg = Array.isArray(response.messages)
+                ? response.messages.join(', ')
+                : typeof response.messages === 'string'
+                    ? response.messages
+                    : 'Failed to fetch OTP timer';
+            return { success: false, message: msg };
+        }
+
+        const rawData = (response.data as any)?.data || response.data;
+        return { success: true, data: rawData };
+    } catch (error) {
+        return {
+            success: false,
+            message: error instanceof Error ? error.message : 'Something went wrong fetching OTP timer',
+        };
+    }
+}
+
 
 export async function resetPassword(body: { reset_token?: string; newPassword?: string; new_password?: string; password?: string }): Promise<ActionResult> {
     const payload = {
@@ -2245,7 +2285,7 @@ export async function getPropertyDetail(id: string) {
 export async function generateMultipleReports(filters?: PropertyFilters) {
     // Returns the Next.js API route URL so the browser streams the PDF directly.
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-    let url = `${basePath}/api/reports/multiple/download`;
+    let url = `${basePath}/api/top-10-report/download`;
     if (filters) {
         const query = buildPropertyFilterParams(filters).toString();
         if (query) url += `?${query}`;

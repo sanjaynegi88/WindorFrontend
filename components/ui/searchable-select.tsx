@@ -485,26 +485,34 @@ export function SearchableSelect({
                   })}
 
                   {selectableFiltered.length === 0 &&
-                    search.trim().length > 0 &&
-                    allowCustom && (
-                      <CommandItem
-                        value={`__custom__:${search.trim()}`}
-                        onSelect={() => {
-                          handleSelectOption(`__custom__:${search.trim()}`);
-                        }}
-                        className="text-[#1CA7A6] text-[15px] font-asap cursor-pointer py-2"
-                      >
-                        <PlusCircle className="mr-2 h-4 w-4 shrink-0" />
-                        Add &quot;{toTitleCase(search.trim())}&quot;
-                      </CommandItem>
-                    )}
-
-                  {selectableFiltered.length === 0 &&
                     (!allowCustom || search.trim().length === 0) && (
                       <div className="p-4 text-center text-sm text-[#708090]">
                         {emptyMessage || "No results found"}
                       </div>
                     )}
+
+                  {allowCustom &&
+                    (search.trim().length > 0 ? (
+                      <CommandItem
+                        value={`__custom__:${search.trim()}`}
+                        onSelect={() => {
+                          handleSelectOption(`__custom__:${search.trim()}`);
+                        }}
+                        className="text-[#1CA7A6] text-[15px] font-asap cursor-pointer py-2 flex items-center"
+                      >
+                        <PlusCircle className="mr-2 h-4 w-4 shrink-0" />
+                        Add &quot;{toTitleCase(search.trim())}&quot;
+                      </CommandItem>
+                    ) : (
+                      <CommandItem
+                        disabled
+                        value="__disabled_add__"
+                        className="text-muted-foreground/60 text-[15px] font-asap py-2 flex items-center cursor-not-allowed opacity-50 select-none pointer-events-none"
+                      >
+                        <PlusCircle className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                        Add
+                      </CommandItem>
+                    ))}
                 </CommandGroup>
               )}
             </div>
