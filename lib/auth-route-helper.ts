@@ -163,10 +163,13 @@ export async function proxyPdfDownload({ backendUrl, fallbackFilename, rateLimit
         }
 
         if (data && data.downloadUrl) {
+            let targetUrl = data.downloadUrl.trim();
+            targetUrl = targetUrl.replace(/([^:]\/)\/+/g, '$1');
+
             let secureResponse: Response;
             try {
-                const attachAuth = shouldAttachAuthHeader(data.downloadUrl, API_URL);
-                secureResponse = await fetch(data.downloadUrl, {
+                const attachAuth = shouldAttachAuthHeader(targetUrl, API_URL);
+                secureResponse = await fetch(targetUrl, {
                     method: 'GET',
                     headers: {
                         ...(attachAuth && { Authorization: `Bearer ${token}` }),
