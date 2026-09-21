@@ -1551,7 +1551,7 @@ export async function updateInstallation(type: string, id: string, body: any) {
 
 export async function generatePdfReport(id: string, type?: string, userRole?: string) {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-    let url = `${basePath}/api/reports/${id}/download`;
+    let url = `${basePath}/proxy/reports/${id}/download`;
     if (type) {
         url += `?project_type=${encodeURIComponent(type)}`;
     }
@@ -1560,7 +1560,7 @@ export async function generatePdfReport(id: string, type?: string, userRole?: st
 
 export async function generateProjectPdfReport(id: string) {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-    return `${basePath}/api/project/${id}/pdf`;
+    return `${basePath}/proxy/project/${id}/pdf`;
 }
 
 export async function getReportUsage() {
@@ -1606,17 +1606,17 @@ export async function purchaseAllContractorReports(propertyId: string): Promise<
 
 export async function generateAllContractorPdfReport(propertyId: string) {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-    return `${basePath}/api/properties/${propertyId}/all-contractor-projects/pdf`;
+    return `${basePath}/proxy/properties/${propertyId}/all-contractor-projects/pdf`;
 }
 
 export async function generateContractorProjectPdfReport(projectId: string) {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-    return `${basePath}/api/properties/${projectId}/contractor-projects/pdf`;
+    return `${basePath}/proxy/properties/${projectId}/contractor-projects/pdf`;
 }
 
 export async function generateOwnerProjectPdfReport(projectId: string) {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-    return `${basePath}/api/properties/${projectId}/owner-projects/pdf`;
+    return `${basePath}/proxy/properties/${projectId}/owner-projects/pdf`;
 }
 
 export async function purchaseProject(projectId: string | string[], propertyId: string): Promise<ActionResult> {
@@ -2285,7 +2285,7 @@ export async function getPropertyDetail(id: string) {
 export async function generateMultipleReports(filters?: PropertyFilters) {
     // Returns the Next.js API route URL so the browser streams the PDF directly.
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-    let url = `${basePath}/api/top-10-report/download`;
+    let url = `${basePath}/proxy/top-10-report/download`;
     if (filters) {
         const query = buildPropertyFilterParams(filters).toString();
         if (query) url += `?${query}`;
