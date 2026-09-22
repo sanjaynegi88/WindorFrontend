@@ -28,9 +28,9 @@ function PropertyPageContent() {
   const userStateId = useMemo(() => {
     return String(
       user?.state_id ||
-        user?.user?.state_id ||
-        user?.form_details?.state_id ||
-        "",
+      user?.user?.state_id ||
+      user?.form_details?.state_id ||
+      "",
     ).trim();
   }, [user]);
 
@@ -282,7 +282,7 @@ function PropertyPageContent() {
                 <Button
                   onClick={handleGenerateTop10}
                   disabled={isGeneratingTop10}
-                  className="h-9 md:h-11 px-4 md:px-6 rounded-[10px] bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs md:text-sm uppercase tracking-widest gap-2 shadow-none"
+                  className="h-9 md:h-11 px-4 md:px-6 rounded-[10px] bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs md:text-sm uppercase tracking-widest gap-2 shadow-none hidden"
                 >
                   {isGeneratingTop10 ? (
                     <Loader2 className="size-4 animate-spin" />
