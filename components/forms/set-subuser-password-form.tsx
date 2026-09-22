@@ -66,6 +66,15 @@ export function SetSubUserPasswordForm() {
     }
 
     toast.success("Password set successfully! Please verify OTP.");
+    const rawData = result.data?.data || result.data;
+    const otpSessionToken =
+      rawData?.otp_session_token ||
+      rawData?.token ||
+      result.data?.otp_session_token ||
+      result.data?.token;
+    if (otpSessionToken && typeof window !== "undefined") {
+      sessionStorage.setItem("otp_session_token", otpSessionToken);
+    }
     router.push(`/verify-otp?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}&type=sub-user`);
   }
 

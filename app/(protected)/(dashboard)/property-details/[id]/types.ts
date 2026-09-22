@@ -82,11 +82,13 @@ export function projectTypeToFormType(projectType: string): string {
 
 export function mapProjectToInstallation(project: any, fallbackPropertyId?: string): Installation | null {
   const detail = project?.details;
-  const images = Array.isArray(project?.images)
-    ? project.images
-    : Array.isArray(project?.components?.images)
-      ? project.components.images
-      : [];
+  const rawImages =
+    (Array.isArray(project?.images) && project.images.length > 0 ? project.images : null) ||
+    (Array.isArray(detail?.images) && detail.images.length > 0 ? detail.images : null) ||
+    (Array.isArray(project?.components?.images) && project.components.images.length > 0 ? project.components.images : null) ||
+    (Array.isArray(project?.images) ? project.images : []) ||
+    [];
+  const images = rawImages;
 
   const installation = {
     id: detail?.id ?? project?.components?.id ?? project?.id ?? '',

@@ -114,7 +114,7 @@ export async function downloadPdfFromUrl(url: string, filename: string) {
         
         // Clean up any double slashes (e.g., //api/reports/... -> /api/reports/...)
         targetPath = targetPath.replace(/\/\//g, '/');
-
+        console.log("targetPath", targetPath)
         const link = document.createElement('a');
         // link.href = data.downloadUrl;
         link.href = targetPath;

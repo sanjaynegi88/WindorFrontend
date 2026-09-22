@@ -922,6 +922,8 @@ export interface OtpTimerData {
     seconds_remaining?: number;
     next_resend_available_at?: string;
     otp_expires_at?: string;
+    expires_at?: string;
+    purpose?: string;
     max_resend_allowed?: number;
     is_max_limit_reached?: boolean;
     message?: string;
@@ -956,6 +958,41 @@ export async function getOtpTimer(token: string): Promise<ActionResult<OtpTimerD
         };
     }
 }
+
+export async function resendOtp(body: { token?: string; otp_session_token?: string }): Promise<ActionResult<OtpTimerData>> {
+    try {
+        const token = body?.otp_session_token || body?.token;
+        if (!token) {
+            return { success: false, message: 'Token is required' };
+        }
+        const response = await fetchApi<OtpTimerData>({
+            url: '/api/auth/resend-otp',
+            method: 'POST',
+            data: {
+                otp_session_token: token,
+            },
+            isAuth: false,
+        });
+
+        if (response.type === 'error' || !response.data) {
+            const msg = Array.isArray(response.messages)
+                ? response.messages.join(', ')
+                : typeof response.messages === 'string'
+                    ? response.messages
+                    : 'Failed to resend OTP';
+            return { success: false, message: msg };
+        }
+
+        const rawData = (response.data as any)?.data || response.data;
+        return { success: true, data: rawData };
+    } catch (error) {
+        return {
+            success: false,
+            message: error instanceof Error ? error.message : 'Something went wrong resending OTP',
+        };
+    }
+}
+
 
 
 export async function resetPassword(body: { reset_token?: string; newPassword?: string; new_password?: string; password?: string }): Promise<ActionResult> {

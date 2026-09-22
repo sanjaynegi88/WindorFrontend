@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { cn, formatProjectType, toPascalCase, toTitleCase } from "@/lib/utils";
+import { cn, formatProjectType, toPascalCase, toTitleCase, isContractorProject } from "@/lib/utils";
 import {
   getprojectTypesInProperty,
   getprojectListingOfProperty,
@@ -196,7 +196,7 @@ export const ProjectsListView = ({
                         isActive ? "pb-1 border-b border-primary" : "",
                       )}
                     >
-                      {toPascalCase(type.name)}
+                      {formatProjectType(type.name)}
                     </p>
                     <span
                       className={cn(
@@ -358,6 +358,7 @@ export const ProjectsListView = ({
                       key={comp.id}
                       item={comp}
                       canUpload={canUpload}
+                      isContractorProject={isContractorProject(project)}
                       embedded
                       addedBy={addedBy}
                       addedByEmail={addedByEmail}

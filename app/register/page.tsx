@@ -110,7 +110,15 @@ export default function Register1Page() {
       setLoading(false);
       return;
     }
-    toast.success("OTP sent to your email!");
+    const rawData = result.data?.data || result.data;
+    const otpSessionToken =
+      rawData?.otp_session_token ||
+      rawData?.token ||
+      result.data?.otp_session_token ||
+      result.data?.token;
+    if (otpSessionToken && typeof window !== "undefined") {
+      sessionStorage.setItem("otp_session_token", otpSessionToken);
+    }
     await new Promise((r) => setTimeout(r, 100));
     window.location.href = `/verify-otp?email=${encodeURIComponent(values.email)}&type=register&role=${encodeURIComponent(roleName)}`;
   }

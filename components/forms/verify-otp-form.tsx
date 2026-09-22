@@ -26,10 +26,8 @@ import {
   verifyRegisterOtp,
   verifySubUserOtp,
   verifyLoginOtp,
-  forgotPassword,
-  resendRegisterOtp,
-  resendSubUserOtp,
-  resendLoginOtp,
+  resendOtp,
+  getOtpTimer,
 } from "@/lib/actions";
 import Image from "next/image";
 
@@ -42,8 +40,10 @@ const formSchema = z.object({
 export function VerifyOtpForm() {
   const [resendLoading, setResendLoading] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [timer, setTimer] = useState(90);
+  const [timer, setTimer] = useState<number>(0);
   const [canResend, setCanResend] = useState(false);
+  // const [isMaxLimitReached, setIsMaxLimitReached] = useState(false);
+  // const [limitMessage, setLimitMessage] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
@@ -64,12 +64,73 @@ export function VerifyOtpForm() {
   });
 
   useEffect(() => {
+    let isMounted = true;
+
+    async function initializeTimer() {
+      const storedToken =
+        typeof window !== "undefined"
+          ? sessionStorage.getItem("otp_session_token") ||
+            searchParams.get("otp_session_token") ||
+            searchParams.get("token") ||
+            (isSubUser ? "" : token)
+          : "";
+
+      if (storedToken) {
+        const result = await getOtpTimer(storedToken);
+        if (!isMounted) return;
+
+        if (result.success) {
+          const data = (result.data as any)?.data || result.data;
+          if (data) {
+            // Max limit handling commented out for now:
+            // if (data.is_max_limit_reached) {
+            //   setIsMaxLimitReached(true);
+            //   setCanResend(false);
+            //   if (data.message) setLimitMessage(data.message);
+            // }
+            const remaining =
+              typeof data.seconds_remaining === "number"
+                ? data.seconds_remaining
+                : 0;
+            setTimer(remaining);
+            setCanResend(remaining <= 0);
+
+            const newToken = data.otp_session_token || data.token;
+            if (newToken && typeof window !== "undefined") {
+              sessionStorage.setItem("otp_session_token", newToken);
+            }
+            return;
+          }
+        }
+      }
+
+      // Default fallback if no session token or fetch fails
+      if (isMounted) {
+        setTimer(90);
+        setCanResend(false);
+      }
+    }
+
+    initializeTimer();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [searchParams, token, isSubUser]);
+
+  useEffect(() => {
     let interval: NodeJS.Timeout;
     if (timer > 0) {
       interval = setInterval(() => {
-        setTimer((prev) => prev - 1);
+        setTimer((prev) => {
+          if (prev <= 1) {
+            setCanResend(true);
+            return 0;
+          }
+          return prev - 1;
+        });
       }, 1000);
-    } else {
+    } else if (timer <= 0) {
       setCanResend(true);
     }
     return () => clearInterval(interval);
@@ -90,6 +151,9 @@ export function VerifyOtpForm() {
         setLoading(false);
         return;
       }
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("otp_session_token");
+      }
       const formToken =
         result.data?.formToken || result.data?.form_token || result.data?.token;
       if (formToken && typeof window !== "undefined") {
@@ -107,15 +171,25 @@ export function VerifyOtpForm() {
         setLoading(false);
         return;
       }
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("otp_session_token");
+      }
       toast.success("OTP verified successfully! Logging you in...");
       await new Promise((r) => setTimeout(r, 100));
       window.location.href = "/dashboard";
     } else if (isLogin) {
-      const result = await verifyLoginOtp({ email, otp: values.otp, rememberMe });
+      const result = await verifyLoginOtp({
+        email,
+        otp: values.otp,
+        rememberMe,
+      });
       if (!result.success) {
         toast.error(result.message || "Invalid OTP. Please try again.");
         setLoading(false);
         return;
+      }
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("otp_session_token");
       }
       toast.success("Login verified successfully!");
       await new Promise((r) => setTimeout(r, 100));
@@ -123,7 +197,8 @@ export function VerifyOtpForm() {
       const hasMembership = Boolean(user?.has_membership);
       const isSub = Boolean(user?.sub_account);
       const userRole = user?.role?.toLowerCase();
-      const isExempt = userRole === "admin" || userRole === "city_inspector" || isSub;
+      const isExempt =
+        userRole === "admin" || userRole === "city_inspector" || isSub;
       const target = !hasMembership && !isExempt ? "/plans" : "/dashboard";
       window.location.href = target;
     } else {
@@ -133,6 +208,9 @@ export function VerifyOtpForm() {
         setLoading(false);
         return;
       }
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("otp_session_token");
+      }
       toast.success("OTP verified successfully!");
       router.push(`/reset-password?token=${result.data.reset_token}`);
     }
@@ -141,19 +219,66 @@ export function VerifyOtpForm() {
   const handleResend = async () => {
     if (!canResend || resendLoading) return;
     setResendLoading(true);
-    const result = isRegister
-      ? await resendRegisterOtp({ email })
-      : isSubUser
-        ? await resendSubUserOtp({ email })
-        : isLogin
-          ? await resendLoginOtp({ email })
-          : await forgotPassword({ email });
+
+    const currentToken =
+      (typeof window !== "undefined"
+        ? sessionStorage.getItem("otp_session_token")
+        : null) ||
+      searchParams.get("otp_session_token") ||
+      searchParams.get("token") ||
+      (isSubUser ? "" : token);
+
+    if (!currentToken) {
+      toast.error("Session token is missing. Please try again.");
+      setResendLoading(false);
+      return;
+    }
+
+    const result = await resendOtp({
+      otp_session_token: currentToken,
+    });
     if (!result.success) {
       toast.error(result.message || "Failed to resend OTP. Please try again.");
     } else {
-      setTimer(90);
-      setCanResend(false);
-      toast.success("A new OTP has been sent to your email.");
+      const rawData = (result.data as any)?.data || result.data;
+      const newSessionToken =
+        rawData?.otp_session_token || rawData?.token;
+      if (newSessionToken && typeof window !== "undefined") {
+        sessionStorage.setItem("otp_session_token", newSessionToken);
+      }
+
+      if (typeof rawData?.seconds_remaining === "number") {
+        setTimer(rawData.seconds_remaining);
+        setCanResend(rawData.seconds_remaining <= 0);
+      } else {
+        const currentToken =
+          newSessionToken ||
+          (typeof window !== "undefined"
+            ? sessionStorage.getItem("otp_session_token")
+            : null);
+        if (currentToken) {
+          const timerRes = await getOtpTimer(currentToken);
+          if (
+            timerRes.success &&
+            typeof timerRes.data?.seconds_remaining === "number"
+          ) {
+            setTimer(timerRes.data.seconds_remaining);
+            setCanResend(timerRes.data.seconds_remaining <= 0);
+            // if (timerRes.data.is_max_limit_reached) {
+            //   setIsMaxLimitReached(true);
+            //   setCanResend(false);
+            //   if (timerRes.data.message) setLimitMessage(timerRes.data.message);
+            // }
+          } else {
+            setTimer(90);
+            setCanResend(false);
+          }
+        } else {
+          setTimer(90);
+          setCanResend(false);
+        }
+      }
+      toast.success(rawData?.message || "A new OTP has been sent to your email.");
     }
     setResendLoading(false);
   };

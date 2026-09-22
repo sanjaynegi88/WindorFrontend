@@ -443,6 +443,7 @@ export default function MyProjectList() {
                 project.contractor_email;
 
               const ownerName = clientName;
+              const isApproved = property._is_property_approval === false;
               const resolvedPropertyType =
                 property?.property_type_category || "N/A";
 
@@ -520,7 +521,7 @@ export default function MyProjectList() {
                               <span>Confirm</span>
                             </button>
                           )}
-                        {property.id && (
+                        {property.id && isApproved && (
                           <Link
                             href={`/property-details/${property.id}`}
                             className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-[#1CA7A6]/10 hover:bg-[#1CA7A6]/20 text-[#1CA7A6] font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors cursor-pointer border border-[#1CA7A6]/20 font-asap shrink-0"

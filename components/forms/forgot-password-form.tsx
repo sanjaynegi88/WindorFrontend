@@ -53,6 +53,15 @@ export function ForgotPasswordForm({
       return;
     }
     toast.success("OTP sent successfully!");
+    const rawData = result.data?.data || result.data;
+    const otpSessionToken =
+      rawData?.otp_session_token ||
+      rawData?.token ||
+      result.data?.otp_session_token ||
+      result.data?.token;
+    if (otpSessionToken && typeof window !== "undefined") {
+      sessionStorage.setItem("otp_session_token", otpSessionToken);
+    }
     router.push(`/verify-otp?email=${encodeURIComponent(email)}`);
   }
 
@@ -66,7 +75,7 @@ export function ForgotPasswordForm({
           width={136}
           height={118}
           priority
-          style={{ width: 'auto', height: 'auto' }}
+          style={{ width: "auto", height: "auto" }}
           className="h-[60px] md:h-[118px] w-[70px] md:w-[136px] object-contain"
         />
       </div>
@@ -112,7 +121,10 @@ export function ForgotPasswordForm({
           <div className="text-center mt-[20px] md:mt-[29px]">
             <span className="text-[16px] md:text-[22px] leading-[35px] font-normal text-[rgba(112,128,144,0.93)] font-asap">
               Remember your password?{" "}
-              <Link href={loginLink} className="font-bold text-[#1CA7A6] hover:underline">
+              <Link
+                href={loginLink}
+                className="font-bold text-[#1CA7A6] hover:underline"
+              >
                 Sign In
               </Link>
             </span>

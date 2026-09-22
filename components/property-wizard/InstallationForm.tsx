@@ -1045,12 +1045,26 @@ export function InstallationForm({
                   <div className="space-y-4">
                     <div className="flex flex-col gap-0.5">
                       <FormLabel className="font-semibold text-foreground">
-                        Property Owner Images (Up to 5)
+                        Property Owner Images
                       </FormLabel>
                       <span className="text-[11px] text-amber-600 font-semibold">
                         Acceptable size: Max 20MB total combined size for all
                         images
                       </span>
+                      {getTotalUploadSizeBytes() > 0 && (
+                        <span
+                          className={cn(
+                            "text-[11px] font-bold mt-0.5",
+                            getTotalUploadSizeBytes() > 20 * 1024 * 1024
+                              ? "text-destructive"
+                              : "text-teal-700",
+                          )}
+                        >
+                          Current Total Upload Size:{" "}
+                          {(getTotalUploadSizeBytes() / (1024 * 1024)).toFixed(2)}{" "}
+                          MB / 20 MB
+                        </span>
+                      )}
                     </div>
 
                     {existingOwnerImages.length > 0 && (

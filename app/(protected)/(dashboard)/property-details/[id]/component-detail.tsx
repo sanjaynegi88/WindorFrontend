@@ -131,45 +131,35 @@ export default function ComponentDetail({
 
   const isAssignedPropertyOwner =
     (role === "property_owner" || user?.role === "property_owner") &&
-    (
-      (!!componentData?.property_owner?.email &&
-        !!user?.email &&
-        componentData.property_owner.email.toLowerCase() === user.email.toLowerCase()) ||
+    ((!!componentData?.property_owner?.email &&
+      !!user?.email &&
+      componentData.property_owner.email.toLowerCase() ===
+        user.email.toLowerCase()) ||
       (!!componentData?.property_owner_email &&
         !!user?.email &&
-        componentData.property_owner_email.toLowerCase() === user.email.toLowerCase()) ||
+        componentData.property_owner_email.toLowerCase() ===
+          user.email.toLowerCase()) ||
       (!!componentData?.property_owner_id &&
-        (user?.id === componentData.property_owner_id || (user as any)?.user_id === componentData.property_owner_id)) ||
+        (user?.id === componentData.property_owner_id ||
+          (user as any)?.user_id === componentData.property_owner_id)) ||
       (!!componentData?.property_owner?.id &&
-        (user?.id === componentData.property_owner.id || (user as any)?.user_id === componentData.property_owner.id))
-    );
+        (user?.id === componentData.property_owner.id ||
+          (user as any)?.user_id === componentData.property_owner.id)));
 
   const isContractorWhoAddedProperty =
     (role === "contractor" || user?.role === "contractor") &&
-    (
-      (!!componentData?.created_by && (componentData.created_by === user?.id || componentData.created_by === (user as any)?.user_id)) ||
-      (!!componentData?.contractor_id && (componentData.contractor_id === user?.id || componentData.contractor_id === (user as any)?.user_id)) ||
-      (!!componentData?.user_id && (componentData.user_id === user?.id || componentData.user_id === (user as any)?.user_id)) ||
-      (!!componentData?.contractor?.id && (componentData.contractor.id === user?.id || componentData.contractor.id === (user as any)?.user_id)) ||
-      (!!componentData?.creator?.id && (componentData.creator.id === user?.id || componentData.creator.id === (user as any)?.user_id)) ||
-      (!!componentData?.createdBy?.id && (componentData.createdBy.id === user?.id || componentData.createdBy.id === (user as any)?.user_id)) ||
-      (!!componentData?.contractor?.email && !!user?.email && componentData.contractor.email.toLowerCase() === user.email.toLowerCase()) ||
-      (!!componentData?.creator?.email && !!user?.email && componentData.creator.email.toLowerCase() === user.email.toLowerCase()) ||
-      (!!componentData?.createdBy?.email && !!user?.email && componentData.createdBy.email.toLowerCase() === user.email.toLowerCase()) ||
-      (!!componentData?.created_by_email && !!user?.email && componentData.created_by_email.toLowerCase() === user.email.toLowerCase()) ||
-      (!!componentData?.contractor_email && !!user?.email && componentData.contractor_email.toLowerCase() === user.email.toLowerCase()) ||
-      allProjects.some((p: any) =>
-        (p.created_by && (p.created_by === user?.id || p.created_by === (user as any)?.user_id)) ||
-        (p.createdBy?.id && (p.createdBy.id === user?.id || p.createdBy.id === (user as any)?.user_id)) ||
-        (p.contractor?.id && (p.contractor.id === user?.id || p.contractor.id === (user as any)?.user_id)) ||
-        (p.createdBy?.email && !!user?.email && p.createdBy.email.toLowerCase() === user.email.toLowerCase()) ||
-        (p.contractor?.email && !!user?.email && p.contractor.email.toLowerCase() === user.email.toLowerCase()) ||
-        (p.created_by_email && !!user?.email && p.created_by_email.toLowerCase() === user.email.toLowerCase()) ||
-        (p.contractor_email && !!user?.email && p.contractor_email.toLowerCase() === user.email.toLowerCase())
-      )
-    );
+    ((!!componentData?.creator?.email &&
+      !!user?.email &&
+      componentData.creator.email.toLowerCase() === user.email.toLowerCase()) ||
+      (!!componentData?.created_by &&
+        (componentData.created_by === user?.id ||
+          componentData.created_by === (user as any)?.user_id)) ||
+      (!!componentData?.creator?.id &&
+        (componentData.creator.id === user?.id ||
+          componentData.creator.id === (user as any)?.user_id)));
 
-  const canChangeBanner = isAdmin || isAssignedPropertyOwner || isContractorWhoAddedProperty;
+  const canChangeBanner =
+    isAdmin || isAssignedPropertyOwner || isContractorWhoAddedProperty;
 
   const isOwnerOfProperty = isAssignedPropertyOwner;
   const showAddProject =
@@ -242,7 +232,6 @@ export default function ComponentDetail({
       console.log(response, "response");
       const checkoutUrl =
         response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
-      console.log(checkoutUrl, "checkoutUrl");
       if (checkoutUrl) {
         localStorage.setItem("pending_report_id", componentId);
         localStorage.setItem("pending_report_type", "single");
@@ -403,7 +392,9 @@ export default function ComponentDetail({
       prop.property?.state?.state_id ||
       prop.raw?.state_id ||
       prop.raw?.state?.id ||
-      (typeof prop.state === "string" && prop.state.includes("-") ? prop.state : "") ||
+      (typeof prop.state === "string" && prop.state.includes("-")
+        ? prop.state
+        : "") ||
       "";
     const cityId =
       prop.city_id ||
@@ -414,7 +405,9 @@ export default function ComponentDetail({
       prop.property?.city?.id ||
       prop.raw?.city_id ||
       prop.raw?.city?.id ||
-      (typeof prop.city === "string" && prop.city.includes("-") ? prop.city : "") ||
+      (typeof prop.city === "string" && prop.city.includes("-")
+        ? prop.city
+        : "") ||
       "";
     const cityName =
       prop.city_name ||
