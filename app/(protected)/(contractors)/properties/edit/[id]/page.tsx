@@ -114,10 +114,33 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
   const searchParams = useSearchParams();
   const { user } = useUser();
   const role = user?.role?.toLowerCase() || "";
-  const noInstallation = searchParams.get("noInstallation") === "true";
+
+  // Normalize mode and parameters with backward compatibility
+  const rawMode = searchParams.get("mode")?.toLowerCase();
+  const searchProjectId =
+    searchParams.get("projectId") || searchParams.get("project_id");
+  const editAddressLegacy = searchParams.get("editAddress") === "true";
+  const noInstallationLegacy = searchParams.get("noInstallation") === "true";
+
+  let mode: "address" | "project" | "installation" | "invalid" = "invalid";
+  if (
+    rawMode === "address" ||
+    rawMode === "project" ||
+    rawMode === "installation"
+  ) {
+    mode = rawMode;
+  } else if (editAddressLegacy) {
+    mode = "address";
+  } else if (noInstallationLegacy && searchProjectId) {
+    mode = "installation";
+  } else if (searchProjectId && !rawMode) {
+    mode = "project";
+  } else {
+    mode = "invalid";
+  }
 
   const [property, setProperty] = useState<any>(null);
-  const [loadingProperty, setLoadingProperty] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [step, setStep] = useState<EditStep>("EDIT_PROJECT");
   const [selectedComponent, setSelectedComponent] = useState<Component | null>(
     null,
@@ -136,7 +159,6 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
   const [currentInstallationId, setCurrentInstallationId] = useState<
     string | null
   >(null);
-  const [loadingProjectDetails, setLoadingProjectDetails] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<any>(null);
   const [deletingProject, setDeletingProject] = useState(false);
 
@@ -160,6 +182,38 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
     { id: string; category?: string; name?: string }[]
   >([]);
 
+  const computeOwnerStatus = (proj: any, prop: any) => {
+    if (!proj) return false;
+    const ownerId =
+      prop?.property_owner_id ||
+      prop?.property_owner?.id ||
+      proj.property?.property_owner_id ||
+      proj.property_owner_id ||
+      proj.property?.property_owner?.id;
+    const ownerEmail =
+      prop?.property_owner_email ||
+      prop?.property_owner?.email ||
+      proj.property?.property_owner_email ||
+      proj.property_owner_email ||
+      proj.property?.property_owner?.email;
+    const projTypeUpper = (proj.project_type || "")
+      .toUpperCase()
+      .replace(/_/g, " ");
+    return (
+      projTypeUpper === "WINDOWS AND DOORS" ||
+      projTypeUpper === "NEW APPLIANCES" ||
+      proj.added_by === "PROPERTY_OWNER" ||
+      proj.created_by_type === "PROPERTY_OWNER" ||
+      role === "property_owner" ||
+      (proj.created_by &&
+        ownerId &&
+        String(proj.created_by) === String(ownerId)) ||
+      (proj.created_by_email &&
+        ownerEmail &&
+        proj.created_by_email.toLowerCase() === ownerEmail.toLowerCase())
+    );
+  };
+
   const refreshProperty = async () => {
     try {
       const res = await getPropertyDetail(propertyId);
@@ -177,283 +231,260 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
   };
 
   useEffect(() => {
-    const load = async () => {
-      setLoadingProperty(true);
+    let isMounted = true;
+
+    const loadData = async () => {
+      // Validate mode & required params
+      if (mode === "invalid") {
+        setLoading(false);
+        return;
+      }
+
+      if ((mode === "project" || mode === "installation") && !searchProjectId) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
       try {
-        const propRes = await getPropertyDetail(propertyId);
-        if (propRes && propRes.success === false) {
-          toast.error(propRes.message || "Failed to load property detail");
-          setLoadingProperty(false);
-          return;
-        }
-        const prop = propRes?.data ?? propRes;
-        setProperty(prop);
+        if (mode === "address") {
+          // ── MODE: ADDRESS (load only address-related APIs) ──
+          const [propRes, statesRes, citiesRes, ownersRes, typesRes] =
+            await Promise.all([
+              getPropertyDetail(propertyId),
+              getStates(1, 1000),
+              getCities(),
+              role === "admin" ||
+              role === "contractor" ||
+              role === "manufacturer"
+                ? getPropertyOwners()
+                : Promise.resolve([]),
+              getPropertyTypes(),
+            ]);
 
-        const propStateId = prop?.state_id || prop?.state?.id;
+          if (!isMounted) return;
 
-        const [statesRes, citiesRes, ownersRes, typesRes] = await Promise.all([
-          getStates(1, 1000),
-          getCities(
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            propStateId || undefined,
-          ),
-          role === "admin" || role === "contractor" || role === "manufacturer"
-            ? getPropertyOwners()
-            : Promise.resolve([]),
-          getPropertyTypes(),
-        ]);
-
-        const rawStates: any[] = Array.isArray(statesRes)
-          ? statesRes
-          : (statesRes as any)?.data || [];
-        const rawCities: any[] = Array.isArray(citiesRes)
-          ? citiesRes
-          : (citiesRes as any)?.data || [];
-        const rawOwners: any[] = Array.isArray(ownersRes)
-          ? ownersRes
-          : (ownersRes as any)?.data || [];
-        const rawPropertyTypes: any[] = Array.isArray(typesRes)
-          ? typesRes
-          : Array.isArray((typesRes as any)?.data)
-            ? (typesRes as any).data
-            : Array.isArray((typesRes as any)?.data?.data)
-              ? (typesRes as any).data.data
-              : [];
-
-        setStates(
-          rawStates.map((s) => ({
-            id: String(s.id),
-            name: s.state_name || s.name,
-            abbreviation: s.abbreviation,
-          })),
-        );
-        setCities(
-          rawCities.map((c) => ({
-            id: String(c.id),
-            name: c.city_name || c.name,
-            state_id: c.state_id ? String(c.state_id) : undefined,
-          })),
-        );
-        setPropertyOwners(
-          rawOwners.map((o: any) => ({
-            id: String(o.id),
-            first_name: o.first_name,
-            last_name: o.last_name,
-            email: o.email,
-          })),
-        );
-        const mappedTypes = rawPropertyTypes.map((pt: any, idx: number) => ({
-          id: pt.id ? String(pt.id) : pt.category || `pt-${idx}`,
-          category: pt.category || pt.name,
-          name: pt.category || pt.name,
-        }));
-        if (
-          !mappedTypes.some(
-            (t: any) => t.category === "OTHER" || t.id === "OTHER",
-          )
-        ) {
-          mappedTypes.push({
-            id: "OTHER",
-            category: "OTHER",
-            name: "OTHER",
-          });
-        }
-        setPropertyTypes(mappedTypes);
-
-        const propTypeId =
-          prop?.property_type_id || prop?.property_type?.id || "";
-        const propTypeCategory =
-          prop?.property_type_category || prop?.property_type?.category || "";
-        const otherPropType =
-          prop?.other_property_type || prop?.other_property_type_name || "";
-        const isOtherProp =
-          propTypeCategory === "OTHER" ||
-          propTypeId === "OTHER" ||
-          !!otherPropType;
-
-        setAddressData({
-          address: prop?.address || "",
-          address2: prop?.address2 || "",
-          property_type_id: isOtherProp ? propTypeId || "OTHER" : propTypeId,
-          property_type_category: isOtherProp ? "OTHER" : propTypeCategory,
-          other_property_type: otherPropType,
-          initial_other_property_type: otherPropType,
-          initial_property_type_id:
-            propTypeId && propTypeId !== "OTHER" ? propTypeId : undefined,
-          property_name: prop?.property_name || "",
-          city_id: prop?.city_id || "",
-          city: prop?.city_name || "",
-          other_city: prop?.other_city || "",
-          state: prop?.state_id || "",
-          zip: prop?.zip || "",
-          property_owner_id: prop?.property_owner_id || "",
-          latitude: prop?.latitude ? Number(prop.latitude) : undefined,
-          longitude: prop?.longitude ? Number(prop.longitude) : undefined,
-        });
-
-        const searchProjectId = searchParams.get("projectId");
-        const editAddressParam = searchParams.get("editAddress") === "true";
-        if (editAddressParam) {
-          setStep("EDIT_ADDRESS");
-        } else {
-          const matchedProj = searchProjectId
-            ? prop?.projects?.find(
-                (p: any) =>
-                  String(p.id ?? p.project_id ?? p._id) === searchProjectId,
-              )
-            : prop?.projects?.[0];
-          if (matchedProj) {
-            setSelectedProject(matchedProj);
-            const ownerId =
-              prop?.property_owner_id ||
-              prop?.property_owner?.id ||
-              matchedProj.property?.property_owner_id ||
-              matchedProj.property_owner_id ||
-              matchedProj.property?.property_owner?.id;
-            const ownerEmail =
-              prop?.property_owner_email ||
-              prop?.property_owner?.email ||
-              matchedProj.property?.property_owner_email ||
-              matchedProj.property_owner_email ||
-              matchedProj.property?.property_owner?.email;
-            const projTypeUpper = (matchedProj.project_type || "")
-              .toUpperCase()
-              .replace(/_/g, " ");
-            const isOwner =
-              projTypeUpper === "WINDOWS AND DOORS" ||
-              projTypeUpper === "NEW APPLIANCES" ||
-              matchedProj.added_by === "PROPERTY_OWNER" ||
-              matchedProj.created_by_type === "PROPERTY_OWNER" ||
-              role === "property_owner" ||
-              (matchedProj.created_by &&
-                ownerId &&
-                String(matchedProj.created_by) === String(ownerId)) ||
-              (matchedProj.created_by_email &&
-                ownerEmail &&
-                matchedProj.created_by_email.toLowerCase() ===
-                  ownerEmail.toLowerCase());
-            setIsOwnerProjectType(isOwner);
-          } else if (searchProjectId) {
-            setSelectedProject({ id: searchProjectId });
+          if (propRes && propRes.success === false) {
+            toast.error(propRes.message || "Failed to load property detail");
+            setLoading(false);
+            return;
           }
+
+          const prop = propRes?.data ?? propRes;
+          setProperty(prop);
+
+          const rawStates: any[] = Array.isArray(statesRes)
+            ? statesRes
+            : (statesRes as any)?.data || [];
+          const rawCities: any[] = Array.isArray(citiesRes)
+            ? citiesRes
+            : (citiesRes as any)?.data || [];
+          const rawOwners: any[] = Array.isArray(ownersRes)
+            ? ownersRes
+            : (ownersRes as any)?.data || [];
+          const rawPropertyTypes: any[] = Array.isArray(typesRes)
+            ? typesRes
+            : Array.isArray((typesRes as any)?.data)
+              ? (typesRes as any).data
+              : Array.isArray((typesRes as any)?.data?.data)
+                ? (typesRes as any).data.data
+                : [];
+
+          setStates(
+            rawStates.map((s) => ({
+              id: String(s.id),
+              name: s.state_name || s.name,
+              abbreviation: s.abbreviation,
+            })),
+          );
+          setCities(
+            rawCities.map((c) => ({
+              id: String(c.id),
+              name: c.city_name || c.name,
+              state_id: c.state_id ? String(c.state_id) : undefined,
+            })),
+          );
+          setPropertyOwners(
+            rawOwners.map((o: any) => ({
+              id: String(o.id),
+              first_name: o.first_name,
+              last_name: o.last_name,
+              email: o.email,
+            })),
+          );
+          const mappedTypes = rawPropertyTypes.map((pt: any, idx: number) => ({
+            id: pt.id ? String(pt.id) : pt.category || `pt-${idx}`,
+            category: pt.category || pt.name,
+            name: pt.category || pt.name,
+          }));
+          if (
+            !mappedTypes.some(
+              (t: any) => t.category === "OTHER" || t.id === "OTHER",
+            )
+          ) {
+            mappedTypes.push({
+              id: "OTHER",
+              category: "OTHER",
+              name: "OTHER",
+            });
+          }
+          setPropertyTypes(mappedTypes);
+
+          const propTypeId =
+            prop?.property_type_id || prop?.property_type?.id || "";
+          const propTypeCategory =
+            prop?.property_type_category || prop?.property_type?.category || "";
+          const otherPropType =
+            prop?.other_property_type || prop?.other_property_type_name || "";
+          const isOtherProp =
+            propTypeCategory === "OTHER" ||
+            propTypeId === "OTHER" ||
+            !!otherPropType;
+
+          setAddressData({
+            address: prop?.address || "",
+            address2: prop?.address2 || "",
+            property_type_id: isOtherProp ? propTypeId || "OTHER" : propTypeId,
+            property_type_category: isOtherProp ? "OTHER" : propTypeCategory,
+            other_property_type: otherPropType,
+            initial_other_property_type: otherPropType,
+            initial_property_type_id:
+              propTypeId && propTypeId !== "OTHER" ? propTypeId : undefined,
+            property_name: prop?.property_name || "",
+            city_id: prop?.city_id || "",
+            city: prop?.city_name || "",
+            other_city: prop?.other_city || "",
+            state: prop?.state_id || "",
+            zip: prop?.zip || "",
+            property_owner_id: prop?.property_owner_id || "",
+            latitude: prop?.latitude ? Number(prop.latitude) : undefined,
+            longitude: prop?.longitude ? Number(prop.longitude) : undefined,
+          });
+
+          setStep("EDIT_ADDRESS");
+        } else if (mode === "project") {
+          // ── MODE: PROJECT (load property, project details, cities only) ──
+          const [propRes, projRes, citiesRes] = await Promise.all([
+            getPropertyDetail(propertyId),
+            getProjectByIdNew(searchProjectId!),
+            getCities(),
+          ]);
+
+          if (!isMounted) return;
+
+          if (propRes && propRes.success === false) {
+            toast.error(propRes.message || "Failed to load property detail");
+            setLoading(false);
+            return;
+          }
+
+          const prop = propRes?.data ?? propRes;
+          setProperty(prop);
+
+          const rawCities: any[] = Array.isArray(citiesRes)
+            ? citiesRes
+            : (citiesRes as any)?.data || [];
+          setCities(
+            rawCities.map((c) => ({
+              id: String(c.id),
+              name: c.city_name || c.name,
+              state_id: c.state_id ? String(c.state_id) : undefined,
+            })),
+          );
+
+          const rawProj = projRes?.data ?? projRes;
+          if (!rawProj) {
+            toast.error("Project not found");
+            setLoading(false);
+            return;
+          }
+
+          const mappedProj = {
+            ...rawProj,
+            components: rawProj.details
+              ? {
+                  ...rawProj.details,
+                  component_type:
+                    rawProj.details._component_type || rawProj.project_type,
+                  images: rawProj.images || [],
+                }
+              : null,
+            isLoadedFromNewApi: true,
+          };
+          setSelectedProject(mappedProj);
+          setIsOwnerProjectType(computeOwnerStatus(rawProj, prop));
           setSelectedComponent(null);
           setNewInstallationType(null);
           setStep("EDIT_PROJECT");
+        } else if (mode === "installation") {
+          // ── MODE: INSTALLATION (load property & project details only) ──
+          const [propRes, projRes] = await Promise.all([
+            getPropertyDetail(propertyId),
+            getProjectByIdNew(searchProjectId!),
+          ]);
+
+          if (!isMounted) return;
+
+          if (propRes && propRes.success === false) {
+            toast.error(propRes.message || "Failed to load property detail");
+            setLoading(false);
+            return;
+          }
+
+          const prop = propRes?.data ?? propRes;
+          setProperty(prop);
+
+          const rawProj = projRes?.data ?? projRes;
+          if (!rawProj) {
+            toast.error("Project not found");
+            setLoading(false);
+            return;
+          }
+
+          const existingComp = rawProj.details
+            ? {
+                ...rawProj.details,
+                component_type:
+                  rawProj.details._component_type || rawProj.project_type,
+                images: rawProj.images || [],
+              }
+            : null;
+
+          const mappedProj = {
+            ...rawProj,
+            components: existingComp,
+            isLoadedFromNewApi: true,
+          };
+
+          setSelectedProject(mappedProj);
+          setIsOwnerProjectType(computeOwnerStatus(rawProj, prop));
+
+          // Preserve Create vs Update installation condition
+          if (existingComp) {
+            // Case A: Existing installation exists -> UPDATE mode
+            setSelectedComponent(existingComp);
+            setNewInstallationType(null);
+          } else {
+            // Case B: No installation exists -> CREATE mode
+            setSelectedComponent(null);
+            setNewInstallationType(rawProj.project_type?.toLowerCase() || "");
+          }
+
+          setStep("EDIT_INSTALLATION");
         }
       } catch (err: any) {
-        toast.error(err.message || "Failed to load property");
+        toast.error(err?.message || "Failed to load data");
       } finally {
-        setLoadingProperty(false);
+        if (isMounted) setLoading(false);
       }
     };
-    load();
-  }, [propertyId, searchParams, role]);
 
-  useEffect(() => {
-    if (searchParams.get("editAddress") === "true") {
-      setStep("EDIT_ADDRESS");
-      return;
-    }
-    if (step === "EDIT_PROJECT" && property && !selectedProject) {
-      const projects = property.projects ?? [];
-      const searchProjectId = searchParams.get("projectId");
-      let matchedProj = null;
-      if (searchProjectId) {
-        matchedProj = projects.find(
-          (p: any) => String(p.id ?? p.project_id ?? p._id) === searchProjectId,
-        );
-        setSelectedProject(matchedProj || { id: searchProjectId });
-      } else if (projects.length > 0) {
-        setSelectedProject(projects[0]);
-      }
-      setSelectedComponent(null);
-      setNewInstallationType(null);
-    }
-  }, [step, property, searchParams, selectedProject]);
+    loadData();
 
-  useEffect(() => {
-    const projId =
-      selectedProject?.id ??
-      selectedProject?.project_id ??
-      selectedProject?._id;
-    if (!projId) return;
-
-    // Only fetch details for existing projects (not new projects being created)
-    const isExisting =
-      property?.projects?.some(
-        (p: any) => String(p.id ?? p.project_id ?? p._id) === String(projId),
-      ) || searchParams.get("projectId") === String(projId);
-
-    if (!isExisting) return;
-
-    if (!selectedProject.isLoadedFromNewApi) {
-      const fetchDetails = async () => {
-        setLoadingProjectDetails(true);
-        try {
-          const res = await getProjectByIdNew(projId);
-          const rawProj = res?.data ?? res;
-          if (rawProj) {
-            const mappedProj = {
-              ...rawProj,
-              components: rawProj.details
-                ? {
-                    ...rawProj.details,
-                    component_type:
-                      rawProj.details._component_type || rawProj.project_type,
-                    images: rawProj.images || [],
-                  }
-                : null,
-              isLoadedFromNewApi: true,
-            };
-            setSelectedProject(mappedProj);
-            const ownerId =
-              property?.property_owner_id ||
-              property?.property_owner?.id ||
-              rawProj.property?.property_owner_id ||
-              rawProj.property_owner_id ||
-              rawProj.property?.property_owner?.id;
-            const ownerEmail =
-              property?.property_owner_email ||
-              property?.property_owner?.email ||
-              rawProj.property?.property_owner_email ||
-              rawProj.property_owner_email ||
-              rawProj.property?.property_owner?.email;
-            const projTypeUpper = (rawProj.project_type || "")
-              .toUpperCase()
-              .replace(/_/g, " ");
-            const isOwner =
-              projTypeUpper === "WINDOWS AND DOORS" ||
-              projTypeUpper === "NEW APPLIANCES" ||
-              rawProj.added_by === "PROPERTY_OWNER" ||
-              rawProj.created_by_type === "PROPERTY_OWNER" ||
-              role === "property_owner" ||
-              (rawProj.created_by &&
-                ownerId &&
-                String(rawProj.created_by) === String(ownerId)) ||
-              (rawProj.created_by_email &&
-                ownerEmail &&
-                rawProj.created_by_email.toLowerCase() ===
-                  ownerEmail.toLowerCase());
-            setIsOwnerProjectType(isOwner);
-          }
-        } catch (err: any) {
-          toast.error(err.message || "Failed to load project details");
-        } finally {
-          setLoadingProjectDetails(false);
-        }
-      };
-      fetchDetails();
-    }
-  }, [
-    selectedProject?.id,
-    selectedProject?.project_id,
-    selectedProject?._id,
-    property,
-    searchParams,
-  ]);
+    return () => {
+      isMounted = false;
+    };
+  }, [propertyId, searchProjectId, mode, role]);
 
   const handleConfirmProject = async () => {
     const pId =
@@ -470,7 +501,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       const res = await confirmProject(pId, hasReport, propertyId);
       if (res.success) {
         toast.success("Project confirmed successfully!");
-        router.replace("/my-projects");
+        router.replace(role === "admin" ? "/all-projects" : "/my-projects");
       } else {
         toast.error(res.message || "Failed to confirm project");
       }
@@ -617,7 +648,13 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       if (nextStep === "IMAGES") {
         setStep("EDIT_PHOTOS");
       } else {
-        setStep("EDIT_PROJECT");
+        if (mode === "address") {
+          router.push(
+            role === "admin" ? "/admin/property-list" : "/my-projects",
+          );
+        } else {
+          setStep("EDIT_PROJECT");
+        }
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to update address");
@@ -722,14 +759,8 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       }
       toast.success("Installation updated successfully");
       await refreshProperty();
-      if (role !== "admin") {
-        setSelectedComponent(null);
-        setStep("SUCCESS");
-      } else {
-        setSelectedComponent(null);
-        setSelectedProject(null);
-        router.push("/dashboard");
-      }
+      setSelectedComponent(null);
+      setStep("SUCCESS");
     } catch (err: any) {
       toast.error(err.message || "Failed to update installation");
     } finally {
@@ -837,14 +868,8 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       localStorage.removeItem("current_property_id");
       toast.success("Installation added successfully");
       await refreshProperty();
-      if (role !== "admin") {
-        setNewInstallationType(null);
-        setStep("SUCCESS");
-      } else {
-        setNewInstallationType(null);
-        setSelectedProject(null);
-        setStep("EDIT_PROJECT");
-      }
+      setNewInstallationType(null);
+      setStep("SUCCESS");
     } catch (err: any) {
       toast.error(err.message || "Failed to add installation");
     } finally {
@@ -884,7 +909,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
         >
           <div className="max-w-[1170px] mx-auto relative w-full">
             {/* ── Loading ── */}
-            {loadingProperty && (
+            {loading && (
               <div className="flex flex-col items-center justify-center py-32 gap-4 text-[#708090]">
                 <Loader2 className="size-10 animate-spin text-[#1CA7A6]" />
                 <span className="font-medium text-[16px] font-asap">
@@ -893,8 +918,56 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
               </div>
             )}
 
+            {/* ── Error: Invalid / Missing Mode ── */}
+            {!loading && mode === "invalid" && (
+              <div className="flex flex-col items-center justify-center py-20 px-4 text-center max-w-md mx-auto font-asap">
+                <div className="size-16 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 mb-4">
+                  <MapPin className="size-8" />
+                </div>
+                <h2 className="text-2xl font-bold text-[#1F2A44] mb-2">
+                  Invalid Edit Mode
+                </h2>
+                <p className="text-[#708090] text-sm mb-6">
+                  Please specify a valid edit mode in the URL (?mode=address,
+                  ?mode=project, or ?mode=installation) or navigate from your
+                  projects dashboard.
+                </p>
+                <button
+                  onClick={() => router.push("/my-projects")}
+                  className="px-6 py-2.5 bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold rounded-lg text-sm transition-colors cursor-pointer"
+                >
+                  Go to My Projects
+                </button>
+              </div>
+            )}
+
+            {/* ── Error: Missing Project ID ── */}
+            {!loading &&
+              mode !== "invalid" &&
+              (mode === "project" || mode === "installation") &&
+              !searchProjectId && (
+                <div className="flex flex-col items-center justify-center py-20 px-4 text-center max-w-md mx-auto font-asap">
+                  <div className="size-16 rounded-full bg-red-50 border border-red-200 flex items-center justify-center text-red-600 mb-4">
+                    <FolderOpen className="size-8" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-[#1F2A44] mb-2">
+                    Project ID Required
+                  </h2>
+                  <p className="text-[#708090] text-sm mb-6">
+                    A project ID is required to edit a project or its
+                    installation. Please choose a project from your list.
+                  </p>
+                  <button
+                    onClick={() => router.push("/my-projects")}
+                    className="px-6 py-2.5 bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold rounded-lg text-sm transition-colors cursor-pointer"
+                  >
+                    Go to My Projects
+                  </button>
+                </div>
+              )}
+
             {/* ── EDIT ADDRESS ── */}
-            {!loadingProperty && step === "EDIT_ADDRESS" && (
+            {!loading && step === "EDIT_ADDRESS" && (
               <AddressForm
                 data={addressData}
                 onChange={setAddressData}
@@ -905,20 +978,23 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                 propertyOwners={propertyOwners}
                 propertyTypes={propertyTypes}
                 isEdit
-                onBack={() => setStep("EDIT_PROJECT")}
+                onBack={() => router.back()}
                 hasSavedImages={
                   !!property?.front_image || !!property?.other_image
                 }
               />
             )}
 
-            {!loadingProperty && step === "EDIT_PHOTOS" && (
+            {!loading && step === "EDIT_PHOTOS" && (
               <PropertyAddressPhotos
                 address={property?.address || addressData.address}
                 propertyId={propertyId}
                 onSave={async () => {
                   await refreshProperty();
-                  setStep("EDIT_PROJECT");
+                  toast.success("Photos updated successfully");
+                  router.push(
+                    role === "admin" ? "/all-projects" : "/my-projects",
+                  );
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
                 onBack={() => {
@@ -928,18 +1004,8 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
               />
             )}
 
-            {!loadingProperty && loadingProjectDetails && (
-              <div className="flex flex-col items-center justify-center py-32 gap-4 text-[#708090]">
-                <Loader2 className="size-10 animate-spin text-[#1CA7A6]" />
-                <span className="font-medium text-[16px] font-asap">
-                  Loading project details…
-                </span>
-              </div>
-            )}
-
-            {!loadingProperty &&
-              !loadingProjectDetails &&
-              step === "EDIT_PROJECT" && (
+            {/* ── EDIT PROJECT ── */}
+            {!loading && step === "EDIT_PROJECT" && selectedProject && (
                 <CategorySelection
                   address={property?.address || ""}
                   propertyId={propertyId}
@@ -991,7 +1057,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                       setIsOwnerProjectType(false);
                     }
                     if (data.type) {
-                      if (selectedProject?.components && !noInstallation) {
+                      if (selectedProject?.components) {
                         setSelectedComponent(selectedProject.components);
                         setNewInstallationType(null);
                       } else {
@@ -1010,10 +1076,11 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                 />
               )}
 
-            {/* ── EDIT INSTALLATION (existing component) ── */}
-            {!loadingProperty &&
+            {/* ── EDIT INSTALLATION (existing component - UPDATE mode) ── */}
+            {!loading &&
               step === "EDIT_INSTALLATION" &&
-              selectedComponent && (
+              selectedComponent &&
+              selectedProject && (
                 <InstallationForm
                   type={selectedProject.project_type?.toLowerCase() || ""}
                   tempPropertyId={propertyId}
@@ -1026,13 +1093,18 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                   isOwnerProjectType={isOwnerProjectType}
                   onSave={handleInstallationSave}
                   onBack={() => {
-                    setSelectedComponent(null);
-                    setStep("EDIT_PROJECT");
+                    if (mode === "installation") {
+                      router.back();
+                    } else {
+                      setSelectedComponent(null);
+                      setStep("EDIT_PROJECT");
+                    }
                   }}
                 />
               )}
 
-            {!loadingProperty &&
+            {/* ── EDIT INSTALLATION (no component - CREATE mode) ── */}
+            {!loading &&
               step === "EDIT_INSTALLATION" &&
               !selectedComponent &&
               newInstallationType && (
@@ -1047,13 +1119,17 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                   onSave={handleNewInstallationSave}
                   onAddImages={handleNewInstallationAddImages}
                   onBack={() => {
-                    setNewInstallationType(null);
-                    setStep("EDIT_PROJECT");
+                    if (mode === "installation") {
+                      router.back();
+                    } else {
+                      setNewInstallationType(null);
+                      setStep("EDIT_PROJECT");
+                    }
                   }}
                 />
               )}
 
-            {!loadingProperty &&
+            {!loading &&
               step === "IMAGE_UPLOAD" &&
               newInstallationType && (
                 <CategoryImageUpload
@@ -1095,7 +1171,7 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
               )}
 
             {/* ── SUCCESS STEP ── */}
-            {!loadingProperty && step === "SUCCESS" && (
+            {!loading && step === "SUCCESS" && (
               <div className="w-full max-w-[1170px] mx-auto space-y-[20px] md:space-y-[45px] animate-in fade-in slide-in-from-bottom-4 duration-500 font-asap px-[20px] md:px-0">
                 <div className="text-center space-y-[10px] md:space-y-[15px]">
                   <div className="flex justify-center">
@@ -1136,7 +1212,9 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
 
                   <button
                     onClick={() => {
-                      router.replace("/dashboard");
+                      router.replace(
+                        role === "admin" ? "/all-projects" : "/dashboard",
+                      );
                     }}
                     className="w-full h-[52px] md:h-[77px] border-2 border-[#1F2A44] text-[#1F2A44] font-bold rounded-[10px] text-[18px] md:text-[24px] font-asap hover:bg-[rgba(31,42,68,0.06)] transition-colors"
                   >

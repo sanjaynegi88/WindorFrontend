@@ -415,7 +415,7 @@ export default function MyProjectList() {
 
               const handleAddInstallation = (project: any) => {
                 router.push(
-                  `/properties/edit/${property.id}?projectId=${actualProjectId}&noInstallation=true`,
+                  `/properties/edit/${property.id}?mode=installation&projectId=${actualProjectId}`,
                 );
               };
 
@@ -488,9 +488,8 @@ export default function MyProjectList() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const noInstallation = !hasInstallation;
                                 router.push(
-                                  `/properties/edit/${property.id}?projectId=${actualProjectId}${noInstallation ? "&noInstallation=true" : ""}`,
+                                  `/properties/edit/${property.id}?mode=project&projectId=${actualProjectId}`,
                                 );
                               }}
                               className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-[#1CA7A6]/10 hover:bg-[#1CA7A6]/20 text-[#1CA7A6] font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors cursor-pointer border border-[#1CA7A6]/20 font-asap shrink-0"

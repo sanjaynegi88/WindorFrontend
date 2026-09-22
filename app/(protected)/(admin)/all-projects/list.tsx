@@ -414,7 +414,7 @@ export default function AllProjectsList({ user }: { user: string }) {
                 project.id ?? project.project_id ?? project._id;
               const handleAddInstallation = (project: any) => {
                 router.push(
-                  `/properties/edit/${property.id}?projectId=${actualProjectId}&noInstallation=true`,
+                  `/properties/edit/${property.id}?mode=installation&projectId=${actualProjectId}`,
                 );
               };
 
@@ -493,9 +493,8 @@ export default function AllProjectsList({ user }: { user: string }) {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const noInstallation = !hasInstallation;
                                 router.push(
-                                  `/properties/edit/${property.id}?projectId=${actualProjectId}${noInstallation ? "&noInstallation=true" : ""}`,
+                                  `/properties/edit/${property.id}?mode=project&projectId=${actualProjectId}`,
                                 );
                               }}
                               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1CA7A6]/10 hover:bg-[#1CA7A6]/20 text-[#1CA7A6] font-bold text-xs uppercase tracking-widest transition-colors cursor-pointer border border-[#1CA7A6]/20 font-asap"

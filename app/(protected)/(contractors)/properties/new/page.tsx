@@ -67,8 +67,13 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
     searchParams.get("city_name");
 
   const flow = searchParams.get("flow");
+  const mode = searchParams.get("mode");
+  const paramProjectId =
+    searchParams.get("projectId") || searchParams.get("project_id");
 
   const [step, setStep] = useState<Step>(() => {
+    if (mode === "installation") return "INSTALLATION_FORM";
+    if (mode === "project") return "PROJECT";
     if (typeof window !== "undefined") {
       if (
         flow === "add-installation" &&
@@ -128,6 +133,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
   >(null);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(
     () => {
+      if (paramProjectId) return paramProjectId;
       if (typeof window !== "undefined") {
         if (flow === "add-installation") {
           return localStorage.getItem("current_project_id");

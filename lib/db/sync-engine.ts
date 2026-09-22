@@ -19,6 +19,9 @@ let isSyncing = false;
  * This is the ONLY place where API calls should happen
  */
 export async function syncPendingTransactions(): Promise<void> {
+    // TEMPORARILY DISABLED: New implementation pending
+    return;
+
     if (isSyncing || !navigator.onLine) {
         return;
     }
@@ -285,6 +288,9 @@ function transformInstallationDataForAPI(type: string, formData: any): any {
  * Initialize sync engine with automatic triggers
  */
 export function initSyncEngine(): void {
+    // TEMPORARILY DISABLED: Prevent background intervals and listeners
+    return;
+
     if (typeof window === 'undefined') return;
 
     // Sync when coming online
@@ -309,6 +315,9 @@ export function initSyncEngine(): void {
  * Manual sync trigger (for UI buttons)
  */
 export async function triggerManualSync(): Promise<void> {
+    // TEMPORARILY DISABLED
+    return;
+
     if (!navigator.onLine) {
         toast.error('Cannot sync while offline');
         return;

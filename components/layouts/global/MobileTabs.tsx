@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Home,
   Search,
@@ -36,9 +36,42 @@ import {
 
 export function MobileTabs() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user } = useUser();
   const role = user?.role?.toLowerCase() || "";
   const [isOpen, setIsOpen] = React.useState(false);
+
+  const isProjectOrInstallationOpen = React.useMemo(() => {
+    const mode = searchParams?.get("mode");
+    const flow = searchParams?.get("flow");
+    const projectId = searchParams?.get("projectId");
+    const propertyId = searchParams?.get("propertyId");
+    const stepParam = searchParams?.get("step");
+
+    if (pathname.startsWith("/properties/edit")) {
+      return (
+        mode === "project" ||
+        mode === "installation" ||
+        (Boolean(projectId && projectId.trim()) && mode !== "address")
+      );
+    }
+
+    if (pathname.startsWith("/properties/new")) {
+      return (
+        mode === "project" ||
+        mode === "installation" ||
+        flow === "add-installation" ||
+        flow === "project" ||
+        flow === "installation" ||
+        stepParam === "project" ||
+        stepParam === "installation" ||
+        Boolean(projectId && projectId.trim()) ||
+        Boolean(propertyId && propertyId.trim())
+      );
+    }
+
+    return false;
+  }, [pathname, searchParams]);
 
   React.useEffect(() => {
     setIsOpen(false);
@@ -199,11 +232,19 @@ export function MobileTabs() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 h-[55px] bg-[#1F2A44] md:hidden flex items-center justify-around px-2 shadow-[0_-4px_20px_rgba(0,0,0,0.2)]">
       {tabs.map((tab) => {
-        const isActive = tab.href
+        let isActive = tab.href
           ? tab.href === "/"
             ? pathname === "/"
             : pathname.startsWith(tab.href)
           : false;
+
+        if (isProjectOrInstallationOpen) {
+          if (tab.name.toLowerCase() === "projects") {
+            isActive = true;
+          } else if (tab.name.toLowerCase() === "properties") {
+            isActive = false;
+          }
+        }
 
         if (tab.isCenter) {
           return (

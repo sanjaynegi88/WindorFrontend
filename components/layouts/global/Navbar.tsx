@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn, toPascalCase } from "@/lib/utils";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   ChevronDown,
@@ -39,6 +39,7 @@ import { getUserProfile, signout } from "@/lib/actions";
 
 export function Navbar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user, setUser } = useUser();
   const isLoggedIn = !!user;
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -53,6 +54,38 @@ export function Navbar() {
   const { notifications, unreadCount, markAsRead } = useNotifications();
 
   const role = user?.role?.toLowerCase() || "";
+
+  const isProjectOrInstallationOpen = useMemo(() => {
+    const mode = searchParams?.get("mode");
+    const flow = searchParams?.get("flow");
+    const projectId = searchParams?.get("projectId");
+    const propertyId = searchParams?.get("propertyId");
+    const stepParam = searchParams?.get("step");
+
+    if (pathname.startsWith("/properties/edit")) {
+      return (
+        mode === "project" ||
+        mode === "installation" ||
+        (Boolean(projectId && projectId.trim()) && mode !== "address")
+      );
+    }
+
+    if (pathname.startsWith("/properties/new")) {
+      return (
+        mode === "project" ||
+        mode === "installation" ||
+        flow === "add-installation" ||
+        flow === "project" ||
+        flow === "installation" ||
+        stepParam === "project" ||
+        stepParam === "installation" ||
+        Boolean(projectId && projectId.trim()) ||
+        Boolean(propertyId && propertyId.trim())
+      );
+    }
+
+    return false;
+  }, [pathname, searchParams]);
 
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -218,7 +251,7 @@ export function Navbar() {
           },
           {
             name: "PROJECTS",
-            activeFor: ["/projects", "/my-projects"],
+            activeFor: ["/projects", "/my-projects", "/all-projects"],
             submenu: [
               { name: "My projects List", href: "/my-projects" },
               { name: "Create new Project", href: "/projects" },
@@ -349,13 +382,21 @@ export function Navbar() {
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-[30px]">
           {navItems.map((link) => {
-            const isActive = link.activeFor
+            let isActive = link.activeFor
               ? link.activeFor.some((p) => pathname.startsWith(p))
               : link.href === "/"
                 ? pathname === "/"
                 : link.href && link.href !== "#" && link.href !== "/#"
                   ? pathname.startsWith(link.href)
                   : link.submenu?.some((sub) => pathname.startsWith(sub.href));
+
+            if (isProjectOrInstallationOpen) {
+              if (link.name === "PROJECTS") {
+                isActive = true;
+              } else if (link.name === "PROPERTIES") {
+                isActive = false;
+              }
+            }
 
             if (link.submenu) {
               return (
@@ -400,23 +441,31 @@ export function Navbar() {
                       onMouseEnter={() => handleMouseEnter(link.name)}
                       onMouseLeave={handleMouseLeave}
                     >
-                      {link.submenu.map((sub) => (
-                        <DropdownMenuItem
-                          key={sub.name}
-                          asChild
-                          className={cn(
-                            "rounded-lg focus:bg-[#1CA7A6]/10 focus:text-[#1CA7A6] cursor-pointer py-3 px-4",
-                            pathname === sub.href &&
-                              "bg-[#1CA7A6]/10 text-[#1CA7A6]",
-                          )}
-                        >
-                          <Link href={sub.href} className="w-full">
-                            <span className="font-bold text-sm">
-                              {sub.name}
-                            </span>
-                          </Link>
-                        </DropdownMenuItem>
-                      ))}
+                      {link.submenu.map((sub) => {
+                        const isSubActive =
+                          pathname === sub.href &&
+                          !(
+                            isProjectOrInstallationOpen &&
+                            sub.href === "/properties/new"
+                          );
+
+                        return (
+                          <DropdownMenuItem
+                            key={sub.name}
+                            asChild
+                            className={cn(
+                              "rounded-lg focus:bg-[#1CA7A6]/10 focus:text-[#1CA7A6] cursor-pointer py-3 px-4",
+                              isSubActive && "bg-[#1CA7A6]/10 text-[#1CA7A6]",
+                            )}
+                          >
+                            <Link href={sub.href} className="w-full">
+                              <span className="font-bold text-sm">
+                                {sub.name}
+                              </span>
+                            </Link>
+                          </DropdownMenuItem>
+                        );
+                      })}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -745,13 +794,21 @@ export function Navbar() {
       {mobileOpen && (
         <div className="md:hidden border-t bg-white px-4 py-4 space-y-1 shadow-lg font-inter max-h-[calc(100vh-120px)] overflow-y-auto">
           {navItems.map((link) => {
-            const isActive = link.activeFor
+            let isActive = link.activeFor
               ? link.activeFor.some((p) => pathname.startsWith(p))
               : link.href === "/"
                 ? pathname === "/"
                 : link.href && link.href !== "#" && link.href !== "/#"
                   ? pathname.startsWith(link.href)
                   : link.submenu?.some((sub) => pathname.startsWith(sub.href));
+
+            if (isProjectOrInstallationOpen) {
+              if (link.name === "PROJECTS") {
+                isActive = true;
+              } else if (link.name === "PROPERTIES") {
+                isActive = false;
+              }
+            }
 
             if (link.submenu) {
               const isOpen = !!mobileSubmenuOpen[link.name];
@@ -781,20 +838,29 @@ export function Navbar() {
                   </button>
                   {isOpen && (
                     <div className="pl-4 space-y-1 border-l border-gray-100 ml-4">
-                      {link.submenu.map((sub) => (
-                        <Link
-                          key={sub.name}
-                          href={sub.href}
-                          className={cn(
-                            "flex items-center px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-colors",
-                            pathname === sub.href
-                              ? "text-[#1CA7A6] bg-[#1CA7A6]/5"
-                              : "text-[#708090] hover:text-[#1CA7A6]",
-                          )}
-                        >
-                          {sub.name}
-                        </Link>
-                      ))}
+                      {link.submenu.map((sub) => {
+                        const isSubActive =
+                          pathname === sub.href &&
+                          !(
+                            isProjectOrInstallationOpen &&
+                            sub.href === "/properties/new"
+                          );
+
+                        return (
+                          <Link
+                            key={sub.name}
+                            href={sub.href}
+                            className={cn(
+                              "flex items-center px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-colors",
+                              isSubActive
+                                ? "text-[#1CA7A6] bg-[#1CA7A6]/5"
+                                : "text-[#708090] hover:text-[#1CA7A6]",
+                            )}
+                          >
+                            {sub.name}
+                          </Link>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
