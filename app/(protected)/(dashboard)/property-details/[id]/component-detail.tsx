@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { Loader2, FileText, PlusIcon, MapPin, Map } from "lucide-react";
+import { Loader2, FileText, PlusIcon, MapPin, Map, Camera } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { downloadPdfFromUrl, getErrorMessage } from "@/lib/utils";
 import { useAwsImage } from "@/hooks/use-aws-image";
@@ -11,9 +11,11 @@ import {
   purchaseReport,
   getReportUsage,
   getprojectTypesInProperty,
+  uploadPropertyImages,
 } from "@/lib/actions";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ImageSourcePickerDialog } from "@/components/modals/image-source-picker-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -75,6 +77,10 @@ export default function ComponentDetail({
     useState<boolean>(true);
 
   const [heroImageSrc, setHeroImageSrc] = useState(heroImageUrl);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+  const [showImageSourcePicker, setShowImageSourcePicker] = useState(false);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setHeroImageSrc(heroImageUrl);
@@ -121,10 +127,51 @@ export default function ComponentDetail({
       });
   }, [componentId]);
 
-  const isOwnerOfProperty =
-    role === "property_owner" &&
-    !!componentData?.property_owner?.email &&
-    user?.email === componentData.property_owner.email;
+  const isAdmin = role === "admin" || user?.role === "admin";
+
+  const isAssignedPropertyOwner =
+    (role === "property_owner" || user?.role === "property_owner") &&
+    (
+      (!!componentData?.property_owner?.email &&
+        !!user?.email &&
+        componentData.property_owner.email.toLowerCase() === user.email.toLowerCase()) ||
+      (!!componentData?.property_owner_email &&
+        !!user?.email &&
+        componentData.property_owner_email.toLowerCase() === user.email.toLowerCase()) ||
+      (!!componentData?.property_owner_id &&
+        (user?.id === componentData.property_owner_id || (user as any)?.user_id === componentData.property_owner_id)) ||
+      (!!componentData?.property_owner?.id &&
+        (user?.id === componentData.property_owner.id || (user as any)?.user_id === componentData.property_owner.id))
+    );
+
+  const isContractorWhoAddedProperty =
+    (role === "contractor" || user?.role === "contractor") &&
+    (
+      (!!componentData?.created_by && (componentData.created_by === user?.id || componentData.created_by === (user as any)?.user_id)) ||
+      (!!componentData?.contractor_id && (componentData.contractor_id === user?.id || componentData.contractor_id === (user as any)?.user_id)) ||
+      (!!componentData?.user_id && (componentData.user_id === user?.id || componentData.user_id === (user as any)?.user_id)) ||
+      (!!componentData?.contractor?.id && (componentData.contractor.id === user?.id || componentData.contractor.id === (user as any)?.user_id)) ||
+      (!!componentData?.creator?.id && (componentData.creator.id === user?.id || componentData.creator.id === (user as any)?.user_id)) ||
+      (!!componentData?.createdBy?.id && (componentData.createdBy.id === user?.id || componentData.createdBy.id === (user as any)?.user_id)) ||
+      (!!componentData?.contractor?.email && !!user?.email && componentData.contractor.email.toLowerCase() === user.email.toLowerCase()) ||
+      (!!componentData?.creator?.email && !!user?.email && componentData.creator.email.toLowerCase() === user.email.toLowerCase()) ||
+      (!!componentData?.createdBy?.email && !!user?.email && componentData.createdBy.email.toLowerCase() === user.email.toLowerCase()) ||
+      (!!componentData?.created_by_email && !!user?.email && componentData.created_by_email.toLowerCase() === user.email.toLowerCase()) ||
+      (!!componentData?.contractor_email && !!user?.email && componentData.contractor_email.toLowerCase() === user.email.toLowerCase()) ||
+      allProjects.some((p: any) =>
+        (p.created_by && (p.created_by === user?.id || p.created_by === (user as any)?.user_id)) ||
+        (p.createdBy?.id && (p.createdBy.id === user?.id || p.createdBy.id === (user as any)?.user_id)) ||
+        (p.contractor?.id && (p.contractor.id === user?.id || p.contractor.id === (user as any)?.user_id)) ||
+        (p.createdBy?.email && !!user?.email && p.createdBy.email.toLowerCase() === user.email.toLowerCase()) ||
+        (p.contractor?.email && !!user?.email && p.contractor.email.toLowerCase() === user.email.toLowerCase()) ||
+        (p.created_by_email && !!user?.email && p.created_by_email.toLowerCase() === user.email.toLowerCase()) ||
+        (p.contractor_email && !!user?.email && p.contractor_email.toLowerCase() === user.email.toLowerCase())
+      )
+    );
+
+  const canChangeBanner = isAdmin || isAssignedPropertyOwner || isContractorWhoAddedProperty;
+
+  const isOwnerOfProperty = isAssignedPropertyOwner;
   const showAddProject =
     role === "admin" ||
     role === "contractor" ||
@@ -208,6 +255,71 @@ export default function ComponentDetail({
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, "Something went wrong."));
       setIsGenerating(false);
+    }
+  };
+
+  const triggerBannerFileInput = () => {
+    if (isUploadingBanner) return;
+    const isMobile =
+      typeof window !== "undefined" &&
+      window.matchMedia("(pointer: coarse)").matches;
+
+    if (isMobile) {
+      setShowImageSourcePicker(true);
+    } else {
+      galleryInputRef.current?.click();
+    }
+  };
+
+  const handleSelectCamera = () => {
+    setShowImageSourcePicker(false);
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = "";
+      cameraInputRef.current.click();
+    }
+  };
+
+  const handleSelectGallery = () => {
+    setShowImageSourcePicker(false);
+    if (galleryInputRef.current) {
+      galleryInputRef.current.value = "";
+      galleryInputRef.current.click();
+    }
+  };
+
+  const handleBannerFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 7 * 1024 * 1024) {
+      toast.error(`Image "${file.name}" exceeds the 7MB size limit`);
+      e.target.value = "";
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setHeroImageSrc(previewUrl);
+
+    setIsUploadingBanner(true);
+    try {
+      const propId = componentId || componentData?.id;
+      const response = await uploadPropertyImages(propId, file);
+      if (!response.success) {
+        toast.error(response.message || "Failed to update banner image");
+        setHeroImageSrc(heroImageUrl);
+        return;
+      }
+      toast.success("Banner image updated successfully");
+      router.refresh();
+    } catch (error: any) {
+      console.error("Failed to update banner image:", error);
+      toast.error(error?.message || "Failed to update banner image");
+      setHeroImageSrc(heroImageUrl);
+    } finally {
+      setIsUploadingBanner(false);
+      e.target.value = "";
     }
   };
 
@@ -430,6 +542,43 @@ export default function ComponentDetail({
                 setHeroImageSrc("/assets/prop_placeholder.png");
               }}
             />
+            {canChangeBanner && (
+              <>
+                {/* Hidden file input for Gallery */}
+                <input
+                  ref={galleryInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleBannerFileChange}
+                />
+
+                {/* Hidden file input for Camera */}
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleBannerFileChange}
+                />
+
+                <button
+                  type="button"
+                  onClick={triggerBannerFileInput}
+                  disabled={isUploadingBanner}
+                  title="Change banner image"
+                  aria-label="Change banner image"
+                  className="absolute top-3 sm:top-4 right-3 sm:right-4 z-20 flex items-center justify-center size-9 sm:size-10 rounded-full bg-white/90 hover:bg-white text-[#1F2A44] hover:text-[#1CA7A6] shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {isUploadingBanner ? (
+                    <Loader2 className="size-4 sm:size-5 animate-spin text-[#1CA7A6]" />
+                  ) : (
+                    <Camera className="size-4 sm:size-5 text-[#1F2A44]" />
+                  )}
+                </button>
+              </>
+            )}
             <div className="absolute bottom-3 sm:bottom-9 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-3.5 z-10 flex-wrap justify-center w-full max-w-[95%] px-2">
               {componentData?.street_view_link && (
                 <a
@@ -546,6 +695,14 @@ export default function ComponentDetail({
       <PdfGenerationLoader
         isOpen={isGenerating}
         message="Generating Report..."
+      />
+
+      {/* Upload Option Popup Dialog for Mobile */}
+      <ImageSourcePickerDialog
+        isOpen={showImageSourcePicker}
+        onClose={() => setShowImageSourcePicker(false)}
+        onSelectCamera={handleSelectCamera}
+        onSelectGallery={handleSelectGallery}
       />
     </div>
   );
