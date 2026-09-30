@@ -271,16 +271,11 @@ export function CityFormDialog({
                       placeholder="Zip codes"
                       className="rounded-xl h-11"
                       {...field}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/[^\d,\s]/g, "");
-                        field.onChange(value);
-                      }}
                     />
                   </FormControl>
                   <FormMessage />
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    Enter numeric zip codes (max 6 digits each), separated by
-                    commas.
+                    Enter numeric zip codes , separated by commas.
                   </p>
                 </FormItem>
               )}

@@ -201,10 +201,9 @@ export const InstallationCard = ({
     const addedTotal = newFiles.reduce((acc, f) => acc + f.size, 0);
 
     if (currentTotal + addedTotal > MAX_TOTAL_UPLOAD_BYTES) {
-      const projectedMB = (
-        (currentTotal + addedTotal) /
-        (1024 * 1024)
-      ).toFixed(1);
+      const projectedMB = ((currentTotal + addedTotal) / (1024 * 1024)).toFixed(
+        1,
+      );
       toast.error(
         `Adding these images exceeds the 20MB total combined image limit (Total would be ${projectedMB} MB). Please select smaller or fewer images.`,
       );
@@ -451,7 +450,8 @@ export const InstallationCard = ({
               : "Permit Not Uploaded"}
           </span>
 
-          {canUpload && isContractorProject &&
+          {canUpload &&
+            isContractorProject &&
             (alreadyUploaded ? (
               <span className="text-[10px] md:text-[11px] font-medium px-3 py-1 rounded-full border bg-[rgba(112,128,144,0.08)] text-[#B0BEC5] border-[#B0BEC5] font-inter cursor-not-allowed select-none">
                 Images Uploaded
@@ -706,7 +706,8 @@ export const InstallationCard = ({
             {stagedFiles.length === 0 && (
               <div className="mt-3 py-6 text-center border rounded-xl bg-slate-50/50 border-dashed border-slate-200">
                 <p className="text-xs text-[#708090] font-inter">
-                  No images selected yet. Click &ldquo;Add Photo&rdquo; to begin.
+                  No images selected yet. Click &ldquo;Add Photo&rdquo; to
+                  begin.
                 </p>
               </div>
             )}

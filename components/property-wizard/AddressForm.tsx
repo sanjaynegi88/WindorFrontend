@@ -435,7 +435,6 @@ export function AddressForm({
           placeholder="Zip Code"
           required
           inputMode="numeric"
-          maxLength={6}
           className="h-11.5 md:h-16.25 px-5 md:px-7.25 bg-white border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap"
           value={data.zip}
           onChange={(e) => {

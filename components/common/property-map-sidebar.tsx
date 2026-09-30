@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Sheet,
   SheetContent,
@@ -20,12 +20,14 @@ import {
   Check,
   AlertTriangle,
   ShieldCheck,
+  ChevronLeft,
   ChevronRight,
   Eye,
   Info,
   Download,
   Calendar,
   X,
+  ExternalLink,
 } from "lucide-react";
 import {
   cn,
@@ -58,6 +60,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
+  DialogOverlay,
 } from "@/components/ui/dialog";
 import { PdfGenerationLoader } from "./pdf-generation-loader";
 
@@ -106,6 +109,18 @@ export function PropertyMapSidebar({
   const [showContractorListDialog, setShowContractorListDialog] =
     useState(false);
   const [showHomeownerListDialog, setShowHomeownerListDialog] = useState(false);
+
+  // Image popup & slider state
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const sliderRef = useRef<HTMLDivElement>(null);
+
+  const scrollSlider = (direction: "left" | "right") => {
+    if (sliderRef.current) {
+      const offset = direction === "left" ? -240 : 240;
+      sliderRef.current.scrollBy({ left: offset, behavior: "smooth" });
+    }
+  };
 
   const fetchReportUsage = async () => {
     if (
@@ -247,6 +262,154 @@ export function PropertyMapSidebar({
       setSelectedHomeowners([]);
     }
   }, [showHomeownerListDialog]);
+
+  // Collect all contractor + homeowner + property images
+  const galleryImages = useMemo(() => {
+    const items: {
+      url: string;
+      source: "contractor" | "owner" | "property";
+      label?: string;
+    }[] = [];
+    const seenUrls = new Set<string>();
+
+    const addImage = (
+      url?: string | null,
+      source: "contractor" | "owner" | "property" = "contractor",
+      label?: string,
+    ) => {
+      if (!url || typeof url !== "string") return;
+      const trimmed = url.trim();
+      if (
+        trimmed &&
+        trimmed !== "/assets/prop_placeholder.png" &&
+        !seenUrls.has(trimmed)
+      ) {
+        seenUrls.add(trimmed);
+        items.push({ url: trimmed, source, label });
+      }
+    };
+
+    // Combine all project sources: property.projects, contractorProjects, homeownerProjects
+    const allProjectsList = [
+      ...(property?.projects ?? []),
+      ...(contractorProjects ?? []),
+      ...(homeownerProjects ?? []),
+    ];
+
+    allProjectsList.forEach((proj: any) => {
+      if (!proj) return;
+      const isHomeowner =
+        proj.added_by === "PROPERTY_OWNER" ||
+        proj.project_type === "homeowner" ||
+        proj.user_type === "property_owner" ||
+        proj.added_by_type === "PROPERTY_OWNER";
+      const defaultSource = isHomeowner ? "owner" : "contractor";
+
+      const compType =
+        proj.components?.component_type ||
+        proj.project_type ||
+        proj.details?.type ||
+        proj.component_type ||
+        "";
+      const label = compType ? compType.replace(/_/g, " ") : undefined;
+
+      // Extract raw images from all possible locations
+      const rawImageLists = [
+        proj.components?.images,
+        proj.details?.images,
+        proj.images,
+        proj.property_owner_images,
+        proj.contractor_images,
+      ];
+
+      rawImageLists.forEach((list) => {
+        if (!Array.isArray(list)) return;
+        list.forEach((img: any) => {
+          if (!img) return;
+          if (typeof img === "string") {
+            addImage(img, defaultSource, label);
+            return;
+          }
+          // Follow installation-card logic: both contractor and property owner images
+          if (img.image_url) {
+            addImage(img.image_url, "contractor", label);
+          }
+          if (img.property_owner_files) {
+            addImage(img.property_owner_files, "owner", label);
+          }
+          if (img.url && !img.image_url && !img.property_owner_files) {
+            addImage(
+              img.url,
+              img.owner_uploaded ? "owner" : defaultSource,
+              label,
+            );
+          }
+          if (img.src && !img.image_url && !img.property_owner_files) {
+            addImage(
+              img.src,
+              img.owner_uploaded ? "owner" : defaultSource,
+              label,
+            );
+          }
+          if (
+            !img.image_url &&
+            !img.property_owner_files &&
+            !img.url &&
+            !img.src &&
+            img.thumbnail_url
+          ) {
+            addImage(
+              img.thumbnail_url,
+              img.owner_uploaded ? "owner" : defaultSource,
+              label,
+            );
+          }
+        });
+      });
+
+      // Also check direct single image properties on components or projects
+      if (proj.components?.image_url) {
+        addImage(proj.components.image_url, "contractor", label);
+      }
+      if (proj.components?.property_owner_files) {
+        addImage(proj.components.property_owner_files, "owner", label);
+      }
+      if (proj.image_url) {
+        addImage(proj.image_url, defaultSource, label);
+      }
+      if (proj.property_owner_files) {
+        addImage(proj.property_owner_files, "owner", label);
+      }
+    });
+
+    // Also include property front_image if present and valid
+    if (
+      property?.front_image &&
+      typeof property.front_image === "string" &&
+      !property.front_image.includes("prop_placeholder.png")
+    ) {
+      addImage(property.front_image, "property", "Property Front");
+    }
+
+    return items;
+  }, [property, contractorProjects, homeownerProjects]);
+
+  const uniqueImages = useMemo(
+    () => galleryImages.map((img) => img.url),
+    [galleryImages],
+  );
+
+  // Close modal on Escape
+  useEffect(() => {
+    if (!isImageModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsImageModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isImageModalOpen]);
 
   if (!isOpen) return null;
 
@@ -623,25 +786,19 @@ export function PropertyMapSidebar({
     }
   };
 
-  // Get unique images from projects
-  const allImages = (property?.projects ?? [])
-    .map((p: any) => p.components)
-    .filter(Boolean)
-    .flatMap((comp: any) =>
-      (comp.images ?? []).flatMap((img: any) =>
-        [
-          img.image_url ? `${img.image_url}` : null,
-          img.property_owner_files ? `${img.property_owner_files}` : null,
-        ].filter(Boolean),
-      ),
-    );
-  const uniqueImages = Array.from(new Set(allImages)) as string[];
+
 
   return (
     <>
       <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent
           side="right"
+          onPointerDownOutside={(e) => {
+            if (isImageModalOpen) e.preventDefault();
+          }}
+          onInteractOutside={(e) => {
+            if (isImageModalOpen) e.preventDefault();
+          }}
           className="w-full sm:max-w-md p-0 overflow-hidden flex flex-col border-s-0 shadow-2xl bg-white transition-all duration-300 ease-in-out"
         >
           {/* Header */}
@@ -917,23 +1074,72 @@ export function PropertyMapSidebar({
 
                     {/* Photos grid summary */}
                     <div className="space-y-2">
-                      <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
-                        Property Images ({uniqueImages.length})
-                      </h3>
-                      {uniqueImages.length > 0 ? (
-                        <div className="grid grid-cols-4 gap-2">
-                          {uniqueImages.slice(0, 4).map((src, idx) => (
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+                          Property Images ({galleryImages.length})
+                        </h3>
+                        {galleryImages.length > 4 && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => scrollSlider("left")}
+                              className="w-6 h-6 rounded-full border border-gray-200 bg-white hover:bg-gray-100 flex items-center justify-center text-gray-600 transition-colors cursor-pointer shadow-2xs"
+                              title="Previous images"
+                            >
+                              <ChevronLeft className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => scrollSlider("right")}
+                              className="w-6 h-6 rounded-full border border-gray-200 bg-white hover:bg-gray-100 flex items-center justify-center text-gray-600 transition-colors cursor-pointer shadow-2xs"
+                              title="Next images"
+                            >
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {galleryImages.length > 0 ? (
+                        <div
+                          ref={sliderRef}
+                          className="flex gap-2 overflow-x-auto pb-1.5 pt-0.5 scroll-smooth no-scrollbar snap-x snap-mandatory"
+                        >
+                          {galleryImages.map((item, idx) => (
                             <div
-                              key={idx}
-                              className="relative aspect-square rounded-lg overflow-hidden border border-gray-100 bg-gray-50"
+                              key={`${item.url}-${idx}`}
+                              onClick={() => {
+                                setCurrentImageIndex(idx);
+                                setIsImageModalOpen(true);
+                              }}
+                              className="relative aspect-square w-20 h-20 shrink-0 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 cursor-pointer group hover:border-[#1CA7A6] hover:shadow-md transition-all snap-start"
                             >
                               <Image
-                                src={src}
-                                alt={`property-${idx}`}
+                                src={item.url}
+                                alt={item.label || `property-${idx}`}
                                 fill
-                                className="object-cover"
+                                className="object-cover group-hover:scale-110 transition-transform duration-300"
                                 unoptimized
                               />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center">
+                                <Eye className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
+                              </div>
+                              <span
+                                className={cn(
+                                  "absolute bottom-1 left-1 px-1 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider text-white shadow-xs leading-none",
+                                  item.source === "owner"
+                                    ? "bg-green-600/90"
+                                    : item.source === "property"
+                                      ? "bg-slate-700/90"
+                                      : "bg-[#1CA7A6]/90",
+                                )}
+                              >
+                                {item.source === "owner"
+                                  ? "Owner"
+                                  : item.source === "property"
+                                    ? "Front"
+                                    : "Contractor"}
+                              </span>
                             </div>
                           ))}
                         </div>
@@ -1502,6 +1708,86 @@ export function PropertyMapSidebar({
               Close
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Fullscreen Image Preview Lightbox */}
+      <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+        <DialogOverlay className="fixed inset-0 z-[75] bg-black/90 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <DialogContent
+          overlay={false}
+          showCloseButton={false}
+          className="fixed left-[50%] top-[50%] -translate-x-[50%] -translate-y-[50%] z-[80] w-[95vw] max-w-5xl p-0 border-0 bg-transparent shadow-none outline-none focus:outline-none flex flex-col gap-2.5 font-asap"
+        >
+          {/* Top Bar Floating Header */}
+          <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 bg-slate-900/85 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl">
+            <div className="flex items-center gap-2 flex-wrap">
+              {galleryImages[currentImageIndex]?.label && (
+                <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-white/10 text-white/90 border border-white/10">
+                  {galleryImages[currentImageIndex].label}
+                </span>
+              )}
+              {galleryImages[currentImageIndex]?.source && (
+                <span
+                  className={cn(
+                    "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-white shadow-sm",
+                    galleryImages[currentImageIndex].source === "owner"
+                      ? "bg-emerald-600"
+                      : galleryImages[currentImageIndex].source === "property"
+                        ? "bg-slate-700"
+                        : "bg-[#1CA7A6]",
+                  )}
+                >
+                  {galleryImages[currentImageIndex].source === "owner"
+                    ? "Property Owner Upload"
+                    : galleryImages[currentImageIndex].source === "property"
+                      ? "Property Front"
+                      : "Contractor Upload"}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {galleryImages[currentImageIndex]?.url && (
+                <a
+                  href={galleryImages[currentImageIndex].url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="h-8 sm:h-9 px-3 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold tracking-wider uppercase transition-colors flex items-center gap-1.5 border border-white/10 cursor-pointer"
+                  title="Open original image in new tab"
+                >
+                  <ExternalLink className="size-3.5" />
+                  <span className="hidden sm:inline">View Original</span>
+                </a>
+              )}
+              <DialogClose asChild>
+                <button
+                  type="button"
+                  className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 text-white flex items-center justify-center transition-all border border-white/15 cursor-pointer shadow-lg"
+                  aria-label="Close image popup"
+                >
+                  <X className="size-4 sm:size-5" />
+                </button>
+              </DialogClose>
+            </div>
+          </div>
+
+          {/* Main Image Stage */}
+          <div className="relative w-full h-[65vh] sm:h-[75vh] flex items-center justify-center p-2 rounded-2xl bg-black/40 backdrop-blur-sm border border-white/5 shadow-2xl overflow-hidden">
+            {galleryImages[currentImageIndex]?.url ? (
+              <Image
+                src={galleryImages[currentImageIndex].url}
+                alt={
+                  galleryImages[currentImageIndex]?.label ||
+                  `Project image ${currentImageIndex + 1}`
+                }
+                fill
+                sizes="(max-width: 1200px) 100vw, 1200px"
+                unoptimized
+                className="object-contain rounded-xl drop-shadow-2xl select-none"
+              />
+            ) : null}
+          </div>
         </DialogContent>
       </Dialog>
 

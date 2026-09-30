@@ -39,7 +39,7 @@ const commonSchema = {
   description: z.string().min(1, "Description is required"),
   installDate: z.string().min(1, "Install date is required"),
   supplier: z.string().min(1, "Supplier is required"),
-  installer: z.string().min(1, "Contractor is required"),
+  installer: z.string().optional(),
   brand: z.string().min(1, "Brand is required"),
   contractorImages: z
     .array(z.string())
@@ -305,24 +305,22 @@ export function InstallationForm({
     Record<string, HTMLInputElement | null>
   >({});
 
-  const getTotalUploadSizeBytes = (
+  const MAX_CONTRACTOR_UPLOAD_BYTES = 20 * 1024 * 1024;
+  const MAX_OWNER_UPLOAD_BYTES = 20 * 1024 * 1024;
+
+  const getContractorUploadSizeBytes = (
     overrideCategoryPhotos?: Record<
       string,
       { file: File | null; preview: string | null }
     >,
-    overrideOwnerFiles?: File[],
     overrideContractorFiles?: File[],
   ) => {
     let total = 0;
     const catPhotos = overrideCategoryPhotos || categoryPhotos;
-    const oFiles = overrideOwnerFiles || ownerFiles;
     const cFiles = overrideContractorFiles || contractorFiles;
 
     Object.values(catPhotos).forEach((val) => {
       if (val?.file?.size) total += val.file.size;
-    });
-    oFiles.forEach((f) => {
-      if (f?.size) total += f.size;
     });
     if (!isEditMode) {
       cFiles.forEach((f) => {
@@ -330,6 +328,19 @@ export function InstallationForm({
       });
     }
     return total;
+  };
+
+  const getOwnerUploadSizeBytes = (overrideOwnerFiles?: File[]) => {
+    let total = 0;
+    const oFiles = overrideOwnerFiles || ownerFiles;
+    oFiles.forEach((f) => {
+      if (f?.size) total += f.size;
+    });
+    return total;
+  };
+
+  const getTotalUploadSizeBytes = () => {
+    return getContractorUploadSizeBytes() + getOwnerUploadSizeBytes();
   };
 
   const handleCategoryFileSelect = (
@@ -344,11 +355,11 @@ export function InstallationForm({
       [key]: { file, preview: null },
     };
 
-    const candidateTotalBytes = getTotalUploadSizeBytes(candidatePhotos);
-    if (candidateTotalBytes > 20 * 1024 * 1024) {
-      const totalMB = (candidateTotalBytes / (1024 * 1024)).toFixed(1);
+    const candidateBytes = getContractorUploadSizeBytes(candidatePhotos);
+    if (candidateBytes > MAX_CONTRACTOR_UPLOAD_BYTES) {
+      const totalMB = (candidateBytes / (1024 * 1024)).toFixed(1);
       toast.error(
-        `Adding "${file.name}" exceeds the 20MB total combined image size limit (Total would be ${totalMB} MB). Please choose a smaller image.`,
+        `Adding "${file.name}" exceeds the 20MB contractor image size limit (Total would be ${totalMB} MB). Please choose a smaller image.`,
       );
       if (inputEl) inputEl.value = "";
       return;
@@ -565,15 +576,12 @@ export function InstallationForm({
     }
 
     const candidateOwnerFiles = [...ownerFiles, ...files];
-    const candidateTotalBytes = getTotalUploadSizeBytes(
-      categoryPhotos,
-      candidateOwnerFiles,
-    );
+    const candidateBytes = getOwnerUploadSizeBytes(candidateOwnerFiles);
 
-    if (candidateTotalBytes > 20 * 1024 * 1024) {
-      const totalMB = (candidateTotalBytes / (1024 * 1024)).toFixed(1);
+    if (candidateBytes > MAX_OWNER_UPLOAD_BYTES) {
+      const totalMB = (candidateBytes / (1024 * 1024)).toFixed(1);
       toast.error(
-        `Adding these owner images exceeds the 20MB total combined image size limit (Total would be ${totalMB} MB). Please remove or compress some images.`,
+        `Adding these owner images exceeds the 20MB owner image size limit (Total would be ${totalMB} MB). Please remove or compress some images.`,
       );
       e.target.value = "";
       return;
@@ -604,11 +612,20 @@ export function InstallationForm({
   const onSubmit = async (values: any) => {
     if (!type) return;
 
-    const totalBytes = getTotalUploadSizeBytes();
-    if (totalBytes > 20 * 1024 * 1024) {
-      const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
+    const contractorBytes = getContractorUploadSizeBytes();
+    if (contractorBytes > MAX_CONTRACTOR_UPLOAD_BYTES) {
+      const totalMB = (contractorBytes / (1024 * 1024)).toFixed(1);
       toast.error(
-        `Total image upload size is ${totalMB} MB, which exceeds the 20MB limit. Please remove or compress some images before saving.`,
+        `Contractor image upload size is ${totalMB} MB, which exceeds the 20MB limit. Please remove or compress some images before saving.`,
+      );
+      return;
+    }
+
+    const ownerBytes = getOwnerUploadSizeBytes();
+    if (ownerBytes > MAX_OWNER_UPLOAD_BYTES) {
+      const totalMB = (ownerBytes / (1024 * 1024)).toFixed(1);
+      toast.error(
+        `Owner image upload size is ${totalMB} MB, which exceeds the 20MB limit. Please remove or compress some images before saving.`,
       );
       return;
     }
@@ -856,20 +873,24 @@ export function InstallationForm({
                         : "Leave empty to keep the current image."}
                     </span>
                     <span className="text-[11px] text-amber-600 font-semibold">
-                      Acceptable size: Max 20MB total combined size for all
-                      images
+                      Acceptable size: Max 20MB total combined size for
+                      contractor images
                     </span>
-                    {getTotalUploadSizeBytes() > 0 && (
+                    {getContractorUploadSizeBytes() > 0 && (
                       <span
                         className={cn(
                           "text-[11px] font-bold mt-0.5",
-                          getTotalUploadSizeBytes() > 20 * 1024 * 1024
+                          getContractorUploadSizeBytes() >
+                            MAX_CONTRACTOR_UPLOAD_BYTES
                             ? "text-destructive"
                             : "text-teal-700",
                         )}
                       >
-                        Current Total Upload Size:{" "}
-                        {(getTotalUploadSizeBytes() / (1024 * 1024)).toFixed(2)}{" "}
+                        Current Contractor Upload Size:{" "}
+                        {(
+                          getContractorUploadSizeBytes() /
+                          (1024 * 1024)
+                        ).toFixed(2)}{" "}
                         MB / 20 MB
                       </span>
                     )}
@@ -1048,20 +1069,22 @@ export function InstallationForm({
                         Property Owner Images
                       </FormLabel>
                       <span className="text-[11px] text-amber-600 font-semibold">
-                        Acceptable size: Max 20MB total combined size for all
+                        Acceptable size: Max 20MB total combined size for owner
                         images
                       </span>
-                      {getTotalUploadSizeBytes() > 0 && (
+                      {getOwnerUploadSizeBytes() > 0 && (
                         <span
                           className={cn(
                             "text-[11px] font-bold mt-0.5",
-                            getTotalUploadSizeBytes() > 20 * 1024 * 1024
+                            getOwnerUploadSizeBytes() > MAX_OWNER_UPLOAD_BYTES
                               ? "text-destructive"
                               : "text-teal-700",
                           )}
                         >
-                          Current Total Upload Size:{" "}
-                          {(getTotalUploadSizeBytes() / (1024 * 1024)).toFixed(2)}{" "}
+                          Current Owner Upload Size:{" "}
+                          {(getOwnerUploadSizeBytes() / (1024 * 1024)).toFixed(
+                            2,
+                          )}{" "}
                           MB / 20 MB
                         </span>
                       )}

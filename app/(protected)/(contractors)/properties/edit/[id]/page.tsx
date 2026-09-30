@@ -760,6 +760,10 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       toast.success("Installation updated successfully");
       await refreshProperty();
       setSelectedComponent(null);
+      if (selectedProject?.is_confirmed) {
+        router.replace(role === "admin" ? "/all-projects" : "/my-projects");
+        return;
+      }
       setStep("SUCCESS");
     } catch (err: any) {
       toast.error(err.message || "Failed to update installation");
@@ -869,6 +873,10 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
       toast.success("Installation added successfully");
       await refreshProperty();
       setNewInstallationType(null);
+      if (selectedProject?.is_confirmed) {
+        router.replace(role === "admin" ? "/all-projects" : "/my-projects");
+        return;
+      }
       setStep("SUCCESS");
     } catch (err: any) {
       toast.error(err.message || "Failed to add installation");
@@ -1158,6 +1166,12 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                       );
                       await refreshProperty();
                       setNewInstallationType(null);
+                      if (selectedProject?.is_confirmed) {
+                        router.replace(
+                          role === "admin" ? "/all-projects" : "/my-projects",
+                        );
+                        return;
+                      }
                       setStep("SUCCESS");
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     } catch (err: any) {
@@ -1193,45 +1207,65 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                     Installation Updated!
                   </h2>
                   <p className="text-[#708090] font-medium text-[14px] md:text-[18px] leading-relaxed max-w-[480px] mx-auto">
-                    Your installation has been updated. Please confirm your
-                    project details or return to Homepage.
+                    {selectedProject?.is_confirmed
+                      ? "Your installation has been updated successfully."
+                      : "Your installation has been updated. Please confirm your project details or return to Homepage."}
                   </p>
                 </div>
 
                 <div className="flex flex-col gap-[12px] md:gap-[16px] pt-[10px] md:pt-[20px]">
-                  <button
-                    onClick={() => setConfirmDialogOpen(true)}
-                    disabled={saving}
-                    className="w-full h-[52px] md:h-[77px] bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 disabled:opacity-60 text-white font-bold rounded-[10px] text-[18px] md:text-[24px] font-asap transition-colors flex items-center justify-center gap-3"
-                  >
-                    {saving ? (
-                      <Loader2 className="size-6 animate-spin" />
-                    ) : null}
-                    Confirm Project
-                  </button>
+                  {selectedProject?.is_confirmed ? (
+                    <button
+                      onClick={() => {
+                        router.replace(
+                          role === "admin" ? "/all-projects" : "/my-projects",
+                        );
+                      }}
+                      className="w-full h-[52px] md:h-[77px] bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold rounded-[10px] text-[18px] md:text-[24px] font-asap transition-colors flex items-center justify-center gap-3 cursor-pointer"
+                    >
+                      {role === "admin"
+                        ? "Go to All Projects"
+                        : "Go to My Projects"}
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setConfirmDialogOpen(true)}
+                        disabled={saving}
+                        className="w-full h-[52px] md:h-[77px] bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 disabled:opacity-60 text-white font-bold rounded-[10px] text-[18px] md:text-[24px] font-asap transition-colors flex items-center justify-center gap-3"
+                      >
+                        {saving ? (
+                          <Loader2 className="size-6 animate-spin" />
+                        ) : null}
+                        Confirm Project
+                      </button>
 
-                  <button
-                    onClick={() => {
-                      router.replace(
-                        role === "admin" ? "/all-projects" : "/dashboard",
-                      );
-                    }}
-                    className="w-full h-[52px] md:h-[77px] border-2 border-[#1F2A44] text-[#1F2A44] font-bold rounded-[10px] text-[18px] md:text-[24px] font-asap hover:bg-[rgba(31,42,68,0.06)] transition-colors"
-                  >
-                    Save as Draft & Go to Home
-                  </button>
+                      <button
+                        onClick={() => {
+                          router.replace(
+                            role === "admin" ? "/all-projects" : "/dashboard",
+                          );
+                        }}
+                        className="w-full h-[52px] md:h-[77px] border-2 border-[#1F2A44] text-[#1F2A44] font-bold rounded-[10px] text-[18px] md:text-[24px] font-asap hover:bg-[rgba(31,42,68,0.06)] transition-colors"
+                      >
+                        Save as Draft & Go to Home
+                      </button>
+                    </>
+                  )}
                 </div>
 
-                <ConfirmSubmitDialog
-                  open={confirmDialogOpen}
-                  onConfirm={() => {
-                    setConfirmDialogOpen(false);
-                    handleConfirmProject();
-                  }}
-                  onCancel={() => setConfirmDialogOpen(false)}
-                  title="Confirm Project"
-                  description="Once confirmed, this project cannot be edited by you. Only an admin will be able to make changes after submission."
-                />
+                {!selectedProject?.is_confirmed && (
+                  <ConfirmSubmitDialog
+                    open={confirmDialogOpen}
+                    onConfirm={() => {
+                      setConfirmDialogOpen(false);
+                      handleConfirmProject();
+                    }}
+                    onCancel={() => setConfirmDialogOpen(false)}
+                    title="Confirm Project"
+                    description="Once confirmed, this project cannot be edited by you. Only an admin will be able to make changes after submission."
+                  />
+                )}
               </div>
             )}
             <ConfirmDeleteDialog
