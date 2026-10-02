@@ -479,8 +479,7 @@ export function AddressForm({
             </Button>
             {data.latitude != null && data.longitude != null && (
               <span className="text-[12px] md:text-[14px] font-mono text-[#708090] bg-white px-4 py-2 rounded-[6px] border border-slate-200/60 shadow-sm">
-                Pin Coordinates: {data.latitude.toFixed(6)},{" "}
-                {data.longitude.toFixed(6)}
+                Pin Coordinates: {data.latitude}, {data.longitude}
               </span>
             )}
           </div>
