@@ -43,6 +43,7 @@ interface SearchableSelectProps {
   autoFocusNext?: boolean;
   keyboardSelectHighlighted?: boolean;
   triggerRef?: React.Ref<HTMLButtonElement>;
+  isError?: boolean;
 }
 
 const triggerClass =
@@ -189,6 +190,7 @@ export function SearchableSelect({
   autoFocusNext = true,
   triggerRef,
   keyboardSelectHighlighted = false,
+  isError = false,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchState, setSearchState] = useState("");
@@ -341,8 +343,11 @@ export function SearchableSelect({
               }
             }
           }}
+          aria-invalid={isError ? "true" : undefined}
           className={cn(
             triggerClassName ?? triggerClass,
+            isError &&
+              "!border-red-500 md:!border-red-500 focus:!ring-red-500/20 bg-red-50/10 text-red-900",
             !displayValue && "text-[#708090]/50",
           )}
         >

@@ -178,6 +178,10 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
     front: string | null;
     other: string | null;
   }>({ front: null, other: null });
+  const [addressErrorFields, setAddressErrorFields] = useState<string[]>([]);
+  const [addressErrorMessage, setAddressErrorMessage] = useState<string | null>(
+    null,
+  );
 
   const user = useUser();
   const currentRole = user?.role?.toLowerCase();
@@ -545,6 +549,8 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
     const isMembershipValid = await validateMembership();
     if (!isMembershipValid) return;
 
+    setAddressErrorFields([]);
+    setAddressErrorMessage(null);
     setLoading(true);
     try {
       let propertyId = tempPropertyId;
@@ -583,11 +589,18 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
         );
 
         if (!propertyResult.success) {
+          if (
+            propertyResult.errorFields &&
+            Array.isArray(propertyResult.errorFields)
+          ) {
+            setAddressErrorFields(propertyResult.errorFields);
+            setAddressErrorMessage(propertyResult.message || null);
+          }
           toast.error(
             propertyResult.message ||
               "Failed to save property. Please try again.",
           );
-          return;
+          return propertyResult;
         }
 
         propertyId = propertyResult.data?.data?.id || propertyResult.data?.id;
@@ -904,6 +917,9 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
                 alreadySaved={!!tempPropertyId}
                 onBack={() => router.back()}
                 hasSavedImages={hasSavedImages}
+                errorFields={addressErrorFields}
+                onErrorFieldsChange={setAddressErrorFields}
+                apiErrorMessage={addressErrorMessage}
               />
             )}
 

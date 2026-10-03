@@ -34,6 +34,7 @@ type FetchApiResponse<T = any> = {
     type: 'success' | 'error';
     messages?: string | string[] | null;
     error?: any;
+    errorFields?: string[];
 };
 
 const API_URL = process.env.NEXT_PUBLIC_BASE_URL;
@@ -44,7 +45,7 @@ function normalizeMsg(messages: string | string[] | null | undefined, fallback: 
 
 export type ActionResult<T = any> =
     | { success: true; data: T }
-    | { success: false; message: string };
+    | { success: false; message: string; errorFields?: string[]; error?: any };
 
 export async function fetchApi<T = any>({
     url,
@@ -123,7 +124,19 @@ export async function fetchApi<T = any>({
             const errorData = await response.json().catch(() => ({}));
             const rawMsg = errorData?.message || errorData?.error || errorData?.errors || `Fetch failed: ${response.status} ${response.statusText}`;
             const normalizedMsg = Array.isArray(rawMsg) ? rawMsg.join(', ') : typeof rawMsg === 'object' && rawMsg !== null ? JSON.stringify(rawMsg) : String(rawMsg);
-            return { status: response.status, data: null, type: 'error', messages: normalizedMsg };
+            const errorFields = Array.isArray(errorData?.errorFields)
+                ? errorData.errorFields
+                : Array.isArray(errorData?.error_fields)
+                    ? errorData.error_fields
+                    : undefined;
+            return {
+                status: response.status,
+                data: null,
+                type: 'error',
+                messages: normalizedMsg,
+                error: errorData,
+                errorFields,
+            };
         }
 
         // Handle different response types
@@ -1077,7 +1090,12 @@ export async function postProperty(body: any, saveAsDraft?: boolean): Promise<Ac
         data: body,
     });
     if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to add property') };
+        return {
+            success: false,
+            message: normalizeMsg(response.messages, 'Failed to add property'),
+            errorFields: response.errorFields,
+            error: response.error,
+        };
     }
     return { success: true, data: response.data };
 }
@@ -1559,14 +1577,19 @@ export async function getFreeTrialStatus(): Promise<ActionResult<FreeTrialStatus
     return { success: true, data: response.data };
 }
 
-export async function updateProperties(id: string, body: any) {
+export async function updateProperties(id: string, body: any): Promise<ActionResult> {
     const response = await fetchApi({
         url: `/api/properties/admin/${id}`,
         method: "PUT",
         data: body,
     });
     if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to delete membership') };
+        return {
+            success: false,
+            message: normalizeMsg(response.messages, 'Failed to update property'),
+            errorFields: response.errorFields,
+            error: response.error,
+        };
     }
     return { success: true, data: response.data };
 
@@ -3217,7 +3240,12 @@ export async function editPropertyCorrection(propertyId: string, data: any): Pro
         data,
     });
     if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to edit property correction') };
+        return {
+            success: false,
+            message: normalizeMsg(response.messages, 'Failed to edit property correction'),
+            errorFields: response.errorFields,
+            error: response.error,
+        };
     }
     return { success: true, data: response.data };
 }

@@ -178,6 +178,10 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
   const [propertyOwners, setPropertyOwners] = useState<PropertyOwnerOption[]>(
     [],
   );
+  const [addressErrorFields, setAddressErrorFields] = useState<string[]>([]);
+  const [addressErrorMessage, setAddressErrorMessage] = useState<string | null>(
+    null,
+  );
   const [propertyTypes, setPropertyTypes] = useState<
     { id: string; category?: string; name?: string }[]
   >([]);
@@ -539,6 +543,8 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
 
   const handleAddressSave = async (e: React.FormEvent, nextStep?: string) => {
     e.preventDefault();
+    setAddressErrorFields([]);
+    setAddressErrorMessage(null);
     setSaving(true);
     try {
       const isOtherType =
@@ -582,8 +588,12 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
         longitude: addressData.longitude,
       });
       if (!result.success) {
+        if (result.errorFields && Array.isArray(result.errorFields)) {
+          setAddressErrorFields(result.errorFields);
+          setAddressErrorMessage(result.message || null);
+        }
         toast.error(result.message);
-        return;
+        return result;
       }
       toast.success("Address updated successfully");
 
@@ -990,6 +1000,9 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                 hasSavedImages={
                   !!property?.front_image || !!property?.other_image
                 }
+                errorFields={addressErrorFields}
+                onErrorFieldsChange={setAddressErrorFields}
+                apiErrorMessage={addressErrorMessage}
               />
             )}
 

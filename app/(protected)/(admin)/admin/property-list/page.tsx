@@ -127,6 +127,10 @@ function EditPropertyModal({
     [],
   );
   const [propertyTypes, setPropertyTypes] = useState<PropertyTypeOption[]>([]);
+  const [addressErrorFields, setAddressErrorFields] = useState<string[]>([]);
+  const [addressErrorMessage, setAddressErrorMessage] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!open || !propertyId) return;
@@ -305,6 +309,8 @@ function EditPropertyModal({
           addressData.property_type_id || addressData.property_type || null;
       }
 
+      setAddressErrorFields([]);
+      setAddressErrorMessage(null);
       const res = await updateProperties(propertyId, {
         address: addressData.address,
         address2: addressData.address2,
@@ -326,6 +332,10 @@ function EditPropertyModal({
       });
 
       if (!res?.success) {
+        if (res?.errorFields && Array.isArray(res.errorFields)) {
+          setAddressErrorFields(res.errorFields);
+          setAddressErrorMessage(res.message || null);
+        }
         toast.error(res?.message || "Failed to update property address");
         return false;
       }
@@ -431,6 +441,9 @@ function EditPropertyModal({
                   hasSavedImages={
                     !!property?.front_image || !!property?.other_image
                   }
+                  errorFields={addressErrorFields}
+                  onErrorFieldsChange={setAddressErrorFields}
+                  apiErrorMessage={addressErrorMessage}
                 />
               )}
 

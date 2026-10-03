@@ -10,7 +10,7 @@ import { useUser } from "../providers/user-provider";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { getCities, getUserProfile, getReportUsage } from "@/lib/actions";
 import { MapDialog } from "./MapDialog";
-import { toTitleCase } from "@/lib/utils";
+import { toTitleCase, cn } from "@/lib/utils";
 
 export interface AddressData {
   address: string;
@@ -49,7 +49,7 @@ export interface PropertyTypeOption {
 interface AddressFormProps {
   data: AddressData;
   onChange: (data: AddressData) => void;
-  onSubmit: (e: React.FormEvent, nextStep?: string) => void;
+  onSubmit: (e: React.FormEvent, nextStep?: string) => void | Promise<any>;
   loading: boolean;
   states?: StateOption[];
   cities?: CityOption[];
@@ -59,6 +59,9 @@ interface AddressFormProps {
   isEdit?: boolean;
   onBack?: () => void;
   hasSavedImages?: boolean;
+  errorFields?: string[];
+  onErrorFieldsChange?: (fields: string[]) => void;
+  apiErrorMessage?: string | null;
 }
 
 const triggerClass =
@@ -77,8 +80,128 @@ export function AddressForm({
   isEdit = false,
   onBack,
   hasSavedImages = false,
+  errorFields = [],
+  onErrorFieldsChange,
+  apiErrorMessage,
 }: AddressFormProps) {
   const user = useUser();
+  const [internalErrorFields, setInternalErrorFields] = useState<string[]>(
+    errorFields || [],
+  );
+
+  useEffect(() => {
+    if (errorFields !== undefined) {
+      setInternalErrorFields(errorFields);
+    }
+  }, [errorFields]);
+
+  const updateErrorFields = (newFields: string[]) => {
+    setInternalErrorFields(newFields);
+    onErrorFieldsChange?.(newFields);
+  };
+
+  const hasFieldError = (fieldName: string): boolean => {
+    if (!internalErrorFields || internalErrorFields.length === 0) return false;
+    const lowerName = fieldName.toLowerCase();
+    return internalErrorFields.some((f) => {
+      const lowerF = f.toLowerCase();
+      if (lowerName === "address") {
+        return lowerF === "address";
+      }
+      if (lowerName === "address2") {
+        return lowerF === "address2";
+      }
+      if (lowerName === "city") {
+        return (
+          lowerF === "city" || lowerF === "city_id" || lowerF === "other_city"
+        );
+      }
+      if (lowerName === "state") {
+        return lowerF === "state" || lowerF === "state_id";
+      }
+      if (lowerName === "zip") {
+        return (
+          lowerF === "zip" ||
+          lowerF === "zip_code" ||
+          lowerF === "zipcode" ||
+          lowerF === "postal_code"
+        );
+      }
+      if (lowerName === "property_name") {
+        return lowerF === "property_name" || lowerF === "propertyname";
+      }
+      if (lowerName === "property_type") {
+        return (
+          lowerF === "property_type" ||
+          lowerF === "property_type_id" ||
+          lowerF === "property_type_category" ||
+          lowerF === "other_property_type"
+        );
+      }
+      if (lowerName === "property_owner") {
+        return (
+          lowerF === "property_owner" ||
+          lowerF === "property_owner_id" ||
+          lowerF === "propertyowner"
+        );
+      }
+      return lowerF === lowerName;
+    });
+  };
+
+  const clearFieldError = (fieldName: string) => {
+    if (!internalErrorFields || internalErrorFields.length === 0) return;
+    const lowerName = fieldName.toLowerCase();
+    const updated = internalErrorFields.filter((f) => {
+      const lowerF = f.toLowerCase();
+      if (lowerName === "address") {
+        return (
+          lowerF !== "address" && lowerF !== "address1" && lowerF !== "street"
+        );
+      }
+      if (lowerName === "address2") {
+        return lowerF !== "address2";
+      }
+      if (lowerName === "city") {
+        return (
+          lowerF !== "city" && lowerF !== "city_id" && lowerF !== "other_city"
+        );
+      }
+      if (lowerName === "state") {
+        return lowerF !== "state" && lowerF !== "state_id";
+      }
+      if (lowerName === "zip") {
+        return (
+          lowerF !== "zip" &&
+          lowerF !== "zip_code" &&
+          lowerF !== "zipcode" &&
+          lowerF !== "postal_code"
+        );
+      }
+      if (lowerName === "property_name") {
+        return lowerF !== "property_name" && lowerF !== "propertyname";
+      }
+      if (lowerName === "property_type") {
+        return (
+          lowerF !== "property_type" &&
+          lowerF !== "property_type_id" &&
+          lowerF !== "property_type_category" &&
+          lowerF !== "other_property_type"
+        );
+      }
+      if (lowerName === "property_owner") {
+        return (
+          lowerF !== "property_owner" &&
+          lowerF !== "property_owner_id" &&
+          lowerF !== "propertyowner"
+        );
+      }
+      return lowerF !== lowerName;
+    });
+    if (updated.length !== internalErrorFields.length) {
+      updateErrorFields(updated);
+    }
+  };
   const [citySearch, setCitySearch] = useState("");
   const [fetchedCities, setFetchedCities] = useState<CityOption[]>([]);
   const [loadingCities, setLoadingCities] = useState(false);
@@ -267,7 +390,13 @@ export function AddressForm({
       return;
     }
 
-    onSubmit(e, nextStep);
+    const res = (await onSubmit(e, nextStep)) as any;
+    if (res) {
+      const fields = res.errorFields || res?.data?.errorFields;
+      if (Array.isArray(fields) && fields.length > 0) {
+        updateErrorFields(fields);
+      }
+    }
   };
 
   return (
@@ -278,171 +407,300 @@ export function AddressForm({
         </h2>
       </div>
 
+      {/* Validation Error Banner */}
+      {internalErrorFields.length > 0 && (
+        <div className="flex items-start gap-3 p-4 md:p-5 rounded-[6px] md:rounded-[10px] border border-red-200 bg-red-50/90 text-red-800 text-[14px] md:text-[16px] font-medium leading-relaxed font-asap shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+          <svg
+            className="size-5 md:size-6 text-red-500 shrink-0 mt-0.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+          <div>
+            {apiErrorMessage ||
+              `The provided ${internalErrorFields.join(", ")} are invalid. Please check the highlighted fields.`}
+          </div>
+        </div>
+      )}
+
       <div className="space-y-[15px] md:space-y-[28px]">
         {/* Property Type */}
-        <SearchableSelect
-          options={propertyTypeOptions}
-          value={
-            isOtherSelected
-              ? "OTHER"
-              : (data.property_type_id ?? data.property_type ?? "")
-          }
-          placeholder="Property Type"
-          searchPlaceholder="Search property type..."
-          emptyMessage={
-            propertyTypes.length === 0 ? "Loading..." : "No property type found"
-          }
-          onValueChange={(val) => {
-            if (val === "OTHER") {
-              onChange({
-                ...data,
-                property_type_id: "OTHER",
-                property_type_category: "OTHER",
-                property_type: "OTHER",
-                other_property_type: data.other_property_type || "",
-              });
-            } else {
-              const selected = propertyTypes.find(
-                (pt: any) =>
-                  pt.id === val ||
-                  pt.category === val ||
-                  pt.name === val ||
-                  (pt.id || pt.category || pt.name) === val,
-              );
-              const categoryName = selected?.category || selected?.name || val;
-              onChange({
-                ...data,
-                property_type_id: selected?.id || val,
-                property_type_category: categoryName,
-                property_type: selected?.id || val,
-                other_property_type: "",
-              });
-            }
-          }}
-          keyboardSelectHighlighted
-        />
-
-        {/* Other Property Type Input (Shown when Other is selected) */}
-        {isOtherSelected && (
-          <Input
-            placeholder="Specify Other Property Type"
-            required
-            className="h-[46px] md:h-[65px] px-[20px] md:px-[29px] bg-white border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap"
-            value={data.other_property_type || ""}
-            onChange={(e) =>
-              onChange({ ...data, other_property_type: e.target.value })
-            }
-          />
-        )}
-
-        <Input
-          placeholder="Property Name"
-          required
-          className="h-[46px] md:h-[65px] px-[20px] md:px-[29px] bg-white border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap"
-          value={data.property_name}
-          onChange={(e) => onChange({ ...data, property_name: e.target.value })}
-        />
-
-        {/* Address 1 */}
-        <Input
-          placeholder="Address 1"
-          required
-          className="h-[46px] md:h-[65px] px-[20px] md:px-[29px] bg-white border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap"
-          value={data.address}
-          onChange={(e) => onChange({ ...data, address: e.target.value })}
-        />
-
-        {/* Address 2 */}
-        <Input
-          placeholder="Address 2"
-          className="h-[46px] md:h-[65px] px-[20px] md:px-[29px] bg-white border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap"
-          value={data.address2}
-          onChange={(e) => onChange({ ...data, address2: e.target.value })}
-        />
-
-        <div className="grid md:grid-cols-2 gap-[10px] md:gap-[19.8px]">
-          {/* State */}
+        <div className="space-y-1">
           <SearchableSelect
-            options={states.map((s) => ({ id: s.id, name: s.name }))}
-            value={data.state || data.state_id || ""}
-            placeholder="State"
-            searchPlaceholder="Search state..."
-            onValueChange={(val) => {
-              setCitySearch("");
-              setFetchedCities([]);
-              onChange({
-                ...data,
-                state: val,
-                state_id: val,
-                city_id: "",
-                city: "",
-                other_city: "",
-              });
-            }}
-          />
-
-          <SearchableSelect
-            options={cityOptions.map((c) => ({ id: c.id, name: c.name }))}
+            options={propertyTypeOptions}
             value={
-              data.other_city
-                ? `__custom__:${data.other_city}`
-                : data.city_id || ""
+              isOtherSelected
+                ? "OTHER"
+                : (data.property_type_id ?? data.property_type ?? "")
             }
-            displayValueFallback={data.city}
+            placeholder="Property Type"
+            searchPlaceholder="Search property type..."
+            emptyMessage={
+              propertyTypes.length === 0
+                ? "Loading..."
+                : "No property type found"
+            }
+            isError={hasFieldError("property_type")}
             onValueChange={(val) => {
-              if (val.startsWith("__custom__:")) {
-                const customName = val.slice("__custom__:".length);
+              clearFieldError("property_type");
+              if (val === "OTHER") {
                 onChange({
                   ...data,
-                  city_id: "",
-                  other_city: customName,
-                  city: customName,
-                  state_id: data.state || "",
+                  property_type_id: "OTHER",
+                  property_type_category: "OTHER",
+                  property_type: "OTHER",
+                  other_property_type: data.other_property_type || "",
                 });
               } else {
-                const selectedCity =
-                  cities.find((c) => c.id === val) ||
-                  fetchedCities.find((c) => c.id === val);
+                const selected = propertyTypes.find(
+                  (pt: any) =>
+                    pt.id === val ||
+                    pt.category === val ||
+                    pt.name === val ||
+                    (pt.id || pt.category || pt.name) === val,
+                );
+                const categoryName =
+                  selected?.category || selected?.name || val;
                 onChange({
                   ...data,
-                  city_id: val,
-                  other_city: "",
-                  city: selectedCity?.name || "",
-                  state: selectedCity?.state_id || data.state || "",
-                  state_id: selectedCity?.state_id || data.state || "",
+                  property_type_id: selected?.id || val,
+                  property_type_category: categoryName,
+                  property_type: selected?.id || val,
+                  other_property_type: "",
                 });
               }
             }}
-            placeholder="City"
-            searchPlaceholder={
-              !data.state && !data.state_id
-                ? "Select state first..."
-                : "Search city..."
-            }
-            emptyMessage={
-              !data.state && !data.state_id
-                ? "Please select a state first"
-                : "No cities found"
-            }
-            loading={loadingCities}
-            allowCustom
-            searchValue={citySearch}
-            onSearchValueChange={setCitySearch}
+            keyboardSelectHighlighted
           />
+          {hasFieldError("property_type") && (
+            <p className="text-[12px] md:text-[14px] text-red-500 font-medium font-asap mt-1 ml-1">
+              Please select a valid property type
+            </p>
+          )}
         </div>
 
-        <Input
-          placeholder="Zip Code"
-          required
-          inputMode="numeric"
-          className="h-11.5 md:h-16.25 px-5 md:px-7.25 bg-white border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap"
-          value={data.zip}
-          onChange={(e) => {
-            const val = e.target.value;
-            onChange({ ...data, zip: val });
-          }}
-        />
-        <div className="w-full">
+        {/* Other Property Type Input (Shown when Other is selected) */}
+        {isOtherSelected && (
+          <div className="space-y-1">
+            <Input
+              placeholder="Specify Other Property Type"
+              required
+              className={cn(
+                "h-[46px] md:h-[65px] px-[20px] md:px-[29px] bg-white rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap transition-colors",
+                hasFieldError("property_type")
+                  ? "!border-red-500 md:!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900 border"
+                  : "border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)]",
+              )}
+              value={data.other_property_type || ""}
+              aria-invalid={hasFieldError("property_type") ? "true" : undefined}
+              onChange={(e) => {
+                clearFieldError("property_type");
+                onChange({ ...data, other_property_type: e.target.value });
+              }}
+            />
+          </div>
+        )}
+
+        {/* Property Name */}
+        <div className="space-y-1">
+          <Input
+            placeholder="Property Name"
+            required
+            className={cn(
+              "h-[46px] md:h-[65px] px-[20px] md:px-[29px] bg-white rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap transition-colors",
+              hasFieldError("property_name")
+                ? "!border-red-500 md:!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900 border"
+                : "border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)]",
+            )}
+            value={data.property_name}
+            aria-invalid={hasFieldError("property_name") ? "true" : undefined}
+            onChange={(e) => {
+              clearFieldError("property_name");
+              onChange({ ...data, property_name: e.target.value });
+            }}
+          />
+          {hasFieldError("property_name") && (
+            <p className="text-[12px] md:text-[14px] text-red-500 font-medium font-asap mt-1 ml-1">
+              Please enter a valid property name
+            </p>
+          )}
+        </div>
+
+        {/* Address 1 */}
+        <div className="space-y-1">
+          <Input
+            placeholder="Address 1"
+            required
+            className={cn(
+              "h-[46px] md:h-[65px] px-[20px] md:px-[29px] bg-white rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap transition-colors",
+              hasFieldError("address")
+                ? "!border-red-500 md:!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900 border"
+                : "border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)]",
+            )}
+            value={data.address}
+            aria-invalid={hasFieldError("address") ? "true" : undefined}
+            onChange={(e) => {
+              clearFieldError("address");
+              onChange({ ...data, address: e.target.value });
+            }}
+          />
+          {hasFieldError("address") && (
+            <p className="text-[12px] md:text-[14px] text-red-500 font-medium font-asap mt-1 ml-1">
+              Please provide a valid address
+            </p>
+          )}
+        </div>
+
+        {/* Address 2 */}
+        <div className="space-y-1">
+          <Input
+            placeholder="Address 2"
+            className={cn(
+              "h-[46px] md:h-[65px] px-[20px] md:px-[29px] bg-white rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap transition-colors",
+              hasFieldError("address2")
+                ? "!border-red-500 md:!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900 border"
+                : "border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)]",
+            )}
+            value={data.address2 || ""}
+            aria-invalid={hasFieldError("address2") ? "true" : undefined}
+            onChange={(e) => {
+              clearFieldError("address2");
+              onChange({ ...data, address2: e.target.value });
+            }}
+          />
+          {hasFieldError("address2") && (
+            <p className="text-[12px] md:text-[14px] text-red-500 font-medium font-asap mt-1 ml-1">
+              Please provide a valid address line 2
+            </p>
+          )}
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-[10px] md:gap-[19.8px]">
+          {/* State */}
+          <div className="space-y-1">
+            <SearchableSelect
+              options={states.map((s) => ({ id: s.id, name: s.name }))}
+              value={data.state || data.state_id || ""}
+              placeholder="State"
+              searchPlaceholder="Search state..."
+              isError={hasFieldError("state")}
+              onValueChange={(val) => {
+                clearFieldError("state");
+                setCitySearch("");
+                setFetchedCities([]);
+                onChange({
+                  ...data,
+                  state: val,
+                  state_id: val,
+                  city_id: "",
+                  city: "",
+                  other_city: "",
+                });
+              }}
+            />
+            {hasFieldError("state") && (
+              <p className="text-[12px] md:text-[14px] text-red-500 font-medium font-asap mt-1 ml-1">
+                Please select a valid state
+              </p>
+            )}
+          </div>
+
+          {/* City */}
+          <div className="space-y-1">
+            <SearchableSelect
+              options={cityOptions.map((c) => ({ id: c.id, name: c.name }))}
+              value={
+                data.other_city
+                  ? `__custom__:${data.other_city}`
+                  : data.city_id || ""
+              }
+              displayValueFallback={data.city}
+              isError={hasFieldError("city")}
+              onValueChange={(val) => {
+                clearFieldError("city");
+                if (val.startsWith("__custom__:")) {
+                  const customName = val.slice("__custom__:".length);
+                  onChange({
+                    ...data,
+                    city_id: "",
+                    other_city: customName,
+                    city: customName,
+                    state_id: data.state || "",
+                  });
+                } else {
+                  const selectedCity =
+                    cities.find((c) => c.id === val) ||
+                    fetchedCities.find((c) => c.id === val);
+                  onChange({
+                    ...data,
+                    city_id: val,
+                    other_city: "",
+                    city: selectedCity?.name || "",
+                    state: selectedCity?.state_id || data.state || "",
+                    state_id: selectedCity?.state_id || data.state || "",
+                  });
+                }
+              }}
+              placeholder="City"
+              searchPlaceholder={
+                !data.state && !data.state_id
+                  ? "Select state first..."
+                  : "Search city..."
+              }
+              emptyMessage={
+                !data.state && !data.state_id
+                  ? "Please select a state first"
+                  : "No cities found"
+              }
+              loading={loadingCities}
+              allowCustom
+              searchValue={citySearch}
+              onSearchValueChange={setCitySearch}
+            />
+            {hasFieldError("city") && (
+              <p className="text-[12px] md:text-[14px] text-red-500 font-medium font-asap mt-1 ml-1">
+                Please select a valid city
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Zip Code */}
+        <div className="space-y-1">
+          <Input
+            placeholder="Zip Code"
+            required
+            inputMode="numeric"
+            className={cn(
+              "h-11.5 md:h-16.25 px-5 md:px-7.25 bg-white rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap transition-colors",
+              hasFieldError("zip")
+                ? "!border-red-500 md:!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900 border"
+                : "border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)]",
+            )}
+            value={data.zip}
+            aria-invalid={hasFieldError("zip") ? "true" : undefined}
+            onChange={(e) => {
+              clearFieldError("zip");
+              const val = e.target.value;
+              onChange({ ...data, zip: val });
+            }}
+          />
+          {hasFieldError("zip") && (
+            <p className="text-[12px] md:text-[14px] text-red-500 font-medium font-asap mt-1 ml-1">
+              Please enter a valid zip code
+            </p>
+          )}
+        </div>
+
+        {/* Property Owner */}
+        <div className="w-full space-y-1">
           <SearchableSelect
             options={[
               { id: "__none__", name: "None" },
@@ -455,17 +713,29 @@ export function AddressForm({
               })),
             ]}
             value={data.property_owner_id || ""}
-            onValueChange={(val) =>
+            isError={
+              hasFieldError("property_owner_id") ||
+              hasFieldError("property_owner")
+            }
+            onValueChange={(val) => {
+              clearFieldError("property_owner_id");
+              clearFieldError("property_owner");
               onChange({
                 ...data,
                 property_owner_id: !val || val === "__none__" ? null : val,
-              })
-            }
+              });
+            }}
             placeholder="Property Owner"
             searchPlaceholder="Search property owner..."
             triggerClassName={triggerClass}
             keyboardSelectHighlighted
           />
+          {(hasFieldError("property_owner_id") ||
+            hasFieldError("property_owner")) && (
+            <p className="text-[12px] md:text-[14px] text-red-500 font-medium font-asap mt-1 ml-1">
+              Please select a valid property owner
+            </p>
+          )}
         </div>
         <div className="space-y-3.75 md:space-y-5 p-5 border border-dashed border-[rgba(28,167,166,0.3)] rounded-[10px] bg-slate-50/50">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

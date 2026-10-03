@@ -89,7 +89,6 @@ export const PROPERTY_ROLE_FIELDS: RoleFieldConfig[] = [
     type: "text",
     required: true,
     placeholder: "Zip Code",
-    maxLength: 10,
     inputMode: "numeric",
     gridSpan: "half",
   },
