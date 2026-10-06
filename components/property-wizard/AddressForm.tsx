@@ -509,7 +509,7 @@ export function AddressForm({
         )}
 
         {/* Property Name */}
-        <div className="space-y-1">
+        {/* <div className="space-y-1">
           <Input
             placeholder="Property Name"
             required
@@ -525,13 +525,13 @@ export function AddressForm({
               clearFieldError("property_name");
               onChange({ ...data, property_name: e.target.value });
             }}
-          />
-          {hasFieldError("property_name") && (
+          /> */}
+          {/* {hasFieldError("property_name") && (
             <p className="text-[12px] md:text-[14px] text-red-500 font-medium font-asap mt-1 ml-1">
               Please enter a valid property name
             </p>
           )}
-        </div>
+        </div> */}
 
         {/* Address 1 */}
         <div className="space-y-1">
@@ -737,7 +737,7 @@ export function AddressForm({
             </p>
           )}
         </div>
-        <div className="space-y-3.75 md:space-y-5 p-5 border border-dashed border-[rgba(28,167,166,0.3)] rounded-[10px] bg-slate-50/50">
+        {/* <div className="space-y-3.75 md:space-y-5 p-5 border border-dashed border-[rgba(28,167,166,0.3)] rounded-[10px] bg-slate-50/50">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <Button
               type="button"
@@ -753,7 +753,7 @@ export function AddressForm({
               </span>
             )}
           </div>
-        </div>
+        </div> */}
       </div>
 
       <div className="space-y-[15px] md:space-y-[17px] pt-[15px] md:pt-[23px]">
