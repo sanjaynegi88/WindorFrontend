@@ -525,7 +525,7 @@ export default function AddedPropertiesPage() {
                       {/* Property Info */}
                       <td className="py-5 px-6">
                         <div className="space-y-1">
-                          <h3 className="font-bold text-[#1F2A44] text-[15px] md:text-[17px] group-hover:text-[#1CA7A6] transition-colors leading-tight">
+                          <h3 className="hidden font-bold text-[#1F2A44] text-[15px] md:text-[17px] group-hover:text-[#1CA7A6] transition-colors leading-tight">
                             {property.propertyName}
                           </h3>
                           <div className="flex items-center gap-1 text-[13px] font-medium text-[#708090]">
