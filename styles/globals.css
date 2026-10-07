@@ -222,3 +222,31 @@ html {
 .animate-pulse-progress {
   animation: pulse-progress 20s cubic-bezier(0.1, 0.8, 0.1, 1) forwards;
 }
+
+/* Google Places Autocomplete Dropdown */
+.pac-container {
+  z-index: 99999 !important;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  font-family: inherit;
+  margin-top: 4px;
+}
+
+.pac-item {
+  padding: 10px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  line-height: 1.5;
+  color: #1F2A44;
+}
+
+.pac-item:hover,
+.pac-item-selected {
+  background-color: #f1f5f9;
+}
+
+.pac-matched {
+  color: #1CA7A6;
+  font-weight: 600;
+}

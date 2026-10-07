@@ -1100,6 +1100,42 @@ export async function postProperty(body: any, saveAsDraft?: boolean): Promise<Ac
     return { success: true, data: response.data };
 }
 
+export interface ValidateAddressPayload {
+    address: string;
+    address2?: string;
+    city: string;
+    state: string;
+    zip: string;
+}
+
+export async function validateAddress(body: ValidateAddressPayload): Promise<ActionResult> {
+    let response = await fetchApi({
+        url: '/api/properties/validate-address',
+        method: 'POST',
+        data: body,
+    });
+
+    if (response.status === 404) {
+        response = await fetchApi({
+            url: '/properties/validate-address',
+            method: 'POST',
+            data: body,
+        });
+    }
+
+    if (response.type === 'error') {
+        return {
+            success: false,
+            message: normalizeMsg(response.messages, 'Address validation failed'),
+            errorFields: response.errorFields,
+            error: response.error,
+        };
+    }
+
+    return { success: true, data: response.data };
+}
+
+
 export async function postInstallation(propertyId: string, type: string, body: any): Promise<ActionResult> {
     const endpoint = `/api/properties/${propertyId}/${toEndpointType(type)}`;
 

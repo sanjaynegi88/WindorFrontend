@@ -395,8 +395,10 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
             "",
           city_id: targetCityId,
           city: matchedCityName,
+          city_name: matchedCityName,
           state: targetStateId,
           state_id: targetStateId,
+          state_name: propertyPayload?.state_name,
           zip: propertyPayload?.zip || prev.zip || "",
           property_name: propertyName || prev.property_name || "",
           property_owner_id:
@@ -561,32 +563,37 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           addressData.property_type_id === "OTHER" ||
           addressData.property_type === "OTHER";
 
+        const payload = {
+          address: addressData.address,
+          address2: addressData.address2,
+          city_id: addressData.city_id || null,
+          other_city: addressData.other_city || null,
+          state_id: addressData.state || addressData.state_id || null,
+          zip: addressData.zip,
+          property_type_id: isOtherType
+            ? null
+            : addressData.property_type_id ||
+              addressData.property_type ||
+              null,
+          property_type_category: isOtherType
+            ? "OTHER"
+            : addressData.property_type_category || null,
+          other_property_type: isOtherType
+            ? addressData.other_property_type || null
+            : null,
+          property_name: addressData.property_name,
+          property_owner_id: addressData.property_owner_id,
+          latitude: addressData.latitude,
+          longitude: addressData.longitude,
+        };
+
+        console.log("=== CREATE PROPERTY PAYLOAD ===", payload);
+
         const propertyResult = await postProperty(
-          {
-            address: addressData.address,
-            address2: addressData.address2,
-            city_id: addressData.city_id || null,
-            other_city: addressData.other_city || null,
-            state_id: addressData.state || addressData.state_id || null,
-            zip: addressData.zip,
-            property_type_id: isOtherType
-              ? null
-              : addressData.property_type_id ||
-                addressData.property_type ||
-                null,
-            property_type_category: isOtherType
-              ? "OTHER"
-              : addressData.property_type_category || null,
-            other_property_type: isOtherType
-              ? addressData.other_property_type || null
-              : null,
-            property_name: addressData.property_name,
-            property_owner_id: addressData.property_owner_id,
-            latitude: addressData.latitude,
-            longitude: addressData.longitude,
-          },
+          payload,
           nextStep === "DRAFT",
         );
+        console.log("=== CREATE PROPERTY RESULT ===", propertyResult);
 
         if (!propertyResult.success) {
           if (

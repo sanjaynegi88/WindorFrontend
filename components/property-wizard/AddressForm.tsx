@@ -1,16 +1,23 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
-import { ChevronLeft, Eye, MapPin } from "lucide-react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { ChevronLeft, Eye, MapPin, Search, X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StateOption, CityOption } from "@/lib/location-utils";
 import { toast } from "sonner";
 import { useUser } from "../providers/user-provider";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { getCities, getUserProfile, getReportUsage } from "@/lib/actions";
+import {
+  getCities,
+  getStates,
+  getUserProfile,
+  getReportUsage,
+  validateAddress,
+} from "@/lib/actions";
 import { MapDialog } from "./MapDialog";
 import { toTitleCase, cn } from "@/lib/utils";
+import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 
 export interface AddressData {
   address: string;
@@ -31,6 +38,8 @@ export interface AddressData {
   longitude?: number | null;
   other_city?: string;
   state_id?: string;
+  state_name?: string;
+  city_name?: string;
 }
 
 export interface PropertyOwnerOption {
@@ -66,6 +75,84 @@ interface AddressFormProps {
 
 const triggerClass =
   "w-full h-[46px] md:h-[65px] px-[20px] md:px-[29px] rounded-[6px] md:rounded-[10px] border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] bg-white text-[14px] md:text-[20px] font-medium text-[#1F2A44] data-placeholder:text-[#708090]/50 focus:ring-[#1CA7A6]/20 font-asap gap-2 justify-start text-left [&>span]:flex-1 [&>span]:truncate [&>span]:text-left";
+
+export const getStateDisplayName = (
+  stateVal?: string,
+  stateIdVal?: string,
+  stateNameVal?: string,
+  statesList: StateOption[] = [],
+): string => {
+  if (stateNameVal) return stateNameVal;
+  const target = stateIdVal || stateVal || "";
+  if (!target) return "";
+  const matchedState = statesList.find(
+    (s) =>
+      s.id === target ||
+      (s.abbreviation &&
+        s.abbreviation.toLowerCase() === target.toLowerCase()) ||
+      (s.name && s.name.toLowerCase() === target.toLowerCase()),
+  );
+  if (matchedState) {
+    return matchedState.abbreviation || matchedState.name;
+  }
+  if (target.includes("-") && target.length > 20) {
+    return "";
+  }
+  return target;
+};
+
+export const getCityDisplayName = (
+  cityVal?: string,
+  cityIdVal?: string,
+  cityNameVal?: string,
+  otherCityVal?: string,
+  citiesList: CityOption[] = [],
+): string => {
+  if (cityNameVal) return cityNameVal;
+  if (otherCityVal) return otherCityVal;
+  if (cityVal && (!cityVal.includes("-") || cityVal.length < 20)) {
+    return cityVal;
+  }
+  const target = cityIdVal || cityVal || "";
+  if (!target) return "";
+  const matchedCity = citiesList.find((c) => c.id === target);
+  if (matchedCity) {
+    return matchedCity.name;
+  }
+  if (target.includes("-") && target.length > 20) {
+    return "";
+  }
+  return target;
+};
+
+export const formatFullAddress = (
+  addressObj: AddressData,
+  statesList: StateOption[] = [],
+  citiesList: CityOption[] = [],
+): string => {
+  if (!addressObj?.address) return "";
+  const stateStr = getStateDisplayName(
+    addressObj.state,
+    addressObj.state_id,
+    addressObj.state_name,
+    statesList,
+  );
+  const cityStr = getCityDisplayName(
+    addressObj.city,
+    addressObj.city_id,
+    addressObj.city_name,
+    addressObj.other_city,
+    citiesList,
+  );
+  const parts = [
+    addressObj.address,
+    addressObj.address2,
+    cityStr,
+    stateStr,
+    addressObj.zip,
+  ].filter(Boolean);
+  return parts.join(", ");
+};
 
 export function AddressForm({
   data,
@@ -206,6 +293,559 @@ export function AddressForm({
   const [fetchedCities, setFetchedCities] = useState<CityOption[]>([]);
   const [loadingCities, setLoadingCities] = useState(false);
   const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
+
+  // Google Places Autocomplete State and Refs
+  const autocompleteInputRef = useRef<HTMLInputElement | null>(null);
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const listenerRef = useRef<google.maps.MapsEventListener | null>(null);
+  const [searchValue, setSearchValue] = useState<string>(() => {
+    return formatFullAddress(data, states, cities);
+  });
+  const [autocompleteError, setAutocompleteError] = useState<string | null>(
+    null,
+  );
+  const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);
+  const isAddressLocked = Boolean(data.address);
+
+  // Stable refs for listener callback
+  const dataRef = useRef(data);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
+  const statesRef = useRef(states);
+  useEffect(() => {
+    statesRef.current = states;
+  }, [states]);
+
+  const citiesRef = useRef(cities);
+  useEffect(() => {
+    citiesRef.current = cities;
+  }, [cities]);
+
+  // Sync search input if address is loaded or changes externally, or if state/city names become available
+  useEffect(() => {
+    if (data.address) {
+      const isSearchContainingUuid = /[0-9a-f]{8}-[0-9a-f]{4}/i.test(
+        searchValue,
+      );
+      if (!searchValue || isSearchContainingUuid) {
+        const full = formatFullAddress(data, states, [
+          ...cities,
+          ...fetchedCities,
+        ]);
+        if (full) {
+          setSearchValue(full);
+        }
+      }
+    }
+  }, [
+    data.address,
+    data.address2,
+    data.city,
+    data.city_id,
+    data.city_name,
+    data.other_city,
+    data.state,
+    data.state_id,
+    data.state_name,
+    data.zip,
+    states,
+    cities,
+    fetchedCities,
+    searchValue,
+  ]);
+
+  const handleClearSearch = () => {
+    setSearchValue("");
+    setAutocompleteError(null);
+    clearFieldError("address");
+    clearFieldError("address2");
+    clearFieldError("city");
+    clearFieldError("state");
+    clearFieldError("zip");
+    onChange({
+      ...dataRef.current,
+      address: "",
+      address2: "",
+      state: "",
+      state_id: "",
+      city_id: "",
+      city: "",
+      other_city: "",
+      zip: "",
+      latitude: null,
+      longitude: null,
+    });
+    if (autocompleteInputRef.current) {
+      autocompleteInputRef.current.value = "";
+      autocompleteInputRef.current.focus();
+    }
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSearchValue(val);
+    setAutocompleteError(null);
+    if (!val.trim()) {
+      handleClearSearch();
+    }
+  };
+
+  const handlePlaceSelect = async (place: google.maps.places.PlaceResult) => {
+    setAutocompleteError(null);
+
+    console.log("=== GOOGLE PLACES FULL RESPONSE ===");
+    console.log("Full Place Object:", place);
+    console.log("Place Name:", place?.name);
+    console.log("Formatted Address:", place?.formatted_address);
+    console.log("Place Types:", place?.types);
+    console.log("Address Components (Raw):", place?.address_components);
+    if (place?.address_components) {
+      console.table(
+        place.address_components.map((c) => ({
+          types: c.types.join(", "),
+          long_name: c.long_name,
+          short_name: c.short_name,
+        })),
+      );
+    }
+    console.log(
+      "Geometry Coordinates:",
+      place?.geometry?.location
+        ? {
+            lat:
+              typeof place.geometry.location.lat === "function"
+                ? place.geometry.location.lat()
+                : (place.geometry.location as any).lat,
+            lng:
+              typeof place.geometry.location.lng === "function"
+                ? place.geometry.location.lng()
+                : (place.geometry.location as any).lng,
+          }
+        : null,
+    );
+    console.log("====================================");
+
+    if (
+      !place ||
+      !place.address_components ||
+      place.address_components.length === 0
+    ) {
+      const msg =
+        "Please select a valid address from the Google suggestions dropdown.";
+      setAutocompleteError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    const components = place.address_components;
+    let streetNumber = "";
+    let route = "";
+    let subpremise = "";
+    let locality = "";
+    let sublocality = "";
+    let postalTown = "";
+    let stateShort = "";
+    let stateLong = "";
+    let postalCode = "";
+    let countryShort = "";
+    let countryLong = "";
+
+    for (const comp of components) {
+      const types = comp.types || [];
+      if (types.includes("street_number")) {
+        streetNumber = comp.long_name || comp.short_name;
+      }
+      if (types.includes("route")) {
+        route = comp.long_name || comp.short_name;
+      }
+      if (types.includes("subpremise")) {
+        subpremise = comp.long_name || comp.short_name;
+      }
+      if (types.includes("locality")) {
+        locality = comp.long_name || comp.short_name;
+      }
+      if (
+        types.includes("sublocality_level_1") ||
+        types.includes("sublocality")
+      ) {
+        sublocality = comp.long_name || comp.short_name;
+      }
+      if (types.includes("postal_town")) {
+        postalTown = comp.long_name || comp.short_name;
+      }
+      if (types.includes("administrative_area_level_1")) {
+        stateShort = comp.short_name;
+        stateLong = comp.long_name;
+      }
+      if (types.includes("postal_code")) {
+        postalCode = comp.long_name || comp.short_name;
+      }
+      if (types.includes("country")) {
+        countryShort = comp.short_name;
+        countryLong = comp.long_name;
+      }
+    }
+
+    // Edge case 5: Google result is outside the US
+    if (
+      countryShort &&
+      countryShort.toUpperCase() !== "US" &&
+      countryLong.toLowerCase() !== "united states"
+    ) {
+      const msg =
+        "Only United States properties are supported. Please select a US address.";
+      setAutocompleteError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    // Edge cases 1 & 2: Street number & non-specific/approximate result
+    if (!streetNumber) {
+      const msg =
+        "Please select a specific address with a street number (e.g., 123 Main St).";
+      setAutocompleteError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    if (!route) {
+      const msg =
+        "Please select a specific property address with a street name.";
+      setAutocompleteError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    // Edge case 3: Google result has no ZIP
+    if (!postalCode) {
+      const msg =
+        "The selected address is missing a ZIP code. Please select a valid property address.";
+      setAutocompleteError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    // Edge case 4: Google result has no city
+    const googleCityName = locality || sublocality || postalTown || "";
+    if (!googleCityName) {
+      const msg =
+        "Could not determine the city for the selected address. Please select a valid property address.";
+      setAutocompleteError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    // Geometry / coordinates validation
+    if (!place.geometry || !place.geometry.location) {
+      const msg =
+        "Could not determine location coordinates for the selected address.";
+      setAutocompleteError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    const lat =
+      typeof place.geometry.location.lat === "function"
+        ? place.geometry.location.lat()
+        : Number((place.geometry.location as any).lat);
+    const lng =
+      typeof place.geometry.location.lng === "function"
+        ? place.geometry.location.lng()
+        : Number((place.geometry.location as any).lng);
+
+    if (isNaN(lat) || isNaN(lng)) {
+      const msg = "Invalid coordinates returned for the selected address.";
+      setAutocompleteError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    // State resolution against existing application states
+    let availableStates = statesRef.current;
+    if (!availableStates || availableStates.length === 0) {
+      try {
+        const res = await getStates(1, 1000);
+        const raw: any[] = Array.isArray(res) ? res : res?.data || [];
+        availableStates = raw.map((s: any) => ({
+          id: String(s.id),
+          name: s.state_name || s.name,
+          abbreviation: s.abbreviation,
+        }));
+      } catch (err) {
+        console.error("Failed to load states for autocomplete:", err);
+      }
+    }
+
+    const matchedState = availableStates?.find(
+      (s) =>
+        (s.abbreviation &&
+          stateShort &&
+          s.abbreviation.trim().toUpperCase() ===
+            stateShort.trim().toUpperCase()) ||
+        (s.name &&
+          stateLong &&
+          s.name.trim().toLowerCase() === stateLong.trim().toLowerCase()) ||
+        (s.id &&
+          stateShort &&
+          s.id.trim().toUpperCase() === stateShort.trim().toUpperCase()),
+    );
+
+    if (!matchedState) {
+      const msg = `State (${stateShort || stateLong || "unknown"}) is not recognized in the system.`;
+      setAutocompleteError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    const resolvedStateId = matchedState.id;
+
+    // City resolution against existing application cities
+    let resolvedCityId = "";
+    let resolvedCityName = googleCityName;
+    let resolvedOtherCity = "";
+
+    const matchedCityFromProps = citiesRef.current?.find(
+      (c) =>
+        c.name.trim().toLowerCase() === googleCityName.trim().toLowerCase() &&
+        (!c.state_id || c.state_id === resolvedStateId),
+    );
+
+    if (matchedCityFromProps) {
+      resolvedCityId = matchedCityFromProps.id;
+      resolvedCityName = matchedCityFromProps.name;
+    } else {
+      try {
+        const apiRes = await getCities(
+          1,
+          20,
+          undefined,
+          googleCityName,
+          resolvedStateId,
+        );
+        const rawList: any[] = Array.isArray(apiRes)
+          ? apiRes
+          : apiRes?.data || [];
+        const matchedCityFromApi = rawList.find(
+          (c: any) =>
+            (c.city_name || c.name || "").trim().toLowerCase() ===
+            googleCityName.trim().toLowerCase(),
+        );
+
+        if (matchedCityFromApi) {
+          resolvedCityId = String(matchedCityFromApi.id);
+          resolvedCityName =
+            matchedCityFromApi.city_name || matchedCityFromApi.name;
+        } else {
+          // Not found in database -> use other_city fallback
+          resolvedCityId = "";
+          resolvedCityName = googleCityName;
+          resolvedOtherCity = googleCityName;
+        }
+      } catch (err) {
+        console.error("Failed to query city from API:", err);
+        resolvedCityId = "";
+        resolvedCityName = googleCityName;
+        resolvedOtherCity = googleCityName;
+      }
+    }
+
+    if (resolvedCityId && resolvedCityName) {
+      setFetchedCities((prev) => {
+        if (prev.some((c) => c.id === resolvedCityId)) return prev;
+        return [
+          ...prev,
+          {
+            id: resolvedCityId,
+            name: resolvedCityName,
+            state_id: resolvedStateId,
+          },
+        ];
+      });
+    }
+
+    // Address 1: street_number + route
+    const streetAddress = `${streetNumber} ${route}`.trim();
+    const stateAbbr =
+      matchedState.abbreviation || stateShort || matchedState.name;
+
+    // Validate the selected address through backend API
+    const valPayload = {
+      address: streetAddress,
+      address2: subpremise ? subpremise.trim() : "",
+      city: resolvedCityName,
+      state: stateAbbr,
+      zip: postalCode,
+    };
+
+    console.log("=== SENDING TO BACKEND VALIDATE-ADDRESS ===", valPayload);
+    const valRes = await validateAddress(valPayload);
+    console.log("=== BACKEND VALIDATE-ADDRESS RESPONSE ===", valRes);
+
+    if (!valRes.success) {
+      const errorMsg =
+        valRes.message || "The selected address failed backend validation.";
+      setAutocompleteError(errorMsg);
+      toast.error(errorMsg);
+      if (valRes.errorFields && Array.isArray(valRes.errorFields)) {
+        updateErrorFields(valRes.errorFields);
+      }
+      return;
+    }
+
+    const valData = valRes.data?.data ?? valRes.data;
+
+    // Inspect if backend exposes a canonical Address 2 value (e.g. address2_validation)
+    const backendCanonicalAddress2 =
+      valData?.address2_validation?.suggested_address2 ??
+      valData?.address2_validation?.google_subpremise ??
+      valData?.canonical_address2 ??
+      valData?.canonicalAddress2 ??
+      valData?.address2 ??
+      valData?.address_2;
+
+    let backendSubpremise = "";
+    if (
+      valData?.address_components &&
+      Array.isArray(valData.address_components)
+    ) {
+      const subpremiseComp = valData.address_components.find((c: any) =>
+        c.types?.includes("subpremise"),
+      );
+      if (subpremiseComp) {
+        backendSubpremise =
+          subpremiseComp.long_name || subpremiseComp.short_name || "";
+      }
+    }
+
+    const finalAddress2 = (
+      backendCanonicalAddress2 != null && backendCanonicalAddress2 !== ""
+        ? String(backendCanonicalAddress2)
+        : backendSubpremise !== ""
+          ? backendSubpremise
+          : subpremise || ""
+    ).trim();
+
+    let finalLat = lat;
+    let finalLng = lng;
+    if (valData?.geometry?.location) {
+      const bLat =
+        typeof valData.geometry.location.lat === "function"
+          ? valData.geometry.location.lat()
+          : Number(valData.geometry.location.lat);
+      const bLng =
+        typeof valData.geometry.location.lng === "function"
+          ? valData.geometry.location.lng()
+          : Number(valData.geometry.location.lng);
+      if (!isNaN(bLat) && !isNaN(bLng)) {
+        finalLat = bLat;
+        finalLng = bLng;
+      }
+    }
+
+    // Update input text with canonical formatted address AFTER backend validation
+    const fullFormatted = [
+      streetAddress,
+      finalAddress2,
+      resolvedCityName,
+      stateAbbr,
+      postalCode,
+    ]
+      .filter(Boolean)
+      .join(", ");
+    setSearchValue(fullFormatted);
+
+    // Clear address field errors
+    clearFieldError("address");
+    clearFieldError("address2");
+    clearFieldError("city");
+    clearFieldError("state");
+    clearFieldError("zip");
+
+    // Populate data with backend-validated structured values
+    onChange({
+      ...dataRef.current,
+      address: streetAddress,
+      address2: finalAddress2,
+      state: resolvedStateId,
+      state_id: resolvedStateId,
+      state_name: matchedState.name,
+      city_id: resolvedCityId,
+      city: resolvedCityName,
+      city_name: resolvedCityName,
+      other_city: resolvedOtherCity,
+      zip: postalCode,
+      latitude: finalLat,
+      longitude: finalLng,
+    });
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const initAutocomplete = async () => {
+      if (!autocompleteInputRef.current) return;
+
+      try {
+        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+        if (!apiKey) {
+          console.warn("Google Maps API key is missing");
+          return;
+        }
+
+        setOptions({
+          key: apiKey,
+        });
+
+        const { Autocomplete } = (await importLibrary(
+          "places",
+        )) as google.maps.PlacesLibrary;
+        if (!isMounted || !autocompleteInputRef.current) return;
+
+        const autocomplete = new Autocomplete(autocompleteInputRef.current, {
+          componentRestrictions: { country: "us" },
+          fields: [
+            "address_components",
+            "geometry",
+            "types",
+            "formatted_address",
+            "name",
+          ],
+          types: ["address"],
+        });
+
+        const listener = autocomplete.addListener("place_changed", () => {
+          const place = autocomplete.getPlace();
+          handlePlaceSelect(place);
+        });
+
+        listenerRef.current = listener;
+        autocompleteRef.current = autocomplete;
+        setIsGoogleLoaded(true);
+      } catch (err) {
+        console.error("Failed to initialize Google Places Autocomplete:", err);
+      }
+    };
+
+    initAutocomplete();
+
+    return () => {
+      isMounted = false;
+      if (listenerRef.current && (window as any).google?.maps?.event) {
+        (window as any).google.maps.event.removeListener(listenerRef.current);
+        listenerRef.current = null;
+      } else if (
+        autocompleteRef.current &&
+        (window as any).google?.maps?.event
+      ) {
+        (window as any).google.maps.event.clearInstanceListeners(
+          autocompleteRef.current,
+        );
+      }
+      autocompleteRef.current = null;
+    };
+  }, []);
 
   const [usageLimitInfo, setUsageLimitInfo] = useState<{
     isLimitReached: boolean;
@@ -533,20 +1173,106 @@ export function AddressForm({
           )}
         </div>
 
+        {/* Google Places Address Autocomplete Search */}
+        <div className="space-y-1 pb-10">
+          <label
+            htmlFor="google-address-search"
+            className="text-[13px] md:text-[15px] font-semibold text-[#1F2A44] flex items-center justify-between"
+          >
+            <span className="flex items-center gap-1.5">
+              <MapPin className="size-4 text-[#1CA7A6]" />
+              Search Property Address From Google
+            </span>
+            {isAddressLocked && (
+              <span className="text-[11px] md:text-[12px] font-medium text-[#1CA7A6] bg-[#1CA7A6]/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+                ✓ Google Address Selected (Read-Only)
+              </span>
+            )}
+          </label>
+          <div className="relative flex items-center">
+            <Search className="absolute left-[18px] md:left-[24px] size-5 md:size-6 text-[#1CA7A6] pointer-events-none" />
+            <Input
+              id="google-address-search"
+              ref={autocompleteInputRef}
+              value={searchValue}
+              onChange={handleSearchChange}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                }
+              }}
+              placeholder="Search property address with Google Places..."
+              autoComplete="off"
+              className={cn(
+                "h-[46px] md:h-[65px] pl-[48px] md:pl-[64px] pr-[44px] md:pr-[56px] bg-white rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap transition-colors border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] focus-visible:border-[#1CA7A6] focus-visible:ring-[#1CA7A6]/20",
+                autocompleteError &&
+                  "!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900",
+              )}
+            />
+            {searchValue && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                title="Clear address search"
+                className="absolute right-[14px] md:right-[20px] p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="size-4 md:size-5" />
+              </button>
+            )}
+          </div>
+          {autocompleteError && (
+            <p className="text-[12px] md:text-[14px] text-red-500 font-medium font-asap mt-1 ml-1 flex items-center gap-1.5">
+              <AlertCircle className="size-3.5 md:size-4 shrink-0" />
+              {autocompleteError}
+            </p>
+          )}
+        </div>
+
+        <label
+          htmlFor="google-address-search"
+          className="text-[13px] md:text-[15px] font-semibold text-[#1F2A44] flex items-center justify-between"
+        >
+          <span className="flex items-center gap-1.5">
+            <MapPin className="size-4 text-[#1CA7A6]" />
+            Property Address
+          </span>
+        </label>
+
         {/* Address 1 */}
         <div className="space-y-1">
           <Input
-            placeholder="Address 1"
+            placeholder={
+              isAddressLocked
+                ? "Address 1"
+                : isGoogleLoaded
+                  ? "Address 1 (Search and select address above)"
+                  : "Address 1"
+            }
             required
+            readOnly={isAddressLocked}
+            tabIndex={isAddressLocked ? -1 : undefined}
+            title={
+              isAddressLocked
+                ? "Address is populated from Google Places search. Use search above to change."
+                : undefined
+            }
+            onClick={() => {
+              if (isGoogleLoaded && !data.address) {
+                autocompleteInputRef.current?.focus();
+              }
+            }}
             className={cn(
               "h-[46px] md:h-[65px] px-[20px] md:px-[29px] bg-white rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap transition-colors",
               hasFieldError("address")
                 ? "!border-red-500 md:!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900 border"
                 : "border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)]",
+              isAddressLocked &&
+                "!bg-slate-50/80 !text-slate-700 !border-slate-200 !cursor-not-allowed select-none",
             )}
             value={data.address}
             aria-invalid={hasFieldError("address") ? "true" : undefined}
             onChange={(e) => {
+              if (isAddressLocked) return;
               clearFieldError("address");
               onChange({ ...data, address: e.target.value });
             }}
@@ -561,7 +1287,7 @@ export function AddressForm({
         {/* Address 2 */}
         <div className="space-y-1">
           <Input
-            placeholder="Address 2"
+            placeholder="Address 2 (e.g., Apt, Suite, Unit - optional)"
             className={cn(
               "h-[46px] md:h-[65px] px-[20px] md:px-[29px] bg-white rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap transition-colors",
               hasFieldError("address2")
@@ -590,8 +1316,15 @@ export function AddressForm({
               value={data.state || data.state_id || ""}
               placeholder="State"
               searchPlaceholder="Search state..."
+              disabled={isAddressLocked}
+              triggerClassName={cn(
+                triggerClass,
+                isAddressLocked &&
+                  "!bg-slate-50/80 !text-slate-700 !border-slate-200 !cursor-not-allowed opacity-90",
+              )}
               isError={hasFieldError("state")}
               onValueChange={(val) => {
+                if (isAddressLocked) return;
                 clearFieldError("state");
                 setCitySearch("");
                 setFetchedCities([]);
@@ -622,8 +1355,15 @@ export function AddressForm({
                   : data.city_id || ""
               }
               displayValueFallback={data.city}
+              disabled={isAddressLocked}
+              triggerClassName={cn(
+                triggerClass,
+                isAddressLocked &&
+                  "!bg-slate-50/80 !text-slate-700 !border-slate-200 !cursor-not-allowed opacity-90",
+              )}
               isError={hasFieldError("city")}
               onValueChange={(val) => {
+                if (isAddressLocked) return;
                 clearFieldError("city");
                 if (val.startsWith("__custom__:")) {
                   const customName = val.slice("__custom__:".length);
@@ -675,18 +1415,39 @@ export function AddressForm({
         {/* Zip Code */}
         <div className="space-y-1">
           <Input
-            placeholder="Zip Code"
+            placeholder={
+              isAddressLocked
+                ? "Zip Code"
+                : isGoogleLoaded
+                  ? "Zip Code (Auto-populated)"
+                  : "Zip Code"
+            }
             required
             inputMode="numeric"
+            readOnly={isAddressLocked}
+            tabIndex={isAddressLocked ? -1 : undefined}
+            title={
+              isAddressLocked
+                ? "Zip Code is populated from Google Places search. Use search above to change."
+                : undefined
+            }
+            onClick={() => {
+              if (isGoogleLoaded && !data.address) {
+                autocompleteInputRef.current?.focus();
+              }
+            }}
             className={cn(
               "h-11.5 md:h-16.25 px-5 md:px-7.25 bg-white rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap transition-colors",
               hasFieldError("zip")
                 ? "!border-red-500 md:!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900 border"
                 : "border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)]",
+              isAddressLocked &&
+                "!bg-slate-50/80 !text-slate-700 !border-slate-200 !cursor-not-allowed select-none",
             )}
             value={data.zip}
             aria-invalid={hasFieldError("zip") ? "true" : undefined}
             onChange={(e) => {
+              if (isAddressLocked) return;
               clearFieldError("zip");
               const val = e.target.value;
               onChange({ ...data, zip: val });
@@ -737,12 +1498,7 @@ export function AddressForm({
             </p>
           )}
         </div>
-        <div
-          className={cn(
-            "space-y-3.75 md:space-y-5 p-5 border border-dashed border-[rgba(28,167,166,0.3)] rounded-[10px] bg-slate-50/50",
-            !isEdit && "hidden",
-          )}
-        >
+        <div className={cn("space-y-3.75 md:space-y-5 ", !isEdit && "hidden")}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <span className="text-[12px] md:text-[14px] font-mono text-[#708090] bg-white px-4 py-2 rounded-[6px] border border-slate-200/60 shadow-sm flex items-center gap-2">
               <MapPin className="size-[16px] md:size-[18px] text-[#1CA7A6]" />
@@ -840,7 +1596,7 @@ export function AddressForm({
         }
         addressString={
           data.address
-            ? `${data.address}, ${data.city || ""}, ${data.state || ""} ${data.zip || ""}`
+            ? formatFullAddress(data, states, [...cities, ...fetchedCities])
             : undefined
         }
         onSave={(lat, lng) =>
