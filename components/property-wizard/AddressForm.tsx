@@ -509,7 +509,7 @@ export function AddressForm({
         )}
 
         {/* Property Name */}
-        {/* <div className="space-y-1">
+        <div className="space-y-1 hidden">
           <Input
             placeholder="Property Name"
             required
@@ -525,13 +525,13 @@ export function AddressForm({
               clearFieldError("property_name");
               onChange({ ...data, property_name: e.target.value });
             }}
-          /> */}
-          {/* {hasFieldError("property_name") && (
+          />
+          {hasFieldError("property_name") && (
             <p className="text-[12px] md:text-[14px] text-red-500 font-medium font-asap mt-1 ml-1">
               Please enter a valid property name
             </p>
           )}
-        </div> */}
+        </div>
 
         {/* Address 1 */}
         <div className="space-y-1">
@@ -737,23 +737,22 @@ export function AddressForm({
             </p>
           )}
         </div>
-        {/* <div className="space-y-3.75 md:space-y-5 p-5 border border-dashed border-[rgba(28,167,166,0.3)] rounded-[10px] bg-slate-50/50">
+        <div
+          className={cn(
+            "space-y-3.75 md:space-y-5 p-5 border border-dashed border-[rgba(28,167,166,0.3)] rounded-[10px] bg-slate-50/50",
+            !isEdit && "hidden",
+          )}
+        >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <Button
-              type="button"
-              onClick={() => setIsMapPopupOpen(true)}
-              className="h-[46px] md:h-[55px] border border-[#1CA7A6] bg-white text-[#1CA7A6] hover:bg-[#1CA7A6]/5 font-bold rounded-[6px] md:rounded-[10px] text-[14px] md:text-[18px] flex items-center justify-center gap-2 shadow-none font-asap px-6"
-            >
-              <MapPin className="size-[16px] md:size-[22px]" />
-              Locate / Move Pin on Map
-            </Button>
-            {data.latitude != null && data.longitude != null && (
-              <span className="text-[12px] md:text-[14px] font-mono text-[#708090] bg-white px-4 py-2 rounded-[6px] border border-slate-200/60 shadow-sm">
-                Pin Coordinates: {data.latitude}, {data.longitude}
-              </span>
-            )}
+            <span className="text-[12px] md:text-[14px] font-mono text-[#708090] bg-white px-4 py-2 rounded-[6px] border border-slate-200/60 shadow-sm flex items-center gap-2">
+              <MapPin className="size-[16px] md:size-[18px] text-[#1CA7A6]" />
+              Pin Coordinates:{" "}
+              {data.latitude != null && data.longitude != null
+                ? `${data.latitude}, ${data.longitude}`
+                : "Not set"}
+            </span>
           </div>
-        </div> */}
+        </div>
       </div>
 
       <div className="space-y-[15px] md:space-y-[17px] pt-[15px] md:pt-[23px]">

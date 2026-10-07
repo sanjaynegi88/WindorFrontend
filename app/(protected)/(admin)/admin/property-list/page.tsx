@@ -86,6 +86,8 @@ interface PropertyItem {
   state?: { name?: string };
   is_purchased?: boolean;
   thumbnail_url?: string;
+  latitude?: string | number;
+  longitude?: string | number;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -794,6 +796,8 @@ export default function PropertyListPage() {
           state_name: item.state_name || item.state?.name || selectedState.name,
           zip: item.zip || "",
           is_purchased: item.is_purchased,
+          latitude: item.latitude ?? item.lat ?? null,
+          longitude: item.longitude ?? item.lng ?? item.long ?? null,
           thumbnail_url:
             item.thumbnail_url ||
             item.thumbnail ||
@@ -1281,6 +1285,16 @@ export default function PropertyListPage() {
                     </div>
 
                     <div className="flex items-center gap-2 justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto">
+                      {prop.latitude != null && prop.longitude != null ? (
+                        <p className="text-xs sm:text-sm font-semibold text-gray-500 font-mono truncate">
+                          {prop.latitude}, {prop.longitude}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-400 italic">
+                          No coordinates
+                        </p>
+                      )}
+
                       <Button
                         size="sm"
                         onClick={() => handleOpenEditModal(prop.id)}

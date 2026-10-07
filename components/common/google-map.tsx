@@ -41,7 +41,7 @@ export interface FocusCommand {
 
 export const MIN_PROPERTY_ZOOM = 12;
 export const INITIAL_CITY_ZOOM = 14;
-export const PROPERTY_FOCUS_ZOOM = 17.5;
+export const PROPERTY_FOCUS_ZOOM = 20;
 export const DEFAULT_OVERVIEW_ZOOM = 4.5;
 export const DEFAULT_MAP_CENTER = { lat: 39.8283, lng: -98.5795 };
 
@@ -318,11 +318,8 @@ export default function GoogleMap({
       lat: focusCommand.lat,
       lng: focusCommand.lng,
     });
-    const zoom = mapInstanceRef.current.getZoom() ?? 0;
-    if (zoom < targetZoom) {
-      mapInstanceRef.current.setZoom(targetZoom);
-      setCurrentZoom(targetZoom);
-    }
+    mapInstanceRef.current.setZoom(targetZoom);
+    setCurrentZoom(targetZoom);
   }, [focusCommand, mapReady]);
 
   // 4. Marker lifecycle: diff-based updates using AdvancedMarkerElement

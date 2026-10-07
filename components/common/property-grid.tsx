@@ -113,15 +113,9 @@ export function PropertyGrid({
           .trim();
 
         if (searchString) {
-          const firstPropWithCoordsAndReport = newData.find(
+          const firstPropWithCoords = newData.find(
             (p: any) =>
               p &&
-              Boolean(
-                p.has_report === true ||
-                p.has_report === "true" ||
-                p.has_report === 1 ||
-                (Array.isArray(p.projects) && p.projects.length > 0),
-              ) &&
               p.latitude !== undefined &&
               p.latitude !== null &&
               p.longitude !== undefined &&
@@ -132,13 +126,13 @@ export function PropertyGrid({
               Number(p.longitude) !== 0,
           );
 
-          if (firstPropWithCoordsAndReport && onOpenInMap) {
-            const lat = Number(firstPropWithCoordsAndReport.latitude);
-            const lng = Number(firstPropWithCoordsAndReport.longitude);
+          if (firstPropWithCoords && onOpenInMap) {
+            const lat = Number(firstPropWithCoords.latitude);
+            const lng = Number(firstPropWithCoords.longitude);
             // Pass empty string for id so the sidebar is not opened on search, and false so it does not auto-scroll
             onOpenInMap(lat, lng, "", false);
           } else {
-            // No matching property with report and coords found -> fallback to city
+            // No matching property with coords found -> fallback to city
             onFallbackToCity?.();
           }
         }
