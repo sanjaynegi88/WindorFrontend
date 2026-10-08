@@ -699,7 +699,8 @@ export function AddressForm({
       valResAny.data?.address2_validation ??
       valResAny.error?.address2_validation;
 
-    // Check if the property address supports/requires Address 2
+    // Check if the property address supports/requires Address 2 (COMMENTED OUT)
+    /*
     const isSupportedFlag =
       typeof addr2Validation?.is_address2_supported === "boolean"
         ? addr2Validation.is_address2_supported
@@ -718,6 +719,7 @@ export function AddressForm({
     } else {
       setIsAddress2Supported(null);
     }
+    */
 
     const invalidFields: string[] =
       valPayloadData?.invalid_fields ??
@@ -754,47 +756,43 @@ export function AddressForm({
       setAddress2Message(null);
     }
 
+    /*
     if (isSupportedFlag === false) {
       clearFieldError("address2");
       setAddress2Message(null);
     }
+    */
 
-    let finalAddress2 = "";
-    if (isSupportedFlag === false) {
-      // If address 2 is not supported for this property, clear/null it!
-      finalAddress2 = "";
-    } else {
-      // Inspect if backend exposes a canonical Address 2 value (e.g. address2_validation)
-      const backendCanonicalAddress2 =
-        addr2Validation?.suggested_address2 ??
-        addr2Validation?.google_subpremise ??
-        valPayloadData?.canonical_address2 ??
-        valPayloadData?.canonicalAddress2 ??
-        valPayloadData?.address2 ??
-        valPayloadData?.address_2;
+    // Inspect if backend exposes a canonical Address 2 value (e.g. address2_validation)
+    const backendCanonicalAddress2 =
+      addr2Validation?.suggested_address2 ??
+      addr2Validation?.google_subpremise ??
+      valPayloadData?.canonical_address2 ??
+      valPayloadData?.canonicalAddress2 ??
+      valPayloadData?.address2 ??
+      valPayloadData?.address_2;
 
-      let backendSubpremise = "";
-      if (
-        valPayloadData?.address_components &&
-        Array.isArray(valPayloadData.address_components)
-      ) {
-        const subpremiseComp = valPayloadData.address_components.find(
-          (c: any) => c.types?.includes("subpremise"),
-        );
-        if (subpremiseComp) {
-          backendSubpremise =
-            subpremiseComp.long_name || subpremiseComp.short_name || "";
-        }
+    let backendSubpremise = "";
+    if (
+      valPayloadData?.address_components &&
+      Array.isArray(valPayloadData.address_components)
+    ) {
+      const subpremiseComp = valPayloadData.address_components.find(
+        (c: any) => c.types?.includes("subpremise"),
+      );
+      if (subpremiseComp) {
+        backendSubpremise =
+          subpremiseComp.long_name || subpremiseComp.short_name || "";
       }
-
-      finalAddress2 = (
-        backendCanonicalAddress2 != null && backendCanonicalAddress2 !== ""
-          ? String(backendCanonicalAddress2)
-          : backendSubpremise !== ""
-            ? backendSubpremise
-            : subpremise || ""
-      ).trim();
     }
+
+    const finalAddress2 = (
+      backendCanonicalAddress2 != null && backendCanonicalAddress2 !== ""
+        ? String(backendCanonicalAddress2)
+        : backendSubpremise !== ""
+          ? backendSubpremise
+          : subpremise || ""
+    ).trim();
 
     let finalLat = lat;
     let finalLng = lng;
@@ -1259,7 +1257,6 @@ export function AddressForm({
             )}
           </label>
           <div className="relative flex items-center">
-            <Search className="absolute left-[18px] md:left-[24px] size-5 md:size-6 text-[#1CA7A6] pointer-events-none" />
             <Input
               id="google-address-search"
               ref={autocompleteInputRef}
@@ -1273,12 +1270,12 @@ export function AddressForm({
               placeholder="Search property address with Google Places..."
               autoComplete="off"
               className={cn(
-                "h-[46px] md:h-[65px] pl-[18px] md:pl-[24px] pr-[44px] md:pr-[56px] bg-white rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap transition-colors border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] focus-visible:border-[#1CA7A6] focus-visible:ring-[#1CA7A6]/20",
+                "h-[46px] md:h-[65px] px-[20px] md:px-[29px] pr-[44px] md:pr-[56px] bg-white rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap transition-colors border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] focus-visible:border-[#1CA7A6] focus-visible:ring-[#1CA7A6]/20",
                 autocompleteError &&
                   "!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900",
               )}
             />
-            {searchValue && (
+            {searchValue ? (
               <button
                 type="button"
                 onClick={handleClearSearch}
@@ -1287,6 +1284,8 @@ export function AddressForm({
               >
                 <X className="size-4 md:size-5" />
               </button>
+            ) : (
+              <Search className="absolute right-[18px] md:right-[24px] size-5 md:size-6 text-[#1CA7A6] pointer-events-none" />
             )}
           </div>
           {autocompleteError && (
