@@ -305,6 +305,10 @@ export function AddressForm({
     null,
   );
   const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);
+  const [isAddress2Supported, setIsAddress2Supported] = useState<
+    boolean | null
+  >(null);
+  const [address2Message, setAddress2Message] = useState<string | null>(null);
   const isAddressLocked = Boolean(data.address);
 
   // Stable refs for listener callback
@@ -359,6 +363,8 @@ export function AddressForm({
   const handleClearSearch = () => {
     setSearchValue("");
     setAutocompleteError(null);
+    setIsAddress2Supported(null);
+    setAddress2Message(null);
     clearFieldError("address");
     clearFieldError("address2");
     clearFieldError("city");
@@ -683,61 +689,124 @@ export function AddressForm({
     const valRes = await validateAddress(valPayload);
     console.log("=== BACKEND VALIDATE-ADDRESS RESPONSE ===", valRes);
 
-    if (!valRes.success) {
+    const valResAny = valRes as any;
+    const valPayloadData = valRes.success
+      ? (valResAny.data?.data ?? valResAny.data)
+      : (valResAny.error?.data ?? valResAny.error ?? valResAny.data);
+
+    const addr2Validation =
+      valPayloadData?.address2_validation ??
+      valResAny.data?.address2_validation ??
+      valResAny.error?.address2_validation;
+
+    // Check if the property address supports/requires Address 2
+    const isSupportedFlag =
+      typeof addr2Validation?.is_address2_supported === "boolean"
+        ? addr2Validation.is_address2_supported
+        : typeof valPayloadData?.is_address2_supported === "boolean"
+          ? valPayloadData.is_address2_supported
+          : typeof valResAny.data?.address2_validation
+                ?.is_address2_supported === "boolean"
+            ? valResAny.data.address2_validation.is_address2_supported
+            : typeof valResAny.error?.address2_validation
+                  ?.is_address2_supported === "boolean"
+              ? valResAny.error.address2_validation.is_address2_supported
+              : null;
+
+    if (typeof isSupportedFlag === "boolean") {
+      setIsAddress2Supported(isSupportedFlag);
+    } else {
+      setIsAddress2Supported(null);
+    }
+
+    const invalidFields: string[] =
+      valPayloadData?.invalid_fields ??
+      valPayloadData?.invalidFields ??
+      valPayloadData?.error_fields ??
+      valPayloadData?.errorFields ??
+      valResAny.error?.invalid_fields ??
+      valResAny.errorFields ??
+      [];
+
+    const onlyAddress2Invalid =
+      !valRes.success &&
+      invalidFields.length > 0 &&
+      invalidFields.every((f) => f.toLowerCase() === "address2");
+
+    if (!valRes.success && !onlyAddress2Invalid) {
       const errorMsg =
         valRes.message || "The selected address failed backend validation.";
       setAutocompleteError(errorMsg);
       toast.error(errorMsg);
-      if (valRes.errorFields && Array.isArray(valRes.errorFields)) {
-        updateErrorFields(valRes.errorFields);
+      if (valResAny.errorFields && Array.isArray(valResAny.errorFields)) {
+        updateErrorFields(valResAny.errorFields);
       }
       return;
     }
 
-    const valData = valRes.data?.data ?? valRes.data;
-
-    // Inspect if backend exposes a canonical Address 2 value (e.g. address2_validation)
-    const backendCanonicalAddress2 =
-      valData?.address2_validation?.suggested_address2 ??
-      valData?.address2_validation?.google_subpremise ??
-      valData?.canonical_address2 ??
-      valData?.canonicalAddress2 ??
-      valData?.address2 ??
-      valData?.address_2;
-
-    let backendSubpremise = "";
-    if (
-      valData?.address_components &&
-      Array.isArray(valData.address_components)
-    ) {
-      const subpremiseComp = valData.address_components.find((c: any) =>
-        c.types?.includes("subpremise"),
-      );
-      if (subpremiseComp) {
-        backendSubpremise =
-          subpremiseComp.long_name || subpremiseComp.short_name || "";
-      }
+    if (onlyAddress2Invalid) {
+      const msg =
+        addr2Validation?.message || "Please provide a valid address line 2";
+      toast.warning(msg);
+      setAddress2Message(msg);
+      updateErrorFields(["address2"]);
+    } else {
+      setAddress2Message(null);
     }
 
-    const finalAddress2 = (
-      backendCanonicalAddress2 != null && backendCanonicalAddress2 !== ""
-        ? String(backendCanonicalAddress2)
-        : backendSubpremise !== ""
-          ? backendSubpremise
-          : subpremise || ""
-    ).trim();
+    if (isSupportedFlag === false) {
+      clearFieldError("address2");
+      setAddress2Message(null);
+    }
+
+    let finalAddress2 = "";
+    if (isSupportedFlag === false) {
+      // If address 2 is not supported for this property, clear/null it!
+      finalAddress2 = "";
+    } else {
+      // Inspect if backend exposes a canonical Address 2 value (e.g. address2_validation)
+      const backendCanonicalAddress2 =
+        addr2Validation?.suggested_address2 ??
+        addr2Validation?.google_subpremise ??
+        valPayloadData?.canonical_address2 ??
+        valPayloadData?.canonicalAddress2 ??
+        valPayloadData?.address2 ??
+        valPayloadData?.address_2;
+
+      let backendSubpremise = "";
+      if (
+        valPayloadData?.address_components &&
+        Array.isArray(valPayloadData.address_components)
+      ) {
+        const subpremiseComp = valPayloadData.address_components.find(
+          (c: any) => c.types?.includes("subpremise"),
+        );
+        if (subpremiseComp) {
+          backendSubpremise =
+            subpremiseComp.long_name || subpremiseComp.short_name || "";
+        }
+      }
+
+      finalAddress2 = (
+        backendCanonicalAddress2 != null && backendCanonicalAddress2 !== ""
+          ? String(backendCanonicalAddress2)
+          : backendSubpremise !== ""
+            ? backendSubpremise
+            : subpremise || ""
+      ).trim();
+    }
 
     let finalLat = lat;
     let finalLng = lng;
-    if (valData?.geometry?.location) {
+    if (valPayloadData?.geometry?.location) {
       const bLat =
-        typeof valData.geometry.location.lat === "function"
-          ? valData.geometry.location.lat()
-          : Number(valData.geometry.location.lat);
+        typeof valPayloadData.geometry.location.lat === "function"
+          ? valPayloadData.geometry.location.lat()
+          : Number(valPayloadData.geometry.location.lat);
       const bLng =
-        typeof valData.geometry.location.lng === "function"
-          ? valData.geometry.location.lng()
-          : Number(valData.geometry.location.lng);
+        typeof valPayloadData.geometry.location.lng === "function"
+          ? valPayloadData.geometry.location.lng()
+          : Number(valPayloadData.geometry.location.lng);
       if (!isNaN(bLat) && !isNaN(bLng)) {
         finalLat = bLat;
         finalLng = bLng;
@@ -1181,7 +1250,7 @@ export function AddressForm({
           >
             <span className="flex items-center gap-1.5">
               <MapPin className="size-4 text-[#1CA7A6]" />
-              Search Property Address From Google
+              Search Full Property Address From Google
             </span>
             {isAddressLocked && (
               <span className="text-[11px] md:text-[12px] font-medium text-[#1CA7A6] bg-[#1CA7A6]/10 px-2 py-0.5 rounded-full flex items-center gap-1">
@@ -1204,7 +1273,7 @@ export function AddressForm({
               placeholder="Search property address with Google Places..."
               autoComplete="off"
               className={cn(
-                "h-[46px] md:h-[65px] pl-[48px] md:pl-[64px] pr-[44px] md:pr-[56px] bg-white rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap transition-colors border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] focus-visible:border-[#1CA7A6] focus-visible:ring-[#1CA7A6]/20",
+                "h-[46px] md:h-[65px] pl-[18px] md:pl-[24px] pr-[44px] md:pr-[56px] bg-white rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap transition-colors border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] focus-visible:border-[#1CA7A6] focus-visible:ring-[#1CA7A6]/20",
                 autocompleteError &&
                   "!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900",
               )}
@@ -1287,23 +1356,45 @@ export function AddressForm({
         {/* Address 2 */}
         <div className="space-y-1">
           <Input
-            placeholder="Address 2 (e.g., Apt, Suite, Unit - optional)"
+            placeholder={
+              isAddress2Supported === false
+                ? "Address 2 not required for this property"
+                : "Address 2 (e.g., Apt, Suite, Unit - optional)"
+            }
+            disabled={isAddress2Supported === false}
+            title={
+              isAddress2Supported === false
+                ? "Address 2 is not supported for this property address."
+                : undefined
+            }
             className={cn(
               "h-[46px] md:h-[65px] px-[20px] md:px-[29px] bg-white rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap transition-colors",
-              hasFieldError("address2")
+              hasFieldError("address2") && isAddress2Supported !== false
                 ? "!border-red-500 md:!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900 border"
                 : "border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)]",
+              isAddress2Supported === false && "hidden",
             )}
-            value={data.address2 || ""}
-            aria-invalid={hasFieldError("address2") ? "true" : undefined}
+            value={isAddress2Supported === false ? "" : data.address2 || ""}
+            aria-invalid={
+              hasFieldError("address2") && isAddress2Supported !== false
+                ? "true"
+                : undefined
+            }
             onChange={(e) => {
+              if (isAddress2Supported === false) return;
               clearFieldError("address2");
+              setAddress2Message(null);
               onChange({ ...data, address2: e.target.value });
             }}
           />
-          {hasFieldError("address2") && (
+          {hasFieldError("address2") && isAddress2Supported !== false && (
             <p className="text-[12px] md:text-[14px] text-red-500 font-medium font-asap mt-1 ml-1">
-              Please provide a valid address line 2
+              {address2Message || "Please provide a valid address line 2"}
+            </p>
+          )}
+          {isAddress2Supported === false && (
+            <p className="text-[12px] md:text-[13px] text-slate-400 font-normal font-asap mt-1 ml-1">
+              Address 2 is not required for this property address.
             </p>
           )}
         </div>
@@ -1605,4 +1696,50 @@ export function AddressForm({
       />
     </div>
   );
+}
+
+{
+  /* <Input
+            placeholder={
+              isAddress2Supported === false
+                ? "Address 2 not required for this property"
+                : "Address 2 (e.g., Apt, Suite, Unit - optional)"
+            }
+            disabled={isAddress2Supported === false}
+            title={
+              isAddress2Supported === false
+                ? "Address 2 is not supported for this property address."
+                : undefined
+            }
+            className={cn(
+              "h-[46px] md:h-[65px] px-[20px] md:px-[29px] bg-white rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap transition-colors",
+              hasFieldError("address2") && isAddress2Supported !== false
+                ? "!border-red-500 md:!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900 border"
+                : "border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)]",
+              isAddress2Supported === false &&
+                "!bg-slate-100 !text-slate-400 !border-slate-200 !cursor-not-allowed select-none",
+            )}
+            value={isAddress2Supported === false ? "" : data.address2 || ""}
+            aria-invalid={
+              hasFieldError("address2") && isAddress2Supported !== false
+                ? "true"
+                : undefined
+            }
+            onChange={(e) => {
+              if (isAddress2Supported === false) return;
+              clearFieldError("address2");
+              setAddress2Message(null);
+              onChange({ ...data, address2: e.target.value });
+            }}
+          />
+          {hasFieldError("address2") && isAddress2Supported !== false && (
+            <p className="text-[12px] md:text-[14px] text-red-500 font-medium font-asap mt-1 ml-1">
+              {address2Message || "Please provide a valid address line 2"}
+            </p>
+          )}
+          {isAddress2Supported === false && (
+            <p className="text-[12px] md:text-[13px] text-slate-400 font-normal font-asap mt-1 ml-1">
+              Address 2 is not required for this property address.
+            </p>
+          )} */
 }

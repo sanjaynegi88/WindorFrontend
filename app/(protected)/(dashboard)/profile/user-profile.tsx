@@ -387,7 +387,7 @@ export default function UserProfile() {
       (user as any)?.current_subscription?.is_active === true;
   const showAddContractorProfile =
     role === "contractor" &&
-    isSubAccount &&
+    !isSubAccount &&
     (user as any)?.is_directory === false &&
     (effectivelevel === "GOLD" || effectivelevel === "SILVER");
   const showEditContractorProfile =
