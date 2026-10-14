@@ -411,308 +411,308 @@ export function AddressForm({
     try {
       setAutocompleteError(null);
 
-    console.log("=== GOOGLE PLACES FULL RESPONSE ===");
-    console.log("Full Place Object:", place);
-    console.log("Place Name:", place?.name);
-    console.log("Formatted Address:", place?.formatted_address);
-    console.log("Place Types:", place?.types);
-    console.log("Address Components (Raw):", place?.address_components);
-    if (place?.address_components) {
-      console.table(
-        place.address_components.map((c) => ({
-          types: c.types.join(", "),
-          long_name: c.long_name,
-          short_name: c.short_name,
-        })),
+      console.log("=== GOOGLE PLACES FULL RESPONSE ===");
+      console.log("Full Place Object:", place);
+      console.log("Place Name:", place?.name);
+      console.log("Formatted Address:", place?.formatted_address);
+      console.log("Place Types:", place?.types);
+      console.log("Address Components (Raw):", place?.address_components);
+      if (place?.address_components) {
+        console.table(
+          place.address_components.map((c) => ({
+            types: c.types.join(", "),
+            long_name: c.long_name,
+            short_name: c.short_name,
+          })),
+        );
+      }
+      console.log(
+        "Geometry Coordinates:",
+        place?.geometry?.location
+          ? {
+              lat:
+                typeof place.geometry.location.lat === "function"
+                  ? place.geometry.location.lat()
+                  : (place.geometry.location as any).lat,
+              lng:
+                typeof place.geometry.location.lng === "function"
+                  ? place.geometry.location.lng()
+                  : (place.geometry.location as any).lng,
+            }
+          : null,
       );
-    }
-    console.log(
-      "Geometry Coordinates:",
-      place?.geometry?.location
-        ? {
-            lat:
-              typeof place.geometry.location.lat === "function"
-                ? place.geometry.location.lat()
-                : (place.geometry.location as any).lat,
-            lng:
-              typeof place.geometry.location.lng === "function"
-                ? place.geometry.location.lng()
-                : (place.geometry.location as any).lng,
-          }
-        : null,
-    );
-    console.log("====================================");
+      console.log("====================================");
 
-    if (
-      !place ||
-      !place.address_components ||
-      place.address_components.length === 0
-    ) {
-      const msg =
-        "Please select a valid address from the Google suggestions dropdown.";
-      setAutocompleteError(msg);
-      toast.error(msg);
-      return;
-    }
-
-    const components = place.address_components;
-    let streetNumber = "";
-    let route = "";
-    let subpremise = "";
-    let locality = "";
-    let sublocality = "";
-    let postalTown = "";
-    let stateShort = "";
-    let stateLong = "";
-    let postalCode = "";
-    let countryShort = "";
-    let countryLong = "";
-
-    for (const comp of components) {
-      const types = comp.types || [];
-      if (types.includes("street_number")) {
-        streetNumber = comp.long_name || comp.short_name;
-      }
-      if (types.includes("route")) {
-        route = comp.long_name || comp.short_name;
-      }
-      if (types.includes("subpremise")) {
-        subpremise = comp.long_name || comp.short_name;
-      }
-      if (types.includes("locality")) {
-        locality = comp.long_name || comp.short_name;
-      }
       if (
-        types.includes("sublocality_level_1") ||
-        types.includes("sublocality")
+        !place ||
+        !place.address_components ||
+        place.address_components.length === 0
       ) {
-        sublocality = comp.long_name || comp.short_name;
+        const msg =
+          "Please select a valid address from the Google suggestions dropdown.";
+        setAutocompleteError(msg);
+        toast.error(msg);
+        return;
       }
-      if (types.includes("postal_town")) {
-        postalTown = comp.long_name || comp.short_name;
+
+      const components = place.address_components;
+      let streetNumber = "";
+      let route = "";
+      let subpremise = "";
+      let locality = "";
+      let sublocality = "";
+      let postalTown = "";
+      let stateShort = "";
+      let stateLong = "";
+      let postalCode = "";
+      let countryShort = "";
+      let countryLong = "";
+
+      for (const comp of components) {
+        const types = comp.types || [];
+        if (types.includes("street_number")) {
+          streetNumber = comp.long_name || comp.short_name;
+        }
+        if (types.includes("route")) {
+          route = comp.long_name || comp.short_name;
+        }
+        if (types.includes("subpremise")) {
+          subpremise = comp.long_name || comp.short_name;
+        }
+        if (types.includes("locality")) {
+          locality = comp.long_name || comp.short_name;
+        }
+        if (
+          types.includes("sublocality_level_1") ||
+          types.includes("sublocality")
+        ) {
+          sublocality = comp.long_name || comp.short_name;
+        }
+        if (types.includes("postal_town")) {
+          postalTown = comp.long_name || comp.short_name;
+        }
+        if (types.includes("administrative_area_level_1")) {
+          stateShort = comp.short_name;
+          stateLong = comp.long_name;
+        }
+        if (types.includes("postal_code")) {
+          postalCode = comp.long_name || comp.short_name;
+        }
+        if (types.includes("country")) {
+          countryShort = comp.short_name;
+          countryLong = comp.long_name;
+        }
       }
-      if (types.includes("administrative_area_level_1")) {
-        stateShort = comp.short_name;
-        stateLong = comp.long_name;
+
+      // Edge case 5: Google result is outside the US
+      if (
+        countryShort &&
+        countryShort.toUpperCase() !== "US" &&
+        countryLong.toLowerCase() !== "united states"
+      ) {
+        const msg =
+          "Only United States properties are supported. Please select a US address.";
+        setAutocompleteError(msg);
+        toast.error(msg);
+        return;
       }
-      if (types.includes("postal_code")) {
-        postalCode = comp.long_name || comp.short_name;
+
+      // Edge cases 1 & 2: Street number & non-specific/approximate result
+      if (!streetNumber) {
+        const msg =
+          "Please select a specific address with a street number (e.g., 123 Main St).";
+        setAutocompleteError(msg);
+        toast.error(msg);
+        return;
       }
-      if (types.includes("country")) {
-        countryShort = comp.short_name;
-        countryLong = comp.long_name;
+
+      if (!route) {
+        const msg =
+          "Please select a specific property address with a street name.";
+        setAutocompleteError(msg);
+        toast.error(msg);
+        return;
       }
-    }
 
-    // Edge case 5: Google result is outside the US
-    if (
-      countryShort &&
-      countryShort.toUpperCase() !== "US" &&
-      countryLong.toLowerCase() !== "united states"
-    ) {
-      const msg =
-        "Only United States properties are supported. Please select a US address.";
-      setAutocompleteError(msg);
-      toast.error(msg);
-      return;
-    }
-
-    // Edge cases 1 & 2: Street number & non-specific/approximate result
-    if (!streetNumber) {
-      const msg =
-        "Please select a specific address with a street number (e.g., 123 Main St).";
-      setAutocompleteError(msg);
-      toast.error(msg);
-      return;
-    }
-
-    if (!route) {
-      const msg =
-        "Please select a specific property address with a street name.";
-      setAutocompleteError(msg);
-      toast.error(msg);
-      return;
-    }
-
-    // Edge case 3: Google result has no ZIP
-    if (!postalCode) {
-      const msg =
-        "The selected address is missing a ZIP code. Please select a valid property address.";
-      setAutocompleteError(msg);
-      toast.error(msg);
-      return;
-    }
-
-    // Edge case 4: Google result has no city
-    const googleCityName = locality || sublocality || postalTown || "";
-    if (!googleCityName) {
-      const msg =
-        "Could not determine the city for the selected address. Please select a valid property address.";
-      setAutocompleteError(msg);
-      toast.error(msg);
-      return;
-    }
-
-    // Geometry / coordinates validation
-    if (!place.geometry || !place.geometry.location) {
-      const msg =
-        "Could not determine location coordinates for the selected address.";
-      setAutocompleteError(msg);
-      toast.error(msg);
-      return;
-    }
-
-    const lat =
-      typeof place.geometry.location.lat === "function"
-        ? place.geometry.location.lat()
-        : Number((place.geometry.location as any).lat);
-    const lng =
-      typeof place.geometry.location.lng === "function"
-        ? place.geometry.location.lng()
-        : Number((place.geometry.location as any).lng);
-
-    if (isNaN(lat) || isNaN(lng)) {
-      const msg = "Invalid coordinates returned for the selected address.";
-      setAutocompleteError(msg);
-      toast.error(msg);
-      return;
-    }
-
-    // State resolution against existing application states
-    let availableStates = statesRef.current;
-    if (!availableStates || availableStates.length === 0) {
-      try {
-        const res = await getStates(1, 1000);
-        const raw: any[] = Array.isArray(res) ? res : res?.data || [];
-        availableStates = raw.map((s: any) => ({
-          id: String(s.id),
-          name: s.state_name || s.name,
-          abbreviation: s.abbreviation,
-        }));
-      } catch (err) {
-        console.error("Failed to load states for autocomplete:", err);
+      // Edge case 3: Google result has no ZIP
+      if (!postalCode) {
+        const msg =
+          "The selected address is missing a ZIP code. Please select a valid property address.";
+        setAutocompleteError(msg);
+        toast.error(msg);
+        return;
       }
-    }
 
-    const matchedState = availableStates?.find(
-      (s) =>
-        Boolean(s) &&
-        ((s.abbreviation &&
-          stateShort &&
-          s.abbreviation.trim().toUpperCase() ===
-            stateShort.trim().toUpperCase()) ||
-          (s.name &&
-            stateLong &&
-            s.name.trim().toLowerCase() === stateLong.trim().toLowerCase()) ||
-          (s.id &&
+      // Edge case 4: Google result has no city
+      const googleCityName = locality || sublocality || postalTown || "";
+      if (!googleCityName) {
+        const msg =
+          "Could not determine the city for the selected address. Please select a valid property address.";
+        setAutocompleteError(msg);
+        toast.error(msg);
+        return;
+      }
+
+      // Geometry / coordinates validation
+      if (!place.geometry || !place.geometry.location) {
+        const msg =
+          "Could not determine location coordinates for the selected address.";
+        setAutocompleteError(msg);
+        toast.error(msg);
+        return;
+      }
+
+      const lat =
+        typeof place.geometry.location.lat === "function"
+          ? place.geometry.location.lat()
+          : Number((place.geometry.location as any).lat);
+      const lng =
+        typeof place.geometry.location.lng === "function"
+          ? place.geometry.location.lng()
+          : Number((place.geometry.location as any).lng);
+
+      if (isNaN(lat) || isNaN(lng)) {
+        const msg = "Invalid coordinates returned for the selected address.";
+        setAutocompleteError(msg);
+        toast.error(msg);
+        return;
+      }
+
+      // State resolution against existing application states
+      let availableStates = statesRef.current;
+      if (!availableStates || availableStates.length === 0) {
+        try {
+          const res = await getStates(1, 1000);
+          const raw: any[] = Array.isArray(res) ? res : res?.data || [];
+          availableStates = raw.map((s: any) => ({
+            id: String(s.id),
+            name: s.state_name || s.name,
+            abbreviation: s.abbreviation,
+          }));
+        } catch (err) {
+          console.error("Failed to load states for autocomplete:", err);
+        }
+      }
+
+      const matchedState = availableStates?.find(
+        (s) =>
+          Boolean(s) &&
+          ((s.abbreviation &&
             stateShort &&
-            s.id.trim().toUpperCase() === stateShort.trim().toUpperCase())),
-    );
+            s.abbreviation.trim().toUpperCase() ===
+              stateShort.trim().toUpperCase()) ||
+            (s.name &&
+              stateLong &&
+              s.name.trim().toLowerCase() === stateLong.trim().toLowerCase()) ||
+            (s.id &&
+              stateShort &&
+              s.id.trim().toUpperCase() === stateShort.trim().toUpperCase())),
+      );
 
-    if (!matchedState) {
-      const msg = `State (${stateShort || stateLong || "unknown"}) is not recognized in the system.`;
-      setAutocompleteError(msg);
-      toast.error(msg);
-      return;
-    }
+      if (!matchedState) {
+        const msg = `State (${stateShort || stateLong || "unknown"}) is not recognized in the system.`;
+        setAutocompleteError(msg);
+        toast.error(msg);
+        return;
+      }
 
-    const resolvedStateId = matchedState.id;
+      const resolvedStateId = matchedState.id;
 
-    // City resolution against existing application cities
-    let resolvedCityId = "";
-    let resolvedCityName = googleCityName;
-    let resolvedOtherCity = "";
+      // City resolution against existing application cities
+      let resolvedCityId = "";
+      let resolvedCityName = googleCityName;
+      let resolvedOtherCity = "";
 
-    const matchedCityFromProps = citiesRef.current?.find(
-      (c) =>
-        Boolean(c?.name) &&
-        c.name.trim().toLowerCase() === googleCityName.trim().toLowerCase() &&
-        (!c.state_id || c.state_id === resolvedStateId),
-    );
+      const matchedCityFromProps = citiesRef.current?.find(
+        (c) =>
+          Boolean(c?.name) &&
+          c.name.trim().toLowerCase() === googleCityName.trim().toLowerCase() &&
+          (!c.state_id || c.state_id === resolvedStateId),
+      );
 
-    if (matchedCityFromProps) {
-      resolvedCityId = matchedCityFromProps.id;
-      resolvedCityName = matchedCityFromProps.name;
-    } else {
-      try {
-        const apiRes = await getCities(
-          1,
-          20,
-          undefined,
-          googleCityName,
-          resolvedStateId,
-        );
-        const rawList: any[] = Array.isArray(apiRes)
-          ? apiRes
-          : apiRes?.data || [];
-        const matchedCityFromApi = rawList.find(
-          (c: any) =>
-            (c.city_name || c.name || "").trim().toLowerCase() ===
-            googleCityName.trim().toLowerCase(),
-        );
+      if (matchedCityFromProps) {
+        resolvedCityId = matchedCityFromProps.id;
+        resolvedCityName = matchedCityFromProps.name;
+      } else {
+        try {
+          const apiRes = await getCities(
+            1,
+            20,
+            undefined,
+            googleCityName,
+            resolvedStateId,
+          );
+          const rawList: any[] = Array.isArray(apiRes)
+            ? apiRes
+            : apiRes?.data || [];
+          const matchedCityFromApi = rawList.find(
+            (c: any) =>
+              (c.city_name || c.name || "").trim().toLowerCase() ===
+              googleCityName.trim().toLowerCase(),
+          );
 
-        if (matchedCityFromApi) {
-          resolvedCityId = String(matchedCityFromApi.id);
-          resolvedCityName =
-            matchedCityFromApi.city_name || matchedCityFromApi.name;
-        } else {
-          // Not found in database -> use other_city fallback
+          if (matchedCityFromApi) {
+            resolvedCityId = String(matchedCityFromApi.id);
+            resolvedCityName =
+              matchedCityFromApi.city_name || matchedCityFromApi.name;
+          } else {
+            // Not found in database -> use other_city fallback
+            resolvedCityId = "";
+            resolvedCityName = googleCityName;
+            resolvedOtherCity = googleCityName;
+          }
+        } catch (err) {
+          console.error("Failed to query city from API:", err);
           resolvedCityId = "";
           resolvedCityName = googleCityName;
           resolvedOtherCity = googleCityName;
         }
-      } catch (err) {
-        console.error("Failed to query city from API:", err);
-        resolvedCityId = "";
-        resolvedCityName = googleCityName;
-        resolvedOtherCity = googleCityName;
       }
-    }
 
-    if (resolvedCityId && resolvedCityName) {
-      setFetchedCities((prev) => {
-        if (prev.some((c) => c.id === resolvedCityId)) return prev;
-        return [
-          ...prev,
-          {
-            id: resolvedCityId,
-            name: resolvedCityName,
-            state_id: resolvedStateId,
-          },
-        ];
-      });
-    }
+      if (resolvedCityId && resolvedCityName) {
+        setFetchedCities((prev) => {
+          if (prev.some((c) => c.id === resolvedCityId)) return prev;
+          return [
+            ...prev,
+            {
+              id: resolvedCityId,
+              name: resolvedCityName,
+              state_id: resolvedStateId,
+            },
+          ];
+        });
+      }
 
-    // Address 1: street_number + route
-    const streetAddress = `${streetNumber} ${route}`.trim();
-    const stateAbbr =
-      matchedState.abbreviation || stateShort || matchedState.name;
+      // Address 1: street_number + route
+      const streetAddress = `${streetNumber} ${route}`.trim();
+      const stateAbbr =
+        matchedState.abbreviation || stateShort || matchedState.name;
 
-    // Validate the selected address through backend API
-    const valPayload = {
-      address: streetAddress,
-      address2: subpremise ? subpremise.trim() : "",
-      city: resolvedCityName,
-      state: stateAbbr,
-      zip: postalCode,
-    };
+      // Validate the selected address through backend API
+      const valPayload = {
+        address: streetAddress,
+        address2: subpremise ? subpremise.trim() : "",
+        city: resolvedCityName,
+        state: stateAbbr,
+        zip: postalCode,
+      };
 
-    console.log("=== SENDING TO BACKEND VALIDATE-ADDRESS ===", valPayload);
-    const valRes = await validateAddress(valPayload);
-    console.log("=== BACKEND VALIDATE-ADDRESS RESPONSE ===", valRes);
+      console.log("=== SENDING TO BACKEND VALIDATE-ADDRESS ===", valPayload);
+      const valRes = await validateAddress(valPayload);
+      console.log("=== BACKEND VALIDATE-ADDRESS RESPONSE ===", valRes);
 
-    const valResAny = valRes as any;
-    const valPayloadData = valRes.success
-      ? (valResAny.data?.data ?? valResAny.data)
-      : (valResAny.error?.data ?? valResAny.error ?? valResAny.data);
+      const valResAny = valRes as any;
+      const valPayloadData = valRes.success
+        ? (valResAny.data?.data ?? valResAny.data)
+        : (valResAny.error?.data ?? valResAny.error ?? valResAny.data);
 
-    const addr2Validation =
-      valPayloadData?.address2_validation ??
-      valResAny.data?.address2_validation ??
-      valResAny.error?.address2_validation;
+      const addr2Validation =
+        valPayloadData?.address2_validation ??
+        valResAny.data?.address2_validation ??
+        valResAny.error?.address2_validation;
 
-    // Check if the property address supports/requires Address 2 (COMMENTED OUT)
-    /*
+      // Check if the property address supports/requires Address 2 (COMMENTED OUT)
+      /*
     const isSupportedFlag =
       typeof addr2Validation?.is_address2_supported === "boolean"
         ? addr2Validation.is_address2_supported
@@ -733,136 +733,135 @@ export function AddressForm({
     }
     */
 
-    const invalidFields: string[] =
-      valPayloadData?.invalid_fields ??
-      valPayloadData?.invalidFields ??
-      valPayloadData?.error_fields ??
-      valPayloadData?.errorFields ??
-      valResAny.error?.invalid_fields ??
-      valResAny.errorFields ??
-      [];
+      const invalidFields: string[] =
+        valPayloadData?.invalid_fields ??
+        valPayloadData?.invalidFields ??
+        valPayloadData?.error_fields ??
+        valPayloadData?.errorFields ??
+        valResAny.error?.invalid_fields ??
+        valResAny.errorFields ??
+        [];
 
-    const onlyAddress2Invalid =
-      !valRes.success &&
-      invalidFields.length > 0 &&
-      invalidFields.every((f) => f.toLowerCase() === "address2");
+      const onlyAddress2Invalid =
+        !valRes.success &&
+        invalidFields.length > 0 &&
+        invalidFields.every((f) => f.toLowerCase() === "address2");
 
-    if (!valRes.success && !onlyAddress2Invalid) {
-      const errorMsg =
-        valRes.message || "The selected address failed backend validation.";
-      setAutocompleteError(errorMsg);
-      toast.error(errorMsg);
-      if (valResAny.errorFields && Array.isArray(valResAny.errorFields)) {
-        updateErrorFields(valResAny.errorFields);
+      if (!valRes.success && !onlyAddress2Invalid) {
+        const errorMsg =
+          valRes.message || "The selected address failed backend validation.";
+        setAutocompleteError(errorMsg);
+        toast.error(errorMsg);
+        if (valResAny.errorFields && Array.isArray(valResAny.errorFields)) {
+          updateErrorFields(valResAny.errorFields);
+        }
+        return;
       }
-      return;
-    }
 
-    if (onlyAddress2Invalid) {
-      const msg =
-        addr2Validation?.message || "Please provide a valid address line 2";
-      toast.warning(msg);
-      setAddress2Message(msg);
-      updateErrorFields(["address2"]);
-    } else {
-      setAddress2Message(null);
-    }
+      if (onlyAddress2Invalid) {
+        const msg =
+          addr2Validation?.message || "Please provide a valid address line 2";
+        toast.warning(msg);
+        setAddress2Message(msg);
+        updateErrorFields(["address2"]);
+      } else {
+        setAddress2Message(null);
+      }
 
-    /*
+      /*
     if (isSupportedFlag === false) {
       clearFieldError("address2");
       setAddress2Message(null);
     }
     */
 
-    // Inspect if backend exposes a canonical Address 2 value (e.g. address2_validation)
-    const backendCanonicalAddress2 =
-      addr2Validation?.suggested_address2 ??
-      addr2Validation?.google_subpremise ??
-      valPayloadData?.canonical_address2 ??
-      valPayloadData?.canonicalAddress2 ??
-      valPayloadData?.address2 ??
-      valPayloadData?.address_2;
+      // Inspect if backend exposes a canonical Address 2 value (e.g. address2_validation)
+      const backendCanonicalAddress2 =
+        addr2Validation?.suggested_address2 ??
+        addr2Validation?.google_subpremise ??
+        valPayloadData?.canonical_address2 ??
+        valPayloadData?.canonicalAddress2 ??
+        valPayloadData?.address2 ??
+        valPayloadData?.address_2;
 
-    let backendSubpremise = "";
-    if (
-      valPayloadData?.address_components &&
-      Array.isArray(valPayloadData.address_components)
-    ) {
-      const subpremiseComp = valPayloadData.address_components.find((c: any) =>
-        c.types?.includes("subpremise"),
-      );
-      if (subpremiseComp) {
-        backendSubpremise =
-          subpremiseComp.long_name || subpremiseComp.short_name || "";
+      let backendSubpremise = "";
+      if (
+        valPayloadData?.address_components &&
+        Array.isArray(valPayloadData.address_components)
+      ) {
+        const subpremiseComp = valPayloadData.address_components.find(
+          (c: any) => c.types?.includes("subpremise"),
+        );
+        if (subpremiseComp) {
+          backendSubpremise =
+            subpremiseComp.long_name || subpremiseComp.short_name || "";
+        }
       }
-    }
 
-    const finalAddress2 = (
-      backendCanonicalAddress2 != null && backendCanonicalAddress2 !== ""
-        ? String(backendCanonicalAddress2)
-        : backendSubpremise !== ""
-          ? backendSubpremise
-          : subpremise || ""
-    ).trim();
+      const finalAddress2 = (
+        backendCanonicalAddress2 != null && backendCanonicalAddress2 !== ""
+          ? String(backendCanonicalAddress2)
+          : backendSubpremise !== ""
+            ? backendSubpremise
+            : subpremise || ""
+      ).trim();
 
-    let finalLat = lat;
-    let finalLng = lng;
-    if (valPayloadData?.geometry?.location) {
-      const bLat =
-        typeof valPayloadData.geometry.location.lat === "function"
-          ? valPayloadData.geometry.location.lat()
-          : Number(valPayloadData.geometry.location.lat);
-      const bLng =
-        typeof valPayloadData.geometry.location.lng === "function"
-          ? valPayloadData.geometry.location.lng()
-          : Number(valPayloadData.geometry.location.lng);
-      if (!isNaN(bLat) && !isNaN(bLng)) {
-        finalLat = bLat;
-        finalLng = bLng;
+      let finalLat = lat;
+      let finalLng = lng;
+      if (valPayloadData?.geometry?.location) {
+        const bLat =
+          typeof valPayloadData.geometry.location.lat === "function"
+            ? valPayloadData.geometry.location.lat()
+            : Number(valPayloadData.geometry.location.lat);
+        const bLng =
+          typeof valPayloadData.geometry.location.lng === "function"
+            ? valPayloadData.geometry.location.lng()
+            : Number(valPayloadData.geometry.location.lng);
+        if (!isNaN(bLat) && !isNaN(bLng)) {
+          finalLat = bLat;
+          finalLng = bLng;
+        }
       }
-    }
 
-    // Update input text with canonical formatted address AFTER backend validation
-    const fullFormatted = [
-      streetAddress,
-      finalAddress2,
-      resolvedCityName,
-      stateAbbr,
-      postalCode,
-    ]
-      .filter(Boolean)
-      .join(", ");
-    setSearchValue(fullFormatted);
+      // Update input text with canonical formatted address AFTER backend validation
+      const fullFormatted = [
+        streetAddress,
+        finalAddress2,
+        resolvedCityName,
+        stateAbbr,
+        postalCode,
+      ]
+        .filter(Boolean)
+        .join(", ");
+      setSearchValue(fullFormatted);
 
-    // Clear address field errors
-    clearFieldError("address");
-    clearFieldError("address2");
-    clearFieldError("city");
-    clearFieldError("state");
-    clearFieldError("zip");
+      // Clear address field errors
+      clearFieldError("address");
+      clearFieldError("address2");
+      clearFieldError("city");
+      clearFieldError("state");
+      clearFieldError("zip");
 
-    // Populate data with backend-validated structured values
-    onChangeRef.current({
-      ...dataRef.current,
-      address: streetAddress,
-      address2: finalAddress2,
-      state: resolvedStateId,
-      state_id: resolvedStateId,
-      state_name: matchedState.name,
-      city_id: resolvedCityId,
-      city: resolvedCityName,
-      city_name: resolvedCityName,
-      other_city: resolvedOtherCity,
-      zip: postalCode,
-      latitude: finalLat,
-      longitude: finalLng,
-    });
+      // Populate data with backend-validated structured values
+      onChangeRef.current({
+        ...dataRef.current,
+        address: streetAddress,
+        address2: finalAddress2,
+        state: resolvedStateId,
+        state_id: resolvedStateId,
+        state_name: matchedState.name,
+        city_id: resolvedCityId,
+        city: resolvedCityName,
+        city_name: resolvedCityName,
+        other_city: resolvedOtherCity,
+        zip: postalCode,
+        latitude: finalLat,
+        longitude: finalLng,
+      });
     } catch (err: any) {
       console.error("Error processing selected place:", err);
       const msg =
-        err?.message ||
-        "Failed to process selected address. Please try again.";
+        err?.message || "Failed to process selected address. Please try again.";
       setAutocompleteError(msg);
       toast.error(msg);
     }

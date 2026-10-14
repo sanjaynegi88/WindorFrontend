@@ -81,6 +81,7 @@ interface PropertyItem {
   id: string;
   property_name?: string;
   address?: string;
+  address2?: string;
   city_name?: string;
   state_name?: string;
   zip?: string;
@@ -819,6 +820,7 @@ export default function PropertyListPage() {
           property_name:
             item.property_name || item.address || "Untitled Property",
           address: item.address || item.property_name || "",
+          address2: item.address2 || "",
           city_name: item.city_name || item.city?.name || selectedCity.name,
           state_name: item.state_name || item.state?.name || selectedState.name,
           zip: item.zip || "",
@@ -1130,7 +1132,7 @@ export default function PropertyListPage() {
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-sm sm:text-base font-black text-[#1e293b] tracking-tight font-asap truncate">
+                          <h3 className="text-sm sm:text-base font-black text-[#1e293b] uppercase tracking-tight font-asap truncate">
                             {stateItem.name}
                           </h3>
 
@@ -1221,7 +1223,7 @@ export default function PropertyListPage() {
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-sm sm:text-base font-black text-[#1e293b] tracking-tight font-asap truncate">
+                          <h3 className="text-sm sm:text-base font-black text-[#1e293b] uppercase tracking-tight font-asap truncate">
                             {cityItem.name}
                           </h3>
 
@@ -1293,7 +1295,7 @@ export default function PropertyListPage() {
                   )}
                 >
                   <Trash2 className="size-4" />
-                  <span>Deleted Properties</span>
+                  <span>Deleted Properties (With Projects)</span>
                 </button>
               </div>
 
@@ -1341,6 +1343,7 @@ export default function PropertyListPage() {
                         <p className="flex items-center gap-1 text-xs sm:text-sm font-semibold text-gray-500 mt-0.5 flex-wrap">
                           <MapPin className="size-3.5 text-[#1CA7A6] shrink-0" />
                           <span className="truncate">
+                            {prop.address2 ? prop.address2 + ", " : ""}
                             {prop.city_name}
                             {prop.city_name && prop.state_name ? ", " : ""}
                             {prop.state_name} {prop.zip}

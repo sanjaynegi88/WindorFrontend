@@ -34,6 +34,9 @@ interface PermitUploadDialogProps {
   onUploadSuccess?: () => void;
 }
 
+const MAX_FILE_SIZE_MB = 20;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
 export function PermitUploadDialog({
   open,
   onOpenChange,
@@ -55,12 +58,53 @@ export function PermitUploadDialog({
       setPermitFile(initialData?.file || null);
       setPermitDescription(initialData?.description || "");
       setPermitNotes(initialData?.notes || "");
+    } else {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   }, [open, initialData]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      toast.error(
+        `File "${file.name}" exceeds the ${MAX_FILE_SIZE_MB}MB size limit`,
+      );
+      e.target.value = "";
+      return;
+    }
+
+    setPermitFile(file);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      toast.error(
+        `File "${file.name}" exceeds the ${MAX_FILE_SIZE_MB}MB size limit`,
+      );
+      return;
+    }
+
+    setPermitFile(file);
+  };
 
   const handleSubmit = async () => {
     if (!permitFile) {
       toast.error("Please select a permit file");
+      return;
+    }
+
+    if (permitFile.size > MAX_FILE_SIZE_BYTES) {
+      toast.error(
+        `File "${permitFile.name}" exceeds the ${MAX_FILE_SIZE_MB}MB size limit`,
+      );
       return;
     }
 
@@ -115,26 +159,42 @@ export function PermitUploadDialog({
 
         <div className="space-y-4 py-2">
           <div className="space-y-2">
-            <Label htmlFor="permit-file" className="text-sm font-medium">
-              Permit Document <span className="text-destructive">*</span>
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="permit-file" className="text-sm font-medium">
+                Permit Document <span className="text-destructive">*</span>
+              </Label>
+              <span className="text-xs text-muted-foreground">
+                Max size: {MAX_FILE_SIZE_MB}MB
+              </span>
+            </div>
             <div
               className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-muted/50 transition-colors"
               onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDrop}
             >
               {permitFile ? (
-                <div className="flex items-center gap-2 w-full">
-                  <Upload className="size-4 text-muted-foreground shrink-0" />
-                  <span className="text-sm font-medium truncate flex-1">
-                    {permitFile.name}
-                  </span>
+                <div className="flex items-center justify-between gap-2 w-full">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <Upload className="size-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm font-medium truncate">
+                      {permitFile.name}
+                    </span>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      ({(permitFile.size / (1024 * 1024)).toFixed(2)} MB)
+                    </span>
+                  </div>
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       setPermitFile(null);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = "";
+                      }
                     }}
-                    className="p-1 rounded-full hover:bg-muted"
+                    className="p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
+                    title="Remove file"
                   >
                     <X className="size-3" />
                   </button>
@@ -143,7 +203,10 @@ export function PermitUploadDialog({
                 <>
                   <Upload className="size-6 text-muted-foreground" />
                   <span className="text-xs text-muted-foreground font-medium">
-                    Click to select a PDF or image file
+                    Click to select or drag and drop a PDF or image file
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    Acceptable size: Max {MAX_FILE_SIZE_MB}MB (PDF, PNG, JPG)
                   </span>
                 </>
               )}
@@ -153,10 +216,7 @@ export function PermitUploadDialog({
                 type="file"
                 accept=".pdf,.jpg,.jpeg,.png"
                 className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) setPermitFile(f);
-                }}
+                onChange={handleFileChange}
               />
             </div>
           </div>
