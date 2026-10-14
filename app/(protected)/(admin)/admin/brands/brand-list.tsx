@@ -8,6 +8,7 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   PaginationState,
+  RowSelectionState,
   SortingState,
   useReactTable,
 } from '@tanstack/react-table';
@@ -59,6 +60,7 @@ import {
 import {
   getBrands,
   deleteBrand,
+  multiDelete,
   getComponentTypes,
   getProjectTypesforPropertyOwner,
 } from '@/lib/actions';
@@ -68,6 +70,7 @@ import { BrandFormDialog } from './brand-form-dialog';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { formatDate } from '@/lib/helpers';
 import { toPascalCase } from '@/lib/utils';
+import { getSelectColumnDef } from '@/components/tables/table-selection-helper';
 
 
 export default function BrandList({ onAddBrand }: { onAddBrand: () => void }) {
@@ -89,6 +92,14 @@ export default function BrandList({ onAddBrand }: { onAddBrand: () => void }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const selectedIds = useMemo(
+    () => Object.keys(rowSelection).filter((id) => Boolean(rowSelection[id])),
+    [rowSelection],
+  );
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -160,9 +171,11 @@ export default function BrandList({ onAddBrand }: { onAddBrand: () => void }) {
 
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+    setRowSelection({});
   }, [debouncedSearch, selectedCategory]);
 
   useEffect(() => {
+    setRowSelection({});
     fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch, selectedCategory);
   }, [pagination.pageIndex, pagination.pageSize, debouncedSearch, selectedCategory]);
 
@@ -191,6 +204,26 @@ export default function BrandList({ onAddBrand }: { onAddBrand: () => void }) {
     }
   };
 
+  const handleConfirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const result = await multiDelete('/api/brands/bulk', { ids: selectedIds });
+      if (!result.success) {
+        toast.error(result.message || 'Failed to delete selected brands');
+        return;
+      }
+      toast.success(`${selectedIds.length} brand(s) deleted successfully`);
+      setRowSelection({});
+      fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch, selectedCategory);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete selected brands');
+    } finally {
+      setIsBulkDeleting(false);
+      setBulkDeleteDialogOpen(false);
+    }
+  };
+
   const handleEdit = (brand: any) => {
     setEditingBrand(brand);
   };
@@ -199,6 +232,7 @@ export default function BrandList({ onAddBrand }: { onAddBrand: () => void }) {
 
   const columns = useMemo<ColumnDef<any>[]>(
     () => [
+      getSelectColumnDef(),
       {
         accessorKey: 'index',
         id: 'index',
@@ -373,7 +407,10 @@ export default function BrandList({ onAddBrand }: { onAddBrand: () => void }) {
       pagination,
       sorting,
       columnOrder,
+      rowSelection,
     },
+    enableRowSelection: true,
+    onRowSelectionChange: setRowSelection,
     columnResizeMode: 'onChange',
     onColumnOrderChange: setColumnOrder,
     onPaginationChange: setPagination,
@@ -436,6 +473,18 @@ export default function BrandList({ onAddBrand }: { onAddBrand: () => void }) {
             </CardHeading>
             <CardToolbar className="w-full sm:w-auto">
               <div className="flex items-center gap-2.5">
+                {selectedIds.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setBulkDeleteDialogOpen(true)}
+                    disabled={isBulkDeleting}
+                    className="w-full sm:w-auto"
+                  >
+                    <Trash2 className="size-4 mr-2" />
+                    Delete Selected ({selectedIds.length})
+                  </Button>
+                )}
                 <Button size="sm" onClick={onAddBrand} className="w-full sm:w-auto">
                   <Plus className="size-4 mr-2" /> New Brand
                 </Button>
@@ -478,6 +527,17 @@ export default function BrandList({ onAddBrand }: { onAddBrand: () => void }) {
         confirmText={isDeleting ? 'Deleting...' : 'Delete'}
         cancelText="Cancel"
         onConfirm={handleConfirmDelete}
+        variant="destructive"
+      />
+
+      <ConfirmDialog
+        isOpen={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        title="Delete Selected Brands"
+        description={`Are you sure you want to delete ${selectedIds.length} selected brand(s)? This action cannot be undone.`}
+        confirmText={isBulkDeleting ? 'Deleting...' : `Delete (${selectedIds.length})`}
+        cancelText="Cancel"
+        onConfirm={handleConfirmBulkDelete}
         variant="destructive"
       />
     </>

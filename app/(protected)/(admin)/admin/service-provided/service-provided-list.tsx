@@ -8,6 +8,7 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   PaginationState,
+  RowSelectionState,
   SortingState,
   useReactTable,
 } from '@tanstack/react-table';
@@ -37,8 +38,6 @@ import { DataGridColumnVisibility } from '@/components/ui/data-grid-column-visib
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import {
   DataGridTable,
-  DataGridTableRowSelect,
-  DataGridTableRowSelectAll,
 } from '@/components/ui/data-grid-table';
 import { Input } from '@/components/ui/input';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -50,7 +49,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { getServiceProvided, deleteServiceProvided } from '@/lib/actions';
+import { getServiceProvided, deleteServiceProvided, multiDelete } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -64,6 +63,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { ServiceProvidedFormDialog } from './service-provided-form-dialog';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { getSelectColumnDef } from '@/components/tables/table-selection-helper';
 import { formatDate } from '@/lib/helpers';
 import { toPascalCase } from '@/lib/utils';
 
@@ -84,6 +85,14 @@ export default function ServiceProvidedListPage({ refreshTrigger, onSuccess }: {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const selectedIds = useMemo(
+    () => Object.keys(rowSelection).filter((id) => Boolean(rowSelection[id])),
+    [rowSelection],
+  );
 
 
   const fetchData = async (page: number = 1, limit: number = 10, name?: string) => {
@@ -118,9 +127,11 @@ export default function ServiceProvidedListPage({ refreshTrigger, onSuccess }: {
   // Reset to page 0 when search changes
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+    setRowSelection({});
   }, [debouncedSearch]);
 
   useEffect(() => {
+    setRowSelection({});
     fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
   }, [refreshTrigger, pagination.pageIndex, pagination.pageSize, debouncedSearch]);
 
@@ -147,6 +158,26 @@ export default function ServiceProvidedListPage({ refreshTrigger, onSuccess }: {
     }
   };
 
+  const handleConfirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const response = await multiDelete('/api/services-provided/bulk', { ids: selectedIds });
+      if (!response.success) {
+        toast.error(response.message || 'Failed to delete services');
+        return;
+      }
+      toast.success(`${selectedIds.length} service(s) deleted successfully`);
+      setRowSelection({});
+      fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete services');
+    } finally {
+      setIsBulkDeleting(false);
+      setBulkDeleteDialogOpen(false);
+    }
+  };
+
   const handleEdit = (service: any) => {
     setEditingService(service);
   };
@@ -155,6 +186,7 @@ export default function ServiceProvidedListPage({ refreshTrigger, onSuccess }: {
 
   const columns = useMemo<ColumnDef<any>[]>(
     () => [
+      getSelectColumnDef(),
       {
         accessorKey: 'index',
         id: 'index',
@@ -305,7 +337,10 @@ export default function ServiceProvidedListPage({ refreshTrigger, onSuccess }: {
       pagination,
       sorting,
       columnOrder,
+      rowSelection,
     },
+    enableRowSelection: true,
+    onRowSelectionChange: setRowSelection,
     columnResizeMode: 'onChange',
     onColumnOrderChange: setColumnOrder,
     onPaginationChange: setPagination,
@@ -346,13 +381,27 @@ export default function ServiceProvidedListPage({ refreshTrigger, onSuccess }: {
               </div>
             </CardHeading>
             <CardToolbar className="w-full sm:w-auto">
-              <Button
-                className="w-full sm:w-auto rounded-xl px-4 bg-primary text-white hover:bg-primary/90 shadow-sm"
-                onClick={() => setIsAddDialogOpen(true)}
-              >
-                <Plus className="size-4 mr-2" />
-                Add Service
-              </Button>
+              <div className="flex items-center gap-2.5">
+                {selectedIds.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setBulkDeleteDialogOpen(true)}
+                    disabled={isBulkDeleting}
+                    className="w-full sm:w-auto"
+                  >
+                    <Trash2 className="size-4 mr-2" />
+                    Delete Selected ({selectedIds.length})
+                  </Button>
+                )}
+                <Button
+                  className="w-full sm:w-auto rounded-xl px-4 bg-primary text-white hover:bg-primary/90 shadow-sm"
+                  onClick={() => setIsAddDialogOpen(true)}
+                >
+                  <Plus className="size-4 mr-2" />
+                  Add Service
+                </Button>
+              </div>
             </CardToolbar>
           </CardHeader>
           <CardTable>
@@ -402,6 +451,17 @@ export default function ServiceProvidedListPage({ refreshTrigger, onSuccess }: {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ConfirmDialog
+        isOpen={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        title="Delete Selected Services"
+        description={`Are you sure you want to delete ${selectedIds.length} selected service(s)? This action cannot be undone.`}
+        confirmText={isBulkDeleting ? "Deleting..." : `Delete (${selectedIds.length})`}
+        cancelText="Cancel"
+        onConfirm={handleConfirmBulkDelete}
+        variant="destructive"
+      />
     </>
   );
 };

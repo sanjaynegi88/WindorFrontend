@@ -31,7 +31,12 @@ import { getAppImageUrl, toPascalCase, cn } from "@/lib/utils";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { toast } from "sonner";
 import { DynamicFeaturesTable } from "../common/dynamic-features-table";
-import { getBrands, getImageCategory } from "@/lib/actions";
+import {
+  getBrands,
+  getImageCategory,
+  getColors,
+  getStyles,
+} from "@/lib/actions";
 import { transformBrandsToOptions } from "@/lib/brand-utils";
 import { useUser } from "../providers/user-provider";
 
@@ -279,6 +284,28 @@ export function InstallationForm({
     () => transformBrandsToOptions(brands),
     [brands],
   );
+  const [styles, setStyles] = useState<any[]>([]);
+  const [colors, setColors] = useState<any[]>([]);
+  const [loadingStyles, setLoadingStyles] = useState(false);
+  const [loadingColors, setLoadingColors] = useState(false);
+
+  const styleOptions = useMemo(
+    () =>
+      (styles || []).map((s: any) => ({
+        id: s.id,
+        name: s.style || s.name || "",
+      })),
+    [styles],
+  );
+
+  const colorOptions = useMemo(
+    () =>
+      (colors || []).map((c: any) => ({
+        id: c.id,
+        name: toPascalCase(c.color || c.name || ""),
+      })),
+    [colors],
+  );
   const user = useUser();
 
   const isAdmin = user?.role === "admin";
@@ -434,6 +461,59 @@ export function InstallationForm({
     fetchBrands();
   }, [type]);
 
+  useEffect(() => {
+    if (!type || !["roofing", "siding"].includes(type)) {
+      setStyles([]);
+      return;
+    }
+    const fetchStyles = async () => {
+      setLoadingStyles(true);
+      try {
+        const response = await getStyles(
+          undefined,
+          undefined,
+          type.toUpperCase(),
+        );
+        const rawStyles = Array.isArray(response)
+          ? response
+          : response?.data || [];
+        setStyles(rawStyles);
+      } catch (error) {
+        console.error("Failed to load styles:", error);
+        setStyles([]);
+      } finally {
+        setLoadingStyles(false);
+      }
+    };
+    fetchStyles();
+  }, [type]);
+
+  useEffect(() => {
+    if (
+      !type ||
+      !["roofing", "siding", "doors", "garage_doors", "windows"].includes(type)
+    ) {
+      setColors([]);
+      return;
+    }
+    const fetchColors = async () => {
+      setLoadingColors(true);
+      try {
+        const response = await getColors();
+        const rawColors = Array.isArray(response)
+          ? response
+          : response?.data || [];
+        setColors(rawColors);
+      } catch (error) {
+        console.error("Failed to load colors:", error);
+        setColors([]);
+      } finally {
+        setLoadingColors(false);
+      }
+    };
+    fetchColors();
+  }, [type]);
+
   // Load image categories for contractor images in edit mode
   useEffect(() => {
     if (!type) return;
@@ -515,8 +595,14 @@ export function InstallationForm({
         "",
       windcode: values?.windcode || "",
       u_factor: values?.u_factor || "",
-      style: values?.style || "",
-      color: values?.color || "",
+      style:
+        values?.style ||
+        values?.style_id ||
+        (values?.other_style ? `__custom__:${values.other_style}` : ""),
+      color:
+        values?.color ||
+        values?.color_id ||
+        (values?.other_color ? `__custom__:${values.other_color}` : ""),
       material: values?.material || "",
       type: values?.type || "",
       impactResistant: values?.impactResistant ?? false,
@@ -612,6 +698,8 @@ export function InstallationForm({
   const onSubmit = async (values: any) => {
     if (!type) return;
 
+    console.log("=== [InstallationForm] Submitted Form Values ===", values);
+
     const contractorBytes = getContractorUploadSizeBytes();
     if (contractorBytes > MAX_CONTRACTOR_UPLOAD_BYTES) {
       const totalMB = (contractorBytes / (1024 * 1024)).toFixed(1);
@@ -639,10 +727,36 @@ export function InstallationForm({
       ownerFiles,
       categoryFiles: categoryFileMap,
     };
+
+    // Resolve style and color human-readable names if IDs were selected
+    const resolvedValues = { ...values };
+
+    if (values?.style) {
+      if (values.style.startsWith("__custom__:")) {
+        resolvedValues.styleName = values.style.slice("__custom__:".length);
+      } else {
+        const matched = styleOptions.find((o) => o.id === values.style);
+        if (matched) {
+          resolvedValues.styleName = matched.name;
+        }
+      }
+    }
+
+    if (values?.color) {
+      if (values.color.startsWith("__custom__:")) {
+        resolvedValues.colorName = values.color.slice("__custom__:".length);
+      } else {
+        const matched = colorOptions.find((o) => o.id === values.color);
+        if (matched) {
+          resolvedValues.colorName = matched.name;
+        }
+      }
+    }
+
     if (pendingAction === "addImages" && onAddImages) {
-      await onAddImages(values, allFiles as any);
+      await onAddImages(resolvedValues, allFiles as any);
     } else if (onSave) {
-      await onSave(values, allFiles as any);
+      await onSave(resolvedValues, allFiles as any);
     }
   };
 
@@ -807,19 +921,107 @@ export function InstallationForm({
                 )}
               />
 
-              {/* Dynamic installation-type specific simple fields */}
+              {/* Dynamic installation-type specific fields */}
               {INSTALLATION_FIELDS_CONFIG.filter((cfg) =>
                 cfg.visibleFor.includes(type),
-              ).map((cfg) => (
-                <SimpleFormField
-                  key={cfg.name}
-                  control={form.control}
-                  name={cfg.name}
-                  label={cfg.label}
-                  placeholder={cfg.placeholder}
-                  type={cfg.type}
-                />
-              ))}
+              ).map((cfg) => {
+                if (cfg.name === "style") {
+                  const isUuid = (val?: string) =>
+                    Boolean(
+                      val &&
+                        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                          val,
+                        ),
+                    );
+                  const styleFallback = !isUuid(initialValues?.styleName)
+                    ? initialValues?.styleName
+                    : !isUuid(initialValues?.style)
+                      ? initialValues?.style
+                      : "";
+
+                  return (
+                    <FormField
+                      key={cfg.name}
+                      control={form.control}
+                      name="style"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold text-foreground">
+                            Style
+                          </FormLabel>
+                          <FormControl>
+                            <SearchableSelect
+                              options={styleOptions}
+                              value={field.value ?? ""}
+                              onValueChange={field.onChange}
+                              placeholder="Select style"
+                              searchPlaceholder="Search style..."
+                              loading={loadingStyles}
+                              allowCustom
+                              displayValueFallback={styleFallback}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  );
+                }
+
+                if (cfg.name === "color") {
+                  const isUuid = (val?: string) =>
+                    Boolean(
+                      val &&
+                        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                          val,
+                        ),
+                    );
+                  const colorFallback = !isUuid(initialValues?.colorName)
+                    ? initialValues?.colorName
+                    : !isUuid(initialValues?.color)
+                      ? initialValues?.color
+                      : "";
+
+                  return (
+                    <FormField
+                      key={cfg.name}
+                      control={form.control}
+                      name="color"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold text-foreground">
+                            Color
+                          </FormLabel>
+                          <FormControl>
+                            <SearchableSelect
+                              options={colorOptions}
+                              value={field.value ?? ""}
+                              onValueChange={field.onChange}
+                              placeholder="Select color"
+                              searchPlaceholder="Search color..."
+                              loading={loadingColors}
+                              allowCustom
+                              displayValueFallback={colorFallback}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  );
+                }
+
+                return (
+                  <SimpleFormField
+                    key={cfg.name}
+                    control={form.control}
+                    name={cfg.name}
+                    label={cfg.label}
+                    placeholder={cfg.placeholder}
+                    type={cfg.type}
+                  />
+                );
+              })}
 
               {/* Special fields with custom UI */}
               {type === "roofing" && (

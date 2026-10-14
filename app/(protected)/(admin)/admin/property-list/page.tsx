@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 import {
   getStates,
   getCities,
@@ -514,7 +516,11 @@ function PropertyThumbnail({ src, alt }: { src?: string; alt: string }) {
    MAIN ADMIN PROPERTY LISTING PAGE
 ─────────────────────────────────────────────────────────────── */
 export default function PropertyListPage() {
+  const router = useRouter();
   const [level, setLevel] = useState<ViewLevel>("state");
+  const [propertyTab, setPropertyTab] = useState<"active" | "deleted">(
+    "active",
+  );
 
   // Selection hierarchy
   const [selectedState, setSelectedState] = useState<StateItem | null>(null);
@@ -592,12 +598,15 @@ export default function PropertyListPage() {
   useEffect(() => {
     setSearchQuery("");
     setAppliedSearch("");
+    if (level !== "property") {
+      setPropertyTab("active");
+    }
   }, [level]);
 
   useEffect(() => {
     setPage(1);
     fetchData(1, false);
-  }, [level, selectedState?.id, selectedCity?.id, appliedSearch]);
+  }, [level, selectedState?.id, selectedCity?.id, appliedSearch, propertyTab]);
 
   const fetchData = async (pageNum: number, append: boolean = false) => {
     try {
@@ -770,6 +779,7 @@ export default function PropertyListPage() {
           search: appliedSearch || undefined,
           page: pageNum,
           limit: limit,
+          is_deleted: propertyTab === "deleted" ? true : undefined,
         });
         console.log(response, "Response of properties");
         const pagination =
@@ -1256,13 +1266,44 @@ export default function PropertyListPage() {
 
           {/* LEVEL 3: PROPERTIES */}
           {level === "property" && (
-            <div className="space-y-3">
+            <div className="space-y-4">
+              {/* Tabs for Active and Deleted Properties */}
+              <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+                <button
+                  type="button"
+                  onClick={() => setPropertyTab("active")}
+                  className={cn(
+                    "px-4 py-2 text-xs sm:text-sm font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2",
+                    propertyTab === "active"
+                      ? "bg-[#1CA7A6] text-white shadow-sm"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200",
+                  )}
+                >
+                  <Building2 className="size-4" />
+                  <span>Active Properties</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPropertyTab("deleted")}
+                  className={cn(
+                    "px-4 py-2 text-xs sm:text-sm font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2",
+                    propertyTab === "deleted"
+                      ? "bg-red-600 text-white shadow-sm"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200",
+                  )}
+                >
+                  <Trash2 className="size-4" />
+                  <span>Deleted Properties</span>
+                </button>
+              </div>
+
               {properties.length === 0 ? (
                 <div className="text-center py-12 sm:py-16 bg-gray-50 rounded-[1.5rem] sm:rounded-[2rem] border border-dashed p-6 space-y-3">
                   <Building2 className="size-10 text-gray-300 mx-auto" />
                   <p className="text-gray-400 font-bold uppercase tracking-widest text-sm sm:text-base">
-                    No properties found in {selectedCity?.name},{" "}
-                    {selectedState?.name}.
+                    {propertyTab === "deleted"
+                      ? `No deleted properties found in ${selectedCity?.name}, ${selectedState?.name}.`
+                      : `No properties found in ${selectedCity?.name}, ${selectedState?.name}.`}
                   </p>
                   {appliedSearch && (
                     <Button
@@ -1287,9 +1328,16 @@ export default function PropertyListPage() {
                       />
 
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-sm sm:text-base font-black text-[#1e293b] uppercase tracking-tight font-asap truncate">
-                          {prop.address}
-                        </h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm sm:text-base font-black text-[#1e293b] uppercase tracking-tight font-asap truncate">
+                            {prop.address}
+                          </h3>
+                          {propertyTab === "deleted" && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700 border border-red-200">
+                              Deleted
+                            </span>
+                          )}
+                        </div>
                         <p className="flex items-center gap-1 text-xs sm:text-sm font-semibold text-gray-500 mt-0.5 flex-wrap">
                           <MapPin className="size-3.5 text-[#1CA7A6] shrink-0" />
                           <span className="truncate">
@@ -1312,23 +1360,40 @@ export default function PropertyListPage() {
                         </p>
                       )}
 
-                      <Button
-                        size="sm"
-                        onClick={() => handleOpenEditModal(prop.id)}
-                        className="flex-1 sm:flex-none h-9 px-3.5 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
-                      >
-                        <Edit className="size-3.5" />
-                        <span>Edit</span>
-                      </Button>
+                      {/* View Button - available for both Active and Deleted */}
 
-                      <Button
-                        size="sm"
-                        onClick={() => setPropertyToDelete(prop)}
-                        className="flex-1 sm:flex-none h-9 px-3.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-                      >
-                        <Trash2 className="size-3.5" />
-                        <span>Delete</span>
-                      </Button>
+                      {/* Edit and Delete buttons - only available for Active properties */}
+                      {propertyTab === "active" && (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() =>
+                              router.push(`/property-details/${prop.id}`)
+                            }
+                            className="flex-1 sm:flex-none h-9 px-3.5 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                          >
+                            <Eye className="size-3.5" />
+                            <span>View</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleOpenEditModal(prop.id)}
+                            className="flex-1 sm:flex-none h-9 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                          >
+                            <Edit className="size-3.5" />
+                            <span>Edit</span>
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            onClick={() => setPropertyToDelete(prop)}
+                            className="flex-1 sm:flex-none h-9 px-3.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                          >
+                            <Trash2 className="size-3.5" />
+                            <span>Delete</span>
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))

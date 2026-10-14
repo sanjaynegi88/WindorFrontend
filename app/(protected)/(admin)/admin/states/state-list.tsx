@@ -8,6 +8,7 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   PaginationState,
+  RowSelectionState,
   SortingState,
   useReactTable,
 } from '@tanstack/react-table';
@@ -45,10 +46,12 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { deleteStates, getStates } from '@/lib/actions';
+import { deleteStates, getStates, multiDelete } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { StateFormDialog } from './state-form-dialog';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { getSelectColumnDef } from '@/components/tables/table-selection-helper';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -77,6 +80,14 @@ export default function StateList({ refreshTrigger, onSuccess }: { refreshTrigge
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const selectedIds = useMemo(
+    () => Object.keys(rowSelection).filter((id) => Boolean(rowSelection[id])),
+    [rowSelection],
+  );
 
   const handleSuccess = () => {
     onSuccess?.();
@@ -116,9 +127,11 @@ export default function StateList({ refreshTrigger, onSuccess }: { refreshTrigge
   // Reset to page 0 when search changes
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+    setRowSelection({});
   }, [debouncedSearch]);
 
   useEffect(() => {
+    setRowSelection({});
     fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
   }, [refreshTrigger, pagination.pageIndex, pagination.pageSize, debouncedSearch]);
 
@@ -140,6 +153,26 @@ export default function StateList({ refreshTrigger, onSuccess }: { refreshTrigge
     fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
   };
 
+  const handleConfirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const response = await multiDelete('/api/states/bulk', { ids: selectedIds });
+      if (!response.success) {
+        toast.error(response.message || 'Failed to delete states');
+        return;
+      }
+      toast.success(`${selectedIds.length} state(s) deleted successfully`);
+      setRowSelection({});
+      fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete states');
+    } finally {
+      setIsBulkDeleting(false);
+      setBulkDeleteDialogOpen(false);
+    }
+  };
+
   const handleEdit = (state: any) => {
     setEditingState(state);
   };
@@ -148,6 +181,7 @@ export default function StateList({ refreshTrigger, onSuccess }: { refreshTrigge
 
   const columns = useMemo<ColumnDef<any>[]>(
     () => [
+      getSelectColumnDef(),
       {
         accessorKey: 'index',
         id: 'index',
@@ -298,7 +332,10 @@ export default function StateList({ refreshTrigger, onSuccess }: { refreshTrigge
       pagination,
       sorting,
       columnOrder,
+      rowSelection,
     },
+    enableRowSelection: true,
+    onRowSelectionChange: setRowSelection,
     columnResizeMode: 'onChange',
     onColumnOrderChange: setColumnOrder,
     onPaginationChange: setPagination,
@@ -339,13 +376,27 @@ export default function StateList({ refreshTrigger, onSuccess }: { refreshTrigge
               </div>
             </CardHeading>
             <CardToolbar className="w-full sm:w-auto">
-              <Button
-                className="w-full sm:w-auto rounded-xl px-4 bg-primary text-white hover:bg-primary/90 shadow-sm"
-                onClick={() => setIsAddDialogOpen(true)}
-              >
-                <Plus className="size-4 mr-2" />
-                Add State
-              </Button>
+              <div className="flex items-center gap-2.5">
+                {selectedIds.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setBulkDeleteDialogOpen(true)}
+                    disabled={isBulkDeleting}
+                    className="w-full sm:w-auto"
+                  >
+                    <Trash2 className="size-4 mr-2" />
+                    Delete Selected ({selectedIds.length})
+                  </Button>
+                )}
+                <Button
+                  className="w-full sm:w-auto rounded-xl px-4 bg-primary text-white hover:bg-primary/90 shadow-sm"
+                  onClick={() => setIsAddDialogOpen(true)}
+                >
+                  <Plus className="size-4 mr-2" />
+                  Add State
+                </Button>
+              </div>
             </CardToolbar>
           </CardHeader>
           <CardTable>
@@ -395,6 +446,17 @@ export default function StateList({ refreshTrigger, onSuccess }: { refreshTrigge
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ConfirmDialog
+        isOpen={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        title="Delete Selected States"
+        description={`Are you sure you want to delete ${selectedIds.length} selected state(s)? This action cannot be undone.`}
+        confirmText={isBulkDeleting ? "Deleting..." : `Delete (${selectedIds.length})`}
+        cancelText="Cancel"
+        onConfirm={handleConfirmBulkDelete}
+        variant="destructive"
+      />
     </>
   );
 };

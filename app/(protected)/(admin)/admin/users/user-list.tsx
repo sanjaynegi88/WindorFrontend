@@ -8,6 +8,7 @@ import {
   getFilteredRowModel,
   getSortedRowModel,
   PaginationState,
+  RowSelectionState,
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
@@ -68,7 +69,10 @@ import {
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
-import { DataGridTable } from "@/components/ui/data-grid-table";
+import {
+  DataGridTable,
+  DataGridTableRowSelect,
+} from "@/components/ui/data-grid-table";
 import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
@@ -82,6 +86,7 @@ import {
 import {
   getUserList,
   deleteUserAdmin,
+  multiDelete,
   getUserById,
   getRoles,
   setUserPasswordAdmin,
@@ -105,6 +110,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { getSelectColumnDef } from "@/components/tables/table-selection-helper";
 import Link from "next/link";
 
 type UserRole =
@@ -425,6 +432,19 @@ export default function UserList() {
     email?: string;
   } | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const selectedIds = useMemo(
+    () =>
+      Object.keys(rowSelection).filter((id) => {
+        if (!rowSelection[id]) return false;
+        const user = data.find((u) => u.id === id);
+        return user?.role?.toUpperCase() !== "ADMIN";
+      }),
+    [rowSelection, data],
+  );
 
   useEffect(() => {
     const fetchRoles = async () => {
@@ -499,6 +519,31 @@ export default function UserList() {
     }
   };
 
+  const handleConfirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const result = await multiDelete("/api/users/bulk", { ids: selectedIds });
+      if (!result.success) {
+        toast.error(result.message || "Failed to delete selected users");
+        return;
+      }
+      toast.success(`${selectedIds.length} user(s) deleted successfully`);
+      setRowSelection({});
+      fetchData(
+        pagination.pageIndex + 1,
+        pagination.pageSize,
+        debouncedSearch,
+        selectedRole,
+      );
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete selected users");
+    } finally {
+      setIsBulkDeleting(false);
+      setBulkDeleteDialogOpen(false);
+    }
+  };
+
   const handleViewDetails = async (userId: string) => {
     setViewingUserId(userId);
     setViewingUserData(null);
@@ -525,9 +570,11 @@ export default function UserList() {
   // Reset to page 0 when search or role changes
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+    setRowSelection({});
   }, [debouncedSearch, selectedRole]);
 
   useEffect(() => {
+    setRowSelection({});
     fetchData(
       pagination.pageIndex + 1,
       pagination.pageSize,
@@ -545,6 +592,21 @@ export default function UserList() {
 
   const columns = useMemo<ColumnDef<SystemUser>[]>(
     () => [
+      {
+        ...getSelectColumnDef<SystemUser>(),
+        cell: ({ row }) => {
+          const isAdmin = row.original?.role?.toUpperCase() === "ADMIN";
+          return (
+            <div className="flex items-center justify-center w-full">
+              <DataGridTableRowSelect
+                row={row}
+                size="sm"
+                disabled={isAdmin || !row.getCanSelect()}
+              />
+            </div>
+          );
+        },
+      },
       {
         accessorKey: "index",
         id: "index",
@@ -825,7 +887,10 @@ export default function UserList() {
       pagination,
       sorting,
       columnOrder,
+      rowSelection,
     },
+    enableRowSelection: (row) => row.original?.role?.toUpperCase() !== "ADMIN",
+    onRowSelectionChange: setRowSelection,
     columnResizeMode: "onChange",
     onColumnOrderChange: setColumnOrder,
     onPaginationChange: setPagination,
@@ -1414,6 +1479,18 @@ export default function UserList() {
             </CardHeading>
             <CardToolbar className="w-full sm:w-auto">
               <div className="flex items-center gap-2.5">
+                {selectedIds.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setBulkDeleteDialogOpen(true)}
+                    disabled={isBulkDeleting}
+                    className="w-full sm:w-auto"
+                  >
+                    <Trash2 className="size-4 mr-2" />
+                    Delete Selected ({selectedIds.length})
+                  </Button>
+                )}
                 <Link href="/admin/users/add-user" className="w-full sm:w-auto">
                   <Button size="sm" className="w-full sm:w-auto">
                     <UserPlus className="size-4 mr-2" /> New User
@@ -1438,6 +1515,17 @@ export default function UserList() {
           </CardFooter>
         </Card>
       </DataGrid>
+
+      <ConfirmDialog
+        isOpen={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        title="Delete Selected Users"
+        description={`Are you sure you want to delete ${selectedIds.length} selected user(s)? This action cannot be undone.`}
+        confirmText={isBulkDeleting ? "Deleting..." : `Delete (${selectedIds.length})`}
+        cancelText="Cancel"
+        onConfirm={handleConfirmBulkDelete}
+        variant="destructive"
+      />
     </>
   );
 }

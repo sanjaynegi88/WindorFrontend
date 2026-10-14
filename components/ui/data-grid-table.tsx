@@ -442,10 +442,15 @@ function DataGridTableLoader() {
 function DataGridTableRowSelect<TData>({
   row,
   size,
+  disabled,
 }: {
   row: Row<TData>;
   size?: 'sm' | 'md' | 'lg';
+  disabled?: boolean;
 }) {
+  const canSelect = row.getCanSelect ? row.getCanSelect() : true;
+  const isDisabled = disabled !== undefined ? disabled : !canSelect;
+
   return (
     <>
       <div
@@ -456,6 +461,7 @@ function DataGridTableRowSelect<TData>({
       ></div>
       <Checkbox
         checked={row.getIsSelected()}
+        disabled={isDisabled}
         onCheckedChange={(value) => row.toggleSelected(!!value)}
         aria-label="Select row"
         size={size ?? 'sm'}

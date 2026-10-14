@@ -25,6 +25,8 @@ import {
   User,
   HouseIcon,
   VerifiedIcon,
+  PaletteIcon,
+  Shapes,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -349,6 +351,8 @@ export function Navbar() {
     },
     { name: "Set Prices", href: "/admin/report-price", icon: DollarSignIcon },
     { name: "Admin Logs", href: "/admin/admin-logs", icon: History },
+    { name: "Colors", href: "/admin/colors", icon: PaletteIcon },
+    { name: "Styles", href: "/admin/styles", icon: Shapes },
     { name: "Import Data", href: "/admin/import-data", icon: FileDownIcon },
     // {
     //   name: "Marketing Content",
@@ -437,7 +441,7 @@ export function Navbar() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       align="start"
-                      className="w-56 rounded-xl border-none shadow-2xl p-2 bg-white mt-1"
+                      className="w-56 rounded-xl border-none shadow-2xl p-2 bg-white mt-1 max-h-[75vh] overflow-y-auto"
                       onMouseEnter={() => handleMouseEnter(link.name)}
                       onMouseLeave={handleMouseLeave}
                     >
@@ -520,7 +524,7 @@ export function Navbar() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="end"
-                  className="w-56 rounded-xl border-none shadow-2xl p-2 bg-white"
+                  className="w-56 rounded-xl border-none shadow-2xl p-2 bg-white max-h-[75vh] overflow-y-auto"
                   onMouseEnter={() => handleMouseEnter("ADMIN")}
                   onMouseLeave={handleMouseLeave}
                 >

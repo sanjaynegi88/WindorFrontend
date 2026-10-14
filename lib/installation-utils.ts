@@ -4,6 +4,35 @@ export interface InstallationPayloadOptions {
   projectId?: string | null;
 }
 
+export function parseSelectValue(value?: string | null): {
+  id: string | null;
+  other: string | null;
+} {
+  if (!value) {
+    return { id: null, other: null };
+  }
+  if (value.startsWith("__custom__:")) {
+    return {
+      id: null,
+      other: value.slice("__custom__:".length),
+    };
+  }
+  const isUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      value,
+    );
+  if (isUuid) {
+    return {
+      id: value,
+      other: null,
+    };
+  }
+  return {
+    id: null,
+    other: value,
+  };
+}
+
 /**
  * Builds a type-safe and type-specific installation payload from InstallationForm values.
  * Used across:
@@ -18,6 +47,8 @@ export function buildInstallationPayload(
 ): Record<string, any> {
   const normType = (type || "").toLowerCase().trim();
   const { brand_id, other_brand } = parseBrandValue(values?.brand);
+  const { id: style_id, other: other_style } = parseSelectValue(values?.style);
+  const { id: color_id, other: other_color } = parseSelectValue(values?.color);
 
   const payload: Record<string, any> = {
     description: values?.description,
@@ -36,9 +67,12 @@ export function buildInstallationPayload(
   }
 
   if (normType === "roofing" || normType === "siding") {
-    payload.style = values?.style;
-    payload.color = values?.color;
     payload.material = values?.material;
+
+    payload.style_id = style_id ?? null;
+    payload.other_style = other_style ?? "";
+    payload.color_id = color_id ?? null;
+    payload.other_color = other_color ?? "";
 
     if (normType === "roofing") {
       payload.impact_resistant = values?.impactResistant;
@@ -52,20 +86,23 @@ export function buildInstallationPayload(
     normType === "garage_doors" ||
     normType === "garage-doors"
   ) {
+    if (values?.color !== undefined) {
+      payload.color_id = color_id ?? null;
+      payload.other_color = other_color ?? "";
+    }
+
     if (normType === "doors") {
-      payload.color = values?.color;
       payload.model_number = values?.model_number ?? values?.productionLine;
       payload.order_number = values?.orderNumber;
       payload.glass_type = values?.glass_type;
       payload.track_radius = values?.track_radius;
-       payload.u_factor = values?.u_factor;
+      payload.u_factor = values?.u_factor;
     }
     if (normType === "garage_doors" || normType === "garage-doors") {
       payload.windcode = values?.windcode;
       if (values?.orderNumber) {
         payload.order_number = values.orderNumber;
       }
-      payload.color = values?.color;
       payload.window_style = values?.window_style;
       payload.model_number = values?.model_number ?? values?.productionLine;
     }
@@ -73,7 +110,6 @@ export function buildInstallationPayload(
       payload.model_number = values?.model_number ?? values?.productionLine;
       payload.order_number = values?.orderNumber;
       payload.u_factor = values?.u_factor;
-      payload.color = values?.color;
     }
   }
 
@@ -82,6 +118,11 @@ export function buildInstallationPayload(
     if (payload[key] === undefined) {
       delete payload[key];
     }
+  });
+
+  console.log("=== [Installation Request Payload] ===", {
+    type: normType,
+    payload,
   });
 
   return payload;

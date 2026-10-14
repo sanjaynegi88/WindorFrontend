@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Upload, CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, toTitleCase, formatProjectType } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ import {
   getComponentType,
   addProject,
   editProject,
+  uploadPermit,
   getUserList,
   getProjectTypesforPropertyOwner,
   getCities,
@@ -21,6 +22,7 @@ import { useUser } from "@/components/providers/user-provider";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ContractorSelect, type ContractorOption } from "./ContractorSelect";
 import { useRouter } from "next/navigation";
+import { PermitUploadDialog, type StagedPermitData } from "./PermitUploadDialog";
 
 const projectSchema = z
   .object({
@@ -76,6 +78,9 @@ interface CategorySelectionProps {
     contractor_id?: string;
     visible_status?: string;
     project_status?: string;
+    permit_upload?: any;
+    permit_url?: string;
+    has_uploaded_permit?: boolean | string;
   };
 }
 
@@ -160,6 +165,29 @@ export function CategorySelection({
   const [permit, setPermit] = useState(initialProjectData?.permit || "");
   const [notes, setNotes] = useState(initialProjectData?.notes || "");
   const [other, setOther] = useState(initialProjectData?.other || "");
+  const [permitDialogOpen, setPermitDialogOpen] = useState(false);
+  const [stagedPermit, setStagedPermit] = useState<StagedPermitData | null>(null);
+  const [isPermitUploadedInSession, setIsPermitUploadedInSession] =
+    useState(false);
+
+  const hasUploadedPermit = Boolean(
+    initialProjectData?.has_uploaded_permit === true ||
+      initialProjectData?.has_uploaded_permit === "true" ||
+      initialProjectData?.permit_upload ||
+      initialProjectData?.permit_url ||
+      isPermitUploadedInSession,
+  );
+
+  useEffect(() => {
+    console.log(
+      "=== [CategorySelection] initialProjectData ===",
+      initialProjectData,
+    );
+    console.log(
+      "=== [CategorySelection] hasUploadedPermit ===",
+      hasUploadedPermit,
+    );
+  }, [initialProjectData, hasUploadedPermit]);
   const [contractorId, setContractorId] = useState<string | null>(
     initialProjectData?.contractor_id
       ? String(initialProjectData.contractor_id)
@@ -423,6 +451,9 @@ export function CategorySelection({
       if (currentVis !== initialVis) return true;
     }
 
+    // Staged permit file
+    if (stagedPermit?.file) return true;
+
     return false;
   };
 
@@ -446,6 +477,7 @@ export function CategorySelection({
     isAdmin,
     isPropertyOwner,
     isOwnerProjectType,
+    stagedPermit,
   ]);
 
   const handleFieldChange = (updater: () => void) => {
@@ -524,6 +556,30 @@ export function CategorySelection({
             toast.error(result.message || "Failed to create project");
             return;
           }
+
+          const createdProjectId =
+            result.data?.data?.id || result.data?.id || null;
+
+          // 1/ add project api call, and from response we take id and call upload permit api (if permit file staged)
+          if (stagedPermit?.file && createdProjectId) {
+            try {
+              const permitRes = await uploadPermit(
+                createdProjectId,
+                stagedPermit.file,
+                stagedPermit.description,
+                stagedPermit.notes,
+              );
+              if (permitRes?.success) {
+                toast.success("Permit uploaded successfully");
+              } else {
+                toast.error(permitRes?.message || "Failed to upload permit");
+              }
+            } catch (err: any) {
+              console.error("Permit upload error:", err);
+              toast.error(err?.message || "Failed to upload permit");
+            }
+          }
+
           toast.success("Project created successfully!");
           setHasChanges(false);
           onContinue({
@@ -561,11 +617,35 @@ export function CategorySelection({
     const executeEdit = async () => {
       try {
         setSubmitting(true);
+        // Step 1: Update project with new permit number and details
         const result = await editProject(propertyId, projectId!, body);
         if (!result.success) {
           toast.error(result.message || "Failed to update project");
           return;
         }
+
+        // Step 2: Upload permit if a file was staged
+        if (stagedPermit?.file && projectId) {
+          try {
+            const permitRes = await uploadPermit(
+              projectId,
+              stagedPermit.file,
+              stagedPermit.description,
+              stagedPermit.notes,
+            );
+            if (permitRes?.success) {
+              toast.success("Permit uploaded successfully");
+              setIsPermitUploadedInSession(true);
+              setStagedPermit(null);
+            } else {
+              toast.error(permitRes?.message || "Failed to upload permit");
+            }
+          } catch (err: any) {
+            console.error("Permit upload error:", err);
+            toast.error(err?.message || "Failed to upload permit");
+          }
+        }
+
         toast.success("Project updated successfully!");
         setHasChanges(false);
         if (action === "save-next") {
@@ -739,6 +819,47 @@ export function CategorySelection({
             className={inputClass}
           />
           {fieldError("permit")}
+
+          {/* Label when permit is already uploaded */}
+          {hasUploadedPermit ? (
+            <div className="mt-2.5 flex items-center gap-2 text-xs md:text-sm text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 w-fit">
+              <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+              <span className="font-semibold">Permit document already uploaded</span>
+            </div>
+          ) : (
+            /* Permit upload button / status when permit number is entered and not yet uploaded */
+            permit.trim() && (
+              <div className="mt-2.5 flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPermitDialogOpen(true)}
+                  className="h-9 px-4 text-xs md:text-sm font-semibold border-[#1CA7A6] text-[#1CA7A6] hover:bg-[#1CA7A6]/10 rounded-lg flex items-center gap-2 cursor-pointer"
+                >
+                  <Upload className="size-4" />
+                  {stagedPermit?.file
+                    ? "Change Permit Document"
+                    : "Upload Permit (Optional)"}
+                </Button>
+                {stagedPermit?.file && (
+                  <div className="flex items-center gap-2 text-xs md:text-sm text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
+                    <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+                    <span className="font-medium truncate max-w-[200px] md:max-w-[300px]">
+                      {stagedPermit.file.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setStagedPermit(null)}
+                      className="text-muted-foreground hover:text-destructive p-0.5 rounded cursor-pointer"
+                      title="Remove attached permit"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          )}
         </div>
         <div>
           <SearchableSelect
@@ -893,6 +1014,16 @@ export function CategorySelection({
           Back
         </button>
       </div>
+
+      <PermitUploadDialog
+        open={permitDialogOpen}
+        onOpenChange={setPermitDialogOpen}
+        projectType={projectType}
+        isEditMode={isEditMode}
+        projectId={projectId}
+        initialData={stagedPermit}
+        onSaveStaged={(data) => setStagedPermit(data)}
+      />
     </div>
   );
 }

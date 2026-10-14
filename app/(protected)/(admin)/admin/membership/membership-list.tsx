@@ -8,6 +8,7 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   PaginationState,
+  RowSelectionState,
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
@@ -59,7 +60,7 @@ import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { deleteMembership, getMembership, getRoles } from "@/lib/actions";
+import { deleteMembership, getMembership, getRoles, multiDelete } from "@/lib/actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -71,6 +72,8 @@ import {
 import { toast } from "sonner";
 import { MembershipDetailsDialog } from "./membership-details-dialog";
 import { MembershipForm } from "@/components/forms/membership-form";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { getSelectColumnDef } from "@/components/tables/table-selection-helper";
 import { formatDate } from "@/lib/helpers";
 import Link from "next/link";
 import { toPascalCase } from "@/lib/utils";
@@ -101,6 +104,14 @@ export default function MembershipList() {
     null,
   );
   const [data, setData] = useState<any[]>([]);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const selectedIds = useMemo(
+    () => Object.keys(rowSelection).filter((id) => Boolean(rowSelection[id])),
+    [rowSelection],
+  );
 
   useEffect(() => {
     const fetchRoles = async () => {
@@ -166,12 +177,39 @@ export default function MembershipList() {
     fetchData(selectedRole);
   };
 
+  const handleConfirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const response = await multiDelete("/api/memberships/bulk", { ids: selectedIds });
+      if (!response.success) {
+        toast.error(response.message || "Failed to delete memberships");
+        return;
+      }
+      toast.success(`${selectedIds.length} membership(s) deleted successfully`);
+      setRowSelection({});
+      fetchData(selectedRole);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete memberships");
+    } finally {
+      setIsBulkDeleting(false);
+      setBulkDeleteDialogOpen(false);
+    }
+  };
+
   useEffect(() => {
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+    setRowSelection({});
+  }, [searchQuery, selectedRole]);
+
+  useEffect(() => {
+    setRowSelection({});
     fetchData(selectedRole);
   }, [selectedRole]);
 
   const columns = useMemo<ColumnDef<any>[]>(
     () => [
+      getSelectColumnDef(),
       {
         accessorKey: "index",
         id: "index",
@@ -453,7 +491,7 @@ export default function MembershipList() {
         enableHiding: false,
       },
     ],
-    [],
+    [pagination.pageIndex, pagination.pageSize],
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>(
@@ -480,7 +518,10 @@ export default function MembershipList() {
       pagination,
       sorting,
       columnOrder,
+      rowSelection,
     },
+    enableRowSelection: true,
+    onRowSelectionChange: setRowSelection,
     columnResizeMode: "onChange",
     onColumnOrderChange: setColumnOrder,
     onPaginationChange: setPagination,
@@ -560,6 +601,18 @@ export default function MembershipList() {
             </CardHeading>
             <CardToolbar className="w-full sm:w-auto">
               <div className="flex items-center gap-2.5">
+                {selectedIds.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setBulkDeleteDialogOpen(true)}
+                    disabled={isBulkDeleting}
+                    className="w-full sm:w-auto"
+                  >
+                    <Trash2 className="size-4 mr-2" />
+                    Delete Selected ({selectedIds.length})
+                  </Button>
+                )}
                 <Link
                   href="/admin/membership/add-membership"
                   className="w-full sm:w-auto"
@@ -647,6 +700,17 @@ export default function MembershipList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ConfirmDialog
+        isOpen={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        title="Delete Selected Memberships"
+        description={`Are you sure you want to delete ${selectedIds.length} selected membership(s)? This action cannot be undone.`}
+        confirmText={isBulkDeleting ? "Deleting..." : `Delete (${selectedIds.length})`}
+        cancelText="Cancel"
+        onConfirm={handleConfirmBulkDelete}
+        variant="destructive"
+      />
     </>
   );
 }

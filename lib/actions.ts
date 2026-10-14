@@ -44,7 +44,7 @@ function normalizeMsg(messages: string | string[] | null | undefined, fallback: 
 }
 
 export type ActionResult<T = any> =
-    | { success: true; data: T }
+    | { success: true; data: T; message?: string }
     | { success: false; message: string; errorFields?: string[]; error?: any };
 
 export async function fetchApi<T = any>({
@@ -1139,6 +1139,8 @@ export async function validateAddress(body: ValidateAddressPayload): Promise<Act
 export async function postInstallation(propertyId: string, type: string, body: any): Promise<ActionResult> {
     const endpoint = `/api/properties/${propertyId}/${toEndpointType(type)}`;
 
+    console.log(`=== [API POST Installation: ${endpoint}] ===`, body);
+
     const response = await fetchApi({
         url: endpoint,
         method: 'POST',
@@ -1266,6 +1268,7 @@ export type PropertyFilters = {
     is_purchased?: boolean;
     isPropertyOwner?: boolean;
     include_pending?: boolean;
+    is_deleted?: boolean;
 };
 
 function buildPropertyFilterParams(filters: PropertyFilters): URLSearchParams {
@@ -1286,6 +1289,7 @@ function buildPropertyFilterParams(filters: PropertyFilters): URLSearchParams {
     if (filters.limit) params.append('limit', filters.limit.toString());
     if (filters.is_purchased !== undefined) params.append('is_purchased', filters.is_purchased.toString());
     if (filters.include_pending !== undefined) params.append('include_pending', filters.include_pending.toString());
+    if (filters.is_deleted !== undefined) params.append('is_deleted', filters.is_deleted.toString());
     return params;
 }
 
@@ -1633,8 +1637,10 @@ export async function updateProperties(id: string, body: any): Promise<ActionRes
 
 export async function updateInstallation(type: string, id: string, body: any) {
     const payload = { ...body };
+    const url = `/api/admin/${toEndpointType(type)}/${id}`;
+    console.log(`=== [API PUT Installation: ${url}] ===`, payload);
     const response = await fetchApi({
-        url: `/api/admin/${toEndpointType(type)}/${id}`,
+        url,
         method: 'PUT',
         data: payload,
     });
@@ -3101,6 +3107,23 @@ export async function bulkDeleteNotifications(ids: string[]): Promise<ActionResu
     return { success: true, data: response.data };
 }
 
+export async function multiDelete(endpoint: string, body?: any): Promise<ActionResult> {
+    const url = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const response = await fetchApi({
+        url,
+        method: 'DELETE',
+        data: body,
+    });
+    if (response.type === 'error') {
+        return {
+            success: false,
+            message: normalizeMsg(response.messages, 'Failed to delete selected items'),
+            error: response.error,
+        };
+    }
+    return { success: true, data: response.data, message: normalizeMsg(response.messages, 'Deleted successfully') };
+}
+
 export async function getImportFields(): Promise<ActionResult<{
     required_fields: string[];
     optional_fields: string[];
@@ -3380,3 +3403,133 @@ export async function saveCmsPage(payload: {
     }
     return { success: true, data: response.data };
 }
+
+export async function getColors(page?: number, limit?: number, search?: string, id?: string) {
+    try {
+        const params = new URLSearchParams();
+        if (page !== undefined && limit !== undefined && page > 0 && limit > 0) {
+            params.append('page', page.toString());
+            params.append('limit', limit.toString());
+        }
+        if (search) {
+            params.append('search', search);
+        }
+        if (id) {
+            params.append('id', id);
+        }
+
+        const url = `/api/colors${params.toString() ? `?${params.toString()}` : ''}`;
+        const response = await fetchApi({
+            url,
+            method: 'GET',
+        });
+        if (response.type === 'error') {
+            throw new Error(normalizeMsg(response.messages, 'Failed to get colors'));
+        }
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+}
+
+export async function createColor(body: { color: string }): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: '/api/colors',
+        method: 'POST',
+        data: body,
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to create color') };
+    }
+    return { success: true, data: response.data, message: normalizeMsg(response.messages, 'Color created successfully') };
+}
+
+export async function editColor(id: string, body: { color: string }): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: `/api/colors/${id}`,
+        method: 'PUT',
+        data: body,
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to update color') };
+    }
+    return { success: true, data: response.data, message: normalizeMsg(response.messages, 'Color updated successfully') };
+}
+
+export async function deleteColor(id: string): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: `/api/colors/${id}`,
+        method: 'DELETE',
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to delete color') };
+    }
+    return { success: true, data: response.data, message: normalizeMsg(response.messages, 'Color deleted successfully') };
+}
+
+export async function getStyles(page?: number, limit?: number, category?: string, search?: string, id?: string) {
+    try {
+        const params = new URLSearchParams();
+        if (page !== undefined && limit !== undefined && page > 0 && limit > 0) {
+            params.append('page', page.toString());
+            params.append('limit', limit.toString());
+        }
+        if (category && category !== 'all') {
+            params.append('category', category);
+        }
+        if (search) {
+            params.append('search', search);
+        }
+        if (id) {
+            params.append('id', id);
+        }
+
+        const url = `/api/styles${params.toString() ? `?${params.toString()}` : ''}`;
+        const response = await fetchApi({
+            url,
+            method: 'GET',
+        });
+        if (response.type === 'error') {
+            throw new Error(normalizeMsg(response.messages, 'Failed to get styles'));
+        }
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+}
+
+export async function createStyle(body: { style: string; category?: string }): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: '/api/styles',
+        method: 'POST',
+        data: body,
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to create style') };
+    }
+    return { success: true, data: response.data, message: normalizeMsg(response.messages, 'Style created successfully') };
+}
+
+export async function editStyle(id: string, body: { style: string; category?: string }): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: `/api/styles/${id}`,
+        method: 'PUT',
+        data: body,
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to update style') };
+    }
+    return { success: true, data: response.data, message: normalizeMsg(response.messages, 'Style updated successfully') };
+}
+
+export async function deleteStyle(id: string): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: `/api/styles/${id}`,
+        method: 'DELETE',
+    });
+    if (response.type === 'error') {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to delete style') };
+    }
+    return { success: true, data: response.data, message: normalizeMsg(response.messages, 'Style deleted successfully') };
+}
+

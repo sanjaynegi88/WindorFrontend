@@ -7,6 +7,7 @@ import {
   getFilteredRowModel,
   getSortedRowModel,
   PaginationState,
+  RowSelectionState,
   SortingState,
   useReactTable,
 } from '@tanstack/react-table';
@@ -44,7 +45,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { getImageCategory, deleteImageCategory, getComponentTypes, getProjectTypesforPropertyOwner } from '@/lib/actions';
+import { getImageCategory, deleteImageCategory, multiDelete, getComponentTypes, getProjectTypesforPropertyOwner } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -65,6 +66,8 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { ImageCategoryFormDialog } from './image-category-form-dialog';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { getSelectColumnDef } from '@/components/tables/table-selection-helper';
 import { formatDate } from '@/lib/helpers';
 import { toPascalCase } from '@/lib/utils';
 
@@ -87,6 +90,14 @@ export default function ImageCategoryListPage({ refreshTrigger, onSuccess }: { r
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const selectedIds = useMemo(
+    () => Object.keys(rowSelection).filter((id) => Boolean(rowSelection[id])),
+    [rowSelection],
+  );
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -159,9 +170,11 @@ export default function ImageCategoryListPage({ refreshTrigger, onSuccess }: { r
   // Reset to page 0 when search or category changes
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+    setRowSelection({});
   }, [debouncedSearch, selectedCategory]);
 
   useEffect(() => {
+    setRowSelection({});
     fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch, selectedCategory);
   }, [refreshTrigger, pagination.pageIndex, pagination.pageSize, debouncedSearch, selectedCategory]);
 
@@ -179,12 +192,34 @@ export default function ImageCategoryListPage({ refreshTrigger, onSuccess }: { r
         return;
       }
       toast.success('Image Category deleted successfully');
-      fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
+      fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch, selectedCategory);
+      onSuccess?.();
     } catch (error: any) {
       toast.error(error.message || 'Failed to delete Image Category');
     } finally {
       setIsDeleting(false);
       setDeleteId(null);
+    }
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const response = await multiDelete('/api/component-image-categories/bulk', { ids: selectedIds });
+      if (!response.success) {
+        toast.error(response.message || 'Failed to delete image categories');
+        return;
+      }
+      toast.success(`${selectedIds.length} image category(ies) deleted successfully`);
+      setRowSelection({});
+      fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch, selectedCategory);
+      onSuccess?.();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete image categories');
+    } finally {
+      setIsBulkDeleting(false);
+      setBulkDeleteDialogOpen(false);
     }
   };
 
@@ -196,6 +231,7 @@ export default function ImageCategoryListPage({ refreshTrigger, onSuccess }: { r
 
   const columns = useMemo<ColumnDef<any>[]>(
     () => [
+      getSelectColumnDef(),
       {
         accessorKey: 'index',
         id: 'index',
@@ -372,7 +408,10 @@ export default function ImageCategoryListPage({ refreshTrigger, onSuccess }: { r
       pagination,
       sorting,
       columnOrder,
+      rowSelection,
     },
+    enableRowSelection: true,
+    onRowSelectionChange: setRowSelection,
     columnResizeMode: 'onChange',
     onColumnOrderChange: setColumnOrder,
     onPaginationChange: setPagination,
@@ -434,13 +473,27 @@ export default function ImageCategoryListPage({ refreshTrigger, onSuccess }: { r
               </div>
             </CardHeading>
             <CardToolbar className="w-full sm:w-auto">
-              <Button
-                className="w-full sm:w-auto rounded-xl px-4 bg-primary text-white hover:bg-primary/90 shadow-sm"
-                onClick={() => setIsAddDialogOpen(true)}
-              >
-                <Plus className="size-4 mr-2" />
-                Add Image Category
-              </Button>
+              <div className="flex items-center gap-2.5">
+                {selectedIds.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setBulkDeleteDialogOpen(true)}
+                    disabled={isBulkDeleting}
+                    className="w-full sm:w-auto"
+                  >
+                    <Trash2 className="size-4 mr-2" />
+                    Delete Selected ({selectedIds.length})
+                  </Button>
+                )}
+                <Button
+                  className="w-full sm:w-auto rounded-xl px-4 bg-primary text-white hover:bg-primary/90 shadow-sm"
+                  onClick={() => setIsAddDialogOpen(true)}
+                >
+                  <Plus className="size-4 mr-2" />
+                  Add Image Category
+                </Button>
+              </div>
             </CardToolbar>
           </CardHeader>
           <CardTable>
@@ -490,6 +543,17 @@ export default function ImageCategoryListPage({ refreshTrigger, onSuccess }: { r
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ConfirmDialog
+        isOpen={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        title="Delete Selected Image Categories"
+        description={`Are you sure you want to delete ${selectedIds.length} selected image category(ies)? This action cannot be undone.`}
+        confirmText={isBulkDeleting ? 'Deleting...' : `Delete (${selectedIds.length})`}
+        cancelText="Cancel"
+        onConfirm={handleConfirmBulkDelete}
+        variant="destructive"
+      />
     </>
   );
 };

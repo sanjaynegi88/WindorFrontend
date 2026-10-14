@@ -8,6 +8,7 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   PaginationState,
+  RowSelectionState,
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
@@ -37,8 +38,6 @@ import { DataGridColumnVisibility } from "@/components/ui/data-grid-column-visib
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import {
   DataGridTable,
-  DataGridTableRowSelect,
-  DataGridTableRowSelectAll,
 } from "@/components/ui/data-grid-table";
 import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -50,11 +49,12 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { getPropertyTypeOptions, deletePropertyType } from "@/lib/actions";
+import { getPropertyTypeOptions, deletePropertyType, multiDelete } from "@/lib/actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { PropertyTypeFormDialog } from "./property-type-form-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { getSelectColumnDef } from "@/components/tables/table-selection-helper";
 import { formatDate } from "@/lib/helpers";
 import { toPascalCase } from "@/lib/utils";
 
@@ -86,6 +86,14 @@ export default function PropertyTypeListPage({
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const selectedIds = useMemo(
+    () => Object.keys(rowSelection).filter((id) => Boolean(rowSelection[id])),
+    [rowSelection],
+  );
 
   const fetchData = async (
     page: number = 1,
@@ -123,9 +131,11 @@ export default function PropertyTypeListPage({
   // Reset to page 0 when search changes
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+    setRowSelection({});
   }, [debouncedSearch]);
 
   useEffect(() => {
+    setRowSelection({});
     fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
   }, [
     refreshTrigger,
@@ -159,6 +169,26 @@ export default function PropertyTypeListPage({
     }
   };
 
+  const handleConfirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const response = await multiDelete("/api/property-types/bulk", { ids: selectedIds });
+      if (!response.success) {
+        toast.error(response.message || "Failed to delete Property Types");
+        return;
+      }
+      toast.success(`${selectedIds.length} property type(s) deleted successfully`);
+      setRowSelection({});
+      fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete Property Types");
+    } finally {
+      setIsBulkDeleting(false);
+      setBulkDeleteDialogOpen(false);
+    }
+  };
+
   const handleEdit = (propertyType: any) => {
     setEditingPropertyType(propertyType);
   };
@@ -167,6 +197,7 @@ export default function PropertyTypeListPage({
 
   const columns = useMemo<ColumnDef<any>[]>(
     () => [
+      getSelectColumnDef(),
       {
         accessorKey: "index",
         id: "index",
@@ -324,7 +355,10 @@ export default function PropertyTypeListPage({
       pagination,
       sorting,
       columnOrder,
+      rowSelection,
     },
+    enableRowSelection: true,
+    onRowSelectionChange: setRowSelection,
     columnResizeMode: "onChange",
     onColumnOrderChange: setColumnOrder,
     onPaginationChange: setPagination,
@@ -365,13 +399,27 @@ export default function PropertyTypeListPage({
               </div>
             </CardHeading>
             <CardToolbar className="w-full sm:w-auto">
-              {/* <Button
-                className="w-full sm:w-auto rounded-xl px-4 bg-primary text-white hover:bg-primary/90 shadow-sm"
-                onClick={() => setIsAddDialogOpen(true)}
-              >
-                <Plus className="size-4 mr-2" />
-                Add Property Type
-              </Button> */}
+              <div className="flex items-center gap-2.5">
+                {selectedIds.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setBulkDeleteDialogOpen(true)}
+                    disabled={isBulkDeleting}
+                    className="w-full sm:w-auto"
+                  >
+                    <Trash2 className="size-4 mr-2" />
+                    Delete Selected ({selectedIds.length})
+                  </Button>
+                )}
+                {/* <Button
+                  className="w-full sm:w-auto rounded-xl px-4 bg-primary text-white hover:bg-primary/90 shadow-sm"
+                  onClick={() => setIsAddDialogOpen(true)}
+                >
+                  <Plus className="size-4 mr-2" />
+                  Add Property Type
+                </Button> */}
+              </div>
             </CardToolbar>
           </CardHeader>
           <CardTable>
@@ -414,6 +462,17 @@ export default function PropertyTypeListPage({
         confirmText={isDeleting ? "Deleting..." : "Delete"}
         cancelText="Cancel"
         onConfirm={handleConfirmDelete}
+        variant="destructive"
+      />
+
+      <ConfirmDialog
+        isOpen={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        title="Delete Selected Property Types"
+        description={`Are you sure you want to delete ${selectedIds.length} selected property type(s)? This action cannot be undone.`}
+        confirmText={isBulkDeleting ? "Deleting..." : `Delete (${selectedIds.length})`}
+        cancelText="Cancel"
+        onConfirm={handleConfirmBulkDelete}
         variant="destructive"
       />
     </>

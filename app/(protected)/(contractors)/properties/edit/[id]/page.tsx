@@ -60,7 +60,11 @@ interface Component {
   brand_id?: string;
   type?: string;
   style?: string;
+  style_id?: string;
+  other_style?: string;
   color?: string;
+  color_id?: string;
+  other_color?: string;
   material?: string;
   impact_resistant?: boolean;
   class_rating?: number | string;
@@ -90,8 +94,18 @@ function componentToFormValues(comp: Component): any {
         : "",
     brandName: "",
     type: comp.type || "",
-    style: comp.style || "",
-    color: comp.color || "",
+    style: comp.style_id
+      ? comp.style_id
+      : comp.other_style
+        ? `__custom__:${comp.other_style}`
+        : comp.style || "",
+    styleName: comp.style || comp.other_style || "",
+    color: comp.color_id
+      ? comp.color_id
+      : comp.other_color
+        ? `__custom__:${comp.other_color}`
+        : comp.color || "",
+    colorName: comp.color || comp.other_color || "",
     material: comp.material || "",
     impactResistant: comp.impact_resistant ?? false,
     classRating: comp.class_rating ? String(comp.class_rating) : "",
@@ -1052,8 +1066,8 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                   projectId={selectedProject?.id}
                   defaultGoverningCityId={addressData.city_id}
                   cities={cities}
-                  initialProjectData={
-                    selectedProject
+                  initialProjectData={(() => {
+                    const data = selectedProject
                       ? {
                           project_name: selectedProject.project_name,
                           project_type: selectedProject.project_type,
@@ -1066,9 +1080,17 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                           notes: selectedProject.notes,
                           contractor_id: selectedProject.contractor_id,
                           visible_status: selectedProject.visible_status,
+                          has_uploaded_permit:
+                            selectedProject.has_uploaded_permit,
+                          permit_upload: selectedProject.permit_upload,
+                          permit_url:
+                            selectedProject.permit_url ||
+                            selectedProject.components?.permit_file_url,
                         }
-                      : undefined
-                  }
+                      : undefined;
+                    console.log("=== [EditPage] initialProjectData ===", data);
+                    return data;
+                  })()}
                   onContinue={(data) => {
                     const projectId =
                       data.projectData?.data?.id ||

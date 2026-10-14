@@ -23,6 +23,8 @@ import {
   DollarSign,
   UsersRound,
   HomeIcon,
+  PaletteIcon,
+  Shapes,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/components/providers/user-provider";
@@ -221,6 +223,16 @@ export function MobileTabs() {
         name: "Property List",
         href: "/admin/property-list",
         icon: HomeIcon,
+      });
+      options.push({
+        name: "Colors",
+        href: "/admin/colors",
+        icon: PaletteIcon,
+      });
+      options.push({
+        name: "Styles",
+        href: "/admin/styles",
+        icon: Shapes,
       });
     }
 

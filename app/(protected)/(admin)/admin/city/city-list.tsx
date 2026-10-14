@@ -8,6 +8,7 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   PaginationState,
+  RowSelectionState,
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
@@ -40,8 +41,6 @@ import { DataGridColumnVisibility } from "@/components/ui/data-grid-column-visib
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import {
   DataGridTable,
-  DataGridTableRowSelect,
-  DataGridTableRowSelectAll,
 } from "@/components/ui/data-grid-table";
 import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -60,7 +59,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getCities, deleteCity, getStates } from "@/lib/actions";
+import { getCities, deleteCity, multiDelete, getStates } from "@/lib/actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
@@ -75,6 +74,8 @@ import {
 import { toast } from "sonner";
 import { CityFormDialog } from "./city-form-dialog";
 import { CityViewDialog } from "./city-view-dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { getSelectColumnDef } from "@/components/tables/table-selection-helper";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/helpers";
 import { toTitleCase } from "@/lib/utils";
@@ -107,6 +108,14 @@ export default function CityList({
     { id: string; name: string }[]
   >([]);
   const [selectedStateId, setSelectedStateId] = useState<string>("");
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const selectedIds = useMemo(
+    () => Object.keys(rowSelection).filter((id) => Boolean(rowSelection[id])),
+    [rowSelection],
+  );
 
   const handleSuccess = () => {
     onSuccess?.();
@@ -174,9 +183,11 @@ export default function CityList({
   // Reset to page 0 when search or state filter changes
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+    setRowSelection({});
   }, [debouncedSearch, selectedStateId]);
 
   useEffect(() => {
+    setRowSelection({});
     fetchData(
       pagination.pageIndex + 1,
       pagination.pageSize,
@@ -214,6 +225,35 @@ export default function CityList({
     );
   };
 
+  const handleConfirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const result = await multiDelete("/api/cities/bulk", {
+        ids: selectedIds,
+      });
+      if (result.success) {
+        toast.success(
+          result.message || `${selectedIds.length} cities deleted successfully`,
+        );
+        setRowSelection({});
+        setBulkDeleteDialogOpen(false);
+        fetchData(
+          pagination.pageIndex + 1,
+          pagination.pageSize,
+          debouncedSearch,
+          selectedStateId,
+        );
+      } else {
+        toast.error(result.message || "Failed to delete selected cities");
+      }
+    } catch {
+      toast.error("An error occurred while deleting cities");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   const handleView = (city: any) => {
     setViewingCity(city);
   };
@@ -226,6 +266,7 @@ export default function CityList({
 
   const columns = useMemo<ColumnDef<any>[]>(
     () => [
+      getSelectColumnDef<any>(),
       {
         accessorKey: "index",
         id: "index",
@@ -455,7 +496,10 @@ export default function CityList({
       pagination,
       sorting,
       columnOrder,
+      rowSelection,
     },
+    enableRowSelection: true,
+    onRowSelectionChange: setRowSelection,
     columnResizeMode: "onChange",
     onColumnOrderChange: setColumnOrder,
     onPaginationChange: setPagination,
@@ -513,7 +557,18 @@ export default function CityList({
                 </Select>
               </div>
             </CardHeading>
-            <CardToolbar className="w-full sm:w-auto">
+            <CardToolbar className="w-full sm:w-auto flex items-center gap-2">
+              {selectedIds.length > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="rounded-xl px-4"
+                  onClick={() => setBulkDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="size-4 mr-2" />
+                  Delete Selected ({selectedIds.length})
+                </Button>
+              )}
               <Button
                 className="w-full sm:w-auto rounded-xl px-4 bg-primary text-white hover:bg-primary/90 shadow-sm"
                 onClick={() => setIsAddDialogOpen(true)}
@@ -584,6 +639,18 @@ export default function CityList({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <ConfirmDialog
+        isOpen={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        title="Delete Selected Cities"
+        description={`Are you sure you want to delete ${selectedIds.length} selected city(ies)? This action cannot be undone.`}
+        confirmText={
+          isBulkDeleting ? "Deleting..." : `Delete (${selectedIds.length})`
+        }
+        cancelText="Cancel"
+        onConfirm={handleConfirmBulkDelete}
+        variant="destructive"
+      />
     </>
   );
 }
