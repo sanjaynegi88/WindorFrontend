@@ -56,7 +56,7 @@ export default function AddedPropertiesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<
     "ALL" | "PENDING" | "APPROVED" | "REJECTED"
-  >("PENDING");
+  >("APPROVED");
 
   // States for Modals
   const [selectedProperty, setSelectedProperty] = useState<MockProperty | null>(
