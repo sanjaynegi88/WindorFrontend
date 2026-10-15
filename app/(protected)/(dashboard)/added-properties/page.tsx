@@ -180,8 +180,8 @@ export default function AddedPropertiesPage() {
       "";
     const cityName =
       prop.city || prop.raw?.city_name || prop.raw?.city?.name || "";
-    const propertyName =
-      prop.propertyName || prop.raw?.property_name || prop.raw?.name || "";
+    const address =
+      prop.address || prop.raw?.address || prop.raw?.name || "";
 
     const params = new URLSearchParams();
     if (propertyId) params.set("propertyId", String(propertyId));
@@ -192,7 +192,7 @@ export default function AddedPropertiesPage() {
       params.set("city_id", String(cityId));
     }
     if (cityName) params.set("cityName", String(cityName));
-    if (propertyName) params.set("propertyName", propertyName);
+    if (address) params.set("propertyName", address);
 
     router.push(`/properties/new?${params.toString()}`);
   };
