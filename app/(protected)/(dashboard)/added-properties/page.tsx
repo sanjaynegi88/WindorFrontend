@@ -147,7 +147,7 @@ export default function AddedPropertiesPage() {
     setConfirmAction({
       type: "APPROVE",
       propertyId: property.id,
-      propertyName: property.propertyName,
+      propertyName: property.address,
     });
   };
 
@@ -155,7 +155,7 @@ export default function AddedPropertiesPage() {
     setConfirmAction({
       type: "REJECT",
       propertyId: property.id,
-      propertyName: property.propertyName,
+      propertyName: property.address,
     });
   };
 
@@ -180,8 +180,7 @@ export default function AddedPropertiesPage() {
       "";
     const cityName =
       prop.city || prop.raw?.city_name || prop.raw?.city?.name || "";
-    const address =
-      prop.address || prop.raw?.address || prop.raw?.name || "";
+    const address = prop.address || prop.raw?.address || prop.raw?.name || "";
 
     const params = new URLSearchParams();
     if (propertyId) params.set("propertyId", String(propertyId));
@@ -452,15 +451,22 @@ export default function AddedPropertiesPage() {
                           <Check className="size-3.5 font-extrabold" />
                           <span>Approve</span>
                         </button>
-                        <button
-                          onClick={() => handleRejectClick(property)}
-                          className="inline-flex items-center justify-center gap-1 py-2 px-3.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/50 text-xs font-bold transition-all cursor-pointer"
-                        >
-                          <X className="size-3.5" />
-                          <span>Reject</span>
-                        </button>
                       </>
                     )}
+                    {isAdmin &&
+                      (property.status === "PENDING" ||
+                        property.status === "APPROVED") && (
+                        <>
+                          <button
+                            onClick={() => handleRejectClick(property)}
+                            className="inline-flex items-center justify-center gap-1 py-2 px-3.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/50 text-xs font-bold transition-all cursor-pointer"
+                          >
+                            <X className="size-3.5" />
+                            <span>Reject</span>
+                          </button>
+                        </>
+                      )}
+
                     {isAdmin && (
                       <button
                         onClick={() => setPropertyToDelete(property)}
@@ -609,15 +615,20 @@ export default function AddedPropertiesPage() {
                               <span>Add Project</span>
                             </button>
                           )}
+
                           {isAdmin && property.status === "PENDING" && (
-                            <>
-                              <button
-                                onClick={() => handleApproveClick(property)}
-                                className="inline-flex items-center justify-center p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200/40 transition-all cursor-pointer hover:scale-105"
-                                title="Approve Property"
-                              >
-                                <Check className="size-4 font-extrabold" />
-                              </button>
+                            <button
+                              onClick={() => handleApproveClick(property)}
+                              className="inline-flex items-center justify-center p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200/40 transition-all cursor-pointer hover:scale-105"
+                              title="Approve Property"
+                            >
+                              <Check className="size-4" />
+                            </button>
+                          )}
+
+                          {isAdmin &&
+                            (property.status === "PENDING" ||
+                              property.status === "APPROVED") && (
                               <button
                                 onClick={() => handleRejectClick(property)}
                                 className="inline-flex items-center justify-center p-2 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/40 transition-all cursor-pointer hover:scale-105"
@@ -625,8 +636,8 @@ export default function AddedPropertiesPage() {
                               >
                                 <X className="size-4" />
                               </button>
-                            </>
-                          )}
+                            )}
+
                           {isAdmin && (
                             <button
                               onClick={() => setPropertyToDelete(property)}
@@ -779,14 +790,14 @@ export default function AddedPropertiesPage() {
           )}
 
           <div className="space-y-4 py-4 text-[#1F2A44]">
-            <div className="grid grid-cols-3 gap-2 items-start">
+            {/* <div className="grid grid-cols-3 gap-2 items-start">
               <span className="text-[12px] font-bold uppercase tracking-wider text-[#708090]">
                 Name
               </span>
               <span className="col-span-2 text-sm font-semibold">
                 {selectedProperty?.propertyName}
               </span>
-            </div>
+            </div> */}
             <div className="grid grid-cols-3 gap-2 items-start">
               <span className="text-[12px] font-bold uppercase tracking-wider text-[#708090]">
                 Address
