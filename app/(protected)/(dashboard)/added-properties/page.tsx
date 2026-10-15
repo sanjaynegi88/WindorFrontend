@@ -63,7 +63,7 @@ export default function AddedPropertiesPage() {
     null,
   );
   const [confirmAction, setConfirmAction] = useState<{
-    type: "APPROVE" | "REJECT";
+    type: "APPROVED" | "REJECTED";
     propertyId: string;
     propertyName: string;
   } | null>(null);
@@ -106,7 +106,7 @@ export default function AddedPropertiesPage() {
           let apiStatus: "PENDING" | "APPROVED" | "REJECTED" = "PENDING";
           if (item.approval_status === "APPROVED") {
             apiStatus = "APPROVED";
-          } else if (item.approval_status === "REJECT") {
+          } else if (item.approval_status === "REJECTED") {
             apiStatus = "REJECTED";
           }
 
@@ -145,7 +145,7 @@ export default function AddedPropertiesPage() {
 
   const handleApproveClick = (property: MockProperty) => {
     setConfirmAction({
-      type: "APPROVE",
+      type: "APPROVED",
       propertyId: property.id,
       propertyName: property.address,
     });
@@ -153,7 +153,7 @@ export default function AddedPropertiesPage() {
 
   const handleRejectClick = (property: MockProperty) => {
     setConfirmAction({
-      type: "REJECT",
+      type: "REJECTED",
       propertyId: property.id,
       propertyName: property.address,
     });
@@ -684,13 +684,13 @@ export default function AddedPropertiesPage() {
         <AlertDialogContent className="sm:max-w-[425px] rounded-[20px] border-none shadow-[0px_4px_34px_rgba(31,42,68,0.1)] font-asap">
           <AlertDialogHeader className="space-y-3">
             <AlertDialogTitle className="text-xl md:text-2xl font-black text-[#1F2A44] uppercase tracking-tight">
-              {confirmAction?.type === "APPROVE"
+              {confirmAction?.type === "APPROVED"
                 ? "Approve Property"
                 : "Reject Property"}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-sm text-gray-600 font-medium leading-relaxed font-inter">
               Are you sure you want to{" "}
-              {confirmAction?.type === "APPROVE" ? "approve" : "reject"} the
+              {confirmAction?.type === "APPROVED" ? "approve" : "reject"} the
               property addition request for{" "}
               <strong className="text-[#1F2A44]">
                 {confirmAction?.propertyName}
@@ -706,12 +706,12 @@ export default function AddedPropertiesPage() {
               onClick={handleConfirmAction}
               className={cn(
                 "h-11 text-white rounded-xl font-black uppercase tracking-widest cursor-pointer",
-                confirmAction?.type === "APPROVE"
+                confirmAction?.type === "APPROVED"
                   ? "bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 shadow-none border-none"
                   : "bg-rose-600 hover:bg-rose-700 shadow-none border-none",
               )}
             >
-              {confirmAction?.type === "APPROVE" ? "Approve" : "Reject"}
+              {confirmAction?.type === "APPROVED" ? "Approve" : "Reject"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
