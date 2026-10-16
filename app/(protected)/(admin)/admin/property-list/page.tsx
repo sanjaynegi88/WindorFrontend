@@ -1132,7 +1132,7 @@ export default function PropertyListPage() {
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-sm sm:text-base font-black text-[#1e293b] tracking-tight font-asap truncate">
+                          <h3 className="text-sm sm:text-base font-black text-[#1e293b] uppercase tracking-tight font-asap truncate">
                             {stateItem.name}
                           </h3>
 
@@ -1223,7 +1223,7 @@ export default function PropertyListPage() {
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-sm sm:text-base font-black text-[#1e293b] tracking-tight font-asap truncate">
+                          <h3 className="text-sm sm:text-base font-black text-[#1e293b] uppercase tracking-tight font-asap truncate">
                             {cityItem.name}
                           </h3>
 

@@ -572,9 +572,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           zip: addressData.zip,
           property_type_id: isOtherType
             ? null
-            : addressData.property_type_id ||
-              addressData.property_type ||
-              null,
+            : addressData.property_type_id || addressData.property_type || null,
           property_type_category: isOtherType
             ? "OTHER"
             : addressData.property_type_category || null,
@@ -632,7 +630,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           if (user.role === "admin") {
             router.push("/dashboard");
           } else {
-            router.push("/added-properties");
+            router.push("/added-properties?status=APPROVED");
           }
           return;
         }

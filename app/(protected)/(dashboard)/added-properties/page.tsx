@@ -18,7 +18,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   getAddedPropertiesListing,
@@ -51,12 +51,20 @@ interface MockProperty {
 export default function AddedPropertiesPage() {
   const { user, role } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const statusParam = searchParams.get("status")?.toUpperCase();
   const [properties, setProperties] = useState<MockProperty[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState<
-    "ALL" | "PENDING" | "APPROVED" | "REJECTED"
-  >("APPROVED");
+
+  const validStatuses = ["ALL", "PENDING", "APPROVED", "REJECTED"] as const;
+
+  const initialFilter = validStatuses.includes(statusParam as any)
+    ? (statusParam as (typeof validStatuses)[number])
+    : "PENDING";
+
+  const [activeFilter, setActiveFilter] =
+    useState<(typeof validStatuses)[number]>(initialFilter);
 
   // States for Modals
   const [selectedProperty, setSelectedProperty] = useState<MockProperty | null>(
@@ -210,10 +218,10 @@ export default function AddedPropertiesPage() {
           prev.map((p) =>
             p.id === propertyId
               ? {
-                ...p,
-                status: uiStatus,
-                raw: { ...p.raw, approval_status: uiStatus },
-              }
+                  ...p,
+                  status: uiStatus,
+                  raw: { ...p.raw, approval_status: uiStatus },
+                }
               : p,
           ),
         );
@@ -311,7 +319,24 @@ export default function AddedPropertiesPage() {
             ).map((tab) => (
               <button
                 key={tab.value}
-                onClick={() => setActiveFilter(tab.value)}
+                onClick={() => {
+                  setActiveFilter(tab.value);
+
+                  const params = new URLSearchParams(searchParams.toString());
+
+                  if (tab.value === "ALL") {
+                    params.delete("status");
+                  } else {
+                    params.set("status", tab.value);
+                  }
+
+                  const query = params.toString();
+
+                  router.replace(
+                    query ? `/added-properties?${query}` : "/added-properties",
+                    { scroll: false },
+                  );
+                }}
                 className={cn(
                   "px-1.5 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs md:text-sm font-bold uppercase tracking-wider transition-all cursor-pointer text-center truncate",
                   activeFilter === tab.value
@@ -372,11 +397,11 @@ export default function AddedPropertiesPage() {
                       className={cn(
                         "shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border",
                         property.status === "APPROVED" &&
-                        "bg-emerald-50 text-emerald-600 border-emerald-200/50",
+                          "bg-emerald-50 text-emerald-600 border-emerald-200/50",
                         property.status === "PENDING" &&
-                        "bg-amber-50 text-amber-600 border-amber-200/50 animate-pulse",
+                          "bg-amber-50 text-amber-600 border-amber-200/50 animate-pulse",
                         property.status === "REJECTED" &&
-                        "bg-rose-50 text-rose-600 border-rose-200/50",
+                          "bg-rose-50 text-rose-600 border-rose-200/50",
                       )}
                     >
                       {property.status === "APPROVED" && (
@@ -412,13 +437,13 @@ export default function AddedPropertiesPage() {
                       <p className="font-semibold text-[#1F2A44]">
                         {property.dateAdded
                           ? new Date(property.dateAdded).toLocaleDateString(
-                            undefined,
-                            {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            },
-                          )
+                              undefined,
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              },
+                            )
                           : "N/A"}
                       </p>
                     </div>
@@ -559,13 +584,13 @@ export default function AddedPropertiesPage() {
                       <td className="py-5 px-6 text-sm font-semibold text-[#708090]">
                         {property.dateAdded
                           ? new Date(property.dateAdded).toLocaleDateString(
-                            undefined,
-                            {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            },
-                          )
+                              undefined,
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              },
+                            )
                           : "N/A"}
                       </td>
 
@@ -575,11 +600,11 @@ export default function AddedPropertiesPage() {
                           className={cn(
                             "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border",
                             property.status === "APPROVED" &&
-                            "bg-emerald-50 text-emerald-600 border-emerald-200/50",
+                              "bg-emerald-50 text-emerald-600 border-emerald-200/50",
                             property.status === "PENDING" &&
-                            "bg-amber-50 text-amber-600 border-amber-200/50 animate-pulse",
+                              "bg-amber-50 text-amber-600 border-amber-200/50 animate-pulse",
                             property.status === "REJECTED" &&
-                            "bg-rose-50 text-rose-600 border-rose-200/50",
+                              "bg-rose-50 text-rose-600 border-rose-200/50",
                           )}
                         >
                           {property.status === "APPROVED" && (
@@ -879,13 +904,13 @@ export default function AddedPropertiesPage() {
               <span className="col-span-2 text-sm font-semibold">
                 {selectedProperty?.dateAdded
                   ? new Date(selectedProperty.dateAdded).toLocaleDateString(
-                    undefined,
-                    {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    },
-                  )
+                      undefined,
+                      {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      },
+                    )
                   : "N/A"}
               </span>
             </div>
@@ -898,11 +923,11 @@ export default function AddedPropertiesPage() {
                   className={cn(
                     "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border",
                     selectedProperty?.status === "APPROVED" &&
-                    "bg-emerald-50 text-emerald-600 border-emerald-200/50",
+                      "bg-emerald-50 text-emerald-600 border-emerald-200/50",
                     selectedProperty?.status === "PENDING" &&
-                    "bg-amber-50 text-amber-600 border-amber-200/50",
+                      "bg-amber-50 text-amber-600 border-amber-200/50",
                     selectedProperty?.status === "REJECTED" &&
-                    "bg-rose-50 text-rose-600 border-rose-200/50",
+                      "bg-rose-50 text-rose-600 border-rose-200/50",
                   )}
                 >
                   {selectedProperty?.status}
