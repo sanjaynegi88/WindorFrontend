@@ -389,9 +389,9 @@ export function VerifyOtpForm() {
               </span>
             )}
             <span className="text-[13px] md:text-[16px] font-medium text-[#708090] font-asap">
-                OTP expires in 3 minutes
+                OTP expires in 
                 <span className="text-[#1CA7A6] font-bold">
-                  3 minutes
+                  5 minutes
                 </span>
               </span>
           </div>
