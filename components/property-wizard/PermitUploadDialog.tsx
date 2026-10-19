@@ -128,6 +128,7 @@ export function PermitUploadDialog({
           permitDescription,
           permitNotes,
         );
+
         if (res?.success) {
           toast.success("Permit uploaded successfully");
           onUploadSuccess?.();

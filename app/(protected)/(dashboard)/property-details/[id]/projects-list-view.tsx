@@ -7,6 +7,7 @@ import {
   getprojectListingOfProperty,
 } from "@/lib/actions";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { ExpandableProjectCard } from "@/components/common/expandable-project-card";
 import { useUser } from "@/components/providers/user-provider";
 import { InstallationCard } from "./installation-card";
@@ -37,16 +38,19 @@ export const ProjectsListView = ({
 }: ProjectsListViewProps) => {
   const { role, user } = useUser();
   const router = useRouter();
-  const [projectTypes, setProjectTypes] = useState<string[]>([]);
+  const [projectTypes, setProjectTypes] = useState<any[]>([]);
   const [activeProjectType, setActiveProjectType] = useState<string | null>(
     null,
   );
-  const [allProjects, setAllProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [page, setPage] = useState<number>(1);
+  const [hasMore, setHasMore] = useState<boolean>(false);
   const [expandedProjects, setExpandedProjects] = useState<
     Record<string, boolean>
   >({});
   const [loadingTypes, setLoadingTypes] = useState(false);
   const [loadingProjects, setLoadingProjects] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [totalCount, setTotalCount] = useState<number>(0);
   const isOwnerOfProperty =
     role === "property_owner" &&
@@ -59,56 +63,125 @@ export const ProjectsListView = ({
 
     let isMounted = true;
 
-    const fetchAllData = async () => {
+    const fetchTypes = async () => {
       setLoadingTypes(true);
-      setLoadingProjects(true);
       try {
-        const [typesResponse, projectsResponse] = await Promise.all([
-          getprojectTypesInProperty(propertyId),
-          getprojectListingOfProperty(propertyId),
-        ]);
-
+        const typesResponse = await getprojectTypesInProperty(propertyId);
         const types = Array.isArray(typesResponse?.data)
           ? typesResponse.data
           : [];
-        const count = typesResponse.totalcount;
-        const projects = Array.isArray(projectsResponse)
-          ? projectsResponse
-          : Array.isArray(projectsResponse?.data)
-            ? projectsResponse.data
-            : [];
+        const count = typesResponse?.totalcount ?? 0;
 
         if (!isMounted) return;
 
         setTotalCount(count);
         setProjectTypes(types);
-        setAllProjects(projects);
         setActiveProjectType((current) =>
           current && types.some((t: any) => t.name === current)
             ? current
             : (types[0]?.name ?? null),
         );
       } catch (error) {
-        console.error("Failed to fetch project data:", error);
-        toast.error("Failed to load projects");
+        console.error("Failed to fetch project types:", error);
+        toast.error("Failed to load project types");
         if (!isMounted) return;
         setProjectTypes([]);
         setActiveProjectType(null);
-        setAllProjects([]);
       } finally {
         if (isMounted) {
           setLoadingTypes(false);
-          setLoadingProjects(false);
         }
       }
     };
 
-    fetchAllData();
+    fetchTypes();
 
     return () => {
       isMounted = false;
     };
   }, [propertyId]);
+
+  useEffect(() => {
+    if (!propertyId || !activeProjectType) {
+      setProjects([]);
+      setHasMore(false);
+      return;
+    }
+
+    let isMounted = true;
+    setLoadingProjects(true);
+    setPage(1);
+
+    const fetchProjects = async () => {
+      try {
+        const res = await getprojectListingOfProperty(
+          propertyId,
+          activeProjectType,
+          undefined,
+          undefined,
+          1,
+          9,
+        );
+        const list = Array.isArray(res)
+          ? res
+          : Array.isArray(res?.data)
+            ? res.data
+            : [];
+
+        if (!isMounted) return;
+
+        setProjects(list);
+        setHasMore(list.length >= 9);
+      } catch (error) {
+        console.error("Failed to fetch projects:", error);
+        toast.error("Failed to load projects");
+        if (isMounted) {
+          setProjects([]);
+          setHasMore(false);
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingProjects(false);
+        }
+      }
+    };
+
+    fetchProjects();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [propertyId, activeProjectType]);
+
+  const handleLoadMore = async () => {
+    if (!propertyId || !activeProjectType || loadingMore || !hasMore) return;
+    const nextPage = page + 1;
+    setLoadingMore(true);
+    try {
+      const res = await getprojectListingOfProperty(
+        propertyId,
+        activeProjectType,
+        undefined,
+        undefined,
+        nextPage,
+        9,
+      );
+      const list = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.data)
+          ? res.data
+          : [];
+
+      setProjects((prev) => [...prev, ...list]);
+      setPage(nextPage);
+      setHasMore(list.length >= 9);
+    } catch (error) {
+      console.error("Failed to load more projects:", error);
+      toast.error("Failed to load more projects");
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleAddInstallation = (project: any) => {
     localStorage.setItem("current_project_id", project.id);
@@ -148,13 +221,7 @@ export const ProjectsListView = ({
     }));
   };
 
-  const selectedProjects = activeProjectType
-    ? allProjects.filter(
-        (p: any) =>
-          String(p.project_type).toUpperCase() ===
-          String(activeProjectType).toUpperCase(),
-      )
-    : [];
+  const selectedProjects = projects;
 
   return (
     <div className="space-y-[20px] md:space-y-[32px] font-asap">
@@ -221,7 +288,8 @@ export const ProjectsListView = ({
             Loading projects...
           </div>
         ) : selectedProjects.length > 0 ? (
-          selectedProjects.map((project) => {
+          <>
+            {selectedProjects.map((project) => {
             const comp = mapProjectToInstallation(project, propertyId);
             const projectStatus = project.is_confirmed ? "COMPLETE" : "DRAFT";
             const isCreator =
@@ -373,7 +441,22 @@ export const ProjectsListView = ({
                 </div>
               </ExpandableProjectCard>
             );
-          })
+          })}
+
+            {hasMore && (
+              <div className="flex justify-center pt-4">
+                <Button
+                  variant="outline"
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="h-11 px-6 rounded-xl border-2 border-[#1CA7A6] text-[#1CA7A6] hover:bg-[#e6f7f5] font-black uppercase tracking-widest text-sm gap-2 cursor-pointer shadow-none"
+                >
+                  {loadingMore && <Loader2 className="size-4 animate-spin" />}
+                  Load More
+                </Button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="py-20 text-center">
             <p className="text-[18px] font-medium text-gray-300 uppercase tracking-[0.2em] font-asap">

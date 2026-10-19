@@ -1135,11 +1135,82 @@ export async function validateAddress(body: ValidateAddressPayload): Promise<Act
     return { success: true, data: response.data };
 }
 
+export interface GooglePlacePrediction {
+    place_id: string;
+    description: string;
+    main_text?: string;
+    secondary_text?: string;
+}
+
+export interface GooglePlaceDetails {
+    place_id: string;
+    formatted_address: string;
+    address: string;
+    address2?: string | null;
+    city: string;
+    state: string;
+    state_name?: string;
+    zip: string;
+    county?: string | null;
+    country?: string;
+    latitude?: number | null;
+    longitude?: number | null;
+}
+
+export async function searchGooglePlaces(search: string): Promise<ActionResult<{ predictions: GooglePlacePrediction[] }>> {
+    const params = new URLSearchParams({ search });
+    let response = await fetchApi({
+        url: `/api/properties/google-places?${params.toString()}`,
+        method: 'GET',
+    });
+
+    if (response.status === 404) {
+        response = await fetchApi({
+            url: `/properties/google-places?${params.toString()}`,
+            method: 'GET',
+        });
+    }
+
+    if (response.type === 'error') {
+        return {
+            success: false,
+            message: normalizeMsg(response.messages, 'Failed to search places'),
+        };
+    }
+
+    const data = response.data?.data ?? response.data;
+    const predictions = data?.predictions ?? (Array.isArray(data) ? data : []);
+    return { success: true, data: { predictions } };
+}
+
+export async function getGooglePlaceDetails(placeId: string): Promise<ActionResult<GooglePlaceDetails>> {
+    const params = new URLSearchParams({ place_id: placeId });
+    let response = await fetchApi({
+        url: `/api/properties/google-places?${params.toString()}`,
+        method: 'GET',
+    });
+
+    if (response.status === 404) {
+        response = await fetchApi({
+            url: `/properties/google-places?${params.toString()}`,
+            method: 'GET',
+        });
+    }
+
+    if (response.type === 'error') {
+        return {
+            success: false,
+            message: normalizeMsg(response.messages, 'Failed to fetch place details'),
+        };
+    }
+
+    const data = response.data?.data ?? response.data;
+    return { success: true, data };
+}
+
 
 export async function postInstallation(propertyId: string, type: string, body: any): Promise<ActionResult> {
     const endpoint = `/api/properties/${propertyId}/${toEndpointType(type)}`;
-
-    console.log(`=== [API POST Installation: ${endpoint}] ===`, body);
 
     const response = await fetchApi({
         url: endpoint,
@@ -1638,7 +1709,6 @@ export async function updateProperties(id: string, body: any): Promise<ActionRes
 export async function updateInstallation(type: string, id: string, body: any) {
     const payload = { ...body };
     const url = `/api/admin/${toEndpointType(type)}/${id}`;
-    console.log(`=== [API PUT Installation: ${url}] ===`, payload);
     const response = await fetchApi({
         url,
         method: 'PUT',
@@ -2919,7 +2989,7 @@ export async function getprojectTypesInProperty(propertyId: any) {
     }
     return response.data;
 }
-export async function getprojectListingOfProperty(propertyId: any, projectType?: any, addedBy?: string, projectId?: string) {
+export async function getprojectListingOfProperty(propertyId: any, projectType?: any, addedBy?: string, projectId?: string, page?: number, limit?: number) {
     const params = new URLSearchParams();
     if (projectType) {
         params.append('project_type', projectType);
@@ -2929,6 +2999,12 @@ export async function getprojectListingOfProperty(propertyId: any, projectType?:
     }
     if (projectId) {
         params.append('project_id', projectId);
+    }
+    if (page !== undefined) {
+        params.append('page', String(page));
+    }
+    if (limit !== undefined) {
+        params.append('limit', String(limit));
     }
     const queryString = params.toString();
     const url = `/api/property-projects/property/${propertyId}/full${queryString ? `?${queryString}` : ''}`;

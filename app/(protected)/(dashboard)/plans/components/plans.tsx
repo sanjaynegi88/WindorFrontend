@@ -200,9 +200,6 @@ const Plans = () => {
         localStorage.setItem("pending_level", selectedPlan.level);
       }
 
-      console.log("planId", planId);
-      console.log("isAnnual", isAnnual);
-
       const result = await subscribeToMembership({
         plan_id: planId,
         billing_cycle: isAnnual ? "annually" : "monthly",

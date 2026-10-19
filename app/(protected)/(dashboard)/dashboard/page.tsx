@@ -94,12 +94,27 @@ function DashboardPageContent() {
     ).trim();
   }, [user]);
 
+  const isViewMap = Boolean(
+    searchParamsHook?.get("viewmap") === "true" ||
+      searchParamsHook?.get("viewmap") === "1" ||
+      searchParamsHook?.get("view") === "map",
+  );
+
   useEffect(() => {
     if (!searchParamsHook) return;
     const view = searchParamsHook.get("view");
+    const viewmap = searchParamsHook.get("viewmap");
+    const isMapMode = viewmap === "true" || viewmap === "1" || view === "map";
     const lat = searchParamsHook.get("lat");
     const lng = searchParamsHook.get("lng");
     const id = searchParamsHook.get("id");
+
+    // If contractor lands on dashboard with map view, redirect them to /properties
+    if (isContractor && isMapMode) {
+      const query = searchParamsHook.toString();
+      router.replace(`/properties?${query}`);
+      return;
+    }
 
     const urlSearch = searchParamsHook.get("search") || "";
     const urlSearchBy =
@@ -131,10 +146,22 @@ function DashboardPageContent() {
       if (hasMembership) {
         setShowResults(true);
       }
-    } else if (view === "map") {
+    } else if (isMapMode) {
       if (hasMembership) {
         setViewMode("map");
         setShowResults(true);
+        const defaultState = urlStateId || userStateId || "all";
+        const defaultCity = urlCityId || userCityId || "all";
+        const urlFilters = {
+          search: urlSearch,
+          searchBy: urlSearchBy,
+          state: defaultState,
+          city: defaultCity,
+          state_id: defaultState !== "all" ? defaultState : "",
+          city_id: defaultCity !== "all" ? defaultCity : "",
+        };
+        setFilters(urlFilters);
+        setAppliedFilters(urlFilters);
       }
     } else {
       const defaultState = userStateId || "all";
@@ -153,11 +180,17 @@ function DashboardPageContent() {
 
     if (lat && lng) {
       setMapFocus({ lat: parseFloat(lat), lng: parseFloat(lng) });
+      setTimeout(() => {
+        const mapElement = document.getElementById("dashboard-map-view");
+        if (mapElement) {
+          mapElement.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 300);
     }
     if (id) {
       setMapFocusId(id);
     }
-  }, [searchParamsHook, hasMembership, userStateId, userCityId]);
+  }, [searchParamsHook, hasMembership, userStateId, userCityId, isContractor, router]);
 
   const [filters, setFilters] = useState({
     search: "",
@@ -298,7 +331,7 @@ function DashboardPageContent() {
   }, [filters.city_id, filters.city]);
 
   const hasMapStateAndCity = Boolean(
-    selectedStateId || selectedCityId || activeStateId,
+    isViewMap || selectedStateId || selectedCityId || activeStateId,
   );
 
   const mapSearchParams = useMemo(() => {

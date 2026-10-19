@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useCallback, useEffect, useState, useMemo, useRef, Suspense } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   getStates,
@@ -516,21 +516,121 @@ function PropertyThumbnail({ src, alt }: { src?: string; alt: string }) {
 /* ─────────────────────────────────────────────────────────────
    MAIN ADMIN PROPERTY LISTING PAGE
 ─────────────────────────────────────────────────────────────── */
-export default function PropertyListPage() {
+function PropertyListContent() {
   const router = useRouter();
-  const [level, setLevel] = useState<ViewLevel>("state");
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  const getInitialState = () => {
+    const urlLevel = searchParams.get("level") as ViewLevel | null;
+    const urlStateId = searchParams.get("stateId");
+    const urlStateName = searchParams.get("stateName");
+    const urlStateAbbr = searchParams.get("stateAbbr");
+    const urlCityId = searchParams.get("cityId");
+    const urlCityName = searchParams.get("cityName");
+    const urlCityZip = searchParams.get("cityZip");
+    const urlTab = searchParams.get("tab") as "active" | "deleted" | null;
+    const urlSearch = searchParams.get("search");
+    const urlPage = searchParams.get("page");
+
+    const hasUrlParams = Boolean(
+      urlLevel || urlStateId || urlCityId || urlSearch || urlPage || urlTab,
+    );
+
+    if (hasUrlParams) {
+      let resolvedLevel: ViewLevel = "state";
+      if (urlLevel === "property" || urlCityId) {
+        resolvedLevel = "property";
+      } else if (urlLevel === "city" || urlStateId) {
+        resolvedLevel = "city";
+      }
+
+      const stateObj: StateItem | null = urlStateId
+        ? {
+            id: urlStateId,
+            name: urlStateName || "State",
+            abbreviation: urlStateAbbr || "",
+          }
+        : null;
+
+      const cityObj: CityItem | null = urlCityId
+        ? {
+            id: urlCityId,
+            name: urlCityName || "City",
+            state_id: urlStateId || "",
+            state_name: urlStateName || "",
+            zip: urlCityZip || "",
+          }
+        : null;
+
+      const pageNum = Math.max(1, parseInt(urlPage || "1", 10) || 1);
+      const tab: "active" | "deleted" =
+        urlTab === "deleted" ? "deleted" : "active";
+      const search = urlSearch || "";
+
+      return {
+        level: resolvedLevel,
+        state: stateObj,
+        city: cityObj,
+        tab,
+        search,
+        page: pageNum,
+      };
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem("admin_property_list_state");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === "object") {
+            return {
+              level: (parsed.level as ViewLevel) || "state",
+              state: (parsed.state as StateItem | null) || null,
+              city: (parsed.city as CityItem | null) || null,
+              tab: (parsed.tab as "active" | "deleted") || "active",
+              search: typeof parsed.search === "string" ? parsed.search : "",
+              page: Math.max(1, parseInt(parsed.page || "1", 10) || 1),
+            };
+          }
+        }
+      } catch (e) {
+        console.error(
+          "Failed to parse admin property list state from sessionStorage:",
+          e,
+        );
+      }
+    }
+
+    return {
+      level: "state" as ViewLevel,
+      state: null as StateItem | null,
+      city: null as CityItem | null,
+      tab: "active" as "active" | "deleted",
+      search: "",
+      page: 1,
+    };
+  };
+
+  const [initialFilters] = useState(getInitialState);
+
+  const [level, setLevel] = useState<ViewLevel>(initialFilters.level);
   const [propertyTab, setPropertyTab] = useState<"active" | "deleted">(
-    "active",
+    initialFilters.tab,
   );
 
   // Selection hierarchy
-  const [selectedState, setSelectedState] = useState<StateItem | null>(null);
-  const [selectedCity, setSelectedCity] = useState<CityItem | null>(null);
+  const [selectedState, setSelectedState] = useState<StateItem | null>(
+    initialFilters.state,
+  );
+  const [selectedCity, setSelectedCity] = useState<CityItem | null>(
+    initialFilters.city,
+  );
 
   // Search & Pagination
-  const [searchQuery, setSearchQuery] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState(initialFilters.search);
+  const [appliedSearch, setAppliedSearch] = useState(initialFilters.search);
+  const [page, setPage] = useState(initialFilters.page);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -557,6 +657,70 @@ export default function PropertyListPage() {
   // Edit Modal State
   const [editPropertyId, setEditPropertyId] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  const isInitialMountRef = useRef(true);
+
+  const updateUrlAndStorage = useCallback(
+    (
+      currentLevel: ViewLevel,
+      state: StateItem | null,
+      city: CityItem | null,
+      tab: "active" | "deleted",
+      search: string,
+      pageNum: number,
+    ) => {
+      if (typeof window !== "undefined") {
+        try {
+          if (currentLevel === "state" && !search && pageNum === 1) {
+            sessionStorage.removeItem("admin_property_list_state");
+          } else {
+            sessionStorage.setItem(
+              "admin_property_list_state",
+              JSON.stringify({
+                level: currentLevel,
+                state,
+                city,
+                tab,
+                search,
+                page: pageNum,
+              }),
+            );
+          }
+        } catch (e) {
+          console.error("Failed to save state to sessionStorage:", e);
+        }
+      }
+
+      const params = new URLSearchParams();
+      if (currentLevel !== "state") {
+        params.set("level", currentLevel);
+      }
+      if (state?.id) {
+        params.set("stateId", state.id);
+        if (state.name) params.set("stateName", state.name);
+        if (state.abbreviation) params.set("stateAbbr", state.abbreviation);
+      }
+      if (city?.id) {
+        params.set("cityId", city.id);
+        if (city.name) params.set("cityName", city.name);
+        if (city.zip) params.set("cityZip", city.zip);
+      }
+      if (currentLevel === "property" && tab === "deleted") {
+        params.set("tab", "deleted");
+      }
+      if (search && search.trim()) {
+        params.set("search", search.trim());
+      }
+      if (pageNum > 1) {
+        params.set("page", String(pageNum));
+      }
+
+      const queryString = params.toString();
+      const newUrl = queryString ? `${pathname}?${queryString}` : pathname;
+      router.replace(newUrl, { scroll: false });
+    },
+    [pathname, router],
+  );
 
   // Computed total property counts for breadcrumbs
   const totalStatesProperties = useMemo(() => {
@@ -595,32 +759,27 @@ export default function PropertyListPage() {
     return properties.length;
   }, [selectedCity, properties, paginationInfo, level]);
 
-  // Reset pagination & search when level changes
-  useEffect(() => {
-    setSearchQuery("");
-    setAppliedSearch("");
-    if (level !== "property") {
-      setPropertyTab("active");
-    }
-  }, [level]);
-
-  useEffect(() => {
-    setPage(1);
-    fetchData(1, false);
-  }, [level, selectedState?.id, selectedCity?.id, appliedSearch, propertyTab]);
-
-  const fetchData = async (pageNum: number, append: boolean = false) => {
+  const fetchData = async (
+    pageNum: number,
+    append: boolean = false,
+    currentLevel: ViewLevel = level,
+    currentState: StateItem | null = selectedState,
+    currentCity: CityItem | null = selectedCity,
+    searchTerm: string = appliedSearch,
+    currentTab: "active" | "deleted" = propertyTab,
+    fetchLimit: number = 15,
+  ) => {
     try {
       if (append) setLoadingMore(true);
       else setLoading(true);
 
-      const limit = 15;
+      const limit = fetchLimit;
 
-      if (level === "state") {
+      if (currentLevel === "state") {
         const response = await getStates(
           pageNum,
           limit,
-          appliedSearch || undefined,
+          searchTerm || undefined,
           true,
         );
         const pagination =
@@ -697,14 +856,14 @@ export default function PropertyListPage() {
             ? pageNum < pagination.totalPages
             : mappedStates.length === limit,
         );
-      } else if (level === "city") {
-        if (!selectedState?.id) return;
+      } else if (currentLevel === "city") {
+        if (!currentState?.id) return;
         const response = await getCities(
           pageNum,
           limit,
           undefined,
-          appliedSearch || undefined,
-          selectedState.id,
+          searchTerm || undefined,
+          currentState.id,
           true,
           true,
         );
@@ -752,8 +911,8 @@ export default function PropertyListPage() {
           return {
             id: String(item.id),
             name: item.city_name || item.name || "Unknown City",
-            state_id: String(item.state_id || selectedState.id),
-            state_name: selectedState.name,
+            state_id: String(item.state_id || currentState.id),
+            state_name: currentState.name,
             zip: item.zip || item.zip_code || "",
             property_count:
               rawPropertyCount !== undefined && rawPropertyCount !== null
@@ -772,17 +931,16 @@ export default function PropertyListPage() {
             ? pageNum < pagination.totalPages
             : mappedCities.length === limit,
         );
-      } else if (level === "property") {
-        if (!selectedState?.id || !selectedCity?.id) return;
+      } else if (currentLevel === "property") {
+        if (!currentState?.id || !currentCity?.id) return;
         const response = await getPropertyListAll({
-          state_id: selectedState.id,
-          city_id: selectedCity.id,
-          search: appliedSearch || undefined,
+          state_id: currentState.id,
+          city_id: currentCity.id,
+          search: searchTerm || undefined,
           page: pageNum,
           limit: limit,
-          is_deleted: propertyTab === "deleted" ? true : undefined,
+          is_deleted: currentTab === "deleted" ? true : undefined,
         });
-        console.log(response, "Response of properties");
         const pagination =
           response?.pagination ||
           response?.data?.pagination ||
@@ -821,8 +979,8 @@ export default function PropertyListPage() {
             item.property_name || item.address || "Untitled Property",
           address: item.address || item.property_name || "",
           address2: item.address2 || "",
-          city_name: item.city_name || item.city?.name || selectedCity.name,
-          state_name: item.state_name || item.state?.name || selectedState.name,
+          city_name: item.city_name || item.city?.name || currentCity.name,
+          state_name: item.state_name || item.state?.name || currentState.name,
           zip: item.zip || "",
           is_purchased: item.is_purchased,
           latitude: item.latitude ?? item.lat ?? null,
@@ -853,18 +1011,99 @@ export default function PropertyListPage() {
         );
       }
     } catch (error) {
-      console.error(`Failed to fetch ${level} data:`, error);
-      toast.error(`Failed to load ${level} listing`);
+      console.error(`Failed to fetch ${currentLevel} data:`, error);
+      toast.error(`Failed to load ${currentLevel} listing`);
     } finally {
       setLoading(false);
       setLoadingMore(false);
     }
   };
 
+  // Initial load
+  useEffect(() => {
+    const initialLimit =
+      initialFilters.page > 1 ? initialFilters.page * 15 : 15;
+    fetchData(
+      1,
+      false,
+      level,
+      selectedState,
+      selectedCity,
+      appliedSearch,
+      propertyTab,
+      initialLimit,
+    );
+  }, []);
+
+  // Handle browser back / forward (popstate)
+  useEffect(() => {
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
+
+    const urlState = getInitialState();
+    const hasChanged =
+      urlState.level !== level ||
+      urlState.state?.id !== selectedState?.id ||
+      urlState.city?.id !== selectedCity?.id ||
+      urlState.tab !== propertyTab ||
+      urlState.search !== appliedSearch ||
+      urlState.page !== page;
+
+    if (!hasChanged) return;
+
+    setLevel(urlState.level);
+    setSelectedState(urlState.state);
+    setSelectedCity(urlState.city);
+    setPropertyTab(urlState.tab);
+    setSearchQuery(urlState.search);
+    setAppliedSearch(urlState.search);
+    setPage(urlState.page);
+
+    if (urlState.level === "state") {
+      setStates([]);
+    } else if (urlState.level === "city") {
+      setCities([]);
+    } else if (urlState.level === "property") {
+      setProperties([]);
+    }
+    setLoading(true);
+
+    const limit = urlState.page > 1 ? urlState.page * 15 : 15;
+    fetchData(
+      1,
+      false,
+      urlState.level,
+      urlState.state,
+      urlState.city,
+      urlState.search,
+      urlState.tab,
+      limit,
+    );
+  }, [searchParams]);
+
   const handleLoadMore = () => {
     const nextPage = page + 1;
     setPage(nextPage);
-    fetchData(nextPage, true);
+    updateUrlAndStorage(
+      level,
+      selectedState,
+      selectedCity,
+      propertyTab,
+      appliedSearch,
+      nextPage,
+    );
+    fetchData(
+      nextPage,
+      true,
+      level,
+      selectedState,
+      selectedCity,
+      appliedSearch,
+      propertyTab,
+      15,
+    );
   };
 
   // Handlers for selection navigation
@@ -872,11 +1111,103 @@ export default function PropertyListPage() {
     setSelectedState(state);
     setSelectedCity(null);
     setLevel("city");
+    setCities([]);
+    setSearchQuery("");
+    setAppliedSearch("");
+    setPage(1);
+    setLoading(true);
+    updateUrlAndStorage("city", state, null, "active", "", 1);
+    fetchData(1, false, "city", state, null, "", "active", 15);
   };
 
   const handleSelectCity = (city: CityItem) => {
     setSelectedCity(city);
     setLevel("property");
+    setProperties([]);
+    setSearchQuery("");
+    setAppliedSearch("");
+    setPage(1);
+    setLoading(true);
+    updateUrlAndStorage("property", selectedState, city, propertyTab, "", 1);
+    fetchData(1, false, "property", selectedState, city, "", propertyTab, 15);
+  };
+
+  const handleNavigateBackInHierarchy = () => {
+    if (level === "property") {
+      setSelectedCity(null);
+      setLevel("city");
+      setCities([]);
+      setSearchQuery("");
+      setAppliedSearch("");
+      setPage(1);
+      setLoading(true);
+      updateUrlAndStorage("city", selectedState, null, "active", "", 1);
+      fetchData(1, false, "city", selectedState, null, "", "active", 15);
+    } else if (level === "city") {
+      setSelectedState(null);
+      setSelectedCity(null);
+      setLevel("state");
+      setStates([]);
+      setSearchQuery("");
+      setAppliedSearch("");
+      setPage(1);
+      setLoading(true);
+      updateUrlAndStorage("state", null, null, "active", "", 1);
+      fetchData(1, false, "state", null, null, "", "active", 15);
+    }
+  };
+
+  const handleNavigateToStates = () => {
+    setSelectedState(null);
+    setSelectedCity(null);
+    setLevel("state");
+    setStates([]);
+    setSearchQuery("");
+    setAppliedSearch("");
+    setPage(1);
+    setLoading(true);
+    updateUrlAndStorage("state", null, null, "active", "", 1);
+    fetchData(1, false, "state", null, null, "", "active", 15);
+  };
+
+  const handleNavigateToCities = () => {
+    if (!selectedState) return;
+    setSelectedCity(null);
+    setLevel("city");
+    setCities([]);
+    setSearchQuery("");
+    setAppliedSearch("");
+    setPage(1);
+    setLoading(true);
+    updateUrlAndStorage("city", selectedState, null, "active", "", 1);
+    fetchData(1, false, "city", selectedState, null, "", "active", 15);
+  };
+
+  const handleTabChange = (newTab: "active" | "deleted") => {
+    if (propertyTab === newTab) return;
+    setPropertyTab(newTab);
+    setProperties([]);
+    setPage(1);
+    setLoading(true);
+    updateUrlAndStorage(level, selectedState, selectedCity, newTab, appliedSearch, 1);
+    fetchData(1, false, level, selectedState, selectedCity, appliedSearch, newTab, 15);
+  };
+
+  const handleApplySearch = (query: string) => {
+    setAppliedSearch(query);
+    setPage(1);
+    setLoading(true);
+    updateUrlAndStorage(level, selectedState, selectedCity, propertyTab, query, 1);
+    fetchData(1, false, level, selectedState, selectedCity, query, propertyTab, 15);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setAppliedSearch("");
+    setPage(1);
+    setLoading(true);
+    updateUrlAndStorage(level, selectedState, selectedCity, propertyTab, "", 1);
+    fetchData(1, false, level, selectedState, selectedCity, "", propertyTab, 15);
   };
 
   // Handlers for property actions
@@ -907,11 +1238,6 @@ export default function PropertyListPage() {
     }
   };
 
-  const handleClearSearch = () => {
-    setSearchQuery("");
-    setAppliedSearch("");
-  };
-
   return (
     <div className="p-3.5 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 max-w-[1400px] w-full mx-auto pb-12">
       {/* Header & Title */}
@@ -928,10 +1254,7 @@ export default function PropertyListPage() {
         {level !== "state" && (
           <Button
             variant="outline"
-            onClick={() => {
-              if (level === "property") setLevel("city");
-              else if (level === "city") setLevel("state");
-            }}
+            onClick={handleNavigateBackInHierarchy}
             className="shrink-0 gap-1.5 border-[#1CA7A6] text-[#1CA7A6] hover:bg-[#1CA7A6]/10 font-bold uppercase tracking-wider text-xs h-9 px-3 sm:px-4 rounded-xl transition-all"
           >
             <ArrowLeft className="size-4" />
@@ -944,11 +1267,7 @@ export default function PropertyListPage() {
       <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-bold uppercase tracking-wider bg-slate-50/80 backdrop-blur p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border border-slate-200 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <div className="flex items-center gap-1.5 shrink-0">
           <button
-            onClick={() => {
-              setSelectedState(null);
-              setSelectedCity(null);
-              setLevel("state");
-            }}
+            onClick={handleNavigateToStates}
             className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-colors ${
               level === "state"
                 ? "text-[#1CA7A6] bg-[#1CA7A6]/10 font-black"
@@ -983,10 +1302,7 @@ export default function PropertyListPage() {
             <ChevronRight className="size-4 text-gray-400 shrink-0" />
             <div className="flex items-center gap-1.5 shrink-0">
               <button
-                onClick={() => {
-                  setSelectedCity(null);
-                  setLevel("city");
-                }}
+                onClick={handleNavigateToCities}
                 className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-colors ${
                   level === "city"
                     ? "text-[#1CA7A6] bg-[#1CA7A6]/10 font-black"
@@ -1067,7 +1383,7 @@ export default function PropertyListPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
-                setAppliedSearch(searchQuery);
+                handleApplySearch(searchQuery);
               }
             }}
             className="pl-10 pr-9 h-11 sm:h-12 rounded-xl border-gray-300 focus:border-[#1CA7A6] focus:ring-[#1CA7A6]/20 font-medium text-xs sm:text-sm"
@@ -1083,7 +1399,7 @@ export default function PropertyListPage() {
           )}
         </div>
         <Button
-          onClick={() => setAppliedSearch(searchQuery)}
+          onClick={() => handleApplySearch(searchQuery)}
           className="h-11 sm:h-12 px-4 sm:px-6 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-wider gap-1.5 shrink-0 shadow-sm transition-all active:scale-95"
         >
           <Search className="size-4" />
@@ -1092,332 +1408,349 @@ export default function PropertyListPage() {
       </div>
 
       {/* Content Section */}
-      {loading && page === 1 ? (
+      {/* LEVEL 1: STATES */}
+      {level === "state" && (
         <div className="space-y-3">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="h-[76px] sm:h-[68px] rounded-[14px]" />
-          ))}
-        </div>
-      ) : (
-        <>
-          {/* LEVEL 1: STATES */}
-          {level === "state" && (
+          {loading ? (
             <div className="space-y-3">
-              {states.length === 0 ? (
-                <div className="text-center py-12 sm:py-16 bg-gray-50 rounded-[1.5rem] sm:rounded-[2rem] border border-dashed p-6 space-y-3">
-                  <Building className="size-10 text-gray-300 mx-auto" />
-                  <p className="text-gray-400 font-bold uppercase tracking-widest text-sm sm:text-base">
-                    No states found.
-                  </p>
-                  {appliedSearch && (
-                    <Button
-                      variant="outline"
-                      onClick={handleClearSearch}
-                      className="text-xs font-bold border-[#1CA7A6] text-[#1CA7A6]"
-                    >
-                      Clear Search Filter
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                states.map((stateItem) => (
-                  <div
-                    key={stateItem.id}
-                    className="group relative bg-white border border-slate-200 hover:border-[#1CA7A6] rounded-[14px] p-3.5 sm:p-4 hover:shadow-md transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
-                  >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="shrink-0 p-2.5 sm:p-3 bg-[#1CA7A6]/10 text-[#1CA7A6] rounded-xl group-hover:bg-[#1CA7A6] group-hover:text-white transition-colors duration-200">
-                        <Building className="size-5 sm:size-6" />
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-sm sm:text-base font-black text-[#1e293b] uppercase tracking-tight font-asap truncate">
-                            {stateItem.name}
-                          </h3>
-
-                          {stateItem.abbreviation && (
-                            <span className="text-xs font-bold text-gray-400 uppercase">
-                              ({stateItem.abbreviation})
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                          {stateItem.city_count !== undefined &&
-                          stateItem.city_count !== null ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-[#1CA7A6] border border-[#1CA7A6]/20 font-asap shrink-0">
-                              {stateItem.city_count}{" "}
-                              {stateItem.city_count === 1 ? "City" : "Cities"}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50/50 text-[#1CA7A6]/70 border border-[#1CA7A6]/20 font-asap shrink-0 animate-pulse">
-                              <Loader2 className="size-3 animate-spin text-[#1CA7A6]" />
-                              <span>Loading cities...</span>
-                            </span>
-                          )}
-
-                          {stateItem.property_count !== undefined &&
-                          stateItem.property_count !== null ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-[#1CA7A6] border border-[#1CA7A6]/20 font-asap shrink-0">
-                              {stateItem.property_count}{" "}
-                              {stateItem.property_count === 1
-                                ? "Property"
-                                : "Properties"}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50/50 text-[#1CA7A6]/70 border border-[#1CA7A6]/20 font-asap shrink-0 animate-pulse">
-                              <Loader2 className="size-3 animate-spin text-[#1CA7A6]" />
-                              <span>Loading properties...</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto">
-                      <Button
-                        size="sm"
-                        onClick={() => handleSelectState(stateItem)}
-                        className="w-full sm:w-auto h-9 px-4 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95"
-                      >
-                        <Eye className="size-3.5" />
-                        <span>View Cities</span>
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton
+                  key={i}
+                  className="h-[76px] sm:h-[68px] rounded-[14px]"
+                />
+              ))}
             </div>
-          )}
-
-          {/* LEVEL 2: CITIES */}
-          {level === "city" && (
-            <div className="space-y-3">
-              {cities.length === 0 ? (
-                <div className="text-center py-12 sm:py-16 bg-gray-50 rounded-[1.5rem] sm:rounded-[2rem] border border-dashed p-6 space-y-3">
-                  <MapPin className="size-10 text-gray-300 mx-auto" />
-                  <p className="text-gray-400 font-bold uppercase tracking-widest text-sm sm:text-base">
-                    No cities found for {selectedState?.name}.
-                  </p>
-                  {appliedSearch && (
-                    <Button
-                      variant="outline"
-                      onClick={handleClearSearch}
-                      className="text-xs font-bold border-[#1CA7A6] text-[#1CA7A6]"
-                    >
-                      Clear Search Filter
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                cities.map((cityItem) => (
-                  <div
-                    key={cityItem.id}
-                    className="group relative bg-white border border-slate-200 hover:border-[#1CA7A6] rounded-[14px] p-3.5 sm:p-4 hover:shadow-md transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
-                  >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="shrink-0 p-2.5 sm:p-3 bg-[#1CA7A6]/10 text-[#1CA7A6] rounded-xl group-hover:bg-[#1CA7A6] group-hover:text-white transition-colors duration-200">
-                        <MapPin className="size-5 sm:size-6" />
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-sm sm:text-base font-black text-[#1e293b] uppercase tracking-tight font-asap truncate">
-                            {cityItem.name}
-                          </h3>
-
-                          {cityItem.property_count !== undefined &&
-                          cityItem.property_count !== null ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-[#1CA7A6] border border-[#1CA7A6]/20 font-asap shrink-0">
-                              {cityItem.property_count}{" "}
-                              {cityItem.property_count === 1
-                                ? "Property"
-                                : "Properties"}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50/50 text-[#1CA7A6]/70 border border-[#1CA7A6]/20 font-asap shrink-0 animate-pulse">
-                              <Loader2 className="size-3 animate-spin text-[#1CA7A6]" />
-                              <span>Loading properties...</span>
-                            </span>
-                          )}
-                        </div>
-
-                        <p className="text-xs font-semibold text-gray-400 mt-0.5">
-                          State: {selectedState?.name}{" "}
-                          {cityItem.zip ? `| Zip: ${cityItem.zip}` : ""}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto">
-                      <Button
-                        size="sm"
-                        onClick={() => handleSelectCity(cityItem)}
-                        className="w-full sm:w-auto h-9 px-4 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95"
-                      >
-                        <Eye className="size-3.5" />
-                        <span>View Properties</span>
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          {/* LEVEL 3: PROPERTIES */}
-          {level === "property" && (
-            <div className="space-y-4">
-              {/* Tabs for Active and Deleted Properties */}
-              <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
-                <button
-                  type="button"
-                  onClick={() => setPropertyTab("active")}
-                  className={cn(
-                    "px-4 py-2 text-xs sm:text-sm font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2",
-                    propertyTab === "active"
-                      ? "bg-[#1CA7A6] text-white shadow-sm"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200",
-                  )}
+          ) : states.length === 0 ? (
+            <div className="text-center py-12 sm:py-16 bg-gray-50 rounded-[1.5rem] sm:rounded-[2rem] border border-dashed p-6 space-y-3">
+              <Building className="size-10 text-gray-300 mx-auto" />
+              <p className="text-gray-400 font-bold uppercase tracking-widest text-sm sm:text-base">
+                No states found.
+              </p>
+              {appliedSearch && (
+                <Button
+                  variant="outline"
+                  onClick={handleClearSearch}
+                  className="text-xs font-bold border-[#1CA7A6] text-[#1CA7A6]"
                 >
-                  <Building2 className="size-4" />
-                  <span>Active Properties</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPropertyTab("deleted")}
-                  className={cn(
-                    "px-4 py-2 text-xs sm:text-sm font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2",
-                    propertyTab === "deleted"
-                      ? "bg-red-600 text-white shadow-sm"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200",
-                  )}
-                >
-                  <Trash2 className="size-4" />
-                  <span>Deleted Properties (With Projects)</span>
-                </button>
-              </div>
-
-              {properties.length === 0 ? (
-                <div className="text-center py-12 sm:py-16 bg-gray-50 rounded-[1.5rem] sm:rounded-[2rem] border border-dashed p-6 space-y-3">
-                  <Building2 className="size-10 text-gray-300 mx-auto" />
-                  <p className="text-gray-400 font-bold uppercase tracking-widest text-sm sm:text-base">
-                    {propertyTab === "deleted"
-                      ? `No deleted properties found in ${selectedCity?.name}, ${selectedState?.name}.`
-                      : `No properties found in ${selectedCity?.name}, ${selectedState?.name}.`}
-                  </p>
-                  {appliedSearch && (
-                    <Button
-                      variant="outline"
-                      onClick={handleClearSearch}
-                      className="text-xs font-bold border-[#1CA7A6] text-[#1CA7A6]"
-                    >
-                      Clear Search Filter
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                properties.map((prop) => (
-                  <div
-                    key={prop.id}
-                    className="group relative bg-white border border-slate-200 hover:border-[#1CA7A6] rounded-[14px] p-3.5 sm:p-4 hover:shadow-md transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
-                  >
-                    <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
-                      <PropertyThumbnail
-                        src={prop.thumbnail_url}
-                        alt={prop.address || "property"}
-                      />
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-sm sm:text-base font-black text-[#1e293b] tracking-tight font-asap truncate">
-                            {prop.address}
-                          </h3>
-                          {propertyTab === "deleted" && (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700 border border-red-200">
-                              Deleted
-                            </span>
-                          )}
-                        </div>
-                        <p className="flex items-center gap-1 text-xs sm:text-sm font-semibold text-gray-500 mt-0.5 flex-wrap">
-                          <MapPin className="size-3.5 text-[#1CA7A6] shrink-0" />
-                          <span className="truncate">
-                            {prop.address2 ? prop.address2 + ", " : ""}
-                            {prop.city_name}
-                            {prop.city_name && prop.state_name ? ", " : ""}
-                            {prop.state_name} {prop.zip}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto">
-                      {prop.latitude != null && prop.longitude != null ? (
-                        <p className="text-xs sm:text-sm font-semibold text-gray-500 font-mono truncate">
-                          {prop.latitude}, {prop.longitude}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-gray-400 italic">
-                          No coordinates
-                        </p>
-                      )}
-
-                      {/* View Button - available for both Active and Deleted */}
-
-                      {/* Edit and Delete buttons - only available for Active properties */}
-                      {propertyTab === "active" && (
-                        <>
-                          <Button
-                            size="sm"
-                            onClick={() =>
-                              router.push(`/property-details/${prop.id}`)
-                            }
-                            className="flex-1 sm:flex-none h-9 px-3.5 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
-                          >
-                            <Eye className="size-3.5" />
-                            <span>View</span>
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleOpenEditModal(prop.id)}
-                            className="flex-1 sm:flex-none h-9 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-                          >
-                            <Edit className="size-3.5" />
-                            <span>Edit</span>
-                          </Button>
-
-                          <Button
-                            size="sm"
-                            onClick={() => setPropertyToDelete(prop)}
-                            className="flex-1 sm:flex-none h-9 px-3.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-                          >
-                            <Trash2 className="size-3.5" />
-                            <span>Delete</span>
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))
+                  Clear Search Filter
+                </Button>
               )}
             </div>
-          )}
-
-          {hasMore && (
-            <div className="flex justify-center pt-4">
-              <Button
-                variant="ghost"
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-                className="gap-2 font-black uppercase tracking-widest text-[#1CA7A6] hover:bg-[#1CA7A6]/10 h-10 px-6 rounded-xl transition-all"
+          ) : (
+            states.map((stateItem) => (
+              <div
+                key={stateItem.id}
+                className="group relative bg-white border border-slate-200 hover:border-[#1CA7A6] rounded-[14px] p-3.5 sm:p-4 hover:shadow-md transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
               >
-                {loadingMore && <Loader2 className="size-4 animate-spin" />}
-                Load More
-              </Button>
-            </div>
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="shrink-0 p-2.5 sm:p-3 bg-[#1CA7A6]/10 text-[#1CA7A6] rounded-xl group-hover:bg-[#1CA7A6] group-hover:text-white transition-colors duration-200">
+                    <Building className="size-5 sm:size-6" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm sm:text-base font-black text-[#1e293b] uppercase tracking-tight font-asap truncate">
+                        {stateItem.name}
+                      </h3>
+
+                      {stateItem.abbreviation && (
+                        <span className="text-xs font-bold text-gray-400 uppercase">
+                          ({stateItem.abbreviation})
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                      {stateItem.city_count !== undefined &&
+                      stateItem.city_count !== null ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-[#1CA7A6] border border-[#1CA7A6]/20 font-asap shrink-0">
+                          {stateItem.city_count}{" "}
+                          {stateItem.city_count === 1 ? "City" : "Cities"}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50/50 text-[#1CA7A6]/70 border border-[#1CA7A6]/20 font-asap shrink-0 animate-pulse">
+                          <Loader2 className="size-3 animate-spin text-[#1CA7A6]" />
+                          <span>Loading cities...</span>
+                        </span>
+                      )}
+
+                      {stateItem.property_count !== undefined &&
+                      stateItem.property_count !== null ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-[#1CA7A6] border border-[#1CA7A6]/20 font-asap shrink-0">
+                          {stateItem.property_count}{" "}
+                          {stateItem.property_count === 1
+                            ? "Property"
+                            : "Properties"}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50/50 text-[#1CA7A6]/70 border border-[#1CA7A6]/20 font-asap shrink-0 animate-pulse">
+                          <Loader2 className="size-3 animate-spin text-[#1CA7A6]" />
+                          <span>Loading properties...</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto">
+                  <Button
+                    size="sm"
+                    onClick={() => handleSelectState(stateItem)}
+                    className="w-full sm:w-auto h-9 px-4 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95"
+                  >
+                    <Eye className="size-3.5" />
+                    <span>View Cities</span>
+                  </Button>
+                </div>
+              </div>
+            ))
           )}
-        </>
+        </div>
+      )}
+
+      {/* LEVEL 2: CITIES */}
+      {level === "city" && (
+        <div className="space-y-3">
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton
+                  key={i}
+                  className="h-[76px] sm:h-[68px] rounded-[14px]"
+                />
+              ))}
+            </div>
+          ) : cities.length === 0 ? (
+            <div className="text-center py-12 sm:py-16 bg-gray-50 rounded-[1.5rem] sm:rounded-[2rem] border border-dashed p-6 space-y-3">
+              <MapPin className="size-10 text-gray-300 mx-auto" />
+              <p className="text-gray-400 font-bold uppercase tracking-widest text-sm sm:text-base">
+                No cities found for {selectedState?.name}.
+              </p>
+              {appliedSearch && (
+                <Button
+                  variant="outline"
+                  onClick={handleClearSearch}
+                  className="text-xs font-bold border-[#1CA7A6] text-[#1CA7A6]"
+                >
+                  Clear Search Filter
+                </Button>
+              )}
+            </div>
+          ) : (
+            cities.map((cityItem) => (
+              <div
+                key={cityItem.id}
+                className="group relative bg-white border border-slate-200 hover:border-[#1CA7A6] rounded-[14px] p-3.5 sm:p-4 hover:shadow-md transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="shrink-0 p-2.5 sm:p-3 bg-[#1CA7A6]/10 text-[#1CA7A6] rounded-xl group-hover:bg-[#1CA7A6] group-hover:text-white transition-colors duration-200">
+                    <MapPin className="size-5 sm:size-6" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm sm:text-base font-black text-[#1e293b] uppercase tracking-tight font-asap truncate">
+                        {cityItem.name}
+                      </h3>
+
+                      {cityItem.property_count !== undefined &&
+                      cityItem.property_count !== null ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 text-[#1CA7A6] border border-[#1CA7A6]/20 font-asap shrink-0">
+                          {cityItem.property_count}{" "}
+                          {cityItem.property_count === 1
+                            ? "Property"
+                            : "Properties"}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50/50 text-[#1CA7A6]/70 border border-[#1CA7A6]/20 font-asap shrink-0 animate-pulse">
+                          <Loader2 className="size-3 animate-spin text-[#1CA7A6]" />
+                          <span>Loading properties...</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-xs font-semibold text-gray-400 mt-0.5">
+                      State: {selectedState?.name}{" "}
+                      {cityItem.zip ? `| Zip: ${cityItem.zip}` : ""}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto">
+                  <Button
+                    size="sm"
+                    onClick={() => handleSelectCity(cityItem)}
+                    className="w-full sm:w-auto h-9 px-4 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95"
+                  >
+                    <Eye className="size-3.5" />
+                    <span>View Properties</span>
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* LEVEL 3: PROPERTIES */}
+      {level === "property" && (
+        <div className="space-y-4">
+          {/* Tabs for Active and Deleted Properties */}
+          <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+            <button
+              type="button"
+              onClick={() => handleTabChange("active")}
+              className={cn(
+                "px-4 py-2 text-xs sm:text-sm font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2",
+                propertyTab === "active"
+                  ? "bg-[#1CA7A6] text-white shadow-sm"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200",
+              )}
+            >
+              <Building2 className="size-4" />
+              <span>Active Properties</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTabChange("deleted")}
+              className={cn(
+                "px-4 py-2 text-xs sm:text-sm font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2",
+                propertyTab === "deleted"
+                  ? "bg-red-600 text-white shadow-sm"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200",
+              )}
+            >
+              <Trash2 className="size-4" />
+              <span>Deleted Properties (With Projects)</span>
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton
+                  key={i}
+                  className="h-[76px] sm:h-[68px] rounded-[14px]"
+                />
+              ))}
+            </div>
+          ) : properties.length === 0 ? (
+            <div className="text-center py-12 sm:py-16 bg-gray-50 rounded-[1.5rem] sm:rounded-[2rem] border border-dashed p-6 space-y-3">
+              <Building2 className="size-10 text-gray-300 mx-auto" />
+              <p className="text-gray-400 font-bold uppercase tracking-widest text-sm sm:text-base">
+                {propertyTab === "deleted"
+                  ? `No deleted properties found in ${selectedCity?.name}, ${selectedState?.name}.`
+                  : `No properties found in ${selectedCity?.name}, ${selectedState?.name}.`}
+              </p>
+              {appliedSearch && (
+                <Button
+                  variant="outline"
+                  onClick={handleClearSearch}
+                  className="text-xs font-bold border-[#1CA7A6] text-[#1CA7A6]"
+                >
+                  Clear Search Filter
+                </Button>
+              )}
+            </div>
+          ) : (
+            properties.map((prop) => (
+              <div
+                key={prop.id}
+                className="group relative bg-white border border-slate-200 hover:border-[#1CA7A6] rounded-[14px] p-3.5 sm:p-4 hover:shadow-md transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
+              >
+                <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                  <PropertyThumbnail
+                    src={prop.thumbnail_url}
+                    alt={prop.address || "property"}
+                  />
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm sm:text-base font-black text-[#1e293b] tracking-tight font-asap truncate">
+                        {prop.address}
+                      </h3>
+                      {propertyTab === "deleted" && (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700 border border-red-200">
+                          Deleted
+                        </span>
+                      )}
+                    </div>
+                    <p className="flex items-center gap-1 text-xs sm:text-sm font-semibold text-gray-500 mt-0.5 flex-wrap">
+                      <MapPin className="size-3.5 text-[#1CA7A6] shrink-0" />
+                      <span className="truncate">
+                        {prop.address2 ? prop.address2 + ", " : ""}
+                        {prop.city_name}
+                        {prop.city_name && prop.state_name ? ", " : ""}
+                        {prop.state_name} {prop.zip}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto">
+                  {prop.latitude != null && prop.longitude != null ? (
+                    <p className="text-xs sm:text-sm font-semibold text-gray-500 font-mono truncate">
+                      {prop.latitude}, {prop.longitude}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-400 italic">
+                      No coordinates
+                    </p>
+                  )}
+
+                  {/* View Button - available for both Active and Deleted */}
+
+                  {/* Edit and Delete buttons - only available for Active properties */}
+                  {propertyTab === "active" && (
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={() =>
+                          router.push(`/property-details/${prop.id}`)
+                        }
+                        className="flex-1 sm:flex-none h-9 px-3.5 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                      >
+                        <Eye className="size-3.5" />
+                        <span>View</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => handleOpenEditModal(prop.id)}
+                        className="flex-1 sm:flex-none h-9 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                      >
+                        <Edit className="size-3.5" />
+                        <span>Edit</span>
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        onClick={() => setPropertyToDelete(prop)}
+                        className="flex-1 sm:flex-none h-9 px-3.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                      >
+                        <Trash2 className="size-3.5" />
+                        <span>Delete</span>
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {!loading && hasMore && (
+        <div className="flex justify-center pt-4">
+          <Button
+            variant="ghost"
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="gap-2 font-black uppercase tracking-widest text-[#1CA7A6] hover:bg-[#1CA7A6]/10 h-10 px-6 rounded-xl transition-all"
+          >
+            {loadingMore && <Loader2 className="size-4 animate-spin" />}
+            Load More
+          </Button>
+        </div>
       )}
 
       {/* Property Edit Modal Dialog */}
@@ -1469,3 +1802,12 @@ export default function PropertyListPage() {
     </div>
   );
 }
+
+export default function PropertyListPage() {
+  return (
+    <Suspense fallback={null}>
+      <PropertyListContent />
+    </Suspense>
+  );
+}
+

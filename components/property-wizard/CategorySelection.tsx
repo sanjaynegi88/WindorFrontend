@@ -22,7 +22,10 @@ import { useUser } from "@/components/providers/user-provider";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ContractorSelect, type ContractorOption } from "./ContractorSelect";
 import { useRouter } from "next/navigation";
-import { PermitUploadDialog, type StagedPermitData } from "./PermitUploadDialog";
+import {
+  PermitUploadDialog,
+  type StagedPermitData,
+} from "./PermitUploadDialog";
 
 const projectSchema = z
   .object({
@@ -165,29 +168,18 @@ export function CategorySelection({
   const [permit, setPermit] = useState(initialProjectData?.permit || "");
   const [notes, setNotes] = useState(initialProjectData?.notes || "");
   const [other, setOther] = useState(initialProjectData?.other || "");
+
   const [permitDialogOpen, setPermitDialogOpen] = useState(false);
-  const [stagedPermit, setStagedPermit] = useState<StagedPermitData | null>(null);
+  const [stagedPermit, setStagedPermit] = useState<StagedPermitData | null>(
+    null,
+  );
   const [isPermitUploadedInSession, setIsPermitUploadedInSession] =
     useState(false);
 
   const hasUploadedPermit = Boolean(
-    initialProjectData?.has_uploaded_permit === true ||
-      initialProjectData?.has_uploaded_permit === "true" ||
-      initialProjectData?.permit_upload ||
-      initialProjectData?.permit_url ||
-      isPermitUploadedInSession,
+    initialProjectData?.permit_upload?.file_path || isPermitUploadedInSession,
   );
 
-  useEffect(() => {
-    console.log(
-      "=== [CategorySelection] initialProjectData ===",
-      initialProjectData,
-    );
-    console.log(
-      "=== [CategorySelection] hasUploadedPermit ===",
-      hasUploadedPermit,
-    );
-  }, [initialProjectData, hasUploadedPermit]);
   const [contractorId, setContractorId] = useState<string | null>(
     initialProjectData?.contractor_id
       ? String(initialProjectData.contractor_id)
@@ -824,7 +816,9 @@ export function CategorySelection({
           {hasUploadedPermit ? (
             <div className="mt-2.5 flex items-center gap-2 text-xs md:text-sm text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 w-fit">
               <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
-              <span className="font-semibold">Permit document already uploaded</span>
+              <span className="font-semibold">
+                Permit document already uploaded
+              </span>
             </div>
           ) : (
             /* Permit upload button / status when permit number is entered and not yet uploaded */

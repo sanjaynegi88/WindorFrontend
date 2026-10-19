@@ -81,7 +81,6 @@ export function PropertyGrid({
         cleanFilterParams.include_pending = showTempProperties;
       }
 
-      //console.log(cleanFilterParams);
       const response = await getPropertyListAll(cleanFilterParams);
 
       if (response && response.success === false) {

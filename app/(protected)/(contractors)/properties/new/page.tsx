@@ -585,13 +585,10 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           longitude: addressData.longitude,
         };
 
-        console.log("=== CREATE PROPERTY PAYLOAD ===", payload);
-
         const propertyResult = await postProperty(
           payload,
           nextStep === "DRAFT",
         );
-        console.log("=== CREATE PROPERTY RESULT ===", propertyResult);
 
         if (!propertyResult.success) {
           if (

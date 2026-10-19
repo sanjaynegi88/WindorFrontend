@@ -42,9 +42,17 @@ function PropertyPageContent() {
 
   const searchParamsHook = useSearchParams();
 
+  const isViewMap = Boolean(
+    searchParamsHook?.get("viewmap") === "true" ||
+      searchParamsHook?.get("viewmap") === "1" ||
+      searchParamsHook?.get("view") === "map",
+  );
+
   useEffect(() => {
     if (!searchParamsHook) return;
     const view = searchParamsHook.get("view");
+    const viewmap = searchParamsHook.get("viewmap");
+    const isMapMode = viewmap === "true" || viewmap === "1" || view === "map";
     const lat = searchParamsHook.get("lat");
     const lng = searchParamsHook.get("lng");
     const id = searchParamsHook.get("id");
@@ -77,7 +85,19 @@ function PropertyPageContent() {
       setFilters(urlFilters);
       setAppliedFilters(urlFilters);
       setShowResults(true);
-    } else if (view === "map") {
+    } else if (isMapMode) {
+      const defaultState = urlStateId || userStateId || "all";
+      const defaultCity = urlCityId || userCityId || "all";
+      const urlFilters = {
+        search: urlSearch,
+        searchBy: urlSearchBy,
+        state: defaultState,
+        city: defaultCity,
+        state_id: defaultState !== "all" ? defaultState : "",
+        city_id: defaultCity !== "all" ? defaultCity : "",
+      };
+      setFilters(urlFilters);
+      setAppliedFilters(urlFilters);
       setShowResults(true);
     } else {
       const defaultState = userStateId || "all";
@@ -96,6 +116,14 @@ function PropertyPageContent() {
 
     if (lat && lng) {
       setMapFocus({ lat: parseFloat(lat), lng: parseFloat(lng) });
+      setTimeout(() => {
+        const mapEl = document.getElementById(
+          "contractor-properties-map-view",
+        );
+        if (mapEl) {
+          mapEl.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 300);
     }
     if (id) {
       setMapFocusId(id);
@@ -229,7 +257,7 @@ function PropertyPageContent() {
   }, [filters.city_id, filters.city]);
 
   const hasMapStateAndCity = Boolean(
-    selectedStateId || selectedCityId || activeStateId,
+    isViewMap || selectedStateId || selectedCityId || activeStateId,
   );
 
   const mapSearchParams = useMemo(() => {

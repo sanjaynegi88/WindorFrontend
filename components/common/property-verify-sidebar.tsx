@@ -180,18 +180,11 @@ const isFieldVisible = (
   return false;
 };
 
-const getFieldValue = (
-  item: any,
-  fieldName: string,
-): string | undefined => {
+const getFieldValue = (item: any, fieldName: string): string | undefined => {
   if (!item) return undefined;
   switch (fieldName) {
     case "model_number":
-      return (
-        item.model_number ||
-        item.production_line ||
-        item.productionLine
-      );
+      return item.model_number || item.production_line || item.productionLine;
     case "classRating":
       return item.class_rating || item.classRating;
     case "orderNumber":
@@ -237,6 +230,13 @@ export function PropertyVerifySidebar({
   // Verify confirmation state
   const [confirmVerifyOpen, setConfirmVerifyOpen] = useState(false);
   const [verifyParams, setVerifyParams] = useState<{
+    projectId: string;
+    componentId: string;
+  } | null>(null);
+
+  // Reject confirmation state
+  const [confirmRejectOpen, setConfirmRejectOpen] = useState(false);
+  const [rejectParams, setRejectParams] = useState<{
     projectId: string;
     componentId: string;
   } | null>(null);
@@ -412,15 +412,18 @@ export function PropertyVerifySidebar({
               p.id === projectId
                 ? {
                     ...p,
-                    permitId: "pending",
-                    permit_upload: { status: "PENDING_VERIFICATION" },
-                    components: p.components
-                      ? {
-                          ...p.components,
-                          permit_status: "PENDING_VERIFICATION",
-                          permit_uploaded_at: new Date().toISOString(),
-                        }
-                      : p.components,
+                    permit_upload: {
+                      ...p.permit_upload,
+                      file_path:
+                        res?.data?.file_path ||
+                        p.permit_upload?.file_path ||
+                        "uploaded",
+                      ...(res?.data && typeof res.data === "object"
+                        ? res.data
+                        : {}),
+                      status: p.permit_upload?.status,
+                    },
+                    permit_url: res?.data?.permit_url || p.permit_url,
                   }
                 : p,
             ),
@@ -429,6 +432,7 @@ export function PropertyVerifySidebar({
         setPermitDialogOpen(false);
         // Silent refetch to get real permit status and URLs from server
         fetchDetail(false);
+        onUpdate?.();
       } else {
         toast.error(res?.message || "Failed to upload permit");
       }
@@ -462,14 +466,19 @@ export function PropertyVerifySidebar({
             </SheetTitle>
           </SheetHeader>
 
-          {!loading && property && !canUploadAnyPermit && (
-            <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 flex items-center gap-2.5 text-amber-900 text-xs shrink-0">
-              <Info className="size-4 text-amber-700 shrink-0" />
-              <span className="font-medium text-[11px]">
-                You do not have permission to upload permit, you can only view.
-              </span>
-            </div>
-          )}
+          {!loading &&
+            property &&
+            !canUploadAnyPermit &&
+            !isAdmin &&
+            !isInspector && (
+              <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 flex items-center gap-2.5 text-amber-900 text-xs shrink-0">
+                <Info className="size-4 text-amber-700 shrink-0" />
+                <span className="font-medium text-[11px]">
+                  You do not have permission to upload permit, you can only
+                  view.
+                </span>
+              </div>
+            )}
 
           <SheetBody className="flex-1 overflow-y-auto p-6 space-y-6">
             {loading && (
@@ -624,7 +633,11 @@ export function PropertyVerifySidebar({
                         const isVerifying = verifyingId === comp.id;
                         const needPermit = !!project.need_permit;
                         const permitUpload = project.permit_upload;
-                        const hasPermit = !!permitUpload;
+                        const hasPermit = !!(
+                          project.permit_upload?.file_path ||
+                          project.permit_url ||
+                          comp.permit_file_url
+                        );
                         const permitVerified =
                           permitUpload?.status === "VERIFIED";
                         const permitMissing = needPermit && !hasPermit;
@@ -768,6 +781,7 @@ export function PropertyVerifySidebar({
 
                                 {/* Upload Permit button: need_permit is true and no permit uploaded yet */}
                                 {permitMissing &&
+                                  !isRejected &&
                                   !isInspector &&
                                   (isAdmin || isOwner || hasAddedProject) && (
                                     <Button
@@ -808,12 +822,13 @@ export function PropertyVerifySidebar({
                                       </Button>
                                       <Button
                                         size="sm"
-                                        onClick={() =>
-                                          handleMarkUnverified(
-                                            project.id,
-                                            comp.id,
-                                          )
-                                        }
+                                        onClick={() => {
+                                          setRejectParams({
+                                            projectId: project.id,
+                                            componentId: comp.id,
+                                          });
+                                          setConfirmRejectOpen(true);
+                                        }}
                                         disabled={isVerifying}
                                         className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-red-600 hover:bg-red-700 text-white rounded-lg gap-1.5 shadow-2xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                       >
@@ -830,15 +845,16 @@ export function PropertyVerifySidebar({
                                 {/* CASE 2: VERIFIED -> Show Reject button (only for admin when permit not missing), show Verified indicator for non-admin */}
                                 {isVerified && (
                                   <>
-                                    {isAdmin && !permitMissing && (
+                                    {(isAdmin || isInspector) && (
                                       <Button
                                         size="sm"
-                                        onClick={() =>
-                                          handleMarkUnverified(
-                                            project.id,
-                                            comp.id,
-                                          )
-                                        }
+                                        onClick={() => {
+                                          setRejectParams({
+                                            projectId: project.id,
+                                            componentId: comp.id,
+                                          });
+                                          setConfirmRejectOpen(true);
+                                        }}
                                         disabled={isVerifying}
                                         className="h-7 px-3 text-[10px] font-black uppercase tracking-widest bg-red-600 hover:bg-red-700 text-white rounded-lg gap-1.5 shadow-2xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                       >
@@ -850,7 +866,7 @@ export function PropertyVerifySidebar({
                                         {isVerifying ? "Updating…" : "Reject"}
                                       </Button>
                                     )}
-                                    {(isInspector || isOwner) && (
+                                    {(isOwner || isContractor) && (
                                       <div className="flex items-center gap-1.5 text-emerald-600">
                                         <CheckCircle2 className="size-4" />
                                         <span className="text-[10px] font-black uppercase tracking-widest">
@@ -899,16 +915,14 @@ export function PropertyVerifySidebar({
                             </div>
 
                             {/* Informational notice when permit is missing */}
-                            {permitMissing && (
+                            {permitMissing && !isAdmin && !isInspector && (
                               <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
                                 <div className="flex items-center gap-2 min-w-0">
                                   <FilePlus className="size-3.5 text-amber-700 shrink-0" />
                                   <span className="text-[11px] font-medium leading-tight">
                                     {hasAddedProject || isOwner
                                       ? "Please upload required documents"
-                                      : isAdmin || isInspector
-                                        ? "To change the status you need to upload the permit first."
-                                        : "You do not have permission to upload permit, you can only view."}
+                                      : "You do not have permission to upload permit, you can only view."}
                                   </span>
                                 </div>
                               </div>
@@ -1168,6 +1182,42 @@ export function PropertyVerifySidebar({
               }}
             >
               Verify
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Confirmation Dialog */}
+      <Dialog open={confirmRejectOpen} onOpenChange={setConfirmRejectOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Rejection</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to reject this installation? This will mark
+              the component as rejected.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmRejectOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => {
+                if (rejectParams) {
+                  handleMarkUnverified(
+                    rejectParams.projectId,
+                    rejectParams.componentId,
+                  );
+                }
+                setConfirmRejectOpen(false);
+              }}
+            >
+              Reject
             </Button>
           </DialogFooter>
         </DialogContent>

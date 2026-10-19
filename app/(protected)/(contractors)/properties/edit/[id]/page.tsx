@@ -706,7 +706,6 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
     setSaving(true);
     try {
       const payload = buildInstallationPayload(type, values);
-      console.log(payload);
       const response = isOwnerProjectType
         ? await updatePropertyOwnerInstallation(selectedComponent.id, payload)
         : await updateInstallation(type, selectedComponent.id, payload);
@@ -1047,83 +1046,80 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
 
             {/* ── EDIT PROJECT ── */}
             {!loading && step === "EDIT_PROJECT" && selectedProject && (
-                <CategorySelection
-                  address={property?.address || ""}
-                  propertyId={propertyId}
-                  stateId={
-                    property?.state_id ||
-                    property?.state?.id ||
-                    addressData.state ||
-                    addressData.state_id
-                  }
-                  initialProjectType={
-                    selectedProject
-                      ? toPascalCase(selectedProject.project_type || "")
-                      : undefined
-                  }
-                  disableProjectType={!!selectedProject}
-                  isEditMode={!!selectedProject}
-                  projectId={selectedProject?.id}
-                  defaultGoverningCityId={addressData.city_id}
-                  cities={cities}
-                  initialProjectData={(() => {
-                    const data = selectedProject
-                      ? {
-                          project_name: selectedProject.project_name,
-                          project_type: selectedProject.project_type,
-                          other: selectedProject.other,
-                          date_of_install: selectedProject.date_of_install,
-                          governing_city_id: selectedProject.governing_city_id,
-                          permit: selectedProject.permit,
-                          need_permit: selectedProject.need_permit,
-                          project_status: selectedProject.project_status,
-                          notes: selectedProject.notes,
-                          contractor_id: selectedProject.contractor_id,
-                          visible_status: selectedProject.visible_status,
-                          has_uploaded_permit:
-                            selectedProject.has_uploaded_permit,
-                          permit_upload: selectedProject.permit_upload,
-                          permit_url:
-                            selectedProject.permit_url ||
-                            selectedProject.components?.permit_file_url,
-                        }
-                      : undefined;
-                    console.log("=== [EditPage] initialProjectData ===", data);
-                    return data;
-                  })()}
-                  onContinue={(data) => {
-                    const projectId =
-                      data.projectData?.data?.id ||
-                      data.projectData?.id ||
-                      null;
-                    if (projectId) {
-                      localStorage.setItem("current_project_id", projectId);
-                      localStorage.setItem("current_property_id", propertyId);
-                    }
-                    if (data.isOwnerProjectType) {
-                      setIsOwnerProjectType(true);
-                    } else {
-                      setIsOwnerProjectType(false);
-                    }
-                    if (data.type) {
-                      if (selectedProject?.components) {
-                        setSelectedComponent(selectedProject.components);
-                        setNewInstallationType(null);
-                      } else {
-                        setSelectedComponent(null);
-                        setNewInstallationType(data.type);
+              <CategorySelection
+                address={property?.address || ""}
+                propertyId={propertyId}
+                stateId={
+                  property?.state_id ||
+                  property?.state?.id ||
+                  addressData.state ||
+                  addressData.state_id
+                }
+                initialProjectType={
+                  selectedProject
+                    ? toPascalCase(selectedProject.project_type || "")
+                    : undefined
+                }
+                disableProjectType={!!selectedProject}
+                isEditMode={!!selectedProject}
+                projectId={selectedProject?.id}
+                defaultGoverningCityId={addressData.city_id}
+                cities={cities}
+                initialProjectData={(() => {
+                  const data = selectedProject
+                    ? {
+                        project_name: selectedProject.project_name,
+                        project_type: selectedProject.project_type,
+                        other: selectedProject.other,
+                        date_of_install: selectedProject.date_of_install,
+                        governing_city_id: selectedProject.governing_city_id,
+                        permit: selectedProject.permit,
+                        need_permit: selectedProject.need_permit,
+                        project_status: selectedProject.project_status,
+                        notes: selectedProject.notes,
+                        contractor_id: selectedProject.contractor_id,
+                        visible_status: selectedProject.visible_status,
+                        has_uploaded_permit:
+                          selectedProject.has_uploaded_permit,
+                        permit_upload: selectedProject.permit_upload,
+                        permit_url:
+                          selectedProject.permit_url ||
+                          selectedProject.components?.permit_file_url,
                       }
-                      setStep("EDIT_INSTALLATION");
+                    : undefined;
+                  return data;
+                })()}
+                onContinue={(data) => {
+                  const projectId =
+                    data.projectData?.data?.id || data.projectData?.id || null;
+                  if (projectId) {
+                    localStorage.setItem("current_project_id", projectId);
+                    localStorage.setItem("current_property_id", propertyId);
+                  }
+                  if (data.isOwnerProjectType) {
+                    setIsOwnerProjectType(true);
+                  } else {
+                    setIsOwnerProjectType(false);
+                  }
+                  if (data.type) {
+                    if (selectedProject?.components) {
+                      setSelectedComponent(selectedProject.components);
+                      setNewInstallationType(null);
+                    } else {
+                      setSelectedComponent(null);
+                      setNewInstallationType(data.type);
                     }
-                  }}
-                  onBack={() => {
-                    router.back();
-                  }}
-                  onSaveSuccess={() => {
-                    router.push("/my-projects");
-                  }}
-                />
-              )}
+                    setStep("EDIT_INSTALLATION");
+                  }
+                }}
+                onBack={() => {
+                  router.back();
+                }}
+                onSaveSuccess={() => {
+                  router.push("/my-projects");
+                }}
+              />
+            )}
 
             {/* ── EDIT INSTALLATION (existing component - UPDATE mode) ── */}
             {!loading &&
@@ -1178,52 +1174,50 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
                 />
               )}
 
-            {!loading &&
-              step === "IMAGE_UPLOAD" &&
-              newInstallationType && (
-                <CategoryImageUpload
-                  address={property?.address || ""}
-                  initialCategory={newInstallationType}
-                  onSave={async (photos) => {
-                    if (!currentInstallationId) return;
-                    setSaving(true);
-                    try {
-                      const result = await uploadInstallationImages(
-                        newInstallationType,
-                        currentInstallationId,
-                        photos as Record<string, File>,
+            {!loading && step === "IMAGE_UPLOAD" && newInstallationType && (
+              <CategoryImageUpload
+                address={property?.address || ""}
+                initialCategory={newInstallationType}
+                onSave={async (photos) => {
+                  if (!currentInstallationId) return;
+                  setSaving(true);
+                  try {
+                    const result = await uploadInstallationImages(
+                      newInstallationType,
+                      currentInstallationId,
+                      photos as Record<string, File>,
+                    );
+                    if (!result.success) {
+                      toast.error(
+                        result.message ||
+                          "Failed to upload images. Please try again.",
                       );
-                      if (!result.success) {
-                        toast.error(
-                          result.message ||
-                            "Failed to upload images. Please try again.",
-                        );
-                        return;
-                      }
-                      localStorage.removeItem("current_project_id");
-                      localStorage.removeItem("current_property_id");
-                      toast.success(
-                        "Installation added successfully with images",
-                      );
-                      await refreshProperty();
-                      setNewInstallationType(null);
-                      if (selectedProject?.is_confirmed) {
-                        router.replace(
-                          role === "admin" ? "/all-projects" : "/my-projects",
-                        );
-                        return;
-                      }
-                      setStep("SUCCESS");
-                      window.scrollTo({ top: 0, behavior: "smooth" });
-                    } catch (err: any) {
-                      toast.error(err.message || "Failed to upload images");
-                    } finally {
-                      setSaving(false);
+                      return;
                     }
-                  }}
-                  onBack={() => setStep("EDIT_INSTALLATION")}
-                />
-              )}
+                    localStorage.removeItem("current_project_id");
+                    localStorage.removeItem("current_property_id");
+                    toast.success(
+                      "Installation added successfully with images",
+                    );
+                    await refreshProperty();
+                    setNewInstallationType(null);
+                    if (selectedProject?.is_confirmed) {
+                      router.replace(
+                        role === "admin" ? "/all-projects" : "/my-projects",
+                      );
+                      return;
+                    }
+                    setStep("SUCCESS");
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  } catch (err: any) {
+                    toast.error(err.message || "Failed to upload images");
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                onBack={() => setStep("EDIT_INSTALLATION")}
+              />
+            )}
 
             {/* ── SUCCESS STEP ── */}
             {!loading && step === "SUCCESS" && (

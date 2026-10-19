@@ -120,10 +120,6 @@ export function buildInstallationPayload(
     }
   });
 
-  console.log("=== [Installation Request Payload] ===", {
-    type: normType,
-    payload,
-  });
 
   return payload;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import { Loader2, FileText, PlusIcon, MapPin, Map, Camera } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -81,6 +81,22 @@ export default function ComponentDetail({
   const [showImageSourcePicker, setShowImageSourcePicker] = useState(false);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
+
+  const isContractorRole = role === "contractor" || role === "manufacturer";
+  const mapBasePath = isContractorRole ? "/properties" : "/dashboard";
+
+  const mapUrl = useMemo(() => {
+    if (!componentData?.latitude || !componentData?.longitude) return "";
+    const params = new URLSearchParams();
+    params.set("view", "map");
+    params.set("viewmap", "true");
+    params.set("lat", String(componentData.latitude));
+    params.set("lng", String(componentData.longitude));
+    params.set("id", String(componentId));
+    if (componentData.state_id) params.set("state_id", String(componentData.state_id));
+    if (componentData.city_id) params.set("city_id", String(componentData.city_id));
+    return `${mapBasePath}?${params.toString()}`;
+  }, [mapBasePath, componentData, componentId]);
 
   useEffect(() => {
     setHeroImageSrc(heroImageUrl);
@@ -229,7 +245,6 @@ export default function ComponentDetail({
         return;
       }
 
-      console.log(response, "response");
       const checkoutUrl =
         response.data?.checkoutUrl || response.data?.data?.checkoutUrl;
       if (checkoutUrl) {
@@ -588,7 +603,7 @@ export default function ComponentDetail({
                 componentData?.latitude &&
                 componentData?.longitude && (
                   <Link
-                    href={`/dashboard?view=map&lat=${componentData.latitude}&lng=${componentData.longitude}&id=${componentId}`}
+                    href={mapUrl}
                     className="flex items-center gap-1.5 sm:gap-2 h-8 sm:h-10 px-3 sm:px-6 rounded-full bg-white hover:bg-gray-100 text-[#1F2A44] font-bold text-[10px] sm:text-[12px] md:text-[14px] uppercase tracking-wider sm:tracking-widest transition-all shadow-lg border border-gray-200/50 hover:scale-105"
                   >
                     <Map className="size-3.5 sm:size-4 text-[#1CA7A6]" />

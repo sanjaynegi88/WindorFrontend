@@ -1,7 +1,15 @@
 "use client";
 
 import { useMemo, useState, useEffect, useRef } from "react";
-import { ChevronLeft, Eye, MapPin, Search, X, AlertCircle } from "lucide-react";
+import {
+  ChevronLeft,
+  Eye,
+  MapPin,
+  Search,
+  X,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StateOption, CityOption } from "@/lib/location-utils";
@@ -14,10 +22,13 @@ import {
   getUserProfile,
   getReportUsage,
   validateAddress,
+  searchGooglePlaces,
+  getGooglePlaceDetails,
+  type GooglePlacePrediction,
+  type GooglePlaceDetails,
 } from "@/lib/actions";
 import { MapDialog } from "./MapDialog";
 import { toTitleCase, cn } from "@/lib/utils";
-import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 
 export interface AddressData {
   address: string;
@@ -294,22 +305,27 @@ export function AddressForm({
   const [loadingCities, setLoadingCities] = useState(false);
   const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
 
-  // Google Places Autocomplete State and Refs
+  // Google Places Search State and Refs
   const autocompleteInputRef = useRef<HTMLInputElement | null>(null);
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
-  const listenerRef = useRef<google.maps.MapsEventListener | null>(null);
+  const dropdownContainerRef = useRef<HTMLDivElement | null>(null);
   const [searchValue, setSearchValue] = useState<string>(() => {
     return formatFullAddress(data, states, cities);
   });
   const [autocompleteError, setAutocompleteError] = useState<string | null>(
     null,
   );
-  const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);
   const [isAddress2Supported, setIsAddress2Supported] = useState<
     boolean | null
   >(null);
   const [address2Message, setAddress2Message] = useState<string | null>(null);
   const isAddressLocked = Boolean(data.address);
+
+  // Predictions and Loading states
+  const [predictions, setPredictions] = useState<GooglePlacePrediction[]>([]);
+  const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
+  const [isLoadingPlaceDetails, setIsLoadingPlaceDetails] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
 
   // Stable refs for listener callback
   const dataRef = useRef(data);
@@ -331,10 +347,6 @@ export function AddressForm({
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
-
-  const handlePlaceSelectRef = useRef<
-    (place: google.maps.places.PlaceResult) => Promise<void> | void
-  >(() => {});
 
   // Sync search input if address is loaded or changes externally, or if state/city names become available
   useEffect(() => {
@@ -369,8 +381,85 @@ export function AddressForm({
     searchValue,
   ]);
 
+  // Debounced search for places predictions
+  useEffect(() => {
+    const trimmed = searchValue.trim();
+    if (!trimmed || trimmed.length < 3) {
+      setPredictions([]);
+      setIsDropdownOpen(false);
+      return;
+    }
+
+    // If input matches already selected full address, don't trigger search
+    const currentFull = formatFullAddress(data, states, [
+      ...cities,
+      ...fetchedCities,
+    ]);
+    if (
+      data.address &&
+      currentFull &&
+      trimmed.toLowerCase() === currentFull.toLowerCase()
+    ) {
+      return;
+    }
+
+    let active = true;
+    setIsSearchingPlaces(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await searchGooglePlaces(trimmed);
+        if (!active) return;
+        if (res.success && res.data?.predictions) {
+          setPredictions(res.data.predictions);
+          setIsDropdownOpen(res.data.predictions.length > 0);
+          setHighlightedIndex(-1);
+        } else {
+          setPredictions([]);
+          setIsDropdownOpen(false);
+        }
+      } catch (err) {
+        if (active) {
+          console.error("Failed to search places:", err);
+          setPredictions([]);
+          setIsDropdownOpen(false);
+        }
+      } finally {
+        if (active) {
+          setIsSearchingPlaces(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [searchValue, data.address, states, cities, fetchedCities]);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        dropdownContainerRef.current &&
+        !dropdownContainerRef.current.contains(e.target as Node) &&
+        autocompleteInputRef.current &&
+        !autocompleteInputRef.current.contains(e.target as Node)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const handleClearSearch = () => {
     setSearchValue("");
+    setPredictions([]);
+    setIsDropdownOpen(false);
     setAutocompleteError(null);
     setIsAddress2Supported(null);
     setAddress2Message(null);
@@ -407,174 +496,68 @@ export function AddressForm({
     }
   };
 
-  const handlePlaceSelect = async (place: google.maps.places.PlaceResult) => {
+  const handleSelectPrediction = async (prediction: GooglePlacePrediction) => {
     try {
+      setIsLoadingPlaceDetails(true);
       setAutocompleteError(null);
+      setIsDropdownOpen(false);
 
-      console.log("=== GOOGLE PLACES FULL RESPONSE ===");
-      console.log("Full Place Object:", place);
-      console.log("Place Name:", place?.name);
-      console.log("Formatted Address:", place?.formatted_address);
-      console.log("Place Types:", place?.types);
-      console.log("Address Components (Raw):", place?.address_components);
-      if (place?.address_components) {
-        console.table(
-          place.address_components.map((c) => ({
-            types: c.types.join(", "),
-            long_name: c.long_name,
-            short_name: c.short_name,
-          })),
-        );
-      }
-      console.log(
-        "Geometry Coordinates:",
-        place?.geometry?.location
-          ? {
-              lat:
-                typeof place.geometry.location.lat === "function"
-                  ? place.geometry.location.lat()
-                  : (place.geometry.location as any).lat,
-              lng:
-                typeof place.geometry.location.lng === "function"
-                  ? place.geometry.location.lng()
-                  : (place.geometry.location as any).lng,
-            }
-          : null,
-      );
-      console.log("====================================");
-
-      if (
-        !place ||
-        !place.address_components ||
-        place.address_components.length === 0
-      ) {
+      const res = await getGooglePlaceDetails(prediction.place_id);
+      if (!res.success || !res.data) {
         const msg =
-          "Please select a valid address from the Google suggestions dropdown.";
+          res.message || "Failed to load details for the selected address.";
         setAutocompleteError(msg);
         toast.error(msg);
+        setIsLoadingPlaceDetails(false);
         return;
       }
 
-      const components = place.address_components;
-      let streetNumber = "";
-      let route = "";
-      let subpremise = "";
-      let locality = "";
-      let sublocality = "";
-      let postalTown = "";
-      let stateShort = "";
-      let stateLong = "";
-      let postalCode = "";
-      let countryShort = "";
-      let countryLong = "";
+      const details = res.data;
 
-      for (const comp of components) {
-        const types = comp.types || [];
-        if (types.includes("street_number")) {
-          streetNumber = comp.long_name || comp.short_name;
-        }
-        if (types.includes("route")) {
-          route = comp.long_name || comp.short_name;
-        }
-        if (types.includes("subpremise")) {
-          subpremise = comp.long_name || comp.short_name;
-        }
-        if (types.includes("locality")) {
-          locality = comp.long_name || comp.short_name;
-        }
-        if (
-          types.includes("sublocality_level_1") ||
-          types.includes("sublocality")
-        ) {
-          sublocality = comp.long_name || comp.short_name;
-        }
-        if (types.includes("postal_town")) {
-          postalTown = comp.long_name || comp.short_name;
-        }
-        if (types.includes("administrative_area_level_1")) {
-          stateShort = comp.short_name;
-          stateLong = comp.long_name;
-        }
-        if (types.includes("postal_code")) {
-          postalCode = comp.long_name || comp.short_name;
-        }
-        if (types.includes("country")) {
-          countryShort = comp.short_name;
-          countryLong = comp.long_name;
-        }
-      }
-
-      // Edge case 5: Google result is outside the US
+      // Validate Country (Only US supported)
       if (
-        countryShort &&
-        countryShort.toUpperCase() !== "US" &&
-        countryLong.toLowerCase() !== "united states"
+        details.country &&
+        details.country.toUpperCase() !== "US" &&
+        details.country.toLowerCase() !== "united states"
       ) {
         const msg =
           "Only United States properties are supported. Please select a US address.";
         setAutocompleteError(msg);
         toast.error(msg);
+        setIsLoadingPlaceDetails(false);
         return;
       }
 
-      // Edge cases 1 & 2: Street number & non-specific/approximate result
-      if (!streetNumber) {
+      const streetAddress = (details.address || "").trim();
+      if (!streetAddress) {
         const msg =
-          "Please select a specific address with a street number (e.g., 123 Main St).";
+          "Please select a specific address with a street number and name.";
         setAutocompleteError(msg);
         toast.error(msg);
+        setIsLoadingPlaceDetails(false);
         return;
       }
 
-      if (!route) {
-        const msg =
-          "Please select a specific property address with a street name.";
-        setAutocompleteError(msg);
-        toast.error(msg);
-        return;
-      }
+      const stateShort = (details.state || "").trim();
+      const stateLong = (details.state_name || "").trim();
+      const googleCityName = (details.city || "").trim();
+      const postalCode = (details.zip || "").trim();
 
-      // Edge case 3: Google result has no ZIP
       if (!postalCode) {
         const msg =
           "The selected address is missing a ZIP code. Please select a valid property address.";
         setAutocompleteError(msg);
         toast.error(msg);
+        setIsLoadingPlaceDetails(false);
         return;
       }
 
-      // Edge case 4: Google result has no city
-      const googleCityName = locality || sublocality || postalTown || "";
       if (!googleCityName) {
         const msg =
           "Could not determine the city for the selected address. Please select a valid property address.";
         setAutocompleteError(msg);
         toast.error(msg);
-        return;
-      }
-
-      // Geometry / coordinates validation
-      if (!place.geometry || !place.geometry.location) {
-        const msg =
-          "Could not determine location coordinates for the selected address.";
-        setAutocompleteError(msg);
-        toast.error(msg);
-        return;
-      }
-
-      const lat =
-        typeof place.geometry.location.lat === "function"
-          ? place.geometry.location.lat()
-          : Number((place.geometry.location as any).lat);
-      const lng =
-        typeof place.geometry.location.lng === "function"
-          ? place.geometry.location.lng()
-          : Number((place.geometry.location as any).lng);
-
-      if (isNaN(lat) || isNaN(lng)) {
-        const msg = "Invalid coordinates returned for the selected address.";
-        setAutocompleteError(msg);
-        toast.error(msg);
+        setIsLoadingPlaceDetails(false);
         return;
       }
 
@@ -582,15 +565,17 @@ export function AddressForm({
       let availableStates = statesRef.current;
       if (!availableStates || availableStates.length === 0) {
         try {
-          const res = await getStates(1, 1000);
-          const raw: any[] = Array.isArray(res) ? res : res?.data || [];
+          const resStates = await getStates(1, 1000);
+          const raw: any[] = Array.isArray(resStates)
+            ? resStates
+            : (resStates as any)?.data || [];
           availableStates = raw.map((s: any) => ({
             id: String(s.id),
             name: s.state_name || s.name,
             abbreviation: s.abbreviation,
           }));
         } catch (err) {
-          console.error("Failed to load states for autocomplete:", err);
+          console.error("Failed to load states for address search:", err);
         }
       }
 
@@ -613,6 +598,7 @@ export function AddressForm({
         const msg = `State (${stateShort || stateLong || "unknown"}) is not recognized in the system.`;
         setAutocompleteError(msg);
         toast.error(msg);
+        setIsLoadingPlaceDetails(false);
         return;
       }
 
@@ -644,7 +630,7 @@ export function AddressForm({
           );
           const rawList: any[] = Array.isArray(apiRes)
             ? apiRes
-            : apiRes?.data || [];
+            : (apiRes as any)?.data || [];
           const matchedCityFromApi = rawList.find(
             (c: any) =>
               (c.city_name || c.name || "").trim().toLowerCase() ===
@@ -683,166 +669,28 @@ export function AddressForm({
         });
       }
 
-      // Address 1: street_number + route
-      const streetAddress = `${streetNumber} ${route}`.trim();
+      const finalAddress2 = (details.address2 || "").trim();
       const stateAbbr =
         matchedState.abbreviation || stateShort || matchedState.name;
 
-      // Validate the selected address through backend API
-      const valPayload = {
-        address: streetAddress,
-        address2: subpremise ? subpremise.trim() : "",
-        city: resolvedCityName,
-        state: stateAbbr,
-        zip: postalCode,
-      };
+      const finalLat =
+        details.latitude != null ? Number(details.latitude) : null;
+      const finalLng =
+        details.longitude != null ? Number(details.longitude) : null;
 
-      console.log("=== SENDING TO BACKEND VALIDATE-ADDRESS ===", valPayload);
-      const valRes = await validateAddress(valPayload);
-      console.log("=== BACKEND VALIDATE-ADDRESS RESPONSE ===", valRes);
-
-      const valResAny = valRes as any;
-      const valPayloadData = valRes.success
-        ? (valResAny.data?.data ?? valResAny.data)
-        : (valResAny.error?.data ?? valResAny.error ?? valResAny.data);
-
-      const addr2Validation =
-        valPayloadData?.address2_validation ??
-        valResAny.data?.address2_validation ??
-        valResAny.error?.address2_validation;
-
-      // Check if the property address supports/requires Address 2 (COMMENTED OUT)
-      /*
-    const isSupportedFlag =
-      typeof addr2Validation?.is_address2_supported === "boolean"
-        ? addr2Validation.is_address2_supported
-        : typeof valPayloadData?.is_address2_supported === "boolean"
-          ? valPayloadData.is_address2_supported
-          : typeof valResAny.data?.address2_validation
-                ?.is_address2_supported === "boolean"
-            ? valResAny.data.address2_validation.is_address2_supported
-            : typeof valResAny.error?.address2_validation
-                  ?.is_address2_supported === "boolean"
-              ? valResAny.error.address2_validation.is_address2_supported
-              : null;
-
-    if (typeof isSupportedFlag === "boolean") {
-      setIsAddress2Supported(isSupportedFlag);
-    } else {
-      setIsAddress2Supported(null);
-    }
-    */
-
-      const invalidFields: string[] =
-        valPayloadData?.invalid_fields ??
-        valPayloadData?.invalidFields ??
-        valPayloadData?.error_fields ??
-        valPayloadData?.errorFields ??
-        valResAny.error?.invalid_fields ??
-        valResAny.errorFields ??
-        [];
-
-      const onlyAddress2Invalid =
-        !valRes.success &&
-        invalidFields.length > 0 &&
-        invalidFields.every((f) => f.toLowerCase() === "address2");
-
-      if (!valRes.success && !onlyAddress2Invalid) {
-        const errorMsg =
-          valRes.message || "The selected address failed backend validation.";
-        setAutocompleteError(errorMsg);
-        toast.error(errorMsg);
-        if (valResAny.errorFields && Array.isArray(valResAny.errorFields)) {
-          updateErrorFields(valResAny.errorFields);
-        }
-        return;
-      }
-
-      if (onlyAddress2Invalid) {
-        const msg =
-          addr2Validation?.message || "Please provide a valid address line 2";
-        toast.warning(msg);
-        setAddress2Message(msg);
-        updateErrorFields(["address2"]);
-      } else {
-        setAddress2Message(null);
-      }
-
-      /*
-    if (isSupportedFlag === false) {
-      clearFieldError("address2");
-      setAddress2Message(null);
-    }
-    */
-
-      // Inspect if backend exposes a canonical Address 2 value (e.g. address2_validation)
-      const backendCanonicalAddress2 =
-        addr2Validation?.suggested_address2 ??
-        addr2Validation?.google_subpremise ??
-        valPayloadData?.canonical_address2 ??
-        valPayloadData?.canonicalAddress2 ??
-        valPayloadData?.address2 ??
-        valPayloadData?.address_2;
-
-      let backendSubpremise = "";
-      if (
-        valPayloadData?.address_components &&
-        Array.isArray(valPayloadData.address_components)
-      ) {
-        const subpremiseComp = valPayloadData.address_components.find(
-          (c: any) => c.types?.includes("subpremise"),
-        );
-        if (subpremiseComp) {
-          backendSubpremise =
-            subpremiseComp.long_name || subpremiseComp.short_name || "";
-        }
-      }
-
-      const finalAddress2 = (
-        backendCanonicalAddress2 != null && backendCanonicalAddress2 !== ""
-          ? String(backendCanonicalAddress2)
-          : backendSubpremise !== ""
-            ? backendSubpremise
-            : subpremise || ""
-      ).trim();
-
-      let finalLat = lat;
-      let finalLng = lng;
-      if (valPayloadData?.geometry?.location) {
-        const bLat =
-          typeof valPayloadData.geometry.location.lat === "function"
-            ? valPayloadData.geometry.location.lat()
-            : Number(valPayloadData.geometry.location.lat);
-        const bLng =
-          typeof valPayloadData.geometry.location.lng === "function"
-            ? valPayloadData.geometry.location.lng()
-            : Number(valPayloadData.geometry.location.lng);
-        if (!isNaN(bLat) && !isNaN(bLng)) {
-          finalLat = bLat;
-          finalLng = bLng;
-        }
-      }
-
-      // Update input text with canonical formatted address AFTER backend validation
-      const fullFormatted = [
-        streetAddress,
-        finalAddress2,
-        resolvedCityName,
-        stateAbbr,
-        postalCode,
-      ]
-        .filter(Boolean)
-        .join(", ");
+      const fullFormatted =
+        details.formatted_address ||
+        [streetAddress, finalAddress2, resolvedCityName, stateAbbr, postalCode]
+          .filter(Boolean)
+          .join(", ");
       setSearchValue(fullFormatted);
 
-      // Clear address field errors
       clearFieldError("address");
       clearFieldError("address2");
       clearFieldError("city");
       clearFieldError("state");
       clearFieldError("zip");
 
-      // Populate data with backend-validated structured values
       onChangeRef.current({
         ...dataRef.current,
         address: streetAddress,
@@ -864,82 +712,10 @@ export function AddressForm({
         err?.message || "Failed to process selected address. Please try again.";
       setAutocompleteError(msg);
       toast.error(msg);
+    } finally {
+      setIsLoadingPlaceDetails(false);
     }
   };
-
-  useEffect(() => {
-    handlePlaceSelectRef.current = handlePlaceSelect;
-  }, [handlePlaceSelect]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const initAutocomplete = async () => {
-      if (!autocompleteInputRef.current) return;
-
-      try {
-        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-        if (!apiKey) {
-          console.warn("Google Maps API key is missing");
-          return;
-        }
-
-        setOptions({
-          key: apiKey,
-        });
-
-        const { Autocomplete } = (await importLibrary(
-          "places",
-        )) as google.maps.PlacesLibrary;
-        if (!isMounted || !autocompleteInputRef.current) return;
-
-        const autocomplete = new Autocomplete(autocompleteInputRef.current, {
-          componentRestrictions: { country: "us" },
-          fields: [
-            "address_components",
-            "geometry",
-            "types",
-            "formatted_address",
-            "name",
-          ],
-          types: ["address"],
-        });
-
-        const listener = autocomplete.addListener("place_changed", () => {
-          try {
-            const place = autocomplete.getPlace();
-            handlePlaceSelectRef.current(place);
-          } catch (err) {
-            console.error("Error handling place_changed:", err);
-          }
-        });
-
-        listenerRef.current = listener;
-        autocompleteRef.current = autocomplete;
-        setIsGoogleLoaded(true);
-      } catch (err) {
-        console.error("Failed to initialize Google Places Autocomplete:", err);
-      }
-    };
-
-    initAutocomplete();
-
-    return () => {
-      isMounted = false;
-      if (listenerRef.current && (window as any).google?.maps?.event) {
-        (window as any).google.maps.event.removeListener(listenerRef.current);
-        listenerRef.current = null;
-      } else if (
-        autocompleteRef.current &&
-        (window as any).google?.maps?.event
-      ) {
-        (window as any).google.maps.event.clearInstanceListeners(
-          autocompleteRef.current,
-        );
-      }
-      autocompleteRef.current = null;
-    };
-  }, []);
 
   const [usageLimitInfo, setUsageLimitInfo] = useState<{
     isLimitReached: boolean;
@@ -1268,7 +1044,7 @@ export function AddressForm({
         </div>
 
         {/* Google Places Address Autocomplete Search */}
-        <div className="space-y-1 pb-10">
+        <div className="space-y-1 pb-10 relative">
           <label
             htmlFor="google-address-search"
             className="text-[13px] md:text-[15px] font-semibold text-[#1F2A44] flex items-center justify-between"
@@ -1289,9 +1065,39 @@ export function AddressForm({
               ref={autocompleteInputRef}
               value={searchValue}
               onChange={handleSearchChange}
+              onFocus={() => {
+                if (predictions.length > 0) {
+                  setIsDropdownOpen(true);
+                }
+              }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                if (e.key === "ArrowDown") {
                   e.preventDefault();
+                  if (!isDropdownOpen && predictions.length > 0) {
+                    setIsDropdownOpen(true);
+                  } else if (predictions.length > 0) {
+                    setHighlightedIndex((prev) =>
+                      prev < predictions.length - 1 ? prev + 1 : 0,
+                    );
+                  }
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  if (predictions.length > 0) {
+                    setHighlightedIndex((prev) =>
+                      prev > 0 ? prev - 1 : predictions.length - 1,
+                    );
+                  }
+                } else if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (
+                    isDropdownOpen &&
+                    highlightedIndex >= 0 &&
+                    predictions[highlightedIndex]
+                  ) {
+                    handleSelectPrediction(predictions[highlightedIndex]);
+                  }
+                } else if (e.key === "Escape") {
+                  setIsDropdownOpen(false);
                 }
               }}
               placeholder="Search property address with Google Places..."
@@ -1302,7 +1108,11 @@ export function AddressForm({
                   "!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900",
               )}
             />
-            {searchValue ? (
+            {isLoadingPlaceDetails || isSearchingPlaces ? (
+              <div className="absolute right-[14px] md:right-[20px] p-1.5 flex items-center justify-center pointer-events-none">
+                <Loader2 className="size-4 md:size-5 text-[#1CA7A6] animate-spin" />
+              </div>
+            ) : searchValue ? (
               <button
                 type="button"
                 onClick={handleClearSearch}
@@ -1315,6 +1125,58 @@ export function AddressForm({
               <Search className="absolute right-[18px] md:right-[24px] size-5 md:size-6 text-[#1CA7A6] pointer-events-none" />
             )}
           </div>
+
+          {/* Autocomplete Predictions Dropdown */}
+          {isDropdownOpen && predictions.length > 0 && (
+            <div
+              ref={dropdownContainerRef}
+              className="absolute z-50 left-0 right-0 top-[calc(100%-32px)] bg-white rounded-[8px] md:rounded-[10px] border border-[rgba(28,167,166,0.3)] shadow-xl max-h-[300px] md:max-h-[380px] overflow-y-auto divide-y divide-slate-100"
+            >
+              {predictions.map((p, idx) => {
+                const isSelected = idx === highlightedIndex;
+                return (
+                  <button
+                    key={p.place_id || idx}
+                    type="button"
+                    onClick={() => handleSelectPrediction(p)}
+                    onMouseEnter={() => setHighlightedIndex(idx)}
+                    className={cn(
+                      "w-full text-left px-3.5 md:px-4 py-2.5 md:py-3 flex items-center gap-2.5 md:gap-3 transition-colors cursor-pointer font-asap",
+                      isSelected
+                        ? "bg-[#1CA7A6]/10 text-[#1CA7A6]"
+                        : "hover:bg-slate-50 text-[#1F2A44]",
+                    )}
+                  >
+                    <MapPin className="size-4 md:size-4.5 text-[#1CA7A6] shrink-0" />
+                    <div className="flex-1 min-w-0 truncate text-[14px] md:text-[16px] leading-normal">
+                      <span className="font-semibold text-[#1F2A44]">
+                        {p.main_text || p.description}
+                      </span>
+                      {p.secondary_text && (
+                        <span className="text-[#708090] font-normal text-[13px] md:text-[15px] ml-2">
+                          {p.secondary_text}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+              <div className="px-3.5 md:px-4 py-2 bg-slate-50/80 flex items-center justify-end">
+                <span className="text-[11px] md:text-[12px] text-slate-400 font-medium">
+                  powered by{" "}
+                  <span className="font-semibold tracking-tight">
+                    <span className="text-[#4285F4]">G</span>
+                    <span className="text-[#EA4335]">o</span>
+                    <span className="text-[#FBBC05]">o</span>
+                    <span className="text-[#4285F4]">g</span>
+                    <span className="text-[#34A853]">l</span>
+                    <span className="text-[#EA4335]">e</span>
+                  </span>
+                </span>
+              </div>
+            </div>
+          )}
+
           {autocompleteError && (
             <p className="text-[12px] md:text-[14px] text-red-500 font-medium font-asap mt-1 ml-1 flex items-center gap-1.5">
               <AlertCircle className="size-3.5 md:size-4 shrink-0" />
@@ -1339,9 +1201,7 @@ export function AddressForm({
             placeholder={
               isAddressLocked
                 ? "Address 1"
-                : isGoogleLoaded
-                  ? "Address 1 (Search and select address above)"
-                  : "Address 1"
+                : "Address 1 (Search and select address above)"
             }
             required
             readOnly={isAddressLocked}
@@ -1352,7 +1212,7 @@ export function AddressForm({
                 : undefined
             }
             onClick={() => {
-              if (isGoogleLoaded && !data.address) {
+              if (!data.address) {
                 autocompleteInputRef.current?.focus();
               }
             }}
@@ -1536,9 +1396,7 @@ export function AddressForm({
             placeholder={
               isAddressLocked
                 ? "Zip Code"
-                : isGoogleLoaded
-                  ? "Zip Code (Auto-populated)"
-                  : "Zip Code"
+                : "Zip Code (Auto-populated)"
             }
             required
             inputMode="numeric"
@@ -1550,7 +1408,7 @@ export function AddressForm({
                 : undefined
             }
             onClick={() => {
-              if (isGoogleLoaded && !data.address) {
+              if (!data.address) {
                 autocompleteInputRef.current?.focus();
               }
             }}

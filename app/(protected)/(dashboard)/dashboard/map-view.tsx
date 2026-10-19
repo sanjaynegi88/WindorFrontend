@@ -129,7 +129,7 @@ export default function MapView({
       searchParams?.search?.trim() ||
       searchParams?.brandName?.trim() ||
       searchParams?.color?.trim() ||
-      searchParams?.style?.trim()
+      searchParams?.style?.trim(),
     );
   }, [searchParams]);
 
@@ -160,7 +160,9 @@ export default function MapView({
   const startingCityViewportRef = useRef<ViewportBounds | null>(null);
   const isAwaitingStartingCityViewportRef = useRef<boolean>(false);
   const shouldRecenterOnSidebarCloseRef = useRef<boolean>(false);
-  const currentCityCenterRef = useRef<{ lat: number; lng: number } | null>(null);
+  const currentCityCenterRef = useRef<{ lat: number; lng: number } | null>(
+    null,
+  );
 
   // 1. Fetch user report usage once for authenticated users
   useEffect(() => {
@@ -262,7 +264,10 @@ export default function MapView({
             if (requestId !== cityRequestIdRef.current) return;
             const coords = extractCityCoordinates(res);
             if (coords) {
-              currentCityCenterRef.current = { lat: coords.lat, lng: coords.lng };
+              currentCityCenterRef.current = {
+                lat: coords.lat,
+                lng: coords.lng,
+              };
               isAwaitingStartingCityViewportRef.current = true;
               startingCityViewportRef.current = null;
               shouldRecenterOnSidebarCloseRef.current = false;
@@ -346,7 +351,14 @@ export default function MapView({
     };
 
     resolveCity();
-  }, [activeCityId, activeStateId, role, user?.user?.city_id, hasSearchString, fallbackCityTrigger]);
+  }, [
+    activeCityId,
+    activeStateId,
+    role,
+    user?.user?.city_id,
+    hasSearchString,
+    fallbackCityTrigger,
+  ]);
 
   // Fallback to city coordinates when search yields no matching property
   useEffect(() => {
@@ -374,9 +386,14 @@ export default function MapView({
           shouldRecenterOnSidebarCloseRef.current = !isInside;
         } else if (currentCityCenterRef.current) {
           // If startingCityViewport has not settled yet, check distance against resolved city center
-          const latDiff = Math.abs(focusCenter.lat - currentCityCenterRef.current.lat);
-          const lngDiff = Math.abs(focusCenter.lng - currentCityCenterRef.current.lng);
-          shouldRecenterOnSidebarCloseRef.current = latDiff > 0.1 || lngDiff > 0.1;
+          const latDiff = Math.abs(
+            focusCenter.lat - currentCityCenterRef.current.lat,
+          );
+          const lngDiff = Math.abs(
+            focusCenter.lng - currentCityCenterRef.current.lng,
+          );
+          shouldRecenterOnSidebarCloseRef.current =
+            latDiff > 0.1 || lngDiff > 0.1;
         } else {
           // City ID is selected but city coordinates are still resolving
           shouldRecenterOnSidebarCloseRef.current = true;
@@ -466,8 +483,6 @@ export default function MapView({
           filterPayload,
         );
 
-        console.log("api rseponse", result);
-
         if (requestId !== activeRequestRef.current) return;
 
         const propertyList = extractPropertyList(result);
@@ -536,10 +551,14 @@ export default function MapView({
         focusCommand={focusCommand}
         initialCenter={
           currentCityCenterRef.current ||
-          (cityCommand ? { lat: cityCommand.lat, lng: cityCommand.lng } : DEFAULT_MAP_CENTER)
+          (cityCommand
+            ? { lat: cityCommand.lat, lng: cityCommand.lng }
+            : DEFAULT_MAP_CENTER)
         }
         initialZoom={
-          cityCommand ? (cityCommand.zoom ?? INITIAL_CITY_ZOOM) : DEFAULT_OVERVIEW_ZOOM
+          cityCommand
+            ? (cityCommand.zoom ?? INITIAL_CITY_ZOOM)
+            : DEFAULT_OVERVIEW_ZOOM
         }
         onMarkerClick={(id) => {
           shouldRecenterOnSidebarCloseRef.current = false;

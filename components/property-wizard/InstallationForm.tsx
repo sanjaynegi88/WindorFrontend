@@ -698,8 +698,6 @@ export function InstallationForm({
   const onSubmit = async (values: any) => {
     if (!type) return;
 
-    console.log("=== [InstallationForm] Submitted Form Values ===", values);
-
     const contractorBytes = getContractorUploadSizeBytes();
     if (contractorBytes > MAX_CONTRACTOR_UPLOAD_BYTES) {
       const totalMB = (contractorBytes / (1024 * 1024)).toFixed(1);
@@ -929,9 +927,9 @@ export function InstallationForm({
                   const isUuid = (val?: string) =>
                     Boolean(
                       val &&
-                        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-                          val,
-                        ),
+                      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                        val,
+                      ),
                     );
                   const styleFallback = !isUuid(initialValues?.styleName)
                     ? initialValues?.styleName
@@ -972,9 +970,9 @@ export function InstallationForm({
                   const isUuid = (val?: string) =>
                     Boolean(
                       val &&
-                        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-                          val,
-                        ),
+                      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                        val,
+                      ),
                     );
                   const colorFallback = !isUuid(initialValues?.colorName)
                     ? initialValues?.colorName
