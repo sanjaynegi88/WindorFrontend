@@ -16,6 +16,15 @@ import { Loader2, Crown, CheckCircle2, DollarSign, Clock, FileText } from 'lucid
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
+interface LevelInfo {
+  id?: string;
+  name?: string;
+  role?: string;
+  priority?: number;
+  features?: Record<string, any>;
+  [key: string]: any;
+}
+
 interface Membership {
   id: string;
   name: string;
@@ -24,6 +33,8 @@ interface Membership {
   yearlyAmount: string | number;
   targetRole?: string;
   level?: string;
+  level_id?: string;
+  level_info?: LevelInfo;
   maxReports?: number;
   features: Record<string, string | number | boolean>;
   createdAt: string;
@@ -134,25 +145,35 @@ export function MembershipDetailsDialog({ isOpen, onClose, membershipId }: Membe
                   </div>
                 </div>
 
-                {(membership.targetRole === 'CONTRACTOR' && membership.level) ||
-                  (membership.targetRole === 'INSURANCE' && membership.maxReports) ? (
-                  <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 space-y-2">
-                    <div className="flex items-center gap-2 text-primary">
-                      <Crown className="size-4" />
-                      <span className="text-xs font-black uppercase tracking-widest">Role-Specific Details</span>
+                {(() => {
+                  const levelName =
+                    membership.level_info?.name || membership.level;
+                  const isInsurance =
+                    membership.targetRole === 'INSURANCE' ||
+                    membership.targetRole === 'INSURANCE_COMPANY';
+                  const showReports = isInsurance && Boolean(membership.maxReports);
+
+                  if (!levelName && !showReports) return null;
+
+                  return (
+                    <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 space-y-2">
+                      <div className="flex items-center gap-2 text-primary">
+                        <Crown className="size-4" />
+                        <span className="text-xs font-black uppercase tracking-widest">Role-Specific Details</span>
+                      </div>
+                      {levelName && (
+                        <p className="text-sm font-medium text-foreground">
+                          Level: <span className="font-bold">{levelName}</span>
+                        </p>
+                      )}
+                      {showReports && (
+                        <p className="text-sm font-medium text-foreground">
+                          Maximum Reports: <span className="font-bold">{membership.maxReports}</span>
+                        </p>
+                      )}
                     </div>
-                    {membership.targetRole === 'CONTRACTOR' && membership.level && (
-                      <p className="text-sm font-medium text-foreground">
-                        Contractor Level: <span className="font-bold">{membership.level}</span>
-                      </p>
-                    )}
-                    {membership.targetRole === 'INSURANCE' && membership.maxReports && (
-                      <p className="text-sm font-medium text-foreground">
-                        Maximum Reports: <span className="font-bold">{membership.maxReports}</span>
-                      </p>
-                    )}
-                  </div>
-                ) : null}
+                  );
+                })()}
 
                 <div className="space-y-4">
                   <h4 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">

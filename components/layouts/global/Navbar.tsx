@@ -8,6 +8,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   ChevronDown,
+  ChevronRight,
   User as UserIcon,
   Map as MapIcon,
   Building2,
@@ -27,6 +28,10 @@ import {
   VerifiedIcon,
   PaletteIcon,
   Shapes,
+  MapPin,
+  Settings,
+  Layers,
+  Users as UsersIcon,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -91,6 +96,8 @@ export function Navbar() {
 
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const adminMenuRef = useRef<HTMLDivElement>(null);
+  const adminTriggerRef = useRef<HTMLButtonElement>(null);
 
   const handleMouseEnter = (menuName: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -103,6 +110,35 @@ export function Navbar() {
       setOpenMenu(null);
     }, 250);
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        adminMenuRef.current &&
+        !adminMenuRef.current.contains(event.target as Node) &&
+        adminTriggerRef.current &&
+        !adminTriggerRef.current.contains(event.target as Node)
+      ) {
+        setOpenMenu(null);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && openMenu === "ADMIN") {
+        setOpenMenu(null);
+        adminTriggerRef.current?.focus();
+      }
+    };
+
+    if (openMenu === "ADMIN") {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openMenu]);
 
   useEffect(() => {
     return () => {
@@ -325,41 +361,92 @@ export function Navbar() {
     }
   }, [isLoggedIn, user, role]);
 
-  const adminMenuItems = [
-    { name: "Users", href: "/admin/users", icon: UserIcon },
-    { name: "States", href: "/admin/states", icon: MapIcon },
-    { name: "City", href: "/admin/city", icon: Building2 },
-    { name: "Brands", href: "/admin/brands", icon: Tag },
-    { name: "Membership", href: "/admin/membership", icon: ClipboardList },
-    { name: "Property Types", href: "/admin/property-types", icon: Building2 },
-    { name: "Roles", href: "/admin/roles", icon: ShieldUser },
-    { name: "Property List", href: "/admin/property-list", icon: HouseIcon },
+  const adminMenuGroups = [
     {
-      name: "Properties Pending",
-      href: "/added-properties",
-      icon: VerifiedIcon,
+      title: "Master Data",
+      icon: Tag,
+      items: [
+        { name: "Brands", href: "/admin/brands", icon: Tag },
+        { name: "Colors", href: "/admin/colors", icon: PaletteIcon },
+        { name: "Styles", href: "/admin/styles", icon: Shapes },
+        {
+          name: "Property Types",
+          href: "/admin/property-types",
+          icon: Building2,
+        },
+        {
+          name: "Service Provided",
+          href: "/admin/service-provided",
+          icon: Building2,
+        },
+      ],
     },
     {
-      name: "Project Image Category",
-      href: "/admin/image-category",
-      icon: Images,
+      title: "Users & Access",
+      icon: UsersIcon,
+      items: [
+        { name: "Users", href: "/admin/users", icon: UserIcon },
+        { name: "Roles", href: "/admin/roles", icon: ShieldUser },
+        {
+          name: "Membership Plans",
+          href: "/admin/membership",
+          icon: ClipboardList,
+        },
+        {
+          name: "Set Prices",
+          href: "/admin/report-price",
+          icon: DollarSignIcon,
+        },
+      ],
     },
     {
-      name: "Service Provided",
-      href: "/admin/service-provided",
-      icon: Building2,
+      title: "Location",
+      icon: MapPin,
+      items: [
+        { name: "States", href: "/admin/states", icon: MapIcon },
+        { name: "Cities", href: "/admin/city", icon: Building2 },
+      ],
     },
-    { name: "Set Prices", href: "/admin/report-price", icon: DollarSignIcon },
-    { name: "Admin Logs", href: "/admin/admin-logs", icon: History },
-    { name: "Colors", href: "/admin/colors", icon: PaletteIcon },
-    { name: "Styles", href: "/admin/styles", icon: Shapes },
-    { name: "Import Data", href: "/admin/import-data", icon: FileDownIcon },
-    // {
-    //   name: "Marketing Content",
-    //   href: "/admin/marketing-content",
-    //   icon: FileText,
-    // },
+    {
+      title: "Property & Projects",
+      icon: HouseIcon,
+      items: [
+        {
+          name: "Property List",
+          href: "/admin/property-list",
+          icon: HouseIcon,
+        },
+        {
+          name: "Properties Pending",
+          href: "/added-properties",
+          icon: VerifiedIcon,
+        },
+        {
+          name: "Project Image Category",
+          href: "/admin/image-category",
+          icon: Images,
+        },
+      ],
+    },
+    {
+      title: "System Management",
+      icon: Settings,
+      items: [
+        { name: "Admin Logs", href: "/admin/admin-logs", icon: History },
+        { name: "Import Data", href: "/admin/import-data", icon: FileDownIcon },
+        // {
+        //   name: "Marketing Content",
+        //   href: "/admin/marketing-content",
+        //   icon: FileText,
+        // },
+      ],
+    },
   ];
+
+  const adminMenuItems = useMemo(
+    () => adminMenuGroups.flatMap((group) => group.items),
+    [],
+  );
 
   return (
     <nav className="fixed top-0 inset-x-0 z-50 w-full bg-white/95 backdrop-blur-md border-b border-gray-100 font-asap hidden md:block transition-all duration-300">
@@ -426,17 +513,22 @@ export function Navbar() {
                         onPointerDown={(e) => e.preventDefault()}
                         onClick={(e) => e.preventDefault()}
                         className={cn(
-                          "flex items-center gap-1 text-[15px] font-medium transition-colors uppercase relative py-2 outline-none cursor-pointer",
+                          "flex items-center gap-1 text-[15px] font-medium transition-colors uppercase relative py-2 outline-none cursor-pointer group/nav",
                           isActive
                             ? "text-[#1CA7A6]"
-                            : "text-[#708090]/90 hover:text-[#1CA7A6]",
+                            : "text-[#708090]/90 hover:text-[#1CA7A6] focus-visible:text-[#1CA7A6]",
                         )}
                       >
                         {link.name}
                         <ChevronDown className="size-4" />
-                        {isActive && (
-                          <div className="absolute bottom-[-10px] left-0 w-full h-[2px] bg-[#1CA7A6] rounded-[3px]" />
-                        )}
+                        <div
+                          className={cn(
+                            "absolute bottom-[-10px] left-0 w-full h-[2px] bg-[#1CA7A6] rounded-[3px] transition-opacity duration-150",
+                            isActive
+                              ? "opacity-100"
+                              : "opacity-0 group-focus-visible/nav:opacity-100 group-hover/nav:opacity-100",
+                          )}
+                        />
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
@@ -481,16 +573,21 @@ export function Navbar() {
                 key={link.name}
                 href={link.href!}
                 className={cn(
-                  "text-[15px] font-medium transition-colors uppercase relative py-2",
+                  "text-[15px] font-medium transition-colors uppercase relative py-2 outline-none group/nav",
                   isActive
                     ? "text-[#1CA7A6]"
-                    : "text-[#708090]/90 hover:text-[#1CA7A6]",
+                    : "text-[#708090]/90 hover:text-[#1CA7A6] focus-visible:text-[#1CA7A6]",
                 )}
               >
                 {link.name}
-                {isActive && (
-                  <div className="absolute bottom-[-10px] left-0 w-full h-[2px] bg-[#1CA7A6] rounded-[3px]" />
-                )}
+                <div
+                  className={cn(
+                    "absolute bottom-[-10px] left-0 w-full h-[2px] bg-[#1CA7A6] rounded-[3px] transition-opacity duration-150",
+                    isActive
+                      ? "opacity-100"
+                      : "opacity-0 group-focus-visible/nav:opacity-100 group-hover/nav:opacity-100",
+                  )}
+                />
               </Link>
             );
           })}
@@ -499,59 +596,137 @@ export function Navbar() {
             <div
               onMouseEnter={() => handleMouseEnter("ADMIN")}
               onMouseLeave={handleMouseLeave}
-              className="relative"
+              className="relative py-2"
             >
-              <DropdownMenu
-                open={openMenu === "ADMIN"}
-                onOpenChange={(open) => {
-                  if (!open) {
-                    setOpenMenu(null);
-                  } else {
+              <button
+                ref={adminTriggerRef}
+                id="admin-menu-trigger"
+                aria-haspopup="true"
+                aria-expanded={openMenu === "ADMIN"}
+                aria-controls="admin-mega-menu"
+                onClick={() =>
+                  setOpenMenu((prev) => (prev === "ADMIN" ? null : "ADMIN"))
+                }
+                onKeyDown={(e) => {
+                  if (
+                    e.key === "ArrowDown" ||
+                    e.key === "Enter" ||
+                    e.key === " "
+                  ) {
+                    e.preventDefault();
                     setOpenMenu("ADMIN");
+                    setTimeout(() => {
+                      const firstLink =
+                        adminMenuRef.current?.querySelector<HTMLAnchorElement>(
+                          "a",
+                        );
+                      firstLink?.focus();
+                    }, 50);
+                  } else if (e.key === "Escape") {
+                    setOpenMenu(null);
                   }
                 }}
-                modal={false}
+                className={cn(
+                  "flex items-center gap-1 text-[15px] font-medium transition-colors uppercase outline-none cursor-pointer relative py-2 group/nav",
+                  pathname.startsWith("/admin") ||
+                    pathname === "/added-properties" ||
+                    openMenu === "ADMIN"
+                    ? "text-[#1CA7A6]"
+                    : "text-[#708090]/90 hover:text-[#1CA7A6] focus-visible:text-[#1CA7A6]",
+                )}
               >
-                <DropdownMenuTrigger asChild>
-                  <button
-                    onPointerDown={(e) => e.preventDefault()}
-                    onClick={(e) => e.preventDefault()}
-                    className="flex items-center gap-1 text-[15px] font-medium text-[#708090]/90 hover:text-[#1CA7A6] transition-colors outline-none uppercase cursor-pointer"
-                  >
-                    ADMIN
-                    <ChevronDown className="size-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-56 rounded-xl border-none shadow-2xl p-2 bg-white max-h-[75vh] overflow-y-auto"
-                  onMouseEnter={() => handleMouseEnter("ADMIN")}
-                  onMouseLeave={handleMouseLeave}
-                >
-                  {adminMenuItems.map((item) => (
-                    <DropdownMenuItem
-                      key={item.name}
-                      asChild
-                      className={cn(
-                        "rounded-lg focus:bg-[#1CA7A6]/10 focus:text-[#1CA7A6] cursor-pointer py-3 px-4",
-                        pathname === item.href &&
-                          "bg-[#1CA7A6]/10 text-[#1CA7A6]",
-                      )}
-                    >
-                      <Link
-                        href={item.href}
-                        className="flex items-center gap-3 w-full"
-                      >
-                        <item.icon className="size-4" />
-                        <span className="font-bold text-sm">{item.name}</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                ADMIN
+                <ChevronDown
+                  className={cn(
+                    "size-4 transition-transform duration-200",
+                    openMenu === "ADMIN" && "rotate-180 text-[#1CA7A6]",
+                  )}
+                />
+                <div
+                  className={cn(
+                    "absolute bottom-[-10px] left-0 w-full h-[2px] bg-[#1CA7A6] rounded-[3px] transition-opacity duration-150",
+                    pathname.startsWith("/admin") ||
+                      pathname === "/added-properties" ||
+                      openMenu === "ADMIN"
+                      ? "opacity-100"
+                      : "opacity-0 group-focus-visible/nav:opacity-100 group-hover/nav:opacity-100",
+                  )}
+                />
+              </button>
             </div>
           )}
         </div>
+
+        {/* Admin Mega Menu (Positioned in DOM right after Desktop Nav for intuitive tab sequence, centered horizontally) */}
+        {role === "admin" && openMenu === "ADMIN" && (
+          <div
+            id="admin-mega-menu"
+            role="region"
+            aria-label="Admin Navigation Menu"
+            ref={adminMenuRef}
+            className="hidden md:block absolute top-[100px] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[1140px] z-50 pt-2 animate-in fade-in-0 zoom-in-98 duration-150"
+            onMouseEnter={() => handleMouseEnter("ADMIN")}
+            onMouseLeave={handleMouseLeave}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setOpenMenu(null);
+                adminTriggerRef.current?.focus();
+              }
+            }}
+          >
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.12)] p-7 font-inter">
+              <div className="grid grid-cols-5 divide-x divide-gray-100">
+                {adminMenuGroups.map((group) => (
+                  <div key={group.title} className="px-4 first:pl-0 last:pr-0">
+                    <h4 className="text-[12px] font-bold uppercase tracking-wider text-[#708090] mb-4 px-3">
+                      {group.title}
+                    </h4>
+                    <div className="space-y-1.5">
+                      {group.items.map((item) => {
+                        const isItemActive = pathname === item.href;
+                        return (
+                          <Link
+                            key={item.name}
+                            href={item.href}
+                            onClick={() => setOpenMenu(null)}
+                            className={cn(
+                              "flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 group/item cursor-pointer outline-none",
+                              "focus-visible:outline-none focus-visible:bg-[#E6F7F7] focus-visible:text-[#1CA7A6] focus-visible:font-semibold focus-visible:ring-2 focus-visible:ring-[#1CA7A6]/40",
+                              isItemActive
+                                ? "bg-[#E6F7F7] text-[#1CA7A6] font-semibold"
+                                : "text-[#475569] hover:bg-[#E6F7F7] hover:text-[#1CA7A6] hover:font-semibold",
+                            )}
+                          >
+                            <item.icon
+                              className={cn(
+                                "size-[18px] shrink-0 transition-colors",
+                                isItemActive
+                                  ? "text-[#1CA7A6]"
+                                  : "text-[#708090] group-hover/item:text-[#1CA7A6] group-focus-visible/item:text-[#1CA7A6]",
+                              )}
+                            />
+                            <span className="leading-snug break-words flex-1 min-w-0">
+                              {item.name}
+                            </span>
+                            <ChevronRight
+                              className={cn(
+                                "size-4 ml-1.5 text-[#1CA7A6] shrink-0 transition-all duration-150",
+                                isItemActive
+                                  ? "opacity-100 translate-x-0"
+                                  : "opacity-0 -translate-x-1 group-hover/item:opacity-100 group-hover/item:translate-x-0 group-focus-visible/item:opacity-100 group-focus-visible/item:translate-x-0",
+                              )}
+                            />
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center gap-6">
           {isLoadingUser ? (
@@ -912,21 +1087,29 @@ export function Navbar() {
                 />
               </button>
               {!!mobileSubmenuOpen.ADMIN && (
-                <div className="pl-4 space-y-1 border-l border-gray-100 ml-4">
-                  {adminMenuItems.map((item) => (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className={cn(
-                        "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-colors",
-                        pathname === item.href
-                          ? "text-[#1CA7A6] bg-[#1CA7A6]/5"
-                          : "text-[#708090] hover:text-[#1CA7A6]",
-                      )}
-                    >
-                      <item.icon className="size-4" />
-                      <span>{item.name}</span>
-                    </Link>
+                <div className="pl-4 space-y-3 border-l border-gray-100 ml-4 py-2">
+                  {adminMenuGroups.map((group) => (
+                    <div key={group.title} className="space-y-1">
+                      <div className="flex items-center gap-2 px-3 pt-2 pb-1 text-xs font-bold uppercase text-[#1CA7A6] tracking-wider">
+                        <group.icon className="size-3.5" />
+                        <span>{group.title}</span>
+                      </div>
+                      {group.items.map((item) => (
+                        <Link
+                          key={item.name}
+                          href={item.href}
+                          className={cn(
+                            "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                            pathname === item.href
+                              ? "text-[#1CA7A6] bg-[#1CA7A6]/10 font-semibold"
+                              : "text-[#708090] hover:text-[#1CA7A6]",
+                          )}
+                        >
+                          <item.icon className="size-4" />
+                          <span>{item.name}</span>
+                        </Link>
+                      ))}
+                    </div>
                   ))}
                 </div>
               )}

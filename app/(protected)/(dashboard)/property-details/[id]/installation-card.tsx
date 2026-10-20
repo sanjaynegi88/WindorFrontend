@@ -163,6 +163,7 @@ interface InstallationCardProps {
   embedded?: boolean;
   addedBy?: string;
   addedByEmail?: string;
+  projectPermitStatus?: string;
 }
 
 export const InstallationCard = ({
@@ -172,6 +173,7 @@ export const InstallationCard = ({
   embedded = false,
   addedBy,
   addedByEmail,
+  projectPermitStatus,
 }: InstallationCardProps) => {
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -438,15 +440,15 @@ export const InstallationCard = ({
           <span
             className={cn(
               "text-[10px] md:text-[11px] font-medium px-3 py-1 rounded-full border font-inter",
-              !item.permit_status
+              (projectPermitStatus ?? "").toLowerCase() === "rejected"
                 ? "bg-[rgba(244,67,54,0.1)] text-[#F44336] border-[#F44336]"
-                : item.permit_status === "VERIFIED"
+                : (projectPermitStatus ?? "").toLowerCase() === "verified"
                   ? "bg-[rgba(67,160,71,0.12)] text-[#43A047] border-[#43A047]"
                   : "bg-[rgba(255,193,7,0.12)] text-[#F59E0B] border-[#F59E0B]",
             )}
           >
-            {item.permit_status
-              ? toPascalCase(item.permit_status)
+            {projectPermitStatus
+              ? toPascalCase(projectPermitStatus)
               : "Permit Not Uploaded"}
           </span>
 

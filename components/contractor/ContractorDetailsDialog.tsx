@@ -36,6 +36,20 @@ const GridBackground = dynamic(
   { ssr: false },
 );
 
+interface LevelInfo {
+  id?: string;
+  name?: string;
+  role?: string;
+  priority?: number;
+  features?: {
+    is_contractor_directory?: boolean;
+    can_upload_logo?: boolean;
+    can_add_description?: boolean;
+    [key: string]: any;
+  };
+  [key: string]: any;
+}
+
 interface Contractor {
   id: string;
   companyName: string;
@@ -46,7 +60,7 @@ interface Contractor {
   companyLogo: string | null;
   description: string;
   services_provided_details: string[] | null;
-  membershipLevel: "GOLD" | "SILVER" | "STANDARD";
+  level_info?: LevelInfo;
   cityDetails: { id: string; name: string }[];
 }
 
@@ -62,6 +76,9 @@ export function ContractorDetailsDialog({
   onClose,
 }: ContractorDetailsDialogProps) {
   if (!contractor) return null;
+
+  const levelName = contractor.level_info?.name;
+  const hasBadge = Boolean(levelName && levelName.toUpperCase() !== "NONE");
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -96,15 +113,15 @@ export function ContractorDetailsDialog({
               <X className="size-6" />
             </Button>
 
-            {contractor.membershipLevel === "GOLD" && (
+            {hasBadge && (
               <div className="absolute top-6 right-10 bg-[#1CA7A6] text-white px-4 py-1.5 rounded-full flex items-center gap-2 shadow-lg hidden md:flex z-10">
                 <Star className="size-4 fill-white" />
                 <span className="text-xs font-bold uppercase tracking-widest">
-                  Premium Partner
+                  {levelName} Partner
                 </span>
               </div>
             )}
-            {contractor.membershipLevel === "GOLD" && (
+            {hasBadge && (
               <div className="absolute top-6 right-16 bg-[#1CA7A6] text-white p-1.5 rounded-full flex items-center justify-center shadow-lg md:hidden z-10">
                 <Star className="size-4 fill-white" />
               </div>
@@ -138,15 +155,17 @@ export function ContractorDetailsDialog({
                   <span>Contact: {contractor.contactName}</span>
                 </div>
               </div>
-              <Button
-                asChild
-                className="bg-[#1CA7A6] hover:bg-[#189695] text-white font-bold rounded-xl px-8 h-12 shadow-lg shadow-[#1CA7A6]/20"
-              >
-                <Link href={contractor.websiteUrl} target="_blank">
-                  <Globe className="size-4 mr-2" />
-                  Official Website
-                </Link>
-              </Button>
+              {contractor.websiteUrl && (
+                <Button
+                  asChild
+                  className="bg-[#1CA7A6] hover:bg-[#189695] text-white font-bold rounded-xl px-8 h-12 shadow-lg shadow-[#1CA7A6]/20"
+                >
+                  <Link href={contractor.websiteUrl} target="_blank">
+                    <Globe className="size-4 mr-2" />
+                    Official Website
+                  </Link>
+                </Button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-gray-100">

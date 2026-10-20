@@ -59,6 +59,16 @@ interface IPlanData {
   yearlyAmount: string;
   targetRole?: string;
   level?: string;
+  level_id?: string;
+  level_info?: {
+    id: string;
+    name: string;
+    role?: string;
+    priority?: number;
+    features?: Record<string, any>;
+    [key: string]: any;
+  };
+  priority?: number;
   maxReports?: number;
   features: Record<string, string | boolean | number>;
   isActive: boolean;
@@ -71,34 +81,17 @@ const planIcons: Record<string, any> = {
   Enterprise: Building2,
 };
 
-const PLAN_LEVEL_HIERARCHY: Record<string, number> = {
-  free: 0,
-  standard: 1,
-  silver: 2,
-  gold: 3,
-};
-
 const getPlanLevelRank = (
   plan?: IPlanData | null,
   fallbackLevel?: string | null,
 ): number => {
-  const rawLevel = (plan?.level || fallbackLevel || plan?.name || "")
-    .toLowerCase()
-    .trim();
-
-  if (rawLevel.includes("free")) return PLAN_LEVEL_HIERARCHY.free;
-  if (rawLevel.includes("gold") || rawLevel.includes("enterprise"))
-    return PLAN_LEVEL_HIERARCHY.gold;
-  if (
-    rawLevel.includes("silver") ||
-    rawLevel.includes("professional") ||
-    rawLevel.includes("pro")
-  )
-    return PLAN_LEVEL_HIERARCHY.silver;
-  if (rawLevel.includes("standard") || rawLevel.includes("starter"))
-    return PLAN_LEVEL_HIERARCHY.standard;
-
-  return PLAN_LEVEL_HIERARCHY.free;
+  if (typeof plan?.level_info?.priority === "number") {
+    return plan.level_info.priority;
+  }
+  if (typeof plan?.priority === "number") {
+    return plan.priority;
+  }
+  return 0;
 };
 
 const Plans = () => {
@@ -149,15 +142,18 @@ const Plans = () => {
 
   const currentPlanObj = plans.find((p) => p.id === currentPlanId);
   const pendingPlanObj = plans.find((p) => p.id === pendingPlanId);
+  const currentPlanLevelName =
+    currentPlanObj?.level_info?.name ||
+    currentPlanObj?.level ||
+    currentPlanLevel ||
+    "";
   const isCurrentPlanFree =
     !currentPlanId ||
-    (currentPlanLevel && currentPlanLevel.toUpperCase() === "FREE") ||
-    (currentPlanObj?.level && currentPlanObj.level.toUpperCase() === "FREE") ||
+    Boolean(currentPlanObj?.level_info?.is_free) ||
+    Boolean((currentPlanObj as any)?.is_free) ||
     (currentPlanObj &&
       Number(currentPlanObj.monthlyAmount ?? 0) === 0 &&
-      Number(currentPlanObj.yearlyAmount ?? 0) === 0) ||
-    (currentPlanObj?.name &&
-      currentPlanObj.name.toLowerCase().includes("free"));
+      Number(currentPlanObj.yearlyAmount ?? 0) === 0);
 
   const currentRank = getPlanLevelRank(currentPlanObj, currentPlanLevel);
 
@@ -196,8 +192,10 @@ const Plans = () => {
       setSubscribingPlanId(planId);
 
       const selectedPlan = plans.find((p) => p.id === planId);
-      if (selectedPlan?.level) {
-        localStorage.setItem("pending_level", selectedPlan.level);
+      const selectedPlanLevel =
+        selectedPlan?.level_info?.name || selectedPlan?.level;
+      if (selectedPlanLevel) {
+        localStorage.setItem("pending_level", selectedPlanLevel);
       }
 
       const result = await subscribeToMembership({
@@ -227,7 +225,7 @@ const Plans = () => {
           "has-membership=true; path=/; max-age=" + 30 * 24 * 60 * 60;
 
         const isFree =
-          selectedPlan?.level?.toUpperCase() === "FREE" ||
+          selectedPlanLevel?.toUpperCase() === "FREE" ||
           (Number(selectedPlan?.monthlyAmount ?? 0) === 0 &&
             Number(selectedPlan?.yearlyAmount ?? 0) === 0) ||
           selectedPlan?.name?.toLowerCase().includes("free");
@@ -321,7 +319,9 @@ const Plans = () => {
         }
       }
       const subLevel =
+        profileResponse?.level_info?.name ||
         profileResponse?.level ||
+        profileResponse?.current_subscription?.plan?.level_info?.name ||
         profileResponse?.current_subscription?.plan?.level;
       if (subLevel) {
         setCurrentPlanLevel(subLevel);
@@ -635,22 +635,44 @@ const Plans = () => {
                         <Crown className="w-3.5 h-3.5 text-white/70 shrink-0" />
                         <span className="text-xs font-bold text-white uppercase tracking-wider">
                           {plan.targetRole.toLowerCase()}s
-                          {plan.targetRole === "CONTRACTOR" &&
-                            (plan.level?.toLowerCase().includes("free") ? (
-                              <span className="ml-1 text-white/60 normal-case font-medium">
-                                — 15-day free trial
-                              </span>
-                            ) : plan.level ? (
-                              <span className="ml-1 text-white/60 normal-case font-medium">
-                                — {plan.level} level
-                              </span>
-                            ) : null)}
-                          {plan.targetRole === "INSURANCE" &&
-                            plan.maxReports && (
-                              <span className="ml-1 text-white/60 normal-case font-medium">
-                                — {plan.maxReports} reports/mo
-                              </span>
-                            )}
+                          {(() => {
+                            const planLevel =
+                              plan.level_info?.name || plan.level;
+                            if (plan.targetRole === "CONTRACTOR") {
+                              if (planLevel?.toLowerCase().includes("free")) {
+                                return (
+                                  <span className="ml-1 text-white/60 normal-case font-medium">
+                                    — 15-day free trial
+                                  </span>
+                                );
+                              }
+                              if (planLevel) {
+                                return (
+                                  <span className="ml-1 text-white/60 normal-case font-medium">
+                                    — {planLevel} level
+                                  </span>
+                                );
+                              }
+                            } else if (planLevel) {
+                              return (
+                                <span className="ml-1 text-white/60 normal-case font-medium">
+                                  — {planLevel} level
+                                </span>
+                              );
+                            }
+                            if (
+                              (plan.targetRole === "INSURANCE" ||
+                                plan.targetRole === "INSURANCE_COMPANY") &&
+                              plan.maxReports
+                            ) {
+                              return (
+                                <span className="ml-1 text-white/60 normal-case font-medium">
+                                  — {plan.maxReports} reports/mo
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                         </span>
                       </div>
                     )}

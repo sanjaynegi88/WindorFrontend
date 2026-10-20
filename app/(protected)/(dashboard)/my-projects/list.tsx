@@ -414,6 +414,8 @@ export default function MyProjectList() {
               const actualProjectId =
                 project.id ?? project.project_id ?? project._id;
 
+              const projectPermitStatus = project.permit_status || "N/A";
+
               const handleAddInstallation = (project: any) => {
                 router.push(
                   `/properties/edit/${property.id}?mode=installation&projectId=${actualProjectId}`,
@@ -649,6 +651,7 @@ export default function MyProjectList() {
                             embedded
                             addedBy={addedBy}
                             addedByEmail={addedByEmail}
+                            projectPermitStatus={projectPermitStatus}
                           />
                         ) : (
                           <div className="flex flex-col items-center justify-center py-6 text-center border border-[#E8EDF2] rounded-lg">

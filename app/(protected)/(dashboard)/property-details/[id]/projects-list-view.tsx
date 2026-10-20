@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, Loader2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { cn, formatProjectType, toPascalCase, toTitleCase, isContractorProject } from "@/lib/utils";
+import {
+  cn,
+  formatProjectType,
+  toPascalCase,
+  toTitleCase,
+  isContractorProject,
+} from "@/lib/utils";
 import {
   getprojectTypesInProperty,
   getprojectListingOfProperty,
@@ -290,158 +296,161 @@ export const ProjectsListView = ({
         ) : selectedProjects.length > 0 ? (
           <>
             {selectedProjects.map((project) => {
-            const comp = mapProjectToInstallation(project, propertyId);
-            const projectStatus = project.is_confirmed ? "COMPLETE" : "DRAFT";
-            const isCreator =
-              project.created_by === (currentUserId ?? user?.id) ||
-              (user?.email &&
-                project.createdBy?.email &&
-                user.email.toLowerCase() ===
-                  project.createdBy.email.toLowerCase());
-            const canAddInstallation =
-              role === "admin" || role === "contractor" || isCreator;
-            const projectDateLabel = project.start_date
-              ? `${new Date(project.start_date).toLocaleDateString()} – ${project.end_date ? new Date(project.end_date).toLocaleDateString() : "Ongoing"}`
-              : project.date_of_install
-                ? new Date(project.date_of_install).toLocaleDateString()
-                : null;
+              const comp = mapProjectToInstallation(project, propertyId);
+              const projectStatus = project.is_confirmed ? "COMPLETE" : "DRAFT";
+              const projectPermitStatus = project.permit_status || "N/A";
+              const isCreator =
+                project.created_by === (currentUserId ?? user?.id) ||
+                (user?.email &&
+                  project.createdBy?.email &&
+                  user.email.toLowerCase() ===
+                    project.createdBy.email.toLowerCase());
+              const canAddInstallation =
+                role === "admin" || role === "contractor" || isCreator;
+              const projectDateLabel = project.start_date
+                ? `${new Date(project.start_date).toLocaleDateString()} – ${project.end_date ? new Date(project.end_date).toLocaleDateString() : "Ongoing"}`
+                : project.date_of_install
+                  ? new Date(project.date_of_install).toLocaleDateString()
+                  : null;
 
-            const creatorObj = project.createdBy || project.contractor;
-            const addedBy = creatorObj
-              ? `${creatorObj.first_name || ""} ${creatorObj.last_name || ""}`.trim()
-              : project.created_by_email || project.contractor_email || "N/A";
-            const addedByEmail =
-              creatorObj?.email ||
-              project.created_by_email ||
-              project.contractor_email;
+              const creatorObj = project.createdBy || project.contractor;
+              const addedBy = creatorObj
+                ? `${creatorObj.first_name || ""} ${creatorObj.last_name || ""}`.trim()
+                : project.created_by_email || project.contractor_email || "N/A";
+              const addedByEmail =
+                creatorObj?.email ||
+                project.created_by_email ||
+                project.contractor_email;
 
-            const ownerObj =
-              project.property?.property_owner || project.property_owner;
-            const ownerName = ownerObj
-              ? `${ownerObj.first_name || ""} ${ownerObj.last_name || ""}`.trim()
-              : project.property?.property_owner_email ||
-                project.property_owner_email ||
-                "N/A";
-            const ownerEmail =
-              ownerObj?.email ||
-              project.property?.property_owner_email ||
-              project.property_owner_email;
+              const ownerObj =
+                project.property?.property_owner || project.property_owner;
+              const ownerName = ownerObj
+                ? `${ownerObj.first_name || ""} ${ownerObj.last_name || ""}`.trim()
+                : project.property?.property_owner_email ||
+                  project.property_owner_email ||
+                  "N/A";
+              const ownerEmail =
+                ownerObj?.email ||
+                project.property?.property_owner_email ||
+                project.property_owner_email;
 
-            const isExpanded = Boolean(expandedProjects[project.id]);
-            const isOtherType =
-              String(project.project_type).toLowerCase() === "other" ||
-              String(project.project_type).toLowerCase() === "other_contractor";
-            const projectType = toTitleCase(project.project_type);
-            const otherText =
-              project.other ||
-              project.other_project_type ||
-              project.other_component_type ||
-              project.details?.other;
+              const isExpanded = Boolean(expandedProjects[project.id]);
+              const isOtherType =
+                String(project.project_type).toLowerCase() === "other" ||
+                String(project.project_type).toLowerCase() ===
+                  "other_contractor";
+              const projectType = toTitleCase(project.project_type);
+              const otherText =
+                project.other ||
+                project.other_project_type ||
+                project.other_component_type ||
+                project.details?.other;
 
-            return (
-              <ExpandableProjectCard
-                key={project.id}
-                title={project.project_name}
-                subtitle={
-                  projectDateLabel || "Tap to view installation details"
-                }
-                badges={[
-                  {
-                    label:
-                      isOtherType && otherText
-                        ? `${formatProjectType(projectType)}: ${otherText}`
-                        : formatProjectType(projectType),
-                    className:
-                      "bg-[rgba(28,167,166,0.08)] text-[#1CA7A6] border-[#1CA7A6]",
-                  },
-                  {
-                    label: projectStatus,
-                    className:
-                      projectStatus === "COMPLETE"
-                        ? "bg-[rgba(67,160,71,0.1)] text-[#43A047] border-[#43A047]"
-                        : "bg-[rgba(112,128,144,0.1)] text-[#708090] border-[#708090]",
-                  },
-                ]}
-                action={
-                  !project?.details && canAddInstallation ? (
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleAddInstallation(project);
-                      }}
-                      className="flex items-center gap-1.5 h-8 px-3 rounded-full border border-[#1CA7A6] bg-white text-[#1CA7A6] font-bold text-[10px] uppercase tracking-widest transition-colors hover:bg-[rgba(28,167,166,0.08)] shrink-0"
-                    >
-                      <Plus className="size-3" />
-                      Add Installation
-                    </button>
-                  ) : null
-                }
-                isExpanded={isExpanded}
-                onToggle={() => toggleProjectExpanded(project.id)}
-                className="shadow-[0px_2px_10px_rgba(31,42,68,0.06)]"
-              >
-                <div className="space-y-6">
-                  <div className="pb-4 border-b border-[#E8EDF2]">
-                    <div className="space-y-1">
-                      <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-[#B0BEC5] font-inter">
-                        Owner Name
-                      </p>
-                      <p className="text-sm font-semibold text-[#1F2A44] font-asap">
-                        {ownerName || "N/A"}
-                      </p>
-                      {ownerEmail && (
-                        <p className="text-xs text-[#708090] font-normal font-inter">
-                          {ownerEmail}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="pb-4 border-b border-[#E8EDF2]">
-                    <div className="space-y-1">
-                      <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-[#B0BEC5] font-inter">
-                        Property Type
-                      </p>
-                      <p className="text-sm font-semibold text-[#1F2A44] font-asap">
-                        {toTitleCase(propertyType) || "N/A"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {(isOtherType || Boolean(otherText)) && (
+              return (
+                <ExpandableProjectCard
+                  key={project.id}
+                  title={project.project_name}
+                  subtitle={
+                    projectDateLabel || "Tap to view installation details"
+                  }
+                  badges={[
+                    {
+                      label:
+                        isOtherType && otherText
+                          ? `${formatProjectType(projectType)}: ${otherText}`
+                          : formatProjectType(projectType),
+                      className:
+                        "bg-[rgba(28,167,166,0.08)] text-[#1CA7A6] border-[#1CA7A6]",
+                    },
+                    {
+                      label: projectStatus,
+                      className:
+                        projectStatus === "COMPLETE"
+                          ? "bg-[rgba(67,160,71,0.1)] text-[#43A047] border-[#43A047]"
+                          : "bg-[rgba(112,128,144,0.1)] text-[#708090] border-[#708090]",
+                    },
+                  ]}
+                  action={
+                    !project?.details && canAddInstallation ? (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleAddInstallation(project);
+                        }}
+                        className="flex items-center gap-1.5 h-8 px-3 rounded-full border border-[#1CA7A6] bg-white text-[#1CA7A6] font-bold text-[10px] uppercase tracking-widest transition-colors hover:bg-[rgba(28,167,166,0.08)] shrink-0"
+                      >
+                        <Plus className="size-3" />
+                        Add Installation
+                      </button>
+                    ) : null
+                  }
+                  isExpanded={isExpanded}
+                  onToggle={() => toggleProjectExpanded(project.id)}
+                  className="shadow-[0px_2px_10px_rgba(31,42,68,0.06)]"
+                >
+                  <div className="space-y-6">
                     <div className="pb-4 border-b border-[#E8EDF2]">
                       <div className="space-y-1">
                         <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-[#B0BEC5] font-inter">
-                          Other Specification
+                          Owner Name
                         </p>
                         <p className="text-sm font-semibold text-[#1F2A44] font-asap">
-                          {otherText || "N/A"}
+                          {ownerName || "N/A"}
+                        </p>
+                        {ownerEmail && (
+                          <p className="text-xs text-[#708090] font-normal font-inter">
+                            {ownerEmail}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="pb-4 border-b border-[#E8EDF2]">
+                      <div className="space-y-1">
+                        <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-[#B0BEC5] font-inter">
+                          Property Type
+                        </p>
+                        <p className="text-sm font-semibold text-[#1F2A44] font-asap">
+                          {toTitleCase(propertyType) || "N/A"}
                         </p>
                       </div>
                     </div>
-                  )}
 
-                  {project?.details && comp ? (
-                    <InstallationCard
-                      key={comp.id}
-                      item={comp}
-                      canUpload={canUpload}
-                      isContractorProject={isContractorProject(project)}
-                      embedded
-                      addedBy={addedBy}
-                      addedByEmail={addedByEmail}
-                    />
-                  ) : (
-                    <div className="py-4 text-center text-[#708090] font-asap">
-                      <p className="text-[13px] font-medium uppercase tracking-widest text-[#B0BEC5]">
-                        No installation added yet
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </ExpandableProjectCard>
-            );
-          })}
+                    {(isOtherType || Boolean(otherText)) && (
+                      <div className="pb-4 border-b border-[#E8EDF2]">
+                        <div className="space-y-1">
+                          <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-[#B0BEC5] font-inter">
+                            Other Specification
+                          </p>
+                          <p className="text-sm font-semibold text-[#1F2A44] font-asap">
+                            {otherText || "N/A"}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {project?.details && comp ? (
+                      <InstallationCard
+                        key={comp.id}
+                        item={comp}
+                        canUpload={canUpload}
+                        isContractorProject={isContractorProject(project)}
+                        projectPermitStatus={projectPermitStatus}
+                        embedded
+                        addedBy={addedBy}
+                        addedByEmail={addedByEmail}
+                      />
+                    ) : (
+                      <div className="py-4 text-center text-[#708090] font-asap">
+                        <p className="text-[13px] font-medium uppercase tracking-widest text-[#B0BEC5]">
+                          No installation added yet
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </ExpandableProjectCard>
+              );
+            })}
 
             {hasMore && (
               <div className="flex justify-center pt-4">

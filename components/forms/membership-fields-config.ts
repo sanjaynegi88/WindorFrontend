@@ -1,29 +1,6 @@
-import { DynamicFieldConfig, SelectOption } from "@/components/common/form-fields";
+import { DynamicFieldConfig } from "@/components/common/form-fields";
 import type { MembershipFormValues } from "./membership-form";
 
-export const MEMBERSHIP_LEVEL_OPTIONS: Record<string, SelectOption[]> = {
-  PROPERTY_OWNER: [
-    { label: "Free (No Cost)", value: "FREE" },
-    { label: "Silver", value: "SILVER" },
-    { label: "Gold", value: "GOLD" },
-  ],
-  REALTOR: [
-    { label: "Silver", value: "SILVER" },
-    { label: "Gold", value: "GOLD" },
-  ],
-  CONTRACTOR: [
-    { label: "Free (No Cost)", value: "FREE" },
-    { label: "Standard", value: "STANDARD" },
-    { label: "Silver", value: "SILVER" },
-    { label: "Gold", value: "GOLD" },
-  ],
-  MANUFACTURER: [
-    { label: "Free (No Cost)", value: "FREE" },
-    { label: "Standard", value: "STANDARD" },
-    { label: "Silver", value: "SILVER" },
-    { label: "Gold", value: "GOLD" },
-  ],
-};
 
 /**
  * Base Membership Form Fields (rendered regardless of target role)
@@ -40,14 +17,14 @@ export const BASE_MEMBERSHIP_FIELDS: DynamicFieldConfig<MembershipFormValues>[] 
     label: "Monthly Price ($)",
     type: "text",
     placeholder: "0.00",
-    isDisabled: (values) => values.level === "FREE",
+    isDisabled: (values) => Boolean(values.is_free),
   },
   {
     name: "yearlyPrice",
     label: "Yearly Price ($)",
     type: "text",
     placeholder: "0.00",
-    isDisabled: (values) => values.level === "FREE",
+    isDisabled: (values) => Boolean(values.is_free),
   },
   {
     name: "description",
@@ -64,13 +41,6 @@ export const BASE_MEMBERSHIP_FIELDS: DynamicFieldConfig<MembershipFormValues>[] 
  * Easily add/remove fields or update target roles here without touching JSX!
  */
 export const ROLE_MEMBERSHIP_FIELDS: DynamicFieldConfig<MembershipFormValues>[] = [
-  {
-    name: "level",
-    label: "Level",
-    type: "select",
-    roles: ["PROPERTY_OWNER", "REALTOR", "CONTRACTOR"],
-    options: (targetRole) => MEMBERSHIP_LEVEL_OPTIONS[targetRole] || [],
-  },
   {
     name: "maxCities",
     label: "Max Cities",

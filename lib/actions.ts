@@ -1630,6 +1630,40 @@ export async function deleteMembership(id: string): Promise<ActionResult> {
     return { success: true, data: response.data };
 }
 
+export async function getMembershipLevels(role?: string): Promise<ActionResult> {
+    let url = "/api/membership-levels";
+    if (role) {
+        url += `?role=${encodeURIComponent(role)}`;
+    }
+    const response = await fetchApi({
+        url,
+        method: "GET",
+    });
+    if (response.type === "error") {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to get membership levels') };
+    }
+    const rawData = response.data;
+    const levels = Array.isArray(rawData) ? rawData : (rawData?.data || []);
+    return { success: true, data: levels };
+}
+
+export async function updateMembershipLevel(id: string, body: { name: string }): Promise<ActionResult> {
+    const response = await fetchApi({
+        url: `/api/membership-levels/${id}`,
+        method: "PUT",
+        data: body,
+    });
+    if (response.type === "error") {
+        return { success: false, message: normalizeMsg(response.messages, 'Failed to update membership level') };
+    }
+    return {
+        success: true,
+        data: response.data?.data || response.data,
+        message: response.data?.message || 'Membership level name updated successfully',
+    };
+}
+
+
 export async function cancelMembership(): Promise<ActionResult> {
     const response = await fetchApi({
         url: `/api/membership-plans/cancel`,

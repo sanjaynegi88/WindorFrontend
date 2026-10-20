@@ -36,9 +36,7 @@ import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridColumnVisibility } from "@/components/ui/data-grid-column-visibility";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
-import {
-  DataGridTable,
-} from "@/components/ui/data-grid-table";
+import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
@@ -49,7 +47,11 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { getPropertyTypeOptions, deletePropertyType, multiDelete } from "@/lib/actions";
+import {
+  getPropertyTypeOptions,
+  deletePropertyType,
+  multiDelete,
+} from "@/lib/actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { PropertyTypeFormDialog } from "./property-type-form-dialog";
@@ -84,6 +86,7 @@ export default function PropertyTypeListPage({
   );
   const [isDeleting, setIsDeleting] = useState(false);
   const [totalRecords, setTotalRecords] = useState(0);
+  console.log(totalRecords);
   const [totalPages, setTotalPages] = useState(0);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -101,8 +104,12 @@ export default function PropertyTypeListPage({
     name?: string,
   ) => {
     setLoading(true);
+    console.log("api runned");
     try {
       const response = await getPropertyTypeOptions(page, limit, name);
+
+      console.log("Property types response:", response);
+
       if (response && response.data) {
         setData(response.data);
         if (response.pagination) {
@@ -173,12 +180,16 @@ export default function PropertyTypeListPage({
     if (selectedIds.length === 0) return;
     setIsBulkDeleting(true);
     try {
-      const response = await multiDelete("/api/property-types/bulk", { ids: selectedIds });
+      const response = await multiDelete("/api/property-types/bulk", {
+        ids: selectedIds,
+      });
       if (!response.success) {
         toast.error(response.message || "Failed to delete Property Types");
         return;
       }
-      toast.success(`${selectedIds.length} property type(s) deleted successfully`);
+      toast.success(
+        `${selectedIds.length} property type(s) deleted successfully`,
+      );
       setRowSelection({});
       fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch);
     } catch (error: any) {
@@ -470,7 +481,9 @@ export default function PropertyTypeListPage({
         onOpenChange={setBulkDeleteDialogOpen}
         title="Delete Selected Property Types"
         description={`Are you sure you want to delete ${selectedIds.length} selected property type(s)? This action cannot be undone.`}
-        confirmText={isBulkDeleting ? "Deleting..." : `Delete (${selectedIds.length})`}
+        confirmText={
+          isBulkDeleting ? "Deleting..." : `Delete (${selectedIds.length})`
+        }
         cancelText="Cancel"
         onConfirm={handleConfirmBulkDelete}
         variant="destructive"

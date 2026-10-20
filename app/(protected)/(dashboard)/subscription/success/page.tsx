@@ -16,6 +16,7 @@ export default function SubscriptionSuccessPage() {
   const [isUpdating, setIsUpdating] = useState(true);
   const [level, setlevel] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [hasDirectoryFeature, setHasDirectoryFeature] = useState(false);
   const { user, setUser } = useUser();
 
   useEffect(() => {
@@ -36,11 +37,22 @@ export default function SubscriptionSuccessPage() {
         const role = profile?.role;
 
         const pendingLevel = localStorage.getItem('pending_level');
+        const resolvedLevel =
+          (profile as any)?.level_info?.name ||
+          (profile as any)?.current_subscription?.plan?.level_info?.name ||
+          (profile as any)?.level ||
+          pendingLevel;
 
+        const directoryFeature = Boolean(
+          (profile as any)?.level_info?.features?.is_contractor_directory ??
+          (profile as any)?.current_subscription?.plan?.level_info?.features?.is_contractor_directory ??
+          (user as any)?.level_info?.features?.is_contractor_directory ??
+          (user as any)?.current_subscription?.plan?.level_info?.features?.is_contractor_directory
+        );
 
-
-        setlevel(pendingLevel);
+        setlevel(resolvedLevel);
         setUserRole(role);
+        setHasDirectoryFeature(directoryFeature);
 
         await updateMembershipCookie(hasMembership);
 
@@ -67,14 +79,14 @@ export default function SubscriptionSuccessPage() {
       }, 1000);
       return () => clearTimeout(timer);
     } else if (!isUpdating && countdown === 0) {
-      if (userRole === 'CONTRACTOR' && (level === 'GOLD' || level === 'SILVER')) {
+      if (userRole?.toUpperCase() === 'CONTRACTOR' && hasDirectoryFeature) {
         router.push('/profile-setup');
       } else {
         localStorage.removeItem('pending_level');
         router.push('/dashboard');
       }
     }
-  }, [countdown, isUpdating, level, userRole, router]);
+  }, [countdown, isUpdating, hasDirectoryFeature, userRole, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">

@@ -15,7 +15,7 @@ export default function ContractorProfileSetupPage() {
     const searchParams = useSearchParams();
     const editId = searchParams.get('edit');
     const isEditMode = !!editId;
-    const { role } = useUser();
+    const { role, user } = useUser();
 
     const [membershipLevel, setMembershipLevel] = useState<string | null>(null);
     const [initialData, setInitialData] = useState<ContractorProfileInitialData | undefined>(undefined);
@@ -27,7 +27,7 @@ export default function ContractorProfileSetupPage() {
                 if (isEditMode) {
                     const response = await getContractorProfile(editId);
 
-                    const data = response.data
+                    const data = response.data;
 
                     const mapped: ContractorProfileInitialData = {
                         id: data.id,
@@ -36,18 +36,24 @@ export default function ContractorProfileSetupPage() {
                         selectedCities: data.selectedCities ?? [],
                         cityDetails: data.cityDetails ?? [],
                         membershipLevel: data.membershipLevel,
+                        level_info: data.level_info,
                     };
                     setMembershipLevel(data.membershipLevel);
                     setInitialData(mapped);
                 } else {
                     const pendingLevel = localStorage.getItem('pending_level');
+                    const hasDirectoryFeature = Boolean(
+                        (user as any)?.level_info?.features?.is_contractor_directory ??
+                        (user as any)?.current_subscription?.plan?.level_info?.features?.is_contractor_directory ??
+                        (user as any)?.is_directory
+                    );
 
-                    if (!pendingLevel || (pendingLevel !== 'SILVER' && pendingLevel !== 'GOLD')) {
+                    if (!pendingLevel && !hasDirectoryFeature) {
                         localStorage.removeItem('pending_level');
                         router.push('/dashboard');
                         return;
                     }
-                    setMembershipLevel(pendingLevel);
+                    setMembershipLevel(pendingLevel || (user as any)?.level || '');
                 }
             } catch (error: any) {
                 console.error('Failed to load contractor profile:', error);
@@ -62,7 +68,7 @@ export default function ContractorProfileSetupPage() {
         };
 
         init();
-    }, [editId, isEditMode, router]);
+    }, [editId, isEditMode, router, user]);
 
     if (isLoading || (isEditMode && !initialData)) {
         return (
@@ -76,7 +82,8 @@ export default function ContractorProfileSetupPage() {
         <Container>
             <div className="py-8">
                 <ContractorProfileForm
-                    membershipLevel={membershipLevel!}
+                    membershipLevel={membershipLevel ?? undefined}
+                    levelInfo={initialData?.level_info || (user as any)?.level_info || (user as any)?.current_subscription?.plan?.level_info}
                     initialData={initialData}
                     profileId={editId ?? undefined}
                     role={role ?? undefined}

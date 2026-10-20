@@ -362,12 +362,27 @@ export default function UserProfile() {
       role === "realtor");
   const logsRoute = LOGS_ROUTE[role] ?? "/admin/admin-logs";
 
-  const level = (user as any)?.level;
+  const level =
+    (user as any)?.level_info?.name || (user as any)?.level;
   const subscriptionLevel =
     (user as any)?.current_subscription?.status === "ACTIVE"
-      ? (user as any)?.current_subscription?.plan?.level
+      ? (user as any)?.current_subscription?.plan?.level_info?.name ||
+        (user as any)?.current_subscription?.plan?.level
       : undefined;
   const effectivelevel = level || subscriptionLevel;
+
+  const levelFeatures =
+    (user as any)?.level_info?.features ||
+    (user as any)?.current_subscription?.plan?.level_info?.features ||
+    (contextUser as any)?.level_info?.features ||
+    (contextUser as any)?.user?.level_info?.features ||
+    (contextUser as any)?.current_subscription?.plan?.level_info?.features ||
+    (contextUser as any)?.user?.current_subscription?.plan?.level_info?.features;
+
+  const isContractorDirectoryAllowed = Boolean(
+    levelFeatures?.is_contractor_directory
+  );
+
   const hasActiveMembership = isSubAccount
     ? Boolean(
         ((user as any)?.current_subscription ??
@@ -389,7 +404,7 @@ export default function UserProfile() {
     role === "contractor" &&
     !isSubAccount &&
     (user as any)?.is_directory === false &&
-    (effectivelevel === "GOLD" || effectivelevel === "SILVER");
+    isContractorDirectoryAllowed;
   const showEditContractorProfile =
     role === "contractor" && (user as any)?.is_directory === true;
 
@@ -400,7 +415,9 @@ export default function UserProfile() {
     !isSubAccount;
 
   const handleAddContractorProfile = () => {
-    localStorage.setItem("pending_level", effectivelevel);
+    if (effectivelevel) {
+      localStorage.setItem("pending_level", effectivelevel);
+    }
     router.push("/profile-setup");
   };
 
@@ -1765,8 +1782,12 @@ export default function UserProfile() {
                         "You have access to all the features and exclusive verification reports."}
                     </p>
 
-                    {user.current_subscription?.plan?.level?.toUpperCase() !==
-                      "FREE" && (
+                    {!((user.current_subscription?.plan as any)?.level_info?.is_free ||
+                      (user.current_subscription?.plan as any)?.is_free ||
+                      (
+                        (user.current_subscription?.plan as any)?.level_info?.name ||
+                        user.current_subscription?.plan?.level
+                      )?.toUpperCase() === "FREE") && (
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>

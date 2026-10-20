@@ -142,7 +142,9 @@ export default function ContractorDirectoryPage() {
     const fetchStates = async () => {
       try {
         const response = await getStates(1, 1000);
-        const raw: any[] = Array.isArray(response) ? response : response?.data || [];
+        const raw: any[] = Array.isArray(response)
+          ? response
+          : response?.data || [];
         setStates(
           raw.map((s: any) => ({
             id: String(s.id),
@@ -162,10 +164,23 @@ export default function ContractorDirectoryPage() {
       try {
         setIsCitiesLoading(true);
         const stateId = selectedState === "ALL" ? undefined : selectedState;
-        const response = await getCities(1, 1000, undefined, undefined, stateId);
+        const response = await getCities(
+          1,
+          1000,
+          undefined,
+          undefined,
+          stateId,
+        );
         if (!isCancelled) {
-          const raw: any[] = Array.isArray(response) ? response : response?.data || [];
-          setCities(raw.map((c: any) => ({ id: String(c.id), name: c.name || c.city_name })));
+          const raw: any[] = Array.isArray(response)
+            ? response
+            : response?.data || [];
+          setCities(
+            raw.map((c: any) => ({
+              id: String(c.id),
+              name: c.name || c.city_name,
+            })),
+          );
         }
       } catch (error) {
         console.error("Failed to fetch cities:", error);
@@ -216,7 +231,7 @@ export default function ContractorDirectoryPage() {
             item.contractor?.mobilePhone ||
             "N/A",
           email: item.contractor?.email || "N/A",
-          websiteUrl: item.contractor?.websiteUrl || "#",
+          websiteUrl: item.contractor?.websiteUrl || "",
         }));
         setContractors(mapped);
       } catch (error: any) {
@@ -376,7 +391,9 @@ export default function ContractorDirectoryPage() {
                   onValueChange={(val) => setSelectedCity(val)}
                   placeholder="All Cities"
                   searchPlaceholder="Search city..."
-                  emptyMessage={isCitiesLoading ? "Loading cities..." : "No cities found"}
+                  emptyMessage={
+                    isCitiesLoading ? "Loading cities..." : "No cities found"
+                  }
                   loading={isCitiesLoading}
                   disabled={isCitiesLoading}
                   triggerRef={citySelectTriggerRef}
@@ -394,132 +411,153 @@ export default function ContractorDirectoryPage() {
               ) : (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 w-full">
-                    {filteredContractors.map((contractor, index) => (
-                      <motion.div
-                        key={contractor.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4, delay: index * 0.1 }}
-                      >
-                        <Card className="group relative bg-white border-none rounded-[32px] overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] transition-all duration-500 h-full flex flex-col">
-                          <CardContent className="p-0 grow flex flex-col">
-                            <div className="p-6 sm:p-8 pb-4 flex items-start justify-between gap-4">
-                              <div className="relative">
-                                <div className="absolute -inset-2 bg-linear-to-br from-[#1CA7A6] to-transparent rounded-3xl opacity-0 group-hover:opacity-10 transition-opacity" />
-                                <Avatar className="h-16 w-16 sm:h-20 sm:w-20 border border-gray-100 shadow-md rounded-2xl bg-white p-2 shrink-0 relative">
-                                  <AvatarImage
-                                    src={getAppImageUrl(contractor.companyLogo)}
-                                    className="object-contain"
-                                  />
-                                  <AvatarFallback className="bg-[#1CA7A6]/5 text-[#1CA7A6] font-black text-xl sm:text-2xl uppercase">
-                                    {contractor.companyName?.charAt(0)}
-                                  </AvatarFallback>
-                                </Avatar>
+                    {filteredContractors.map((contractor, index) => {
+                      const levelName =
+                        contractor.level_info?.name ||
+                        contractor.contractor?.level_info?.name;
+                      const hasBadge = Boolean(
+                        levelName && levelName.toUpperCase() !== "NONE",
+                      );
+
+                      return (
+                        <motion.div
+                          key={contractor.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.4, delay: index * 0.1 }}
+                        >
+                          <Card className="group relative bg-white border-none rounded-[32px] overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] transition-all duration-500 h-full flex flex-col">
+                            <CardContent className="p-0 grow flex flex-col">
+                              <div className="p-6 sm:p-8 pb-4 flex items-start justify-between gap-4">
+                                <div className="relative">
+                                  <div className="absolute -inset-2 bg-linear-to-br from-[#1CA7A6] to-transparent rounded-3xl opacity-0 group-hover:opacity-10 transition-opacity" />
+                                  <Avatar className="h-16 w-16 sm:h-20 sm:w-20 border border-gray-100 shadow-md rounded-2xl bg-white p-2 shrink-0 relative">
+                                    <AvatarImage
+                                      src={getAppImageUrl(
+                                        contractor.companyLogo,
+                                      )}
+                                      className="object-contain"
+                                    />
+                                    <AvatarFallback className="bg-[#1CA7A6]/5 text-[#1CA7A6] font-black text-xl sm:text-2xl uppercase">
+                                      {contractor.companyName?.charAt(0)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  {hasBadge && (
+                                    <Badge className="bg-[#1CA7A6]/10 text-[#1CA7A6] border-none px-3 py-1 rounded-full flex items-center gap-1.5">
+                                      <Star className="size-3 fill-[#1CA7A6]" />
+                                      <span className="text-[10px] font-black uppercase tracking-widest">
+                                        {levelName} Partner
+                                      </span>
+                                    </Badge>
+                                  )}
+
+                                  {canManage(contractor) && (
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <button className="p-2 rounded-xl text-gray-400 hover:text-[#1F2A44] hover:bg-slate-100 transition-colors outline-none cursor-pointer">
+                                          <MoreVertical className="size-5" />
+                                        </button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent
+                                        align="end"
+                                        className="w-36 rounded-xl border border-slate-100 shadow-xl p-1.5 bg-white font-asap"
+                                      >
+                                        <DropdownMenuItem
+                                          className="rounded-lg cursor-pointer py-2 px-3 text-xs font-bold text-slate-700 hover:bg-[#1CA7A6]/10 hover:text-[#1CA7A6] flex items-center gap-2"
+                                          onClick={() =>
+                                            router.push(
+                                              `/profile-setup?edit=${contractor.id}`,
+                                            )
+                                          }
+                                        >
+                                          <Pencil className="size-3.5 text-[#1CA7A6]" />
+                                          <span>Edit Profile</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                          className="rounded-lg cursor-pointer py-2 px-3 text-xs font-bold text-red-500 hover:bg-red-50 focus:bg-red-50 flex items-center gap-2"
+                                          onClick={() =>
+                                            setDeleteTarget(contractor)
+                                          }
+                                        >
+                                          <Trash2 className="size-3.5 text-red-500" />
+                                          <span>Delete</span>
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  )}
+                                </div>
                               </div>
 
-                              <div className="flex items-center gap-2">
-                                {contractor.membershipLevel === "GOLD" && (
-                                  <Badge className="bg-[#1CA7A6]/10 text-[#1CA7A6] border-none px-3 py-1 rounded-full flex items-center gap-1.5">
-                                    <Star className="size-3 fill-[#1CA7A6]" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">
-                                      Premium Partner
+                              <div className="px-6 sm:px-8 grow">
+                                <div className="flex items-center gap-2 group-hover:translate-x-1 transition-transform">
+                                  <h3 className="text-xl sm:text-2xl font-black text-[#1F2A44]">
+                                    {contractor.companyName}
+                                  </h3>
+                                  <CheckCircle2 className="size-5 text-[#1CA7A6]" />
+                                </div>
+
+                                <p className="text-gray-500 mt-3 text-sm leading-relaxed font-medium line-clamp-3">
+                                  {contractor.description}
+                                </p>
+
+                                <div className="flex flex-wrap gap-2 mt-6">
+                                  {(
+                                    contractor.services_provided_details ?? []
+                                  ).map((service: any) => (
+                                    <Badge
+                                      key={service.id}
+                                      className="bg-gray-50 text-gray-500 hover:bg-[#1CA7A6]/10 hover:text-[#1CA7A6] transition-colors border-none py-1.5 px-4 rounded-lg font-bold text-[10px]"
+                                    >
+                                      {toPascalCase(service.service_name)}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="p-6 sm:p-8 pt-6 mt-6 border-t border-gray-50 space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="flex items-center gap-3">
+                                    <div className="size-8 rounded-full bg-[#1CA7A6]/5 flex items-center justify-center text-[#1CA7A6]">
+                                      <MapPin className="size-4" />
+                                    </div>
+                                    <span className="text-xs font-bold text-gray-600 truncate">
+                                      {contractor.cityDetails?.[0]?.name ||
+                                        "N/A"}
+                                      {contractor.cityDetails &&
+                                        contractor.cityDetails.length > 1 &&
+                                        ` +${contractor.cityDetails.length - 1} more`}
                                     </span>
-                                  </Badge>
-                                )}
-
-                                {canManage(contractor) && (
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <button className="p-2 rounded-xl text-gray-400 hover:text-[#1F2A44] hover:bg-slate-100 transition-colors outline-none cursor-pointer">
-                                        <MoreVertical className="size-5" />
-                                      </button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-36 rounded-xl border border-slate-100 shadow-xl p-1.5 bg-white font-asap">
-                                      <DropdownMenuItem
-                                        className="rounded-lg cursor-pointer py-2 px-3 text-xs font-bold text-slate-700 hover:bg-[#1CA7A6]/10 hover:text-[#1CA7A6] flex items-center gap-2"
-                                        onClick={() => router.push(`/profile-setup?edit=${contractor.id}`)}
-                                      >
-                                        <Pencil className="size-3.5 text-[#1CA7A6]" />
-                                        <span>Edit Profile</span>
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem
-                                        className="rounded-lg cursor-pointer py-2 px-3 text-xs font-bold text-red-500 hover:bg-red-50 focus:bg-red-50 flex items-center gap-2"
-                                        onClick={() => setDeleteTarget(contractor)}
-                                      >
-                                        <Trash2 className="size-3.5 text-red-500" />
-                                        <span>Delete</span>
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="px-6 sm:px-8 grow">
-                              <div className="flex items-center gap-2 group-hover:translate-x-1 transition-transform">
-                                <h3 className="text-xl sm:text-2xl font-black text-[#1F2A44]">
-                                  {contractor.companyName}
-                                </h3>
-                                <CheckCircle2 className="size-5 text-[#1CA7A6]" />
-                              </div>
-
-                              <p className="text-gray-500 mt-3 text-sm leading-relaxed font-medium line-clamp-3">
-                                {contractor.description}
-                              </p>
-
-                              <div className="flex flex-wrap gap-2 mt-6">
-                                {(
-                                  contractor.services_provided_details ?? []
-                                ).map((service: any) => (
-                                  <Badge
-                                    key={service.id}
-                                    className="bg-gray-50 text-gray-500 hover:bg-[#1CA7A6]/10 hover:text-[#1CA7A6] transition-colors border-none py-1.5 px-4 rounded-lg font-bold text-[10px]"
-                                  >
-                                    {toPascalCase(service.service_name)}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-
-                            <div className="p-6 sm:p-8 pt-6 mt-6 border-t border-gray-50 space-y-4">
-                              <div className="grid grid-cols-2 gap-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="size-8 rounded-full bg-[#1CA7A6]/5 flex items-center justify-center text-[#1CA7A6]">
-                                    <MapPin className="size-4" />
                                   </div>
-                                  <span className="text-xs font-bold text-gray-600 truncate">
-                                    {contractor.cityDetails?.[0]?.name || "N/A"}
-                                    {contractor.cityDetails &&
-                                      contractor.cityDetails.length > 1 &&
-                                      ` +${contractor.cityDetails.length - 1} more`}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <div className="size-8 rounded-full bg-[#1CA7A6]/5 flex items-center justify-center text-[#1CA7A6]">
-                                    <Phone className="size-4" />
+                                  <div className="flex items-center gap-3">
+                                    <div className="size-8 rounded-full bg-[#1CA7A6]/5 flex items-center justify-center text-[#1CA7A6]">
+                                      <Phone className="size-4" />
+                                    </div>
+                                    <span className="text-xs font-bold text-gray-600 truncate">
+                                      {contractor.phone}
+                                    </span>
                                   </div>
-                                  <span className="text-xs font-bold text-gray-600 truncate">
-                                    {contractor.phone}
-                                  </span>
                                 </div>
-                              </div>
 
-                              <Button
-                                onClick={() =>
-                                  setSelectedContractor(contractor)
-                                }
-                                className="w-full h-12 sm:h-14 bg-[#1F2A44] group-hover:bg-[#1CA7A6] text-white font-bold rounded-2xl transition-all shadow-lg group-hover:shadow-[#1CA7A6]/20 border-none"
-                              >
-                                <span className="flex items-center justify-center gap-2">
-                                  <span>View Profile Details</span>
-                                  <ArrowRight className="size-4 group-hover:translate-x-1 transition-transform" />
-                                </span>
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    ))}
+                                <Button
+                                  onClick={() =>
+                                    setSelectedContractor(contractor)
+                                  }
+                                  className="w-full h-12 sm:h-14 bg-[#1F2A44] group-hover:bg-[#1CA7A6] text-white font-bold rounded-2xl transition-all shadow-lg group-hover:shadow-[#1CA7A6]/20 border-none"
+                                >
+                                  <span className="flex items-center justify-center gap-2">
+                                    <span>View Profile Details</span>
+                                    <ArrowRight className="size-4 group-hover:translate-x-1 transition-transform" />
+                                  </span>
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      );
+                    })}
                   </div>
 
                   <ContractorDetailsDialog

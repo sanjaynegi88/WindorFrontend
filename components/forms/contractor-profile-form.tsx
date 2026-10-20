@@ -35,13 +35,31 @@ import { StateSelect } from "@/components/state-select";
 import { useRouter } from "next/navigation";
 import { toPascalCase, getAppImageUrl } from "@/lib/utils";
 import { ServiceSelect } from "@/components/service-select";
+import { useUser } from "@/components/providers/user-provider";
+
+export interface LevelFeatures {
+  is_contractor_directory?: boolean;
+  can_upload_logo?: boolean;
+  can_add_description?: boolean;
+  [key: string]: any;
+}
+
+export interface LevelInfo {
+  id?: string;
+  name?: string;
+  role?: string;
+  priority?: number;
+  features?: LevelFeatures;
+  [key: string]: any;
+}
 
 export interface ContractorProfileInitialData {
   id: string;
   description?: string;
   companyLogo?: string | null;
   selectedCities: string[];
-  membershipLevel: string;
+  membershipLevel?: string;
+  level_info?: LevelInfo;
   cityDetails?: {
     id: string;
     name: string;
@@ -49,7 +67,8 @@ export interface ContractorProfileInitialData {
 }
 
 interface ContractorProfileFormProps {
-  membershipLevel: string;
+  membershipLevel?: string;
+  levelInfo?: LevelInfo;
   onSuccess?: () => void;
 
   initialData?: ContractorProfileInitialData;
@@ -59,18 +78,30 @@ interface ContractorProfileFormProps {
 
 export function ContractorProfileForm({
   membershipLevel,
+  levelInfo,
   onSuccess,
   initialData,
   profileId,
   role,
 }: ContractorProfileFormProps) {
+  const { user } = useUser();
   const isEditMode = !!profileId && !!initialData;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedStateId, setSelectedStateId] = useState<string>("");
   const [services, setServices] = useState<
     { id: string; service_name: string }[]
   >([]);
-  const isPremium = membershipLevel === "GOLD";
+
+  const resolvedLevelInfo: LevelInfo | undefined =
+    levelInfo ||
+    initialData?.level_info ||
+    (user as any)?.level_info ||
+    (user as any)?.current_subscription?.plan?.level_info;
+
+  const features: LevelFeatures = resolvedLevelInfo?.features || {};
+  const canUploadLogo = Boolean(features.can_upload_logo);
+  const canAddDescription = Boolean(features.can_add_description);
+
   const router = useRouter();
 
   useEffect(() => {
@@ -118,11 +149,11 @@ export function ContractorProfileForm({
 
       formData.append("selected_cities", data.selected_cities.join(", "));
 
-      if (isPremium) {
-        if (data.description) formData.append("description", data.description);
-        if (data.company_logo?.[0]) {
-          formData.append("company_logo", data.company_logo[0]);
-        }
+      if (canAddDescription && data.description) {
+        formData.append("description", data.description);
+      }
+      if (canUploadLogo && data.company_logo?.[0]) {
+        formData.append("company_logo", data.company_logo[0]);
       }
 
       if (isEditMode) {
@@ -225,64 +256,64 @@ export function ContractorProfileForm({
                 )}
               />
 
-              {isPremium && (
-                <>
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <Label className="text-xs font-bold uppercase">
-                          Company Description
-                        </Label>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Describe your services, specialization, and company background..."
-                            className="min-h-[120px] rounded-xl border border-[rgba(112,128,144,0.23)] font-asap"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+              {canAddDescription && (
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <Label className="text-xs font-bold uppercase">
+                        Company Description
+                      </Label>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Describe your services, specialization, and company background..."
+                          className="min-h-[120px] rounded-xl border border-[rgba(112,128,144,0.23)] font-asap"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
-                  <FormField
-                    control={form.control}
-                    name="company_logo"
-                    render={({ field: { value, onChange, ...fieldProps } }) => (
-                      <FormItem>
-                        <Label className="text-xs font-bold uppercase">
-                          Company Logo
-                        </Label>
-                        <FormControl>
-                          <div className="space-y-3">
-                            {initialData?.companyLogo && (
-                              <div className="flex items-center gap-3 p-3 bg-muted/20 rounded-xl border border-dashed border-border/60">
-                                <img
-                                  src={getAppImageUrl(initialData.companyLogo)}
-                                  alt="Company Logo"
-                                  className="size-14 object-contain rounded-lg border bg-white"
-                                />
-                                <div className="text-xs text-muted-foreground font-medium">
-                                  Current Company Logo
-                                </div>
+              {canUploadLogo && (
+                <FormField
+                  control={form.control}
+                  name="company_logo"
+                  render={({ field: { value, onChange, ...fieldProps } }) => (
+                    <FormItem>
+                      <Label className="text-xs font-bold uppercase">
+                        Company Logo
+                      </Label>
+                      <FormControl>
+                        <div className="space-y-3">
+                          {initialData?.companyLogo && (
+                            <div className="flex items-center gap-3 p-3 bg-muted/20 rounded-xl border border-dashed border-border/60">
+                              <img
+                                src={getAppImageUrl(initialData.companyLogo)}
+                                alt="Company Logo"
+                                className="size-14 object-contain rounded-lg border bg-white"
+                              />
+                              <div className="text-xs text-muted-foreground font-medium">
+                                Current Company Logo
                               </div>
-                            )}
-                            <Input
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => onChange(e.target.files)}
-                              className="cursor-pointer rounded-xl h-11"
-                              {...fieldProps}
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </>
+                            </div>
+                          )}
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => onChange(e.target.files)}
+                            className="cursor-pointer rounded-xl h-11"
+                            {...fieldProps}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
             </CardContent>
           </Card>

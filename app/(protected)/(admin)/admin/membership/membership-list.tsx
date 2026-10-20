@@ -29,11 +29,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,7 +56,12 @@ import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { deleteMembership, getMembership, getRoles, multiDelete } from "@/lib/actions";
+import {
+  deleteMembership,
+  getMembership,
+  getRoles,
+  multiDelete,
+} from "@/lib/actions";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -181,7 +182,9 @@ export default function MembershipList() {
     if (selectedIds.length === 0) return;
     setIsBulkDeleting(true);
     try {
-      const response = await multiDelete("/api/memberships/bulk", { ids: selectedIds });
+      const response = await multiDelete("/api/memberships/bulk", {
+        ids: selectedIds,
+      });
       if (!response.success) {
         toast.error(response.message || "Failed to delete memberships");
         return;
@@ -334,21 +337,39 @@ export default function MembershipList() {
           />
         ),
         cell: ({ row }) => {
-          const { targetRole, level, maxReports } = row.original;
-          if (targetRole === "CONTRACTOR" && level) {
-            return (
-              <div className="text-xs text-muted-foreground">
-                Level: <span className="font-medium">{level}</span>
-              </div>
+          const { targetRole, maxReports } = row.original;
+          const levelName = row.original.level_info?.name || row.original.level;
+
+          const details: React.ReactNode[] = [];
+
+          if (levelName) {
+            details.push(
+              <div key="level">
+                Level: <span className="font-medium">{levelName}</span>
+              </div>,
             );
           }
-          if (targetRole === "INSURANCE_COMPANY" && maxReports) {
-            return (
-              <div className="text-xs text-muted-foreground">
+
+          if (
+            (targetRole === "INSURANCE_COMPANY" ||
+              targetRole === "INSURANCE") &&
+            maxReports
+          ) {
+            details.push(
+              <div key="maxReports">
                 Max Reports: <span className="font-medium">{maxReports}</span>
+              </div>,
+            );
+          }
+
+          if (details.length > 0) {
+            return (
+              <div className="text-xs text-muted-foreground flex flex-col gap-0.5">
+                {details}
               </div>
             );
           }
+
           return <div className="text-xs text-muted-foreground">N/A</div>;
         },
         size: 120,
@@ -580,7 +601,10 @@ export default function MembershipList() {
                               ? r
                               : r.role_name || r.name || r.role || ""
                           ).toLowerCase();
-                          return roleName !== "admin";
+                          return (
+                            roleName !== "admin" &&
+                            roleName !== "city_inspector"
+                          );
                         })
                         .map((r: any) => {
                           const roleVal =
@@ -706,7 +730,9 @@ export default function MembershipList() {
         onOpenChange={setBulkDeleteDialogOpen}
         title="Delete Selected Memberships"
         description={`Are you sure you want to delete ${selectedIds.length} selected membership(s)? This action cannot be undone.`}
-        confirmText={isBulkDeleting ? "Deleting..." : `Delete (${selectedIds.length})`}
+        confirmText={
+          isBulkDeleting ? "Deleting..." : `Delete (${selectedIds.length})`
+        }
         cancelText="Cancel"
         onConfirm={handleConfirmBulkDelete}
         variant="destructive"

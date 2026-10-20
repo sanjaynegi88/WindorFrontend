@@ -166,20 +166,43 @@ const planLevelColors: Record<string, string> = {
   GOLD: "bg-amber-500/10 text-amber-700 border-amber-200 dark:border-amber-500/20",
   SILVER:
     "bg-slate-400/15 text-slate-700 border-slate-300 dark:border-slate-500/20",
+  PLATINUM:
+    "bg-cyan-500/10 text-cyan-700 border-cyan-200 dark:border-cyan-500/20",
   PRO: "bg-violet-500/10 text-violet-700 border-violet-200 dark:border-violet-500/20",
   ENTERPRISE:
     "bg-blue-500/10 text-blue-700 border-blue-200 dark:border-blue-500/20",
   STANDARD: "bg-sky-500/10 text-sky-700 border-sky-200 dark:border-sky-500/20",
+  BRONZE:
+    "bg-amber-700/10 text-amber-800 border-amber-300 dark:border-amber-700/20",
 };
+
+const dynamicPlanPalette = [
+  "bg-violet-500/10 text-violet-700 border-violet-200 dark:border-violet-500/20",
+  "bg-indigo-500/10 text-indigo-700 border-indigo-200 dark:border-indigo-500/20",
+  "bg-cyan-500/10 text-cyan-700 border-cyan-200 dark:border-cyan-500/20",
+  "bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:border-emerald-500/20",
+  "bg-teal-500/10 text-teal-700 border-teal-200 dark:border-teal-500/20",
+  "bg-rose-500/10 text-rose-700 border-rose-200 dark:border-rose-500/20",
+  "bg-pink-500/10 text-pink-700 border-pink-200 dark:border-pink-500/20",
+  "bg-purple-500/10 text-purple-700 border-purple-200 dark:border-purple-500/20",
+  "bg-blue-500/10 text-blue-700 border-blue-200 dark:border-blue-500/20",
+];
 
 const getPlanLevelColor = (level?: string | null) => {
   if (!level)
     return "bg-slate-500/10 text-slate-700 border-slate-200 dark:border-slate-500/20";
-  const upper = level.toUpperCase();
+  const upper = level.toUpperCase().trim();
   for (const [key, val] of Object.entries(planLevelColors)) {
-    if (upper.includes(key)) return val;
+    if (upper === key || upper.includes(key)) return val;
   }
-  return "bg-slate-500/10 text-slate-700 border-slate-200 dark:border-slate-500/20";
+  // Deterministic color assignment based on hash for dynamically created/edited levels
+  let hash = 0;
+  for (let i = 0; i < upper.length; i++) {
+    hash = (hash << 5) - hash + upper.charCodeAt(i);
+    hash |= 0;
+  }
+  const index = Math.abs(hash) % dynamicPlanPalette.length;
+  return dynamicPlanPalette[index];
 };
 
 const roleIcons: Record<string, any> = {
@@ -1155,10 +1178,17 @@ export default function UserList() {
                             variant="outline"
                             className={cn(
                               "font-semibold text-xs mt-0.5",
-                              getPlanLevelColor(subscription.plan?.level),
+                              getPlanLevelColor(
+                                (subscription.plan as any)?.level_info?.name ||
+                                  subscription.plan?.level,
+                              ),
                             )}
                           >
-                            {toPascalCase(subscription.plan?.level || "N/A")}
+                            {toPascalCase(
+                              (subscription.plan as any)?.level_info?.name ||
+                                subscription.plan?.level ||
+                                "N/A",
+                            )}
                           </Badge>
                         </div>
                         <div>
