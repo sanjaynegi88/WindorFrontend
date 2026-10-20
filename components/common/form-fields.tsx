@@ -47,6 +47,8 @@ export interface DynamicFieldConfig<TFieldValues extends FieldValues = any> {
   options?: SelectOption[] | ((targetRole: string) => SelectOption[]);
   /** Callback to evaluate if field should be disabled based on current form values */
   isDisabled?: (values: TFieldValues) => boolean;
+  /** Callback to evaluate if field should be visible based on current form values */
+  isVisible?: (values: TFieldValues) => boolean;
   /** Custom render function for edge case fields */
   renderCustom?: (form: UseFormReturn<TFieldValues>) => React.ReactNode;
 }
@@ -356,9 +358,13 @@ export function DynamicFormFields<TFieldValues extends FieldValues = any>({
   const formValues = form.watch();
 
   const visibleFields = fields.filter((field) => {
-    if (!field.roles) return true;
-    if (!targetRole) return false;
-    return field.roles.includes(targetRole);
+    if (field.roles && (!targetRole || !field.roles.includes(targetRole))) {
+      return false;
+    }
+    if (field.isVisible && !field.isVisible(formValues)) {
+      return false;
+    }
+    return true;
   });
 
   if (visibleFields.length === 0) return null;

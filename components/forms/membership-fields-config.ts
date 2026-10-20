@@ -47,6 +47,12 @@ export const ROLE_MEMBERSHIP_FIELDS: DynamicFieldConfig<MembershipFormValues>[] 
     type: "number",
     placeholder: "Maximum number of Cities",
     roles: ["CONTRACTOR", "MANUFACTURER"],
+    isVisible: (values) =>
+      Boolean(
+        values.level_features?.is_contractor_directory === true ||
+          values.level_features?.is_contractor_directory === "true" ||
+          values.level_features?.is_contractor_directory === 1,
+      ),
   },
   {
     name: "maxProperties",

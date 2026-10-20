@@ -72,6 +72,7 @@ const membershipFormSchema = z
     level: z.string().optional(),
     level_id: z.string().optional(),
     is_free: z.boolean().optional(),
+    level_features: z.record(z.string(), z.any()).optional(),
     maxReports: z.string().optional(),
     maxUsers: z.string().optional(),
     isUnlimitedAccess: z.boolean(),
@@ -197,6 +198,10 @@ export function MembershipForm({
       level: membership?.level || "",
       level_id: membership?.level_id || membership?.levelId || "",
       is_free: membership?.is_free ?? false,
+      level_features:
+        (membership as any)?.level_info?.features ||
+        (membership as any)?.level_features ||
+        {},
       maxProjects: membership?.maxProjects?.toString() || "",
       maxReports: membership?.maxReports?.toString() || "",
       maxCities: membership?.maxCities?.toString() || "",
@@ -222,6 +227,7 @@ export function MembershipForm({
       form.setValue("level_id", "");
       form.setValue("level", "");
       form.setValue("is_free", false);
+      form.setValue("level_features", {});
     }
     prevTargetRoleRef.current = targetRole;
   }, [targetRole, form]);
@@ -258,6 +264,7 @@ export function MembershipForm({
             form.setValue("level_id", matched.id);
             form.setValue("level", matched.name);
             form.setValue("is_free", Boolean(matched.is_free));
+            form.setValue("level_features", matched.features || {});
           }
         } else {
           setLevels([]);
@@ -281,6 +288,7 @@ export function MembershipForm({
               ...l,
               name: updatedLevel.name,
               is_free: updatedLevel.is_free,
+              features: updatedLevel.features,
             }
           : l,
       ),
@@ -289,6 +297,9 @@ export function MembershipForm({
       form.setValue("level", updatedLevel.name);
       if (updatedLevel.is_free !== undefined) {
         form.setValue("is_free", Boolean(updatedLevel.is_free));
+      }
+      if (updatedLevel.features !== undefined) {
+        form.setValue("level_features", updatedLevel.features || {});
       }
     }
   };
@@ -352,6 +363,10 @@ export function MembershipForm({
     );
 
     activeRoleFields.forEach((field) => {
+      if (field.isVisible && !field.isVisible(data)) {
+        requestBody[field.name] = null;
+        return;
+      }
       const rawValue = data[field.name as keyof MembershipFormValues];
       if (field.type === "number") {
         requestBody[field.name] =
@@ -363,9 +378,10 @@ export function MembershipForm({
       }
     });
 
-    // Send only level_id, omit level and is_free as confirmed
+    // Send only level_id, omit level, is_free, and internal level_features
     delete requestBody.level;
     delete requestBody.is_free;
+    delete requestBody.level_features;
 
     try {
       if (isEditing && membership) {
@@ -497,6 +513,10 @@ export function MembershipForm({
                                 form.setValue(
                                   "is_free",
                                   Boolean(found?.is_free),
+                                );
+                                form.setValue(
+                                  "level_features",
+                                  found?.features || {},
                                 );
                               }}
                               value={field.value || ""}
