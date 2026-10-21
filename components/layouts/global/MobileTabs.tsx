@@ -184,7 +184,7 @@ export function MobileTabs() {
       options.push({ name: "City", href: "/admin/city", icon: Building2 });
       options.push({ name: "Brands", href: "/admin/brands", icon: Tag });
       options.push({
-        name: "Properties Pending",
+        name: "Property Added",
         href: "/added-properties",
         icon: Building2,
       });

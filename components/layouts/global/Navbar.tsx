@@ -417,7 +417,7 @@ export function Navbar() {
           icon: HouseIcon,
         },
         {
-          name: "Properties Pending",
+          name: "Property Added",
           href: "/added-properties",
           icon: VerifiedIcon,
         },
