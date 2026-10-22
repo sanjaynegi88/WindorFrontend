@@ -894,7 +894,7 @@ export function PropertyMapSidebar({
                     <div className="space-y-3">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <div>
+                          <div className="max-w-1/2">
                             <h2 className="text-xl font-black text-[#1F2A44] leading-snug uppercase tracking-tight">
                               {property.property_name || property.address}
                             </h2>
@@ -915,7 +915,7 @@ export function PropertyMapSidebar({
                             href={`/property-details/${property.id}`}
                             className=" px-3 py-3 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[10px] uppercase tracking-widest gap-1 shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            View Detail
+                            View Property
                           </Link>
                         </div>
                       </div>
