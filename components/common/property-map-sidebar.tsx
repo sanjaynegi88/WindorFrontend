@@ -63,6 +63,7 @@ import {
   DialogOverlay,
 } from "@/components/ui/dialog";
 import { PdfGenerationLoader } from "./pdf-generation-loader";
+import Link from "next/link";
 
 interface PropertyMapSidebarProps {
   propertyId: string | null;
@@ -786,8 +787,6 @@ export function PropertyMapSidebar({
     }
   };
 
-
-
   return (
     <>
       <Sheet open={isOpen} onOpenChange={onClose}>
@@ -894,20 +893,30 @@ export function PropertyMapSidebar({
                     {/* Header Info */}
                     <div className="space-y-3">
                       <div className="space-y-2">
-                        <h2 className="text-xl font-black text-[#1F2A44] leading-snug uppercase tracking-tight">
-                          {property.property_name || property.address}
-                        </h2>
-                        <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
-                          <MapPin className="w-3.5 h-3.5 text-[#708090]" />
-                          <span>
-                            {[
-                              property.city_name || property.city?.name,
-                              property.state_name || property.state,
-                              property.zip,
-                            ]
-                              .filter(Boolean)
-                              .join(", ")}
-                          </span>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h2 className="text-xl font-black text-[#1F2A44] leading-snug uppercase tracking-tight">
+                              {property.property_name || property.address}
+                            </h2>
+                            <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+                              <MapPin className="w-3.5 h-3.5 text-[#708090]" />
+                              <span>
+                                {[
+                                  property.city_name || property.city?.name,
+                                  property.state_name || property.state,
+                                  property.zip,
+                                ]
+                                  .filter(Boolean)
+                                  .join(", ")}
+                              </span>
+                            </div>
+                          </div>
+                          <Link
+                            href={`/property-details/${property.id}`}
+                            className=" px-3 py-3 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[10px] uppercase tracking-widest gap-1 shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            View Detail
+                          </Link>
                         </div>
                       </div>
                       {property.street_view_link && (
@@ -915,7 +924,7 @@ export function PropertyMapSidebar({
                           asChild
                           variant="outline"
                           size="sm"
-                          className="h-8 rounded-lg font-bold uppercase tracking-wider text-[10px] border border-gray-200 bg-white hover:bg-gray-50 text-[#1CA7A6] gap-1.5 w-fit"
+                          className="h-12 rounded-lg font-bold uppercase tracking-wider text-[10px] border border-gray-200 bg-white hover:bg-gray-50 text-[#1CA7A6] gap-1.5 w-fit"
                         >
                           <a
                             href={property.street_view_link}
@@ -931,13 +940,15 @@ export function PropertyMapSidebar({
 
                     {/* Metadata list */}
                     <div className="rounded-xl border border-gray-100 bg-slate-50/50 p-4 space-y-3.5">
-                      <div className="flex items-center justify-between text-xs pb-2.5 border-b border-gray-100">
-                        <span className="font-bold text-gray-400 uppercase tracking-widest">
-                          Owner Email
-                        </span>
-                        <span className="font-bold text-[#1F2A44]">
-                          {propertyOwnerEmail || "N/A"}
-                        </span>
+                      <div className="flex justify-between">
+                        <div className="flex items-center justify-between text-xs pb-2.5 border-b border-gray-100">
+                          <span className="font-bold text-gray-400 uppercase tracking-widest">
+                            Owner Email
+                          </span>
+                          <span className="font-bold text-[#1F2A44]">
+                            {propertyOwnerEmail || "N/A"}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center justify-between text-xs pb-2.5 border-b border-gray-100">
                         <span className="font-bold text-gray-400 uppercase tracking-widest">
