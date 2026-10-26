@@ -895,7 +895,7 @@ export function PropertyMapSidebar({
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <div className="max-w-1/2">
-                            <h2 className="text-xl font-black text-[#1F2A44] leading-snug uppercase tracking-tight">
+                            <h2 className="text-xl font-black text-[#1F2A44] wrap-break-word leading-snug uppercase tracking-tight">
                               {property.property_name || property.address}
                             </h2>
                             <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">

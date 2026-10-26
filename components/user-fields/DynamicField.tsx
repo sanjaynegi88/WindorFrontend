@@ -153,36 +153,40 @@ export function DynamicField({
     <FormField
       control={form.control}
       name={config.name}
-      render={({ field }) => (
-        <FormItem className={isGridFull ? "md:col-span-2" : ""}>
-          {config.type !== "checkbox" && (
-            <FormLabel className={resolvedLabelCls}>
-              {config.label}
-              {required && <span className="text-red-500 ml-0.5">*</span>}
-            </FormLabel>
-          )}
-          <FormControl>
-            <FieldInputContent
-              config={config}
-              field={field}
-              form={form}
-              context={context}
-              disabled={disabled}
-              selectedStateId={selectedStateId}
-              onStateSelect={onStateSelect}
-              selectedCityName={selectedCityName}
-              onCitySelect={onCitySelect}
-              isPresent={isPresent}
-              onPresentChange={onPresentChange}
-              resolvedInputCls={resolvedInputCls}
-              statesList={statesList}
-              isStateLoading={isStateLoading}
-              isCityLoading={isCityLoading}
-            />
-          </FormControl>
-          <FormMessage className={errCls} />
-        </FormItem>
-      )}
+      render={({ field, fieldState }) => {
+        const hasError = !!fieldState.error;
+        return (
+          <FormItem className={isGridFull ? "md:col-span-2" : ""}>
+            {config.type !== "checkbox" && (
+              <FormLabel className={resolvedLabelCls}>
+                {config.label}
+                {required && <span className="text-red-500 ml-0.5">*</span>}
+              </FormLabel>
+            )}
+            <FormControl>
+              <FieldInputContent
+                config={config}
+                field={field}
+                form={form}
+                context={context}
+                disabled={disabled}
+                selectedStateId={selectedStateId}
+                onStateSelect={onStateSelect}
+                selectedCityName={selectedCityName}
+                onCitySelect={onCitySelect}
+                isPresent={isPresent}
+                onPresentChange={onPresentChange}
+                resolvedInputCls={resolvedInputCls}
+                statesList={statesList}
+                isStateLoading={isStateLoading}
+                isCityLoading={isCityLoading}
+                hasError={hasError}
+              />
+            </FormControl>
+            <FormMessage className={errCls} />
+          </FormItem>
+        );
+      }}
     />
   );
 }
@@ -226,30 +230,34 @@ function RenderFieldInput({
     <FormField
       control={form.control}
       name={config.name}
-      render={({ field }) => (
-        <FormItem>
-          <FormControl>
-            <FieldInputContent
-              config={config}
-              field={field}
-              form={form}
-              context={context}
-              disabled={disabled}
-              selectedStateId={selectedStateId}
-              onStateSelect={onStateSelect}
-              selectedCityName={selectedCityName}
-              onCitySelect={onCitySelect}
-              isPresent={isPresent}
-              onPresentChange={onPresentChange}
-              resolvedInputCls={resolvedInputCls}
-              statesList={statesList}
-              isStateLoading={isStateLoading}
-              isCityLoading={isCityLoading}
-            />
-          </FormControl>
-          <FormMessage className={errCls} />
-        </FormItem>
-      )}
+      render={({ field, fieldState }) => {
+        const hasError = !!fieldState.error;
+        return (
+          <FormItem>
+            <FormControl>
+              <FieldInputContent
+                config={config}
+                field={field}
+                form={form}
+                context={context}
+                disabled={disabled}
+                selectedStateId={selectedStateId}
+                onStateSelect={onStateSelect}
+                selectedCityName={selectedCityName}
+                onCitySelect={onCitySelect}
+                isPresent={isPresent}
+                onPresentChange={onPresentChange}
+                resolvedInputCls={resolvedInputCls}
+                statesList={statesList}
+                isStateLoading={isStateLoading}
+                isCityLoading={isCityLoading}
+                hasError={hasError}
+              />
+            </FormControl>
+            <FormMessage className={errCls} />
+          </FormItem>
+        );
+      }}
     />
   );
 }
@@ -270,6 +278,7 @@ function FieldInputContent({
   statesList,
   isStateLoading,
   isCityLoading,
+  hasError,
 }: {
   config: RoleFieldConfig;
   field: any;
@@ -286,8 +295,12 @@ function FieldInputContent({
   statesList?: { id: string; name: string }[];
   isStateLoading?: boolean;
   isCityLoading?: boolean;
+  hasError?: boolean;
 }) {
   const currentFormStateId = form.watch("state_id") || selectedStateId || "";
+  const errorBorderCls = hasError
+    ? "!border-[#DF433C] focus-visible:!border-[#DF433C] focus-visible:!ring-[#DF433C]/20"
+    : "";
 
   switch (config.type) {
     case "phone":
@@ -303,7 +316,7 @@ function FieldInputContent({
             const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
             field.onChange(digits);
           }}
-          className={resolvedInputCls}
+          className={cn(resolvedInputCls, errorBorderCls)}
         />
       );
 
@@ -320,6 +333,7 @@ function FieldInputContent({
           resolvedInputCls={resolvedInputCls}
           onStateSelect={onStateSelect}
           onCitySelect={onCitySelect}
+          hasError={hasError}
         />
       );
 
@@ -337,6 +351,7 @@ function FieldInputContent({
           resolvedInputCls={resolvedInputCls}
           onStateSelect={onStateSelect}
           onCitySelect={onCitySelect}
+          hasError={hasError}
         />
       );
 
@@ -345,6 +360,14 @@ function FieldInputContent({
         <ServiceSelect
           value={field.value || []}
           onChange={field.onChange}
+          otherValue={form.watch("other_service") || ""}
+          onOtherChange={(val) =>
+            form.setValue("other_service", val, {
+              shouldValidate: true,
+              shouldDirty: true,
+              shouldTouch: true,
+            })
+          }
           disabled={disabled}
           variant={
             context === "register" || context === "select-role"
@@ -426,7 +449,7 @@ function FieldInputContent({
                 form?.setValue?.("ownerDateEnd", "");
               }
             }}
-            className={resolvedInputCls}
+            className={cn(resolvedInputCls, errorBorderCls)}
           />
         );
       }
@@ -436,7 +459,7 @@ function FieldInputContent({
           {...field}
           value={field.value || ""}
           disabled={disabled}
-          className={resolvedInputCls}
+          className={cn(resolvedInputCls, errorBorderCls)}
         />
       );
 
@@ -450,13 +473,19 @@ function FieldInputContent({
           disabled={disabled}
           maxLength={config.maxLength}
           inputMode={config.inputMode}
-          className={resolvedInputCls}
+          className={cn(resolvedInputCls, errorBorderCls)}
         />
       );
   }
 }
 
-function ServiceReadOnlyList({ serviceIds }: { serviceIds: string[] }) {
+function ServiceReadOnlyList({
+  serviceIds,
+  otherService,
+}: {
+  serviceIds: string[];
+  otherService?: string | null;
+}) {
   const [serviceMap, setServiceMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
@@ -483,7 +512,7 @@ function ServiceReadOnlyList({ serviceIds }: { serviceIds: string[] }) {
     };
   }, []);
 
-  if (!serviceIds.length) {
+  if (!serviceIds.length && !otherService) {
     return (
       <span className="text-sm font-bold text-muted-foreground">
         Not provided
@@ -500,6 +529,13 @@ function ServiceReadOnlyList({ serviceIds }: { serviceIds: string[] }) {
     );
   }
 
+  const isAlreadyInList = otherService
+    ? serviceIds.some((item: string) => {
+        const name = serviceMap[item] || item;
+        return name.trim().toLowerCase() === otherService.trim().toLowerCase();
+      })
+    : false;
+
   return (
     <div className="flex flex-wrap gap-2 min-w-0">
       {serviceIds.map((item: string) => {
@@ -513,6 +549,14 @@ function ServiceReadOnlyList({ serviceIds }: { serviceIds: string[] }) {
           </span>
         );
       })}
+      {otherService && !isAlreadyInList ? (
+        <span
+          key="other_service"
+          className="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary/10 text-primary border border-primary/20 break-words"
+        >
+          {toPascalCase(otherService)} (Other)
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -599,12 +643,24 @@ function renderProfileReadOnlyValue({
   }
 
   if (config.name === "present") {
-    return null; // Handled alongside dates in profile view
+    const isPres =
+      isPresent ||
+      value === true ||
+      String(value)?.toLowerCase() === "true" ||
+      form.watch("present") === true ||
+      form.watch("ownerDateEnd") === "Present";
+    return <p className="text-sm font-bold">{isPres ? "Yes" : "No"}</p>;
   }
 
   if (config.type === "service") {
     const serviceList = Array.isArray(value) ? value : [];
-    return <ServiceReadOnlyList serviceIds={serviceList} />;
+    const otherService = form.watch("other_service");
+    return (
+      <ServiceReadOnlyList
+        serviceIds={serviceList}
+        otherService={otherService}
+      />
+    );
   }
 
   return <p className="text-sm font-bold">{value || "Not provided"}</p>;
@@ -621,6 +677,7 @@ function DynamicStateSelect({
   resolvedInputCls,
   onStateSelect,
   onCitySelect,
+  hasError,
 }: {
   field: any;
   form: UseFormReturn<any>;
@@ -632,6 +689,7 @@ function DynamicStateSelect({
   resolvedInputCls: string;
   onStateSelect?: (stateId: string) => void;
   onCitySelect?: (cityId: string, cityName?: string) => void;
+  hasError?: boolean;
 }) {
   const [internalStates, setInternalStates] = useState<
     { id: string; name: string }[]
@@ -688,6 +746,7 @@ function DynamicStateSelect({
         ? "h-11 rounded-xl bg-muted/30 border border-input shadow-none text-sm font-medium hover:bg-muted/40"
         : "h-11 rounded-md border border-input bg-muted/20 text-sm font-medium hover:bg-background",
     context === "edit-user" && resolvedInputCls,
+    hasError && "!border-[#DF433C] focus-visible:!border-[#DF433C] focus-visible:!ring-[#DF433C]/20",
   );
 
   const rawVal =
@@ -703,9 +762,18 @@ function DynamicStateSelect({
       onValueChange={(val) => {
         const finalVal = val === "__none__" ? "" : val;
         field.onChange(finalVal);
-        form.setValue(config.name, finalVal, { shouldValidate: true, shouldDirty: true });
-        form.setValue("state_id", finalVal, { shouldValidate: true, shouldDirty: true });
-        form.setValue("city_id", "", { shouldValidate: true, shouldDirty: true });
+        form.setValue(config.name, finalVal, {
+          shouldValidate: true,
+          shouldDirty: true,
+        });
+        form.setValue("state_id", finalVal, {
+          shouldValidate: true,
+          shouldDirty: true,
+        });
+        form.setValue("city_id", "", {
+          shouldValidate: true,
+          shouldDirty: true,
+        });
         if (onStateSelect) onStateSelect(finalVal);
         if (onCitySelect) onCitySelect("", "");
       }}
@@ -730,6 +798,7 @@ function DynamicCitySelect({
   resolvedInputCls,
   onStateSelect,
   onCitySelect,
+  hasError,
 }: {
   field: any;
   form: UseFormReturn<any>;
@@ -742,6 +811,7 @@ function DynamicCitySelect({
   resolvedInputCls: string;
   onStateSelect?: (stateId: string) => void;
   onCitySelect?: (cityId: string, cityName?: string) => void;
+  hasError?: boolean;
 }) {
   const currentFormStateId = form.watch("state_id") || selectedStateId || "";
   const [cities, setCities] = useState<
@@ -804,6 +874,7 @@ function DynamicCitySelect({
         ? "h-11 rounded-xl bg-muted/30 border border-input shadow-none text-sm font-medium hover:bg-muted/40"
         : "h-11 rounded-md border border-input bg-muted/20 text-sm font-medium hover:bg-background",
     context === "edit-user" && resolvedInputCls,
+    hasError && "!border-[#DF433C] focus-visible:!border-[#DF433C] focus-visible:!ring-[#DF433C]/20",
   );
 
   const rawVal =
@@ -820,12 +891,21 @@ function DynamicCitySelect({
       onValueChange={(val) => {
         const finalVal = val === "__none__" ? "" : val;
         field.onChange(finalVal);
-        form.setValue(config.name, finalVal, { shouldValidate: true, shouldDirty: true });
-        form.setValue("city_id", finalVal, { shouldValidate: true, shouldDirty: true });
+        form.setValue(config.name, finalVal, {
+          shouldValidate: true,
+          shouldDirty: true,
+        });
+        form.setValue("city_id", finalVal, {
+          shouldValidate: true,
+          shouldDirty: true,
+        });
         const foundCity = cities.find((c) => c.id === finalVal);
         if (!currentFormStateId && foundCity?.state_id) {
           const stateIdStr = String(foundCity.state_id);
-          form.setValue("state_id", stateIdStr, { shouldValidate: true, shouldDirty: true });
+          form.setValue("state_id", stateIdStr, {
+            shouldValidate: true,
+            shouldDirty: true,
+          });
           if (onStateSelect) onStateSelect(stateIdStr);
         }
         if (onCitySelect) onCitySelect(finalVal, foundCity?.name || "");

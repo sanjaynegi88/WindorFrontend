@@ -83,6 +83,18 @@ export function ServiceSelectContent({
 
     // Synchronize "Other" state from incoming otherValue or fallback custom string in value
     useEffect(() => {
+        if (services.length > 0 && otherValue) {
+            const matchedKnownService = services.find(
+                (s) => s.service_name?.trim().toLowerCase() === otherValue.trim().toLowerCase()
+            );
+            if (matchedKnownService && value.map(String).includes(String(matchedKnownService.id))) {
+                setIsOtherChecked(false);
+                setOtherText('');
+                onOtherChange?.('');
+                return;
+            }
+        }
+
         if (otherValue !== undefined && otherValue !== '') {
             setOtherText(otherValue);
             setIsOtherChecked(true);
@@ -90,8 +102,8 @@ export function ServiceSelectContent({
         }
 
         if (services.length === 0) return;
-        const knownIds = new Set(services.map((s) => s.id));
-        const customValue = value.find((val) => val && !knownIds.has(val));
+        const knownIds = new Set(services.map((s) => String(s.id)));
+        const customValue = value.find((val) => val && !knownIds.has(String(val)));
 
         if (customValue !== undefined && !otherValue) {
             setIsOtherChecked(true);

@@ -16,13 +16,8 @@ import {
 } from "./step2-contractor-form";
 import { StepIndicator } from "./step-indicator";
 
-const CONTRACTOR_ROLES = [
-  "contractor",
-  "manufacturer",
-  "distributor",
-  "manufacturer_distributor",
-];
-const PROPERTY_ROLES = ["property_owner", "homeowner", "realtor"];
+const CONTRACTOR_ROLES = ["contractor", "manufacturer"];
+const PROPERTY_ROLES = ["property_owner", "realtor"];
 
 function isContractorRole(name: string) {
   return CONTRACTOR_ROLES.some((r) => name.toLowerCase().includes(r));
@@ -46,7 +41,11 @@ function CompleteProfileContent() {
     values: Step2PropertyValues | Step2ContractorValues | Record<string, never>,
   ) {
     setLoading(true);
-    const formToken = typeof window !== "undefined" ? localStorage.getItem("formToken") || undefined : undefined;
+    const formToken =
+      typeof window !== "undefined"
+        ? localStorage.getItem("formToken") || undefined
+        : undefined;
+    console.log("complete-profile form values:", values);
     const result = await postAddtionalUserForm(userId, values, formToken);
     setLoading(false);
     if (!result.success) {

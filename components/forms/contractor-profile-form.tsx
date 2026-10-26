@@ -28,7 +28,7 @@ import {
   updateContractorProfile,
   getServiceProvided,
 } from "@/lib/actions";
-import { ArrowRight, Building2, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { MultiCitySelector } from "@/components/multi-city-selector";
 import { StateSelect } from "@/components/state-select";
@@ -74,6 +74,7 @@ interface ContractorProfileFormProps {
   initialData?: ContractorProfileInitialData;
   profileId?: string;
   role?: string;
+  onSubmitSuccess?: () => void;
 }
 
 export function ContractorProfileForm({
@@ -83,6 +84,7 @@ export function ContractorProfileForm({
   initialData,
   profileId,
   role,
+  onSubmitSuccess,
 }: ContractorProfileFormProps) {
   const { user } = useUser();
   const isEditMode = !!profileId && !!initialData;
@@ -318,20 +320,19 @@ export function ContractorProfileForm({
             </CardContent>
           </Card>
 
-          <div className="flex justify-end gap-4">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 sm:gap-4">
             <Button
               type="button"
               onClick={handleSkip}
               variant="outline"
-              className="h-12 px-8 rounded-xl font-medium"
+              className="w-full sm:w-auto h-12 px-6 sm:px-8 rounded-xl font-medium"
             >
-              Complete Later
-              <ArrowRight className="ml-2 h-4 w-4" />
+              {isEditMode ? "Cancel" : "Complete Later"}
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="h-12 px-8 rounded-xl font-bold"
+              className="w-full sm:w-auto h-12 px-6 sm:px-8 rounded-xl font-bold"
             >
               {isSubmitting ? (
                 <>

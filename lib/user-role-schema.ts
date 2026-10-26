@@ -37,7 +37,13 @@ export const propertyRoleSchema = z
 export const contractorRoleSchema = z.object({
   companyAddress: z.string().min(1, "Company address is required"),
   company_name: z.string().optional().or(z.literal("")),
-  companyEmail: z.string().optional().or(z.literal("")),
+  companyEmail: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine((val) => !val || z.string().email().safeParse(val).success, {
+      message: "Please enter a valid email address",
+    }),
   websiteUrl: z.string().optional().or(z.literal("")),
   licenseNumber: z.string().optional().or(z.literal("")),
   mobilePhone: z

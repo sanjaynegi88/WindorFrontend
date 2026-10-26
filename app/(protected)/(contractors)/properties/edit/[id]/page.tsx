@@ -58,6 +58,7 @@ interface Component {
   installer: string;
   brand: string;
   brand_id?: string;
+  other_brand?: string;
   type?: string;
   style?: string;
   style_id?: string;
@@ -87,12 +88,18 @@ function componentToFormValues(comp: Component): any {
     installDate: comp.install_date ? comp.install_date.split("T")[0] : "",
     supplier: comp.supplier || "",
     installer: comp.installer || "",
+    brand_id: comp.brand_id || null,
+    style_id: comp.style_id || null,
+    color_id: comp.color_id || null,
+    other_brand: comp.other_brand || null,
+    other_style: comp.other_style || null,
+    other_color: comp.other_color || null,
     brand: comp.brand_id
       ? comp.brand_id
-      : comp.brand
-        ? `__custom__:${comp.brand}`
-        : "",
-    brandName: "",
+      : comp.other_brand
+        ? `__custom__:${comp.other_brand}`
+        : comp.brand || "",
+    brandName: comp.brand || comp.other_brand || "",
     type: comp.type || "",
     style: comp.style_id
       ? comp.style_id
@@ -705,7 +712,12 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
     const type = (selectedComponent.component_type || "").toLowerCase();
     setSaving(true);
     try {
-      const payload = buildInstallationPayload(type, values);
+      const payload = buildInstallationPayload(type, values, {
+        isEditMode: true,
+        initialValues: selectedComponent
+          ? componentToFormValues(selectedComponent)
+          : undefined,
+      });
       const response = isOwnerProjectType
         ? await updatePropertyOwnerInstallation(selectedComponent.id, payload)
         : await updateInstallation(type, selectedComponent.id, payload);

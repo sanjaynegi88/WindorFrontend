@@ -580,7 +580,7 @@ export function InstallationForm({
       installDate: values?.installDate || "",
       supplier: values?.supplier || "",
       installer: values?.installer || "",
-      brand: values?.brand || "",
+      brand: values?.brand ?? values?.brand_id ?? "",
       //manufacturer: values?.manufacturer || '',
       orderNumber: values?.orderNumber || values?.order_number || "",
       model_number:
@@ -595,14 +595,8 @@ export function InstallationForm({
         "",
       windcode: values?.windcode || "",
       u_factor: values?.u_factor || "",
-      style:
-        values?.style ||
-        values?.style_id ||
-        (values?.other_style ? `__custom__:${values.other_style}` : ""),
-      color:
-        values?.color ||
-        values?.color_id ||
-        (values?.other_color ? `__custom__:${values.other_color}` : ""),
+      style: values?.style ?? values?.style_id ?? "",
+      color: values?.color ?? values?.color_id ?? "",
       material: values?.material || "",
       type: values?.type || "",
       impactResistant: values?.impactResistant ?? false,
@@ -727,7 +721,11 @@ export function InstallationForm({
     };
 
     // Resolve style and color human-readable names if IDs were selected
-    const resolvedValues = { ...values };
+    const resolvedValues = {
+      ...values,
+      _isEditMode: isEditMode,
+      _initialValues: initialValues,
+    };
 
     if (values?.style) {
       if (values.style.startsWith("__custom__:")) {

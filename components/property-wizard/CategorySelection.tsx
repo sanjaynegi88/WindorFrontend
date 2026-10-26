@@ -36,7 +36,7 @@ const projectSchema = z
     governing_city_id: z.string().min(1, "City is required"),
     permit: z.string().optional(),
     need_permit: z.boolean().optional(),
-    notes: z.string().optional(),
+    //  notes: z.string().optional(),
     contractor_id: z.string().nullable().optional(),
   })
   .superRefine((data, ctx) => {
@@ -77,7 +77,7 @@ interface CategorySelectionProps {
     governing_city_id?: string;
     permit?: string;
     need_permit?: boolean;
-    notes?: string;
+    //  notes?: string;
     contractor_id?: string;
     visible_status?: string;
     project_status?: string;
@@ -166,7 +166,7 @@ export function CategorySelection({
         : "",
   );
   const [permit, setPermit] = useState(initialProjectData?.permit || "");
-  const [notes, setNotes] = useState(initialProjectData?.notes || "");
+  // const [notes, setNotes] = useState(initialProjectData?.notes || "");
   const [other, setOther] = useState(initialProjectData?.other || "");
 
   const [permitDialogOpen, setPermitDialogOpen] = useState(false);
@@ -238,7 +238,7 @@ export function CategorySelection({
           : "",
     );
     setPermit(initialProjectData?.permit || "");
-    setNotes(initialProjectData?.notes || "");
+    // setNotes(initialProjectData?.notes || "");
     setOther(initialProjectData?.other || "");
     setContractorId(
       initialProjectData?.contractor_id
@@ -433,7 +433,7 @@ export function CategorySelection({
     }
 
     // Notes
-    if (norm(notes) !== norm(initialProjectData.notes)) return true;
+    // if (norm(notes) !== norm(initialProjectData.notes)) return true;
 
     // Visibility (for property owner)
     if (isPropertyOwner) {
@@ -461,7 +461,7 @@ export function CategorySelection({
     other,
     governingCity,
     permit,
-    notes,
+    // notes,
     contractorId,
     visibility,
     initialProjectData,
@@ -498,7 +498,7 @@ export function CategorySelection({
       // date_of_install: dateOfInstall ? format(dateOfInstall, "yyyy-MM-dd") : "",
       governing_city_id: governingCity,
       permit,
-      notes,
+      // notes,
       contractor_id: isOwnerProjectType ? null : contractorId || null,
     };
 
@@ -525,7 +525,7 @@ export function CategorySelection({
       //date_of_install: result.data.date_of_install,
       governing_city_id: result.data.governing_city_id,
       permit: result.data.permit,
-      notes: result.data.notes || "",
+      // notes: result.data.notes || "",
       ...(isAdmin
         ? {
             contractor_id: isOwnerProjectType
@@ -559,7 +559,7 @@ export function CategorySelection({
                 createdProjectId,
                 stagedPermit.file,
                 stagedPermit.description,
-                stagedPermit.notes,
+                //            stagedPermit.notes,
               );
               if (permitRes?.success) {
                 toast.success("Permit uploaded successfully");
@@ -623,7 +623,7 @@ export function CategorySelection({
               projectId,
               stagedPermit.file,
               stagedPermit.description,
-              stagedPermit.notes,
+              //      stagedPermit.notes,
             );
             if (permitRes?.success) {
               toast.success("Permit uploaded successfully");
@@ -892,7 +892,7 @@ export function CategorySelection({
           </div>
         )}
 
-        <div>
+        {/* <div>
           <textarea
             placeholder="Notes"
             value={notes}
@@ -900,7 +900,7 @@ export function CategorySelection({
             rows={4}
             className="w-full min-h-[100px] md:min-h-[140px] px-[20px] md:px-[29px] py-[14px] md:py-[18px] rounded-[6px] md:rounded-[10px] border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] bg-white text-[14px] md:text-[20px] font-medium text-[#1F2A44] focus:outline-none placeholder:text-[#708090]/50 font-asap resize-none"
           />
-        </div>
+        </div> */}
 
         {isPropertyOwner && (
           <div className="space-y-[15px] md:space-y-[20px]">

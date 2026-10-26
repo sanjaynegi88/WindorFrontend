@@ -119,7 +119,11 @@ export function Step1Form({ onSubmit, defaultValues }: Step1FormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="w-full">
+      <form
+        onSubmit={form.handleSubmit(handleSubmit)}
+        className="w-full"
+        noValidate
+      >
         <div className="space-y-6 mb-10">
           <FormField
             control={form.control}

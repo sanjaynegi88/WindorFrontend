@@ -175,7 +175,7 @@ export default function Register1Page() {
             <p className="font-inter text-sm text-white/95 mb-4">Fill in your basic details to get started.</p>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleStep2Submit)} className="flex flex-col gap-4">
+              <form onSubmit={form.handleSubmit(handleStep2Submit)} className="flex flex-col gap-4" noValidate>
                 <div className="flex gap-3">
                   <FormField control={form.control} name="firstName" render={({ field }) => (
                     <FormItem className="flex-1">

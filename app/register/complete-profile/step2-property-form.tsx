@@ -48,7 +48,11 @@ export function Step2PropertyForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="w-full">
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="w-full"
+        noValidate
+      >
         <div className="space-y-[24px] mb-[40px]">
           <RoleForm
             role="PROPERTY_OWNER"

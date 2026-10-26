@@ -88,7 +88,13 @@ const userSchema = z
     // Contractor / Manufacturer fields
     companyAddress: z.string().optional().or(z.literal("")),
     company_name: z.string().optional().or(z.literal("")),
-    companyEmail: z.string().optional().or(z.literal("")),
+    companyEmail: z
+      .string()
+      .optional()
+      .or(z.literal(""))
+      .refine((val) => !val || z.string().email().safeParse(val).success, {
+        message: "Please enter a valid email address",
+      }),
     websiteUrl: z.string().optional().or(z.literal("")),
     companyPhone: z.string().optional().or(z.literal("")),
     licenseNumber: z.string().optional().or(z.literal("")),

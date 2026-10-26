@@ -22,7 +22,8 @@ import {
   Info,
   Plus,
   Settings2,
-  Filter
+  Filter,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -68,6 +69,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { BrandFormDialog } from './brand-form-dialog';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { formatDate } from '@/lib/helpers';
 import { toPascalCase } from '@/lib/utils';
 import { getSelectColumnDef } from '@/components/tables/table-selection-helper';
@@ -99,6 +110,15 @@ export default function BrandList({ onAddBrand }: { onAddBrand: () => void }) {
   const selectedIds = useMemo(
     () => Object.keys(rowSelection).filter((id) => Boolean(rowSelection[id])),
     [rowSelection],
+  );
+
+  const bulkSelectedWithInstallations = useMemo(
+    () =>
+      data.filter(
+        (item: any) =>
+          selectedIds.includes(String(item.id)) && Boolean(item.has_installations),
+      ),
+    [data, selectedIds],
   );
 
   useEffect(() => {
@@ -515,26 +535,62 @@ export default function BrandList({ onAddBrand }: { onAddBrand: () => void }) {
         onSuccess={() => fetchData(pagination.pageIndex + 1, pagination.pageSize, debouncedSearch, selectedCategory)}
       />
 
-      <ConfirmDialog
-        isOpen={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        title="Delete Brand"
-        description={
-          brandToDelete?.name
-            ? `Are you sure you want to delete "${brandToDelete.name}"? This action cannot be undone.`
-            : 'Are you sure you want to delete this brand? This action cannot be undone.'
-        }
-        confirmText={isDeleting ? 'Deleting...' : 'Delete'}
-        cancelText="Cancel"
-        onConfirm={handleConfirmDelete}
-        variant="destructive"
-      />
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) setBrandToDelete(null);
+        }}
+      >
+        <AlertDialogContent className="rounded-2xl sm:max-w-110">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-2.5 text-destructive mb-1">
+              <div className="p-2 rounded-full bg-destructive/10">
+                <AlertTriangle className="size-5" />
+              </div>
+              <AlertDialogTitle className="text-xl font-bold text-foreground">
+                Confirm Brand Deletion
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-sm leading-relaxed">
+              {brandToDelete?.name
+                ? `Are you sure you want to delete "${brandToDelete.name}"? This action cannot be undone.`
+                : 'Are you sure you want to delete this brand? This action cannot be undone.'}
+            </AlertDialogDescription>
+            {brandToDelete?.has_installations && (
+              <div className="mt-2.5 flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-amber-700 dark:text-amber-400">
+                <AlertTriangle className="size-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                <div className="text-xs font-medium leading-relaxed">
+                  Warning: This brand is currently used in project(s). Deleting it may affect existing project configurations.
+                </div>
+              </div>
+            )}
+          </AlertDialogHeader>
+
+          <AlertDialogFooter className="gap-2 sm:gap-0 mt-2">
+            <AlertDialogCancel className="rounded-xl font-semibold">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl font-semibold shadow-none"
+            >
+              {isDeleting ? "Deleting..." : "Delete Brand"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <ConfirmDialog
         isOpen={bulkDeleteDialogOpen}
         onOpenChange={setBulkDeleteDialogOpen}
         title="Delete Selected Brands"
-        description={`Are you sure you want to delete ${selectedIds.length} selected brand(s)? This action cannot be undone.`}
+        description={
+          bulkSelectedWithInstallations.length > 0
+            ? `Are you sure you want to delete ${selectedIds.length} selected brand(s)? Warning: ${bulkSelectedWithInstallations.length} of the selected brand(s) are currently used in project(s). This action cannot be undone.`
+            : `Are you sure you want to delete ${selectedIds.length} selected brand(s)? This action cannot be undone.`
+        }
         confirmText={isBulkDeleting ? 'Deleting...' : `Delete (${selectedIds.length})`}
         cancelText="Cancel"
         onConfirm={handleConfirmBulkDelete}

@@ -5,22 +5,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form } from "@/components/ui/form";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { ServiceSelect } from "@/components/service-select";
 
 import { RoleForm } from "@/components/user-form/RoleForm";
 import { contractorRoleSchema as step2ContractorSchema } from "@/lib/user-role-schema";
 
-const inputCls =
-  "h-[65px] px-[19px] border-[rgba(112,128,144,0.23)] rounded-[6px] text-[20px] leading-[23px] font-medium text-[#1F2A44] bg-white placeholder:text-[#1F2A44]/50 font-asap";
 const errCls =
   "text-[18px] leading-[21px] font-normal text-[#DF433C] font-asap mt-2";
 
@@ -71,7 +61,11 @@ export function Step2ContractorForm({
   return (
     <div>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleFormSubmit)} className="w-full">
+        <form
+          onSubmit={form.handleSubmit(handleFormSubmit)}
+          className="w-full"
+          noValidate
+        >
           <div className="space-y-6 mb-10">
             <RoleForm
               role="CONTRACTOR"

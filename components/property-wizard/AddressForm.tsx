@@ -407,6 +407,7 @@ export function AddressForm({
     setIsSearchingPlaces(true);
 
     const timer = setTimeout(async () => {
+      console.log("api runned");
       try {
         const res = await searchGooglePlaces(trimmed);
         if (!active) return;
@@ -1394,9 +1395,7 @@ export function AddressForm({
         <div className="space-y-1">
           <Input
             placeholder={
-              isAddressLocked
-                ? "Zip Code"
-                : "Zip Code (Auto-populated)"
+              isAddressLocked ? "Zip Code" : "Zip Code (Auto-populated)"
             }
             required
             inputMode="numeric"

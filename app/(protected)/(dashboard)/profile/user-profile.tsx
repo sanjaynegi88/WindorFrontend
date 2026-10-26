@@ -113,7 +113,13 @@ const profileSchema = z
     state_id: z.string().optional().or(z.literal("")),
     zip: z.string().optional().or(z.literal("")),
     company_name: z.string().optional().or(z.literal("")),
-    companyEmail: z.string().optional().or(z.literal("")),
+    companyEmail: z
+      .string()
+      .optional()
+      .or(z.literal(""))
+      .refine((val) => !val || z.string().email().safeParse(val).success, {
+        message: "Please enter a valid email address",
+      }),
     title: z.string().optional().or(z.literal("")),
     cityOfficial: z.string().optional().or(z.literal("")),
     cityAddress: z.string().optional().or(z.literal("")),
@@ -217,6 +223,7 @@ interface UserProfileData {
   companyPhone?: string | null;
   city_id?: string | null;
   serviceTypes?: string[];
+  other_service?: string | null;
   propertyAddress?: string | null;
   ownerDateStart?: string | null;
   ownerDateEnd?: string | null;
@@ -362,8 +369,7 @@ export default function UserProfile() {
       role === "realtor");
   const logsRoute = LOGS_ROUTE[role] ?? "/admin/admin-logs";
 
-  const level =
-    (user as any)?.level_info?.name || (user as any)?.level;
+  const level = (user as any)?.level_info?.name || (user as any)?.level;
   const subscriptionLevel =
     (user as any)?.current_subscription?.status === "ACTIVE"
       ? (user as any)?.current_subscription?.plan?.level_info?.name ||
@@ -377,10 +383,11 @@ export default function UserProfile() {
     (contextUser as any)?.level_info?.features ||
     (contextUser as any)?.user?.level_info?.features ||
     (contextUser as any)?.current_subscription?.plan?.level_info?.features ||
-    (contextUser as any)?.user?.current_subscription?.plan?.level_info?.features;
+    (contextUser as any)?.user?.current_subscription?.plan?.level_info
+      ?.features;
 
   const isContractorDirectoryAllowed = Boolean(
-    levelFeatures?.is_contractor_directory
+    levelFeatures?.is_contractor_directory,
   );
 
   const hasActiveMembership = isSubAccount
@@ -440,6 +447,7 @@ export default function UserProfile() {
       companyPhone: "",
       city_id: "",
       serviceTypes: [],
+      other_service: "",
       propertyAddress: "",
       ownerDateStart: "",
       ownerDateEnd: "",
@@ -474,106 +482,152 @@ export default function UserProfile() {
     }
   };
 
-  useEffect(() => {
-    async function fetchProfile() {
-      try {
-        const data = await getUserProfile();
-        const autoRenewFlag =
-          data?.autoRenewalEnabled ??
-          data?.auto_renewal_enabled ??
-          data?.current_subscription?.autoRenewalEnabled ??
-          data?.current_subscription?.auto_renewal_enabled ??
-          data?.user?.autoRenewalEnabled ??
-          false;
-        setIsAutoRenewal(Boolean(autoRenewFlag));
-        setContractorProfileId(data.directory_id);
-        const isPres = parsePresent(
-          data.present ?? data.form_details?.present ?? data.user?.present,
-          data.form_details?.ownerDateEnd,
+  const fetchProfile = async (
+    servicesList?: { id: string; service_name: string }[],
+  ) => {
+    try {
+      const data = await getUserProfile();
+      const autoRenewFlag =
+        data?.autoRenewalEnabled ??
+        data?.auto_renewal_enabled ??
+        data?.current_subscription?.autoRenewalEnabled ??
+        data?.current_subscription?.auto_renewal_enabled ??
+        data?.user?.autoRenewalEnabled ??
+        false;
+      setIsAutoRenewal(Boolean(autoRenewFlag));
+      setContractorProfileId(data.directory_id);
+      const isPres = parsePresent(
+        data.present ?? data.form_details?.present ?? data.user?.present,
+        data.form_details?.ownerDateEnd,
+      );
+      setIsPresent(isPres);
+
+      const availableServices = servicesList || services;
+      let serviceTypes: string[] = (
+        data.form_details?.serviceTypes ||
+        data.serviceTypes ||
+        []
+      ).map(String);
+      let otherService: string | null =
+        data.form_details?.other_service ?? data.other_service ?? null;
+
+      // Reconcile if other_service was converted into an official service option
+      if (otherService && availableServices.length > 0) {
+        const matched = availableServices.find(
+          (s) =>
+            (s.service_name || "").trim().toLowerCase() ===
+            otherService!.trim().toLowerCase(),
         );
-        setIsPresent(isPres);
-        setUser({
-          ...data,
-          companyAddress: data.form_details?.companyAddress ?? null,
-          websiteUrl: data.form_details?.websiteUrl ?? null,
-          licenseNumber: data.form_details?.licenseNumber ?? null,
-          mobilePhone: data.form_details?.mobilePhone ?? null,
-          companyPhone: data.form_details?.companyPhone ?? null,
-          city_id: data.user?.city_id ?? data.form_details?.city_id ?? null,
-          serviceTypes: data.form_details?.serviceTypes || [],
-          propertyAddress: data.form_details?.propertyAddress ?? null,
-          ownerDateStart: data.form_details?.ownerDateStart ?? null,
-          ownerDateEnd: data.form_details?.ownerDateEnd ?? null,
-          present: isPres,
-          state_id: data.user?.state_id ?? null,
-          zip: data.user?.zip ?? null,
-          title: data.form_details?.title ?? null,
-          cityOfficial: data.form_details?.cityOfficial ?? null,
-          cityAddress: data.form_details?.cityAddress ?? null,
-          cityPhone: data.form_details?.cityPhone ?? null,
-          company_name:
-            data.company_name ?? data.form_details?.company_name ?? null,
-        });
-
-        const cityId = data.form_details?.city_id || data.user?.city_id;
-        if (cityId) {
-          setIsCityLoading(true);
-          try {
-            const cityRes = await getCities(undefined, undefined, cityId);
-            const cityData = cityRes?.data?.[0] ?? cityRes?.data ?? cityRes;
-            const resolvedName = Array.isArray(cityData)
-              ? cityData[0]?.name
-              : cityData?.name;
-            if (resolvedName) setSelectedCityName(resolvedName);
-          } catch {
-          } finally {
-            setIsCityLoading(false);
+        if (matched) {
+          const matchedId = String(matched.id);
+          if (!serviceTypes.includes(matchedId)) {
+            serviceTypes.push(matchedId);
           }
+          otherService = null;
         }
-
-        const stateId = data.user?.state_id ? String(data.user.state_id) : "";
-        setSelectedStateId(stateId);
-        form.reset({
-          full_name: `${data.first_name || ""} ${data.last_name || ""}`.trim(),
-          profile_image_url: data.profile_image_url || null,
-          role: data.role ?? data.roleEntity?.role_name ?? "",
-          email: data.email || "",
-          // Contractor fields
-          companyAddress: data.form_details?.companyAddress || "",
-          websiteUrl: data.form_details?.websiteUrl || "",
-          licenseNumber: data.form_details?.licenseNumber || "",
-          mobilePhone: data.form_details?.mobilePhone || "",
-          companyPhone: data.form_details?.companyPhone || "",
-          city_id: data.form_details?.city_id
-            ? String(data.form_details.city_id)
-            : data.user?.city_id
-              ? String(data.user.city_id)
-              : "",
-          serviceTypes: data.form_details?.serviceTypes || [],
-          // Property fields
-          propertyAddress: data.form_details?.propertyAddress || "",
-          ownerDateStart: data.form_details?.ownerDateStart
-            ? data.form_details.ownerDateStart.split("T")[0]
-            : "",
-          ownerDateEnd: data.form_details?.ownerDateEnd
-            ? data.form_details.ownerDateEnd.split("T")[0]
-            : "",
-          present: isPres,
-          state_id: stateId,
-          zip: data.user?.zip || "",
-          title: data.form_details?.title || "",
-          cityOfficial: data.form_details?.cityOfficial || "",
-          cityAddress: data.form_details?.cityAddress || "",
-          cityPhone: data.form_details?.cityPhone || "",
-          company_name:
-            data.company_name || data.form_details?.company_name || "",
-        });
-      } catch (error: any) {
-        toast.error(error.message || "Failed to load profile");
-      } finally {
-        setLoading(false);
       }
+
+      const updatedCompany =
+        data.company_name ?? data.form_details?.company_name ?? null;
+
+      setUser({
+        ...data,
+        companyAddress: data.form_details?.companyAddress ?? null,
+        websiteUrl: data.form_details?.websiteUrl ?? null,
+        licenseNumber: data.form_details?.licenseNumber ?? null,
+        mobilePhone: data.form_details?.mobilePhone ?? null,
+        companyPhone: data.form_details?.companyPhone ?? null,
+        city_id: data.user?.city_id ?? data.form_details?.city_id ?? null,
+        serviceTypes,
+        other_service: otherService,
+        propertyAddress: data.form_details?.propertyAddress ?? null,
+        ownerDateStart: data.form_details?.ownerDateStart ?? null,
+        ownerDateEnd: data.form_details?.ownerDateEnd ?? null,
+        present: isPres,
+        state_id: data.user?.state_id ?? null,
+        zip: data.user?.zip ?? null,
+        title: data.form_details?.title ?? null,
+        cityOfficial: data.form_details?.cityOfficial ?? null,
+        cityAddress: data.form_details?.cityAddress ?? null,
+        cityPhone: data.form_details?.cityPhone ?? null,
+        company_name: updatedCompany,
+      });
+
+      if (setContextUser) {
+        setContextUser({
+          ...contextUser,
+          ...data,
+          first_name: data.first_name,
+          last_name: data.last_name,
+          company_name: updatedCompany,
+          profile_image_url:
+            data.profile_image_url ?? contextUser?.profile_image_url,
+        });
+      }
+
+      const cityId = data.form_details?.city_id || data.user?.city_id;
+      if (cityId) {
+        setIsCityLoading(true);
+        try {
+          const cityRes = await getCities(undefined, undefined, cityId);
+          const cityData = cityRes?.data?.[0] ?? cityRes?.data ?? cityRes;
+          const resolvedName = Array.isArray(cityData)
+            ? cityData[0]?.name
+            : cityData?.name;
+          if (resolvedName) setSelectedCityName(resolvedName);
+        } catch {
+        } finally {
+          setIsCityLoading(false);
+        }
+      }
+
+      const stateId = data.user?.state_id ? String(data.user.state_id) : "";
+      setSelectedStateId(stateId);
+      form.reset({
+        full_name: `${data.first_name || ""} ${data.last_name || ""}`.trim(),
+        profile_image_url: data.profile_image_url || null,
+        role: data.role ?? data.roleEntity?.role_name ?? "",
+        email: data.email || "",
+        // Contractor fields
+        companyAddress: data.form_details?.companyAddress || "",
+        websiteUrl: data.form_details?.websiteUrl || "",
+        licenseNumber: data.form_details?.licenseNumber || "",
+        mobilePhone: data.form_details?.mobilePhone || "",
+        companyPhone: data.form_details?.companyPhone || "",
+        city_id: data.form_details?.city_id
+          ? String(data.form_details.city_id)
+          : data.user?.city_id
+            ? String(data.user.city_id)
+            : "",
+        serviceTypes,
+        other_service: otherService || "",
+        // Property fields
+        propertyAddress: data.form_details?.propertyAddress || "",
+        ownerDateStart: data.form_details?.ownerDateStart
+          ? data.form_details.ownerDateStart.split("T")[0]
+          : "",
+        ownerDateEnd: data.form_details?.ownerDateEnd
+          ? data.form_details.ownerDateEnd.split("T")[0]
+          : "",
+        present: isPres,
+        state_id: stateId,
+        zip: data.user?.zip || "",
+        title: data.form_details?.title || "",
+        cityOfficial: data.form_details?.cityOfficial || "",
+        cityAddress: data.form_details?.cityAddress || "",
+        cityPhone: data.form_details?.cityPhone || "",
+        company_name:
+          data.company_name || data.form_details?.company_name || "",
+      });
+      return data;
+    } catch (error: any) {
+      toast.error(error.message || "Failed to load profile");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     fetchProfile();
   }, [form]);
 
@@ -582,7 +636,35 @@ export default function UserProfile() {
     if (!role) return;
     if (role === "contractor" || role === "manufacturer") {
       getServiceProvided()
-        .then((res) => setServices(Array.isArray(res?.data) ? res.data : []))
+        .then((res) => {
+          const fresh = Array.isArray(res?.data) ? res.data : [];
+          setServices(fresh);
+          // Reconcile with existing user state if other_service already matches a newly loaded service
+          setUser((prev) => {
+            if (!prev) return prev;
+            const currentOther = prev.other_service;
+            if (!currentOther) return prev;
+            const matched = fresh.find(
+              (s: any) =>
+                (s.service_name || "").trim().toLowerCase() ===
+                currentOther.trim().toLowerCase(),
+            );
+            if (matched) {
+              const matchedId = String(matched.id);
+              const nextServices = Array.from(
+                new Set([...(prev.serviceTypes || []).map(String), matchedId]),
+              );
+              form.setValue("serviceTypes", nextServices);
+              form.setValue("other_service", "");
+              return {
+                ...prev,
+                serviceTypes: nextServices,
+                other_service: null,
+              };
+            }
+            return prev;
+          });
+        })
         .catch(() => {});
     }
     setIsStateLoading(true);
@@ -789,59 +871,39 @@ export default function UserProfile() {
       formData.append("image", selectedImage);
     }
 
+    console.log("formData:", formData);
+    console.log("formData entries:", Object.fromEntries(formData.entries()));
+
     const result = await updateUserProfile(formData);
     if (!result.success) {
       toast.error(result.message || "Failed to update profile.");
       return;
     }
     setIsEditing(false);
-    const updatedData = result.data;
-    const updatedCompany =
-      updatedData.company_name ??
-      updatedData.form_details?.company_name ??
-      null;
-    const isPres = parsePresent(
-      updatedData.present ?? updatedData.form_details?.present,
-      updatedData.form_details?.ownerDateEnd,
-    );
-    setIsPresent(isPres);
-    setUser({
-      ...updatedData,
-      companyAddress: updatedData.form_details?.companyAddress ?? null,
-      websiteUrl: updatedData.form_details?.websiteUrl ?? null,
-      licenseNumber: updatedData.form_details?.licenseNumber ?? null,
-      mobilePhone: updatedData.form_details?.mobilePhone ?? null,
-      companyPhone: updatedData.form_details?.companyPhone ?? null,
-      city_id:
-        updatedData.user?.city_id ?? updatedData.form_details?.city_id ?? null,
-      serviceTypes: updatedData.form_details?.serviceTypes || [],
-      propertyAddress: updatedData.form_details?.propertyAddress ?? null,
-      ownerDateStart: updatedData.form_details?.ownerDateStart ?? null,
-      ownerDateEnd: updatedData.form_details?.ownerDateEnd ?? null,
-      present: isPres,
-      state_id: updatedData.user?.state_id ?? null,
-      zip: updatedData.user?.zip ?? null,
-      title: updatedData.form_details?.title ?? null,
-      cityOfficial: updatedData.form_details?.cityOfficial ?? null,
-      cityAddress: updatedData.form_details?.cityAddress ?? null,
-      cityPhone: updatedData.form_details?.cityPhone ?? null,
-      company_name: updatedCompany,
-    });
-
-    if (setContextUser) {
-      setContextUser({
-        ...contextUser,
-        ...updatedData,
-        first_name: updatedData.first_name,
-        last_name: updatedData.last_name,
-        company_name: updatedCompany,
-        profile_image_url:
-          updatedData.profile_image_url ?? contextUser?.profile_image_url,
-      });
-    }
     setSelectedImage(null);
     setPreviewUrl(null);
     toast.success("Profile updated successfully!");
+
+    // Refetch services and user profile so newly created options are in sync
+    let freshServices = services;
+    if (
+      userRole === "contractor" ||
+      userRole === "manufacturer" ||
+      role === "contractor" ||
+      role === "manufacturer"
+    ) {
+      try {
+        const sRes = await getServiceProvided();
+        if (Array.isArray(sRes?.data)) {
+          freshServices = sRes.data;
+          setServices(freshServices);
+        }
+      } catch (err) {
+        console.error("Failed to refetch services:", err);
+      }
+    }
+
+    await fetchProfile(freshServices);
   }
 
   if (loading) return <ScreenLoader />;
@@ -1782,12 +1844,15 @@ export default function UserProfile() {
                         "You have access to all the features and exclusive verification reports."}
                     </p>
 
-                    {!((user.current_subscription?.plan as any)?.level_info?.is_free ||
+                    {!(
+                      (user.current_subscription?.plan as any)?.level_info
+                        ?.is_free ||
                       (user.current_subscription?.plan as any)?.is_free ||
                       (
-                        (user.current_subscription?.plan as any)?.level_info?.name ||
-                        user.current_subscription?.plan?.level
-                      )?.toUpperCase() === "FREE") && (
+                        (user.current_subscription?.plan as any)?.level_info
+                          ?.name || user.current_subscription?.plan?.level
+                      )?.toUpperCase() === "FREE"
+                    ) && (
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>

@@ -119,6 +119,20 @@ export default function StylesListPage({
     [rowSelection],
   );
 
+  const itemToDelete = useMemo(
+    () => data.find((item: any) => String(item.id) === String(deleteId)),
+    [data, deleteId],
+  );
+
+  const bulkSelectedWithInstallations = useMemo(
+    () =>
+      data.filter(
+        (item: any) =>
+          selectedIds.includes(String(item.id)) && Boolean(item.has_installations),
+      ),
+    [data, selectedIds],
+  );
+
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -636,6 +650,14 @@ export default function StylesListPage({
               Are you sure you want to delete this style? This action cannot be
               undone.
             </AlertDialogDescription>
+            {itemToDelete?.has_installations && (
+              <div className="mt-2.5 flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-amber-700 dark:text-amber-400">
+                <AlertTriangle className="size-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                <div className="text-xs font-medium leading-relaxed">
+                  Warning: This style is currently used in project(s). Deleting it may affect existing project configurations.
+                </div>
+              </div>
+            )}
           </AlertDialogHeader>
 
           <AlertDialogFooter className="gap-2 sm:gap-0 mt-2">
@@ -657,7 +679,11 @@ export default function StylesListPage({
         isOpen={bulkDeleteDialogOpen}
         onOpenChange={setBulkDeleteDialogOpen}
         title="Delete Selected Styles"
-        description={`Are you sure you want to delete ${selectedIds.length} selected style(s)? This action cannot be undone.`}
+        description={
+          bulkSelectedWithInstallations.length > 0
+            ? `Are you sure you want to delete ${selectedIds.length} selected style(s)? Warning: ${bulkSelectedWithInstallations.length} of the selected style(s) are currently used in project(s). This action cannot be undone.`
+            : `Are you sure you want to delete ${selectedIds.length} selected style(s)? This action cannot be undone.`
+        }
         confirmText={
           isBulkDeleting ? "Deleting..." : `Delete (${selectedIds.length})`
         }
