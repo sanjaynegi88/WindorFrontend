@@ -241,8 +241,7 @@ export function VerifyOtpForm() {
       toast.error(result.message || "Failed to resend OTP. Please try again.");
     } else {
       const rawData = (result.data as any)?.data || result.data;
-      const newSessionToken =
-        rawData?.otp_session_token || rawData?.token;
+      const newSessionToken = rawData?.otp_session_token || rawData?.token;
       if (newSessionToken && typeof window !== "undefined") {
         sessionStorage.setItem("otp_session_token", newSessionToken);
       }
@@ -278,7 +277,9 @@ export function VerifyOtpForm() {
           setCanResend(false);
         }
       }
-      toast.success(rawData?.message || "A new OTP has been sent to your email.");
+      toast.success(
+        rawData?.message || "A new OTP has been sent to your email.",
+      );
     }
     setResendLoading(false);
   };
@@ -389,11 +390,9 @@ export function VerifyOtpForm() {
               </span>
             )}
             <span className="text-[13px] md:text-[16px] font-medium text-[#708090] font-asap flex items-center gap-2">
-                OTP expires in 
-                <span className="text-[#1CA7A6] font-bold">
-                  10 minutes
-                </span>
-              </span>
+              OTP expires in
+              <span className="text-[#1CA7A6] font-bold">10 minutes</span>
+            </span>
           </div>
 
           <div className="text-center mt-[16px] md:mt-[24px]">

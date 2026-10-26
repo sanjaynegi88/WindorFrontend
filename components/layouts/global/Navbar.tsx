@@ -227,7 +227,10 @@ export function Navbar() {
             submenu: [
               { name: "View Properties", href: "/properties" },
               { name: "Enter new Property", href: "/properties/new" },
-              { name: "Added Property list", href: "/added-properties" },
+              {
+                name: "Added Property list",
+                href: "/added-properties?status=APPROVED",
+              },
             ],
           },
           {
@@ -256,7 +259,10 @@ export function Navbar() {
             submenu: [
               { name: "View Properties", href: "/properties" },
               { name: "Enter new Property", href: "/properties/new" },
-              { name: "Added Property list", href: "/added-properties" },
+              {
+                name: "Added Property list",
+                href: "/added-properties?status=APPROVED",
+              },
             ],
           },
           {

@@ -93,9 +93,13 @@ export function MobileTabs() {
     }[] = [{ name: "Dashboard", href: "/dashboard", icon: Home }];
 
     const hasProperties =
-      role === "contractor" || role === "admin" || role === "property_owner";
+      role === "contractor" ||
+      role === "manufacturer" ||
+      role === "admin" ||
+      role === "property_owner";
     const hasReports =
       role === "contractor" ||
+      role === "manufacturer" ||
       role === "property_owner" ||
       role === "insurance_company";
 
@@ -124,6 +128,7 @@ export function MobileTabs() {
     // Properties & Projects options (available for contractor, admin, property_owner)
     if (
       role === "contractor" ||
+      role === "manufacturer" ||
       role === "admin" ||
       role === "property_owner"
     ) {
@@ -149,10 +154,10 @@ export function MobileTabs() {
       });
     }
 
-    if (role === "contractor") {
+    if (role === "contractor" || role === "manufacturer") {
       options.push({
         name: "Added Properties",
-        href: "/added-properties",
+        href: "/added-properties?status=APPROVED",
         icon: Building2,
       });
     }
@@ -175,6 +180,14 @@ export function MobileTabs() {
 
     if (role === "contractor" && !user?.user?.sub_account) {
       options.push({ name: "Staff", href: "/contractor-users", icon: Users });
+    }
+
+    if (role === "manufacturer" && !user?.user?.sub_account) {
+      options.push({
+        name: "Staff",
+        href: "/manufacturer-users",
+        icon: Users,
+      });
     }
 
     // Admin Routes
