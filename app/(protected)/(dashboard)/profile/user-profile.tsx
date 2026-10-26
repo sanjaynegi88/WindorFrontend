@@ -440,6 +440,8 @@ export default function UserProfile() {
       role: "",
       full_name: "",
       profile_image_url: null,
+      company_name: "",
+      companyEmail: "",
       companyAddress: "",
       websiteUrl: "",
       licenseNumber: "",
@@ -454,7 +456,6 @@ export default function UserProfile() {
       present: false,
       state_id: "",
       zip: "",
-      company_name: "",
       title: "",
       cityOfficial: "",
       cityAddress: "",
@@ -532,6 +533,9 @@ export default function UserProfile() {
 
       setUser({
         ...data,
+        company_name: updatedCompany,
+        companyEmail:
+          data.form_details?.companyEmail ?? data.companyEmail ?? null,
         companyAddress: data.form_details?.companyAddress ?? null,
         websiteUrl: data.form_details?.websiteUrl ?? null,
         licenseNumber: data.form_details?.licenseNumber ?? null,
@@ -550,7 +554,6 @@ export default function UserProfile() {
         cityOfficial: data.form_details?.cityOfficial ?? null,
         cityAddress: data.form_details?.cityAddress ?? null,
         cityPhone: data.form_details?.cityPhone ?? null,
-        company_name: updatedCompany,
       });
 
       if (setContextUser) {
@@ -589,6 +592,10 @@ export default function UserProfile() {
         role: data.role ?? data.roleEntity?.role_name ?? "",
         email: data.email || "",
         // Contractor fields
+        company_name:
+          data.company_name || data.form_details?.company_name || "",
+        companyEmail:
+          data.form_details?.companyEmail || data.companyEmail || "",
         companyAddress: data.form_details?.companyAddress || "",
         websiteUrl: data.form_details?.websiteUrl || "",
         licenseNumber: data.form_details?.licenseNumber || "",
@@ -616,8 +623,6 @@ export default function UserProfile() {
         cityOfficial: data.form_details?.cityOfficial || "",
         cityAddress: data.form_details?.cityAddress || "",
         cityPhone: data.form_details?.cityPhone || "",
-        company_name:
-          data.company_name || data.form_details?.company_name || "",
       });
       return data;
     } catch (error: any) {
@@ -753,6 +758,7 @@ export default function UserProfile() {
   const ROLE_ALLOWED_KEYS: Record<string, string[]> = {
     contractor: [
       "company_name",
+      "companyEmail",
       "companyAddress",
       "websiteUrl",
       "licenseNumber",
@@ -766,6 +772,7 @@ export default function UserProfile() {
     ],
     manufacturer: [
       "company_name",
+      "companyEmail",
       "companyAddress",
       "websiteUrl",
       "licenseNumber",
@@ -941,6 +948,7 @@ export default function UserProfile() {
                   id="profile-form"
                   onSubmit={form.handleSubmit(onSubmit)}
                   className="divide-y border-b last:border-b-0"
+                  noValidate
                 >
                   <div className="px-4 md:px-8 py-6 md:py-8 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                     <div className="md:col-span-2 flex items-center gap-8">
@@ -1050,14 +1058,18 @@ export default function UserProfile() {
                         <FormField
                           control={form.control}
                           name="full_name"
-                          render={({ field }) => (
+                          render={({ field, fieldState }) => (
                             <FormItem>
                               <FormControl>
                                 <Input
                                   placeholder="Enter First and Last Name"
                                   {...field}
                                   value={field.value || ""}
-                                  className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
+                                  className={cn(
+                                    "h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none",
+                                    fieldState.error &&
+                                      "!border-[#DF433C] focus-visible:!border-[#DF433C] focus-visible:!ring-[#DF433C]/20",
+                                  )}
                                   onKeyDown={(e) => {
                                     if (
                                       e.key === " " &&
@@ -1092,7 +1104,7 @@ export default function UserProfile() {
                           <FormField
                             control={form.control}
                             name="mobilePhone"
-                            render={({ field }) => (
+                            render={({ field, fieldState }) => (
                               <FormItem>
                                 <FormControl>
                                   <Input
@@ -1108,7 +1120,11 @@ export default function UserProfile() {
                                         .slice(0, 10);
                                       field.onChange(digits);
                                     }}
-                                    className="h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none"
+                                    className={cn(
+                                      "h-11 rounded-xl bg-muted/30 border-input focus:bg-background transition-all shadow-none",
+                                      fieldState.error &&
+                                        "!border-[#DF433C] focus-visible:!border-[#DF433C] focus-visible:!ring-[#DF433C]/20",
+                                    )}
                                   />
                                 </FormControl>
                                 <FormMessage />

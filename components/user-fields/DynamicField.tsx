@@ -183,7 +183,9 @@ export function DynamicField({
                 hasError={hasError}
               />
             </FormControl>
-            <FormMessage className={errCls} />
+            <FormMessage
+              className={cn("text-xs font-normal text-[#DF433C] mt-1", errCls)}
+            />
           </FormItem>
         );
       }}
@@ -254,7 +256,9 @@ function RenderFieldInput({
                 hasError={hasError}
               />
             </FormControl>
-            <FormMessage className={errCls} />
+            <FormMessage
+              className={cn("text-xs font-normal text-[#DF433C] mt-1", errCls)}
+            />
           </FormItem>
         );
       }}
@@ -740,12 +744,9 @@ function DynamicStateSelect({
 
   const triggerClassName = cn(
     "w-full justify-between font-normal",
-    context === "register" || context === "select-role"
-      ? "h-[65px] px-[19px] border border-[rgba(112,128,144,0.23)] rounded-[6px] text-[20px] font-medium text-[#1F2A44] bg-white font-asap shadow-none hover:bg-white"
-      : context === "profile"
-        ? "h-11 rounded-xl bg-muted/30 border border-input shadow-none text-sm font-medium hover:bg-muted/40"
-        : "h-11 rounded-md border border-input bg-muted/20 text-sm font-medium hover:bg-background",
-    context === "edit-user" && resolvedInputCls,
+    context === "profile"
+      ? "h-11 rounded-xl bg-muted/30 border border-input shadow-none text-sm font-medium hover:bg-muted/40"
+      : "h-[46px] md:h-[65px] px-[15px] md:px-[19px] border border-[rgba(112,128,144,0.23)] rounded-[6px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] bg-white font-asap shadow-none hover:bg-white",
     hasError && "!border-[#DF433C] focus-visible:!border-[#DF433C] focus-visible:!ring-[#DF433C]/20",
   );
 
@@ -868,12 +869,9 @@ function DynamicCitySelect({
 
   const triggerClassName = cn(
     "w-full justify-between font-normal",
-    context === "register" || context === "select-role"
-      ? "h-[65px] px-[19px] border border-[rgba(112,128,144,0.23)] rounded-[6px] text-[20px] font-medium text-[#1F2A44] bg-white font-asap shadow-none hover:bg-white"
-      : context === "profile"
-        ? "h-11 rounded-xl bg-muted/30 border border-input shadow-none text-sm font-medium hover:bg-muted/40"
-        : "h-11 rounded-md border border-input bg-muted/20 text-sm font-medium hover:bg-background",
-    context === "edit-user" && resolvedInputCls,
+    context === "profile"
+      ? "h-11 rounded-xl bg-muted/30 border border-input shadow-none text-sm font-medium hover:bg-muted/40"
+      : "h-[46px] md:h-[65px] px-[15px] md:px-[19px] border border-[rgba(112,128,144,0.23)] rounded-[6px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] bg-white font-asap shadow-none hover:bg-white",
     hasError && "!border-[#DF433C] focus-visible:!border-[#DF433C] focus-visible:!ring-[#DF433C]/20",
   );
 

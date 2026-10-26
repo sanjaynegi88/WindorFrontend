@@ -133,7 +133,7 @@ function PropertyForm({
   });
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5" noValidate>
         <RoleForm
           role="PROPERTY_OWNER"
           context="add-user"
@@ -193,6 +193,7 @@ function ContractorForm({
         <form
           onSubmit={form.handleSubmit(handleFormSubmit)}
           className="space-y-5"
+          noValidate
         >
           <RoleForm role="CONTRACTOR" context="add-user" form={form} />
           <FormButtons onBack={onBack} loading={loading} />
@@ -240,7 +241,7 @@ function InsuranceForm({
   });
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5" noValidate>
         <RoleForm role="INSURANCE_COMPANY" context="add-user" form={form} />
         <FormButtons onBack={onBack} loading={loading} />
       </form>
@@ -271,7 +272,7 @@ function InspectorForm({
   });
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5" noValidate>
         <RoleForm role="CITY_INSPECTOR" context="add-user" form={form} />
         <FormButtons onBack={onBack} loading={loading} />
       </form>
@@ -464,6 +465,7 @@ export default function AddUserPage() {
                 <form
                   onSubmit={form.handleSubmit(handleStep1Submit)}
                   className="space-y-5"
+                  noValidate
                 >
                   <FormField
                     control={form.control}

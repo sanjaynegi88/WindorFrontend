@@ -51,7 +51,7 @@ import {
   getServiceProvided,
 } from "@/lib/actions";
 import { ScreenLoader } from "@/components/common/screen-loader";
-import { toPascalCase } from "@/lib/utils";
+import { cn, toPascalCase } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ServiceSelect } from "@/components/service-select";
 import { RoleForm } from "@/components/user-form/RoleForm";
@@ -597,12 +597,13 @@ export default function EditUserPage({
                 <form
                   onSubmit={form.handleSubmit(onSubmit, (errors) => {})}
                   className="space-y-6"
+                  noValidate
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
                       name="firstName"
-                      render={({ field }) => (
+                      render={({ field, fieldState }) => (
                         <FormItem>
                           <FormLabel>
                             First Name<label className="text-red-500">*</label>
@@ -610,7 +611,11 @@ export default function EditUserPage({
                           <FormControl>
                             <Input
                               placeholder="First Name"
-                              className="h-11 bg-muted/20 focus:bg-background transition-all"
+                              className={cn(
+                                "h-11 bg-muted/20 focus:bg-background transition-all",
+                                fieldState.error &&
+                                  "!border-[#DF433C] focus-visible:!border-[#DF433C] focus-visible:!ring-[#DF433C]/20",
+                              )}
                               {...field}
                             />
                           </FormControl>
@@ -622,7 +627,7 @@ export default function EditUserPage({
                     <FormField
                       control={form.control}
                       name="lastName"
-                      render={({ field }) => (
+                      render={({ field, fieldState }) => (
                         <FormItem>
                           <FormLabel>
                             Last Name<label className="text-red-500">*</label>
@@ -630,7 +635,11 @@ export default function EditUserPage({
                           <FormControl>
                             <Input
                               placeholder="Last Name"
-                              className="h-11 bg-muted/20 focus:bg-background transition-all"
+                              className={cn(
+                                "h-11 bg-muted/20 focus:bg-background transition-all",
+                                fieldState.error &&
+                                  "!border-[#DF433C] focus-visible:!border-[#DF433C] focus-visible:!ring-[#DF433C]/20",
+                              )}
                               {...field}
                             />
                           </FormControl>
@@ -642,14 +651,18 @@ export default function EditUserPage({
                     <FormField
                       control={form.control}
                       name="email"
-                      render={({ field }) => (
+                      render={({ field, fieldState }) => (
                         <FormItem>
                           <FormLabel>Email</FormLabel>
                           <FormControl>
                             <Input
                               type="email"
                               placeholder="Email"
-                              className="h-11 bg-muted/50 focus:bg-muted/50 transition-all cursor-not-allowed"
+                              className={cn(
+                                "h-11 bg-muted/50 focus:bg-muted/50 transition-all cursor-not-allowed",
+                                fieldState.error &&
+                                  "!border-[#DF433C] focus-visible:!border-[#DF433C] focus-visible:!ring-[#DF433C]/20",
+                              )}
                               disabled
                               {...field}
                             />
@@ -722,13 +735,17 @@ export default function EditUserPage({
                     <FormField
                       control={form.control}
                       name="displayName"
-                      render={({ field }) => (
+                      render={({ field, fieldState }) => (
                         <FormItem className="md:col-span-2">
                           <FormLabel>Display Name</FormLabel>
                           <FormControl>
                             <Input
                               placeholder="Display Name"
-                              className="h-11 bg-muted/20 focus:bg-background transition-all"
+                              className={cn(
+                                "h-11 bg-muted/20 focus:bg-background transition-all",
+                                fieldState.error &&
+                                  "!border-[#DF433C] focus-visible:!border-[#DF433C] focus-visible:!ring-[#DF433C]/20",
+                              )}
                               {...field}
                             />
                           </FormControl>
