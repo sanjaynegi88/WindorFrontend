@@ -298,6 +298,7 @@ export const ProjectsListView = ({
             {selectedProjects.map((project) => {
               const comp = mapProjectToInstallation(project, propertyId);
               const projectStatus = project.is_confirmed ? "COMPLETE" : "DRAFT";
+              const visibilityStatus = project.visible_status;
               const projectPermitStatus = project.permit_status || "N/A";
               const isCreator =
                 project.created_by === (currentUserId ?? user?.id) ||
@@ -369,6 +370,15 @@ export const ProjectsListView = ({
                           ? "bg-[rgba(67,160,71,0.1)] text-[#43A047] border-[#43A047]"
                           : "bg-[rgba(112,128,144,0.1)] text-[#708090] border-[#708090]",
                     },
+                    ...(visibilityStatus?.toUpperCase() === "PRIVATE"
+                      ? [
+                          {
+                            label: "Private",
+                            className:
+                              "bg-[rgba(112,128,144,0.1)] text-[#708090] border-[#708090]",
+                          },
+                        ]
+                      : []),
                   ]}
                   action={
                     !project?.details && canAddInstallation ? (

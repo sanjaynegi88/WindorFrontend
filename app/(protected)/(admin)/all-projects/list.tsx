@@ -331,6 +331,7 @@ export default function AllProjectsList({ user }: { user: string }) {
               const projectType =
                 project.project_type || project.type || "Project";
               const projectStatus = project.is_confirmed ? "COMPLETE" : "DRAFT";
+              const visibilityStatus = project.visible_status;
               const projectDateLabel =
                 project.date_of_install || project.install_date
                   ? new Date(
@@ -485,6 +486,15 @@ export default function AllProjectsList({ user }: { user: string }) {
                           ? "bg-[rgba(67,160,71,0.1)] text-[#43A047] border-[#43A047]"
                           : "bg-[rgba(112,128,144,0.1)] text-[#708090] border-[#708090]",
                     },
+                    ...(visibilityStatus?.toUpperCase() === "PRIVATE"
+                      ? [
+                          {
+                            label: "Private",
+                            className:
+                              "bg-[rgba(112,128,144,0.1)] text-[#708090] border-[#708090]",
+                          },
+                        ]
+                      : []),
                   ]}
                   action={
                     isLocked ? null : (

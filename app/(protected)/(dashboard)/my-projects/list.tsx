@@ -461,6 +461,7 @@ export default function MyProjectList() {
                 project.details?.other;
 
               const canUpload = isOwner && Boolean(property.has_components);
+              const visibilityStatus = project.visible_status;
 
               return (
                 <ExpandableProjectCard
@@ -480,6 +481,15 @@ export default function MyProjectList() {
                           ? "bg-[rgba(67,160,71,0.1)] text-[#43A047] border-[#43A047]"
                           : "bg-[rgba(112,128,144,0.1)] text-[#708090] border-[#708090]",
                     },
+                    ...(visibilityStatus?.toUpperCase() === "PRIVATE"
+                      ? [
+                          {
+                            label: "Private",
+                            className:
+                              "bg-[rgba(112,128,144,0.1)] text-[#708090] border-[#708090]",
+                          },
+                        ]
+                      : []),
                   ]}
                   action={
                     isLocked ? null : (

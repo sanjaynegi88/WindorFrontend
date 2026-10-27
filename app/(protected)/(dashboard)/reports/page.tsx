@@ -3,7 +3,17 @@
 import { useState, useEffect, useMemo } from "react";
 import { Content } from "@/components/layouts/crm/components/content";
 import { Input } from "@/components/ui/input";
-import { Search, X, Loader2, MapPin, FileText, Download, ChevronLeft } from "lucide-react";
+import {
+  Search,
+  X,
+  Loader2,
+  MapPin,
+  FileText,
+  Download,
+  ChevronLeft,
+  Crown,
+  CreditCard,
+} from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
   getPurchasedReports,
@@ -34,6 +44,7 @@ interface ReportItem {
   zip: string;
   amountPaid: string;
   purchaseDate: string;
+  isFree: boolean;
   raw: any;
 }
 
@@ -56,27 +67,30 @@ function ReportRow({ item, onDownload, downloadingId }: ReportRowProps) {
       case "full_property":
         return {
           label: "Complete Property Report",
-          className: "bg-[rgba(28,167,166,0.12)] text-[#1CA7A6] border-[#1CA7A6]",
+          className:
+            "bg-[rgba(28,167,166,0.12)] text-[#1CA7A6] border-[#1CA7A6]",
         };
       case "property_report":
         return {
           label: "Property Report",
           className: "bg-[rgba(31,42,68,0.1)] text-[#1F2A44] border-[#1F2A44]",
         };
-      case "individual_project":
-        return {
-          label: "Individual Project",
-          className: "bg-[rgba(255,193,7,0.12)] text-[#F59E0B] border-[#F59E0B]",
-        };
+      // case "individual_project":
+      //   return {
+      //     label: "Individual Project",
+      //     className: "bg-[rgba(255,193,7,0.12)] text-[#F59E0B] border-[#F59E0B]",
+      //   };
       case "contractor_project":
         return {
           label: "Contractor Project",
-          className: "bg-[rgba(34,166,153,0.12)] text-[#22a699] border-[#22a699]",
+          className:
+            "bg-[rgba(34,166,153,0.12)] text-[#22a699] border-[#22a699]",
         };
       case "owner_project":
         return {
           label: "Owner Project",
-          className: "bg-[rgba(103,58,183,0.12)] text-[#673ab7] border-[#673ab7]",
+          className:
+            "bg-[rgba(103,58,183,0.12)] text-[#673ab7] border-[#673ab7]",
         };
       default:
         return {
@@ -90,10 +104,10 @@ function ReportRow({ item, onDownload, downloadingId }: ReportRowProps) {
 
   const formattedDate = item.purchaseDate
     ? new Date(item.purchaseDate).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
     : "N/A";
 
   return (
@@ -112,18 +126,41 @@ function ReportRow({ item, onDownload, downloadingId }: ReportRowProps) {
             {item.city ? ` • ${item.city}, ${item.state} ${item.zip}` : ""}
           </p>
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            <span className={cn(
-              "text-[10px] font-semibold uppercase tracking-widest px-2.5 py-0.5 rounded-full border font-inter",
-              badge.className
-            )}>
+            <span
+              className={cn(
+                "text-[10px] font-semibold uppercase tracking-widest px-2.5 py-0.5 rounded-full border font-inter",
+                badge.className,
+              )}
+            >
               {badge.label}
             </span>
+
+            {/* Access Type Label */}
+            {item.isFree ? (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border font-inter bg-emerald-50 text-emerald-700 border-emerald-300">
+                <Crown className="size-3 text-emerald-600" />
+                Included in Membership
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border font-inter bg-blue-50 text-blue-700 border-blue-200">
+                <CreditCard className="size-3 text-blue-600" />
+                Purchased
+              </span>
+            )}
+
             <span className="text-[11px] font-medium text-gray-500 font-asap">
-              Purchased: {formattedDate}
+              {item.isFree ? "Accessed" : "Purchased"}: {formattedDate}
             </span>
-            <span className="text-[11px] font-bold text-[#1F2A44] font-asap bg-gray-50 px-2 py-0.5 rounded-md">
-              ${item.amountPaid}
-            </span>
+
+            {item.isFree ? (
+              <span className="text-[11px] font-bold text-gray-700 font-asap bg-gray-50 px-2 py-0.5 rounded-md">
+                Free
+              </span>
+            ) : (
+              <span className="text-[11px] font-bold text-[#1F2A44] font-asap bg-gray-50 px-2 py-0.5 rounded-md">
+                ${item.amountPaid || "n/a"}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -164,7 +201,10 @@ export default function ReportsPage() {
 
   const tabs = [
     { key: "all", label: "All" },
-    { key: "full_property", label: "Complete Property Report(Contractors & Owners)" },
+    {
+      key: "full_property",
+      label: "Complete Property Report(Contractors & Owners)",
+    },
     { key: "property_report", label: "Property Report(Contractors)" },
     { key: "contractor_project", label: "Contractor Project" },
     { key: "owner_project", label: "Owner Project" },
@@ -175,7 +215,11 @@ export default function ReportsPage() {
       if (pageNum === 1 && !append) setLoading(true);
       else if (append) setLoadingMore(true);
 
-      const response = await getPurchasedReports(pageNum, 15, debouncedSearchQuery);
+      const response = await getPurchasedReports(
+        pageNum,
+        15,
+        debouncedSearchQuery,
+      );
 
       const properties = response?.data?.purchasedProperties || [];
       const projects = response?.data?.purchasedProjects || [];
@@ -210,8 +254,23 @@ export default function ReportsPage() {
   };
 
   const allItems = useMemo(() => {
+    const parseIsFree = (val: any): boolean => {
+      return val === true || val === "true" || val === 1 || val === "1";
+    };
+
     const props = purchasedProperties.map((item) => {
       const source = item.purchaseInfo?.metadata?.source || "full_property";
+      const isFree = parseIsFree(
+        item.is_free ??
+          item.isFree ??
+          item.purchaseInfo?.is_free ??
+          item.purchaseInfo?.isFree ??
+          item.purchaseInfo?.metadata?.is_free ??
+          item.purchaseInfo?.metadata?.isFree ??
+          item.property?.is_free ??
+          item.property?.isFree,
+      );
+
       return {
         id: item.purchaseInfo?.id || item.property?.id,
         type: "property",
@@ -221,10 +280,12 @@ export default function ReportsPage() {
         title: item.property?.property_name || item.property?.address || "",
         address: item.property?.address || "",
         city: item.property?.city_name || item.property?.city?.name || "",
-        state: item.property?.state_name || item.property?.state?.state_name || "",
+        state:
+          item.property?.state_name || item.property?.state?.state_name || "",
         zip: item.property?.zip || "",
         amountPaid: item.purchaseInfo?.amountPaid || "",
         purchaseDate: item.purchaseInfo?.purchaseDate || "",
+        isFree,
         raw: item,
       };
     });
@@ -233,16 +294,41 @@ export default function ReportsPage() {
       let source = item.purchaseInfo?.metadata?.source || "individual_project";
       if (source === "individual_project") {
         const projectRaw = item.project;
-        const ownerId = item.property?.property_owner_id || projectRaw?.property_owner_id || item.property?.property_owner?.id || projectRaw?.property?.property_owner_id;
-        const ownerEmail = item.property?.property_owner_email || projectRaw?.property_owner_email || item.property?.property_owner?.email || projectRaw?.property?.property_owner?.email;
+        const ownerId =
+          item.property?.property_owner_id ||
+          projectRaw?.property_owner_id ||
+          item.property?.property_owner?.id ||
+          projectRaw?.property?.property_owner_id;
+        const ownerEmail =
+          item.property?.property_owner_email ||
+          projectRaw?.property_owner_email ||
+          item.property?.property_owner?.email ||
+          projectRaw?.property?.property_owner?.email;
         const isOwner =
-          projectRaw?.created_by_type === 'PROPERTY_OWNER' ||
-          projectRaw?.added_by === 'PROPERTY_OWNER' ||
-          (projectRaw?.created_by && ownerId && projectRaw?.created_by === ownerId) ||
-          (projectRaw?.created_by_email && ownerEmail && projectRaw?.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
+          projectRaw?.created_by_type === "PROPERTY_OWNER" ||
+          projectRaw?.added_by === "PROPERTY_OWNER" ||
+          (projectRaw?.created_by &&
+            ownerId &&
+            projectRaw?.created_by === ownerId) ||
+          (projectRaw?.created_by_email &&
+            ownerEmail &&
+            projectRaw?.created_by_email.toLowerCase() ===
+              ownerEmail.toLowerCase());
         const isContractor = !isOwner;
         source = isContractor ? "contractor_project" : "owner_project";
       }
+
+      const isFree = parseIsFree(
+        item.is_free ??
+          item.isFree ??
+          item.purchaseInfo?.is_free ??
+          item.purchaseInfo?.isFree ??
+          item.purchaseInfo?.metadata?.is_free ??
+          item.purchaseInfo?.metadata?.isFree ??
+          item.project?.is_free ??
+          item.project?.isFree,
+      );
+
       return {
         id: item.purchaseInfo?.id || item.project?.id,
         type: "project",
@@ -252,10 +338,12 @@ export default function ReportsPage() {
         title: item.project?.project_name || item.property?.address || "",
         address: item.property?.property_name || item.property?.address,
         city: item.property?.city_name || item.property?.city?.name || "",
-        state: item.property?.state_name || item.property?.state?.state_name || "",
+        state:
+          item.property?.state_name || item.property?.state?.state_name || "",
         zip: item.property?.zip || "",
         amountPaid: item.purchaseInfo?.amountPaid || "",
         purchaseDate: item.purchaseInfo?.purchaseDate || "",
+        isFree,
         raw: item,
       };
     });
@@ -299,7 +387,9 @@ export default function ReportsPage() {
           break;
         case "contractor_project":
           if (!item.projectId) throw new Error("Project ID is missing");
-          downloadUrl = await generateContractorProjectPdfReport(item.projectId);
+          downloadUrl = await generateContractorProjectPdfReport(
+            item.projectId,
+          );
           filename = `contractor-projects-report-${item.title}.pdf`;
           break;
         case "owner_project":
@@ -310,16 +400,31 @@ export default function ReportsPage() {
         case "individual_project":
           if (!item.projectId) throw new Error("Project ID is missing");
           const projectRaw = item.raw?.project;
-          const ownerId = item.raw?.property?.property_owner_id || projectRaw?.property_owner_id || item.raw?.property?.property_owner?.id || projectRaw?.property?.property_owner_id;
-          const ownerEmail = item.raw?.property?.property_owner_email || projectRaw?.property_owner_email || item.raw?.property?.property_owner?.email || projectRaw?.property?.property_owner?.email;
+          const ownerId =
+            item.raw?.property?.property_owner_id ||
+            projectRaw?.property_owner_id ||
+            item.raw?.property?.property_owner?.id ||
+            projectRaw?.property?.property_owner_id;
+          const ownerEmail =
+            item.raw?.property?.property_owner_email ||
+            projectRaw?.property_owner_email ||
+            item.raw?.property?.property_owner?.email ||
+            projectRaw?.property?.property_owner?.email;
           const isOwner =
-            projectRaw?.created_by_type === 'PROPERTY_OWNER' ||
-            projectRaw?.added_by === 'PROPERTY_OWNER' ||
-            (projectRaw?.created_by && ownerId && projectRaw?.created_by === ownerId) ||
-            (projectRaw?.created_by_email && ownerEmail && projectRaw?.created_by_email.toLowerCase() === ownerEmail.toLowerCase());
+            projectRaw?.created_by_type === "PROPERTY_OWNER" ||
+            projectRaw?.added_by === "PROPERTY_OWNER" ||
+            (projectRaw?.created_by &&
+              ownerId &&
+              projectRaw?.created_by === ownerId) ||
+            (projectRaw?.created_by_email &&
+              ownerEmail &&
+              projectRaw?.created_by_email.toLowerCase() ===
+                ownerEmail.toLowerCase());
           const isContractor = !isOwner;
           if (isContractor) {
-            downloadUrl = await generateContractorProjectPdfReport(item.projectId);
+            downloadUrl = await generateContractorProjectPdfReport(
+              item.projectId,
+            );
             filename = `contractor-projects-report-${item.projectId}.pdf`;
           } else {
             downloadUrl = await generateOwnerProjectPdfReport(item.projectId);
@@ -348,7 +453,7 @@ export default function ReportsPage() {
             Reports
           </h1>
           <p className="text-gray-400 font-bold text-xs md:text-base">
-            List of all purchased property reports.
+            List of all purchased and membership property reports.
           </p>
         </div>
 
@@ -379,9 +484,10 @@ export default function ReportsPage() {
           <div className="flex flex-wrap justify-start gap-x-8 gap-y-4 pb-4">
             {tabs.map((tab) => {
               const isActive = activeTab === tab.key;
-              const count = tab.key === "all"
-                ? allItems.length
-                : allItems.filter((i) => i.source === tab.key).length;
+              const count =
+                tab.key === "all"
+                  ? allItems.length
+                  : allItems.filter((i) => i.source === tab.key).length;
 
               return (
                 <button
@@ -389,7 +495,9 @@ export default function ReportsPage() {
                   onClick={() => setActiveTab(tab.key)}
                   className={cn(
                     "relative whitespace-nowrap text-sm md:text-base font-medium cursor-pointer font-asap pb-2 transition-all",
-                    isActive ? "text-[#1CA7A6]" : "text-[#1F2A44] hover:text-[#1CA7A6]"
+                    isActive
+                      ? "text-[#1CA7A6]"
+                      : "text-[#1F2A44] hover:text-[#1CA7A6]",
                   )}
                 >
                   {tab.label}
@@ -437,7 +545,9 @@ export default function ReportsPage() {
         ) : (
           <div className="text-center py-20 bg-gray-50 rounded-4xl border border-dashed border-[#E8EDF2]">
             <p className="text-gray-400 font-black uppercase tracking-widest text-base md:text-lg">
-              {allItems.length === 0 ? "No purchased reports found." : "No reports in this category."}
+              {allItems.length === 0
+                ? "No reports found."
+                : "No reports in this category."}
             </p>
           </div>
         )}
@@ -457,7 +567,10 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      <PdfGenerationLoader isOpen={!!downloadingId} message="Generating & Downloading Report PDF..." />
+      <PdfGenerationLoader
+        isOpen={!!downloadingId}
+        message="Generating & Downloading Report PDF..."
+      />
     </Content>
   );
 }
