@@ -584,7 +584,7 @@ export function UnifiedSearchBar({
           </button>
         </div>
       </div>
-
+      <div className="space-y-1">
       {showSearchButton && (
         <Button
           disabled={isSearchDisabled}
@@ -594,6 +594,11 @@ export function UnifiedSearchBar({
           Search
         </Button>
       )}
+        <span className="text-sm font-normal text-red-500">
+          NOTE: When SEARCHING do NOT use abbreviations like NW, LN, DR; it
+          should be NorthWest, Lane, Drive, etc.
+        </span>
+      </div>
     </div>
   );
 }
