@@ -16,17 +16,9 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ImageSourcePickerDialog } from "@/components/modals/image-source-picker-dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { PdfGenerationLoader } from "@/components/common/pdf-generation-loader";
+import { MembershipReportConfirmDialog } from "@/components/common/membership-report-confirm-dialog";
+import { PurchaseReportConfirmDialog } from "@/components/common/purchase-report-confirm-dialog";
 import { useUser } from "@/components/providers/user-provider";
 import Link from "next/link";
 
@@ -39,11 +31,13 @@ import { ProjectDefaultView } from "./project-default-view";
 interface ComponentDetailProps {
   componentId: string;
   componentData?: any;
+  initialReportUsage?: any;
 }
 
 export default function ComponentDetail({
   componentId,
   componentData,
+  initialReportUsage,
 }: ComponentDetailProps) {
   const router = useRouter();
   const { role, user } = useUser();
@@ -63,7 +57,11 @@ export default function ComponentDetail({
   const [purchased, setPurchased] = useState(isPurchased);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showPurchaseDialogTop, setShowPurchaseDialogTop] = useState(false);
-  const [reportUsage, setReportUsage] = useState<any>(null);
+  const [showMembershipConfirmDialog, setShowMembershipConfirmDialog] =
+    useState(false);
+  const [reportUsage, setReportUsage] = useState<any>(
+    initialReportUsage ?? null,
+  );
   const [totalCount, setTotalCount] = useState<number>(0);
   const [isLoadingTotalCount, setIsLoadingTotalCount] = useState<boolean>(true);
 
@@ -74,7 +72,7 @@ export default function ComponentDetail({
     role === "contractor" ||
     role === "property_owner";
   const [isLoadingReportUsage, setIsLoadingReportUsage] =
-    useState<boolean>(true);
+    useState<boolean>(!initialReportUsage);
 
   const [heroImageSrc, setHeroImageSrc] = useState(heroImageUrl);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
@@ -93,8 +91,10 @@ export default function ComponentDetail({
     params.set("lat", String(componentData.latitude));
     params.set("lng", String(componentData.longitude));
     params.set("id", String(componentId));
-    if (componentData.state_id) params.set("state_id", String(componentData.state_id));
-    if (componentData.city_id) params.set("city_id", String(componentData.city_id));
+    if (componentData.state_id)
+      params.set("state_id", String(componentData.state_id));
+    if (componentData.city_id)
+      params.set("city_id", String(componentData.city_id));
     return `${mapBasePath}?${params.toString()}`;
   }, [mapBasePath, componentData, componentId]);
 
@@ -219,18 +219,27 @@ export default function ComponentDetail({
       (role === "realtor" && !purchased && !hasLimitAccess) ||
       (role === "insurance_company" && !purchased && !hasLimitAccess));
 
+  const usesMembershipLimit =
+    hasReportApi &&
+    !isOwnerOfProperty &&
+    !purchased &&
+    !isAdmin &&
+    role !== "city_inspector" &&
+    hasLimitAccess;
+
   const downloadReport = async () => {
     setIsGenerating(true);
     try {
       const url = await generatePdfReport(componentId, undefined, user?.role);
+      setPurchased(true);
       await downloadPdfFromUrl(url, `property-report-${componentId}.pdf`);
       toast.success("Report downloaded successfully");
-      setPurchased(true);
-      await fetchReportUsage();
     } catch (err: any) {
       toast.error(err.message || "Failed to download report");
     } finally {
       setIsGenerating(false);
+      setPurchased(true);
+      await fetchReportUsage();
     }
   };
 
@@ -511,7 +520,13 @@ export default function ComponentDetail({
                 <>
                   {showGenerateOption && (
                     <Button
-                      onClick={downloadReport}
+                      onClick={() => {
+                        if (usesMembershipLimit) {
+                          setShowMembershipConfirmDialog(true);
+                        } else {
+                          downloadReport();
+                        }
+                      }}
                       disabled={isGenerating}
                       className="flex items-center gap-1.5 sm:gap-2 h-9 sm:h-10 px-3 sm:px-4 rounded-lg bg-secondary-new hover:bg-secondary-new/80 text-white font-bold text-[11px] sm:text-[12px] uppercase tracking-wider sm:tracking-widest transition-colors shrink-0"
                     >
@@ -644,6 +659,7 @@ export default function ComponentDetail({
                 propertyOwnerEmail={componentData?.property_owner?.email}
                 onReportUsageChange={(usage: any) => setReportUsage(usage)}
                 onPurchasedChange={(val: boolean) => setPurchased(val)}
+                initialReportUsage={reportUsage}
               />
             ) : (
               <ProjectDefaultView
@@ -671,34 +687,29 @@ export default function ComponentDetail({
       </div>
 
       {/* Top level Purchase confirmation dialog */}
-      <AlertDialog
+      <PurchaseReportConfirmDialog
         open={showPurchaseDialogTop}
         onOpenChange={setShowPurchaseDialogTop}
-      >
-        <AlertDialogContent className="sm:max-w-[425px] rounded-[20px] border-none shadow-[0px_4px_34px_rgba(31,42,68,0.1)]">
-          <AlertDialogHeader className="space-y-3">
-            <AlertDialogTitle className="text-xl md:text-2xl font-black text-[#1F2A44] uppercase tracking-tight font-asap">
-              Purchase Report
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-sm text-gray-600 font-medium leading-relaxed">
-              {role === "insurance_company"
-                ? `You have ${reportUsage?.remaining || 0} free reports remaining. Would you like to purchase this report?`
-                : "This report requires purchase. Would you like to proceed with the payment?"}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 sm:gap-2 mt-4">
-            <AlertDialogCancel className="h-11 rounded-xl font-bold uppercase tracking-widest border-2 hover:bg-gray-50">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handlePurchase}
-              className="h-11 bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white rounded-xl font-black uppercase tracking-widest"
-            >
-              Purchase Now
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onConfirm={handlePurchase}
+        remaining={reportUsage?.remaining ?? 0}
+        baseLimit={reportUsage?.baseLimit ?? 0}
+        hasQuotaLimit={isQuotaRole && (reportUsage?.remaining ?? 0) === 0}
+        isProcessing={isGenerating}
+        reportName="the Full Property Report"
+      />
+
+      <MembershipReportConfirmDialog
+        open={showMembershipConfirmDialog}
+        onOpenChange={setShowMembershipConfirmDialog}
+        onConfirm={() => {
+          setShowMembershipConfirmDialog(false);
+          downloadReport();
+        }}
+        remaining={reportUsage?.remaining ?? 0}
+        baseLimit={reportUsage?.baseLimit ?? 0}
+        isGenerating={isGenerating}
+        reportName="the Full Property Report"
+      />
 
       <PdfGenerationLoader
         isOpen={isGenerating}

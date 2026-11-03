@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Loader2,
   FileText,
@@ -32,6 +32,8 @@ import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { PdfGenerationLoader } from "@/components/common/pdf-generation-loader";
+import { MembershipReportConfirmDialog } from "@/components/common/membership-report-confirm-dialog";
+import { PurchaseReportConfirmDialog } from "@/components/common/purchase-report-confirm-dialog";
 import { useUser } from "@/components/providers/user-provider";
 import { Installation } from "./types";
 
@@ -45,6 +47,7 @@ interface ReportsViewProps {
   componentsData: any;
   onReportUsageChange?: (usage: any) => void;
   onPurchasedChange?: (purchased: boolean) => void;
+  initialReportUsage?: any;
 }
 
 export const ReportsView = ({
@@ -57,6 +60,7 @@ export const ReportsView = ({
   componentsData,
   onReportUsageChange,
   onPurchasedChange,
+  initialReportUsage,
 }: ReportsViewProps) => {
   const { user, role } = useUser();
   const totalProjectsCount = (componentsData?.projects ?? []).length;
@@ -68,10 +72,40 @@ export const ReportsView = ({
   const isCityInspector = role === "city_inspector";
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingType, setGeneratingType] = useState<string | null>(null);
-  const [reportUsage, setReportUsage] = useState<any>(null);
+  const [reportUsage, setReportUsage] = useState<any>(
+    initialReportUsage ?? null,
+  );
   const [purchased, setPurchased] = useState(isPurchased);
 
   const [showAllContractorDialog, setShowAllContractorDialog] = useState(false);
+  const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
+  const [pendingPurchaseAction, setPendingPurchaseAction] = useState<
+    (() => void) | null
+  >(null);
+  const [pendingPurchaseReportName, setPendingPurchaseReportName] =
+    useState<string>("the Full Property Report");
+  const [pendingPurchasePrice, setPendingPurchasePrice] = useState<
+    number | string | undefined
+  >(undefined);
+
+  const confirmPurchase = (
+    action: () => void,
+    name: string,
+    price?: number | string,
+  ) => {
+    setPendingPurchaseReportName(name);
+    setPendingPurchasePrice(price);
+    setPendingPurchaseAction(() => action);
+    setShowPurchaseDialog(true);
+  };
+  const [showMembershipConfirmDialog, setShowMembershipConfirmDialog] =
+    useState(false);
+  const [pendingDownloadAction, setPendingDownloadAction] = useState<
+    (() => void) | null
+  >(null);
+  const [pendingReportName, setPendingReportName] = useState<string>(
+    "the Full Property Report",
+  );
   const [showContractorProjectsDialog, setShowContractorProjectsDialog] =
     useState(false);
   const [showHomeOwnerProjectsDialog, setShowHomeOwnerProjectsDialog] =
@@ -95,8 +129,55 @@ export const ReportsView = ({
   const [isGeneratingAllContractor, setIsGeneratingAllContractor] =
     useState(false);
   const hasLimitAccess = Boolean(reportUsage && reportUsage.remaining > 0);
+
+  // Check if all contractor projects are purchased individually
+  const areAllContractorsPurchasedIndividually = useMemo(() => {
+    if (contractorProjects.length === 0) return false;
+    return contractorProjects.every(
+      (proj: any) =>
+        proj.project_purchased === true || proj.is_purchased === true,
+    );
+  }, [contractorProjects]);
+
+  // Combined flag for all contractor projects purchased (bulk purchase or individually)
+  const isAllContractorsEffectivelyPurchased =
+    allContractorPurchased || areAllContractorsPurchasedIndividually;
+
+  // Check if all homeowner projects are purchased individually
+  const areAllHomeownersPurchasedIndividually = useMemo(() => {
+    if (homeownerProjects.length === 0) return false;
+    return homeownerProjects.every(
+      (proj: any) =>
+        proj.project_purchased === true || proj.is_purchased === true,
+    );
+  }, [homeownerProjects]);
+
+  // Check if every project on this property is purchased:
+  // - Contractor projects: either allContractorPurchased OR all individually purchased (or no contractor projects exist)
+  // - Homeowner projects: all individually purchased (or no homeowner projects exist)
+  const areAllPropertyProjectsPurchased = useMemo(() => {
+    const hasContractorProjects = contractorProjects.length > 0;
+    const hasHomeownerProjects = homeownerProjects.length > 0;
+
+    if (!hasContractorProjects && !hasHomeownerProjects) return false;
+
+    const contractorConditionMet =
+      !hasContractorProjects || isAllContractorsEffectivelyPurchased;
+    const homeownerConditionMet =
+      !hasHomeownerProjects || areAllHomeownersPurchasedIndividually;
+
+    return contractorConditionMet && homeownerConditionMet;
+  }, [
+    contractorProjects.length,
+    homeownerProjects.length,
+    isAllContractorsEffectivelyPurchased,
+    areAllHomeownersPurchasedIndividually,
+  ]);
+
   const hasAllContractorAccess =
-    allContractorPurchased ||
+    isAllContractorsEffectivelyPurchased ||
+    purchased ||
+    areAllPropertyProjectsPurchased ||
     isAdmin ||
     isCityInspector ||
     isOwnerOfProperty ||
@@ -115,15 +196,16 @@ export const ReportsView = ({
     setIsGeneratingAllContractor(true);
     try {
       const url = await generateAllContractorPdfReport(propertyId);
+      setAllContractorPurchased(true);
       await downloadPdfFromUrl(
         url,
         `all-contractor-projects-report-${propertyId}.pdf`,
       );
       toast.success("Report downloaded successfully");
-      await fetchReportUsage();
     } catch (err: any) {
       toast.error(err.message || "Failed to download report");
     } finally {
+      await fetchReportUsage();
       setIsGeneratingAllContractor(false);
     }
   };
@@ -248,9 +330,19 @@ export const ReportsView = ({
         const usageData = res?.data || res;
         setReportUsage(usageData);
         onReportUsageChange?.(usageData);
+
+        const remaining = Number(
+          usageData?.remaining ?? usageData?.data?.remaining,
+        );
+        if (!isNaN(remaining) && remaining <= 0) {
+          loadContractorProjects();
+          loadHomeownerProjects();
+        }
+
         return usageData;
       } catch (err) {
         console.error("Failed to fetch report usage:", err);
+      } finally {
       }
     }
   };
@@ -263,6 +355,8 @@ export const ReportsView = ({
     setIsGenerating(true);
     try {
       const url = await generatePdfReport(propertyId, projectType, user?.role);
+      setPurchased(true);
+      onPurchasedChange?.(true);
       await downloadPdfFromUrl(
         url,
         projectType
@@ -270,41 +364,67 @@ export const ReportsView = ({
           : `property-report-${propertyId}.pdf`,
       );
       toast.success("Report downloaded successfully");
-      setPurchased(true);
-      onPurchasedChange?.(true);
-      await fetchReportUsage();
+
+
     } catch (err: any) {
       toast.error(err.message || "Failed to download report");
     } finally {
+      setPurchased(true);
       setIsGenerating(false);
       setGeneratingType(null);
+      await fetchReportUsage();
     }
   };
 
   const hasReportApi = !!componentsData?.has_report || totalProjectsCount > 0;
 
+  const isFullReportAccessible =
+    purchased || areAllPropertyProjectsPurchased;
+
   const showGenerateOption =
     hasReportApi &&
     ((role === "property_owner" &&
-      (isOwnerOfProperty || purchased || hasLimitAccess)) ||
+      (isOwnerOfProperty || isFullReportAccessible || hasLimitAccess)) ||
       role === "admin" ||
       role === "city_inspector" ||
-      (role === "contractor" && (purchased || hasLimitAccess)) ||
-      (role === "manufacturer" && (purchased || hasLimitAccess)) ||
-      (role === "realtor" && (purchased || hasLimitAccess)) ||
-      (role === "insurance_company" && (purchased || hasLimitAccess)));
+      (role === "contractor" && (isFullReportAccessible || hasLimitAccess)) ||
+      (role === "manufacturer" && (isFullReportAccessible || hasLimitAccess)) ||
+      (role === "realtor" && (isFullReportAccessible || hasLimitAccess)) ||
+      (role === "insurance_company" && (isFullReportAccessible || hasLimitAccess)));
 
   const showBuyOption =
     hasReportApi &&
     totalProjectsCount > 0 &&
+    !isFullReportAccessible &&
     ((role === "property_owner" &&
       !isOwnerOfProperty &&
-      !purchased &&
       !hasLimitAccess) ||
-      (role === "contractor" && !purchased && !hasLimitAccess) ||
-      (role === "manufacturer" && !purchased && !hasLimitAccess) ||
-      (role === "realtor" && !purchased && !hasLimitAccess) ||
-      (role === "insurance_company" && !purchased && !hasLimitAccess));
+      (role === "contractor" && !hasLimitAccess) ||
+      (role === "manufacturer" && !hasLimitAccess) ||
+      (role === "realtor" && !hasLimitAccess) ||
+      (role === "insurance_company" && !hasLimitAccess));
+
+  const usesMembershipLimit =
+    hasReportApi &&
+    !isOwnerOfProperty &&
+    !isFullReportAccessible &&
+    !isAdmin &&
+    !isCityInspector &&
+    hasLimitAccess;
+
+  const usesMembershipLimitForContractor =
+    !isAllContractorsEffectivelyPurchased &&
+    !isFullReportAccessible &&
+    !isAdmin &&
+    !isCityInspector &&
+    !isOwnerOfProperty &&
+    hasLimitAccess;
+
+  const confirmMembershipUsage = (action: () => void, name: string) => {
+    setPendingReportName(name);
+    setPendingDownloadAction(() => action);
+    setShowMembershipConfirmDialog(true);
+  };
 
   const handlePurchaseReport = async () => {
     setIsGenerating(true);
@@ -323,7 +443,7 @@ export const ReportsView = ({
         window.location.href = checkoutUrl;
       } else {
         setPurchased(true);
-        onPurchasedChange?.(true);
+  
         await downloadReport();
       }
     } catch (err: any) {
@@ -345,6 +465,24 @@ export const ReportsView = ({
       const url = isContractor
         ? await generateContractorProjectPdfReport(projectId)
         : await generateOwnerProjectPdfReport(projectId);
+      setContractorProjects((prev) =>
+        prev.map((proj) => {
+          const pid = proj.id ?? proj.project_id ?? proj._id;
+          if (String(pid) === String(projectId)) {
+            return { ...proj, is_purchased: true, project_purchased: true };
+          }
+          return proj;
+        }),
+      );
+      setHomeownerProjects((prev) =>
+        prev.map((proj) => {
+          const pid = proj.id ?? proj.project_id ?? proj._id;
+          if (String(pid) === String(projectId)) {
+            return { ...proj, is_purchased: true, project_purchased: true };
+          }
+          return proj;
+        }),
+      );
       const filename = isContractor
         ? `contractor-projects-report-${projectName}.pdf`
         : `owner-projects-report-${projectName}.pdf`;
@@ -369,17 +507,16 @@ export const ReportsView = ({
           return proj;
         }),
       );
-
-      const usageRes = await fetchReportUsage();
-      if (usageRes && usageRes.remaining === 0) {
-        loadContractorProjects();
-        loadHomeownerProjects();
-      }
     } catch (error: any) {
       console.error("Download project report error:", error);
       toast.error(getErrorMessage(error, "Failed to download report"));
     } finally {
       setGeneratingProjects((prev) => ({ ...prev, [projectId]: false }));
+      const usageRes = await fetchReportUsage();
+      if (usageRes && usageRes.remaining === 0) {
+        loadContractorProjects();
+        loadHomeownerProjects();
+      }
     }
   };
 
@@ -537,7 +674,16 @@ export const ReportsView = ({
                   <div className="w-full md:w-auto min-w-[240px]">
                     {showGenerateOption ? (
                       <Button
-                        onClick={() => downloadReport()}
+                        onClick={() => {
+                          if (usesMembershipLimit) {
+                            confirmMembershipUsage(
+                              () => downloadReport(),
+                              "the Full Property Report",
+                            );
+                          } else {
+                            downloadReport();
+                          }
+                        }}
                         disabled={isGenerating}
                         className="w-full h-12 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-sm uppercase tracking-widest transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-none"
                       >
@@ -548,7 +694,12 @@ export const ReportsView = ({
                       </Button>
                     ) : (
                       <Button
-                        onClick={handlePurchaseReport}
+                        onClick={() =>
+                          confirmPurchase(
+                            () => handlePurchaseReport(),
+                            "the Full Property Report",
+                          )
+                        }
                         disabled={isGenerating}
                         className="w-full h-12 rounded-xl bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-sm uppercase tracking-widest transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-none"
                       >
@@ -589,7 +740,14 @@ export const ReportsView = ({
                   <Button
                     onClick={() => {
                       if (hasAllContractorAccess) {
-                        downloadAllContractorReport();
+                        if (usesMembershipLimitForContractor) {
+                          confirmMembershipUsage(
+                            () => downloadAllContractorReport(),
+                            "All Contractor Reports",
+                          );
+                        } else {
+                          downloadAllContractorReport();
+                        }
                       } else {
                         setShowAllContractorDialog(true);
                       }
@@ -697,7 +855,17 @@ export const ReportsView = ({
             </Button>
             {hasAllContractorAccess ? (
               <Button
-                onClick={downloadAllContractorReport}
+                onClick={() => {
+                  if (usesMembershipLimitForContractor) {
+                    setShowAllContractorDialog(false);
+                    confirmMembershipUsage(
+                      () => downloadAllContractorReport(),
+                      "All Contractor Reports",
+                    );
+                  } else {
+                    downloadAllContractorReport();
+                  }
+                }}
                 disabled={
                   isGeneratingAllContractor ||
                   loadingContractor ||
@@ -774,7 +942,7 @@ export const ReportsView = ({
                 const isSelected = selectedContractors.includes(
                   String(projectId),
                 );
-                const projectPrice = project.project_price ?? 29;
+                const projectPrice = project.project_price ?? project.price;
 
                 const hasProjectAccess =
                   isProjectPurchased ||
@@ -783,6 +951,15 @@ export const ReportsView = ({
                   isAdmin ||
                   isCityInspector ||
                   isOwnerOfProperty ||
+                  hasLimitAccess;
+
+                const usesMembershipLimitForProject =
+                  !isProjectPurchased &&
+                  !allContractorPurchased &&
+                  !purchased &&
+                  !isAdmin &&
+                  !isCityInspector &&
+                  !isOwnerOfProperty &&
                   hasLimitAccess;
 
                 return (
@@ -825,12 +1002,25 @@ export const ReportsView = ({
                       <div className="flex items-center gap-2 self-end sm:self-auto">
                         {hasProjectAccess ? (
                           <Button
-                            onClick={() =>
-                              handleGenerateProjectReport(
-                                projectId,
-                                project.project_name,
-                              )
-                            }
+                            onClick={() => {
+                              if (usesMembershipLimitForProject) {
+                                confirmMembershipUsage(
+                                  () =>
+                                    handleGenerateProjectReport(
+                                      projectId,
+                                      project.project_name,
+                                    ),
+                                  project.project_name
+                                    ? `the report for "${project.project_name}"`
+                                    : "this project report",
+                                );
+                              } else {
+                                handleGenerateProjectReport(
+                                  projectId,
+                                  project.project_name,
+                                );
+                              }
+                            }}
                             disabled={isProjectGenerating}
                             className="h-8 px-3 rounded-lg bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-[10px] uppercase tracking-widest gap-1.5 shadow-none"
                           >
@@ -844,12 +1034,18 @@ export const ReportsView = ({
                         ) : (
                           <Button
                             onClick={() =>
-                              handlePurchaseProjectReport(projectId)
+                              confirmPurchase(
+                                () => handlePurchaseProjectReport(projectId),
+                                project.project_name
+                                  ? `the report for "${project.project_name}"`
+                                  : "this project report",
+                                projectPrice,
+                              )
                             }
                             className="h-8 px-3 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[10px] uppercase tracking-widest gap-1.5 shadow-none"
                           >
                             <ShoppingCart className="size-3" />
-                            Buy Report (${projectPrice})
+                            Buy Report{projectPrice != null ? ` ($${projectPrice})` : ""}
                           </Button>
                         )}
                       </div>
@@ -867,9 +1063,19 @@ export const ReportsView = ({
                 selected
               </span>
               <Button
-                onClick={() =>
-                  handlePurchaseMultipleProjects(selectedContractors)
-                }
+                onClick={() => {
+                  const totalPrice = selectedContractors.reduce((total, id) => {
+                    const proj = contractorProjects.find(
+                      (p) => String(p.id ?? p.project_id ?? p._id) === id,
+                    );
+                    return total + Number(proj?.project_price ?? proj?.price ?? 0);
+                  }, 0);
+                  confirmPurchase(
+                    () => handlePurchaseMultipleProjects(selectedContractors),
+                    `${selectedContractors.length} contractor project reports`,
+                    totalPrice,
+                  );
+                }}
                 disabled={isBulkPurchasing}
                 className="h-8 px-4 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[10px] uppercase tracking-widest gap-1.5 shadow-none"
               >
@@ -883,7 +1089,7 @@ export const ReportsView = ({
                   const proj = contractorProjects.find(
                     (p) => String(p.id ?? p.project_id ?? p._id) === id,
                   );
-                  return total + (proj?.project_price ?? 29);
+                  return total + Number(proj?.project_price ?? proj?.price ?? 0);
                 }, 0)}
                 )
               </Button>
@@ -943,7 +1149,7 @@ export const ReportsView = ({
                 const isSelected = selectedHomeowners.includes(
                   String(projectId),
                 );
-                const projectPrice = project.project_price ?? 29;
+                const projectPrice = project.project_price ?? project.price;
 
                 const isCreator =
                   project.created_by === user?.id ||
@@ -958,6 +1164,15 @@ export const ReportsView = ({
                   isCityInspector ||
                   isOwnerOfProperty ||
                   (role === "property_owner" && isCreator) ||
+                  hasLimitAccess;
+
+                const usesMembershipLimitForProject =
+                  !isProjectPurchased &&
+                  !purchased &&
+                  !isAdmin &&
+                  !isCityInspector &&
+                  !isOwnerOfProperty &&
+                  !(role === "property_owner" && isCreator) &&
                   hasLimitAccess;
 
                 return (
@@ -1003,12 +1218,25 @@ export const ReportsView = ({
                       <div className="flex items-center gap-2 self-end sm:self-auto">
                         {hasProjectAccess ? (
                           <Button
-                            onClick={() =>
-                              handleGenerateProjectReport(
-                                projectId,
-                                project.project_name,
-                              )
-                            }
+                            onClick={() => {
+                              if (usesMembershipLimitForProject) {
+                                confirmMembershipUsage(
+                                  () =>
+                                    handleGenerateProjectReport(
+                                      projectId,
+                                      project.project_name,
+                                    ),
+                                  project.project_name
+                                    ? `the report for "${project.project_name}"`
+                                    : "this project report",
+                                );
+                              } else {
+                                handleGenerateProjectReport(
+                                  projectId,
+                                  project.project_name,
+                                );
+                              }
+                            }}
                             disabled={isProjectGenerating}
                             className="h-8 px-3 rounded-lg bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-[10px] uppercase tracking-widest gap-1.5 shadow-none"
                           >
@@ -1022,12 +1250,18 @@ export const ReportsView = ({
                         ) : (
                           <Button
                             onClick={() =>
-                              handlePurchaseProjectReport(projectId)
+                              confirmPurchase(
+                                () => handlePurchaseProjectReport(projectId),
+                                project.project_name
+                                  ? `the report for "${project.project_name}"`
+                                  : "this project report",
+                                projectPrice,
+                              )
                             }
                             className="h-8 px-3 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[10px] uppercase tracking-widest gap-1.5 shadow-none"
                           >
                             <ShoppingCart className="size-3" />
-                            Buy Report (${projectPrice})
+                            Buy Report{projectPrice != null ? ` ($${projectPrice})` : ""}
                           </Button>
                         )}
                       </div>
@@ -1045,9 +1279,19 @@ export const ReportsView = ({
                 selected
               </span>
               <Button
-                onClick={() =>
-                  handlePurchaseMultipleProjects(selectedHomeowners)
-                }
+                onClick={() => {
+                  const totalPrice = selectedHomeowners.reduce((total, id) => {
+                    const proj = homeownerProjects.find(
+                      (p) => String(p.id ?? p.project_id ?? p._id) === id,
+                    );
+                    return total + Number(proj?.project_price ?? proj?.price ?? 0);
+                  }, 0);
+                  confirmPurchase(
+                    () => handlePurchaseMultipleProjects(selectedHomeowners),
+                    `${selectedHomeowners.length} homeowner project reports`,
+                    totalPrice,
+                  );
+                }}
                 disabled={isBulkPurchasing}
                 className="h-8 px-4 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[10px] uppercase tracking-widest gap-1.5 shadow-none"
               >
@@ -1061,7 +1305,7 @@ export const ReportsView = ({
                   const proj = homeownerProjects.find(
                     (p) => String(p.id ?? p.project_id ?? p._id) === id,
                   );
-                  return total + (proj?.project_price ?? 29);
+                  return total + Number(proj?.project_price ?? proj?.price ?? 0);
                 }, 0)}
                 )
               </Button>
@@ -1100,6 +1344,36 @@ export const ReportsView = ({
         message={
           isBulkPurchasing ? "Processing Purchase..." : "Generating Report..."
         }
+      />
+
+      <PurchaseReportConfirmDialog
+        open={showPurchaseDialog}
+        onOpenChange={setShowPurchaseDialog}
+        onConfirm={() => {
+          setShowPurchaseDialog(false);
+          pendingPurchaseAction?.();
+        }}
+        remaining={reportUsage?.remaining ?? 0}
+        baseLimit={reportUsage?.baseLimit ?? 0}
+        hasQuotaLimit={Boolean(
+          reportUsage && (reportUsage?.remaining ?? 0) === 0,
+        )}
+        isProcessing={isGenerating || isBulkPurchasing}
+        reportName={pendingPurchaseReportName}
+        price={pendingPurchasePrice}
+      />
+
+      <MembershipReportConfirmDialog
+        open={showMembershipConfirmDialog}
+        onOpenChange={setShowMembershipConfirmDialog}
+        onConfirm={() => {
+          setShowMembershipConfirmDialog(false);
+          pendingDownloadAction?.();
+        }}
+        remaining={reportUsage?.remaining ?? 0}
+        baseLimit={reportUsage?.baseLimit ?? 0}
+        isGenerating={isGenerating || isGeneratingAllContractor}
+        reportName={pendingReportName}
       />
     </div>
   );

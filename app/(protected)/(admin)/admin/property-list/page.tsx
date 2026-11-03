@@ -578,30 +578,6 @@ function PropertyListContent() {
       };
     }
 
-    if (typeof window !== "undefined") {
-      try {
-        const saved = sessionStorage.getItem("admin_property_list_state");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed && typeof parsed === "object") {
-            return {
-              level: (parsed.level as ViewLevel) || "state",
-              state: (parsed.state as StateItem | null) || null,
-              city: (parsed.city as CityItem | null) || null,
-              tab: (parsed.tab as "active" | "deleted") || "active",
-              search: typeof parsed.search === "string" ? parsed.search : "",
-              page: Math.max(1, parseInt(parsed.page || "1", 10) || 1),
-            };
-          }
-        }
-      } catch (e) {
-        console.error(
-          "Failed to parse admin property list state from sessionStorage:",
-          e,
-        );
-      }
-    }
-
     return {
       level: "state" as ViewLevel,
       state: null as StateItem | null,
@@ -669,28 +645,6 @@ function PropertyListContent() {
       search: string,
       pageNum: number,
     ) => {
-      if (typeof window !== "undefined") {
-        try {
-          if (currentLevel === "state" && !search && pageNum === 1) {
-            sessionStorage.removeItem("admin_property_list_state");
-          } else {
-            sessionStorage.setItem(
-              "admin_property_list_state",
-              JSON.stringify({
-                level: currentLevel,
-                state,
-                city,
-                tab,
-                search,
-                page: pageNum,
-              }),
-            );
-          }
-        } catch (e) {
-          console.error("Failed to save state to sessionStorage:", e);
-        }
-      }
-
       const params = new URLSearchParams();
       if (currentLevel !== "state") {
         params.set("level", currentLevel);

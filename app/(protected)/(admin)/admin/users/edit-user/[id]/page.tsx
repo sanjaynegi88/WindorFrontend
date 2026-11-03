@@ -376,7 +376,7 @@ export default function EditUserPage({
           companyAddress: formDetails?.companyAddress || "",
           company_name:
             userInfo?.company_name || formDetails?.company_name || "",
-          companyEmail: formDetails?.companyEmail || "",
+          companyEmail: formDetails?.company_email || "",
           websiteUrl: formDetails?.websiteUrl || "",
           companyPhone: formDetails?.companyPhone || "",
           licenseNumber: formDetails?.licenseNumber || "",

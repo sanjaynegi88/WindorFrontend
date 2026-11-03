@@ -24,10 +24,15 @@ import {
   validateAddress,
   searchGooglePlaces,
   getGooglePlaceDetails,
+  checkPropertyExists,
   type GooglePlacePrediction,
   type GooglePlaceDetails,
+  type GooglePlaceCity,
+  type GooglePlaceFlags,
+  type ExistingProperty,
 } from "@/lib/actions";
 import { MapDialog } from "./MapDialog";
+import { ExistingPropertyDialog } from "./ExistingPropertyDialog";
 import { toTitleCase, cn } from "@/lib/utils";
 
 export interface AddressData {
@@ -183,6 +188,7 @@ export function AddressForm({
   apiErrorMessage,
 }: AddressFormProps) {
   const user = useUser();
+  const { isHighTear } = useUser();
   const [internalErrorFields, setInternalErrorFields] = useState<string[]>(
     errorFields || [],
   );
@@ -309,7 +315,9 @@ export function AddressForm({
   const autocompleteInputRef = useRef<HTMLInputElement | null>(null);
   const dropdownContainerRef = useRef<HTMLDivElement | null>(null);
   const [searchValue, setSearchValue] = useState<string>(() => {
-    return formatFullAddress(data, states, cities);
+    return isEdit || alreadySaved
+      ? formatFullAddress(data, states, cities)
+      : "";
   });
   const [autocompleteError, setAutocompleteError] = useState<string | null>(
     null,
@@ -318,6 +326,20 @@ export function AddressForm({
     boolean | null
   >(null);
   const [address2Message, setAddress2Message] = useState<string | null>(null);
+  const [suggestedCities, setSuggestedCities] = useState<GooglePlaceCity[]>([]);
+  const [placeFlags, setPlaceFlags] = useState<GooglePlaceFlags | null>(null);
+  const [existingProperties, setExistingProperties] = useState<
+    ExistingProperty[]
+  >([]);
+  const [isExistingPropertyModalOpen, setIsExistingPropertyModalOpen] =
+    useState(false);
+  const [selectedPlaceDetails, setSelectedPlaceDetails] = useState<{
+    address: string;
+    address2?: string | null;
+    city?: string;
+    state?: string;
+    zip?: string;
+  } | null>(null);
   const isAddressLocked = Boolean(data.address);
 
   // Predictions and Loading states
@@ -348,41 +370,86 @@ export function AddressForm({
     onChangeRef.current = onChange;
   }, [onChange]);
 
-  // Sync search input if address is loaded or changes externally, or if state/city names become available
+  // Sync search input ONLY on initial mount for existing properties (isEdit or preloaded data)
+  const isInitialMountRef = useRef(true);
   useEffect(() => {
-    if (data.address) {
-      const isSearchContainingUuid = /[0-9a-f]{8}-[0-9a-f]{4}/i.test(
-        searchValue,
-      );
-      if (!searchValue || isSearchContainingUuid) {
-        const full = formatFullAddress(data, states, [
-          ...cities,
-          ...fetchedCities,
-        ]);
-        if (full) {
-          setSearchValue(full);
-        }
+    if (!isInitialMountRef.current) return;
+    isInitialMountRef.current = false;
+
+    // Only populate searchValue if editing or property was already pre-saved
+    if ((isEdit || alreadySaved) && data.address) {
+      const full = formatFullAddress(data, states, [
+        ...cities,
+        ...fetchedCities,
+      ]);
+      if (full) {
+        setSearchValue(full);
       }
     }
-  }, [
-    data.address,
-    data.address2,
-    data.city,
-    data.city_id,
-    data.city_name,
-    data.other_city,
-    data.state,
-    data.state_id,
-    data.state_name,
-    data.zip,
-    states,
-    cities,
-    fetchedCities,
-    searchValue,
-  ]);
+  }, [isEdit, alreadySaved, states, cities, fetchedCities]);
+
+  // When in edit mode, fetch cities based on state and zipcode to show city listing selection
+  useEffect(() => {
+    if (!isEdit || !data.zip) return;
+
+    let active = true;
+    const fetchEditCities = async () => {
+      try {
+        const stateVal = data.state || data.state_id;
+        const res = await getCities(
+          1,
+          100,
+          undefined,
+          undefined,
+          stateVal || undefined,
+          false,
+          false,
+          false,
+          data.zip,
+        );
+
+        const rawList: any[] = Array.isArray(res)
+          ? res
+          : (res as any)?.data || [];
+
+        const cityItems: GooglePlaceCity[] = rawList.map((c: any) => ({
+          id: String(c.id),
+          name: c.city_name || c.name,
+        }));
+
+        if (active && cityItems.length > 0) {
+          setSuggestedCities(cityItems);
+          setFetchedCities((prev) => {
+            const newOnes = cityItems
+              .filter((ci) => !prev.some((p) => p.id === ci.id))
+              .map((ci) => ({
+                id: ci.id,
+                name: ci.name,
+                state_id: stateVal || undefined,
+              }));
+            return [...prev, ...newOnes];
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load cities for edit form zipcode:", err);
+      }
+    };
+
+    fetchEditCities();
+
+    return () => {
+      active = false;
+    };
+  }, [isEdit, data.zip, data.state, data.state_id]);
 
   // Debounced search for places predictions
   useEffect(() => {
+    if (isAddressLocked) {
+      setPredictions([]);
+      setIsDropdownOpen(false);
+      return;
+    }
+
     const trimmed = searchValue.trim();
     if (!trimmed || trimmed.length < 3) {
       setPredictions([]);
@@ -407,13 +474,18 @@ export function AddressForm({
     setIsSearchingPlaces(true);
 
     const timer = setTimeout(async () => {
-      console.log("api runned");
       try {
-        const res = await searchGooglePlaces(trimmed);
+        const res = (await searchGooglePlaces(trimmed)) as any;
         if (!active) return;
-        if (res.success && res.data?.predictions) {
-          setPredictions(res.data.predictions);
-          setIsDropdownOpen(res.data.predictions.length > 0);
+        const predictionsList =
+          res?.data?.predictions ||
+          res?.predictions ||
+          (Array.isArray(res?.data) ? res.data : []) ||
+          (Array.isArray(res) ? res : []);
+
+        if (Array.isArray(predictionsList) && predictionsList.length > 0) {
+          setPredictions(predictionsList);
+          setIsDropdownOpen(true);
           setHighlightedIndex(-1);
         } else {
           setPredictions([]);
@@ -488,6 +560,101 @@ export function AddressForm({
     }
   };
 
+  const handleCitySelection = async (cityId: string, cityName: string) => {
+    clearFieldError("city");
+    const currentData = dataRef.current || data;
+    const addressToUse =
+      currentData.address || selectedPlaceDetails?.address || "";
+    const address2ToUse =
+      currentData.address2 || selectedPlaceDetails?.address2 || null;
+    const zipToUse = currentData.zip || selectedPlaceDetails?.zip || "";
+    const resolvedStateId = currentData.state_id || currentData.state || null;
+    const resolvedStateName =
+      currentData.state_name ||
+      selectedPlaceDetails?.state ||
+      states.find((s) => String(s.id) === String(resolvedStateId))?.name ||
+      null;
+
+    onChange({
+      ...currentData,
+      city_id: cityId,
+      city: cityName,
+      city_name: cityName,
+      other_city: "",
+    });
+
+    setSelectedPlaceDetails((prev) =>
+      prev
+        ? { ...prev, city: cityName }
+        : {
+            address: addressToUse,
+            address2: address2ToUse,
+            city: cityName,
+            state: resolvedStateName || "",
+            zip: zipToUse,
+          },
+    );
+
+    if (addressToUse) {
+      try {
+        const checkRes = await checkPropertyExists({
+          address: addressToUse,
+          address2: address2ToUse,
+          city_id: cityId || null,
+          state_id: resolvedStateId,
+          zip: zipToUse,
+        });
+
+        if (checkRes.success && checkRes.data) {
+          const rawData = checkRes.data as any;
+          const toBool = (val: any) =>
+            val === true || val === "true" || val === 1 || val === "1";
+
+          const flags: GooglePlaceFlags = rawData.flags ||
+            rawData.data?.flags || {
+              already_exists: toBool(
+                rawData.already_exists ?? rawData.data?.already_exists,
+              ),
+              is_different_city: toBool(
+                rawData.is_different_city ?? rawData.data?.is_different_city,
+              ),
+            };
+          const existingProps: ExistingProperty[] =
+            rawData.existing_properties ||
+            rawData.data?.existing_properties ||
+            [];
+
+          // Update placeFlags with the latest values from check API
+          setPlaceFlags(flags);
+          setExistingProperties(existingProps);
+
+          const returnedCities = rawData.cities || rawData.data?.cities;
+          if (Array.isArray(returnedCities) && returnedCities.length > 0) {
+            setSuggestedCities(
+              returnedCities.map((c: any) => ({
+                id: String(c.id),
+                name: c.name || c.city_name,
+              })),
+            );
+          }
+
+          const shouldOpen =
+            toBool(flags.already_exists) ||
+            toBool(flags.is_different_city) ||
+            existingProps.length > 0;
+
+          if (shouldOpen) {
+            setIsExistingPropertyModalOpen(true);
+          } else {
+            setIsExistingPropertyModalOpen(false);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check existing property on city change:", err);
+      }
+    }
+  };
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setSearchValue(val);
@@ -499,9 +666,10 @@ export function AddressForm({
 
   const handleSelectPrediction = async (prediction: GooglePlacePrediction) => {
     try {
+      setPredictions([]);
+      setIsDropdownOpen(false);
       setIsLoadingPlaceDetails(true);
       setAutocompleteError(null);
-      setIsDropdownOpen(false);
 
       const res = await getGooglePlaceDetails(prediction.place_id);
       if (!res.success || !res.data) {
@@ -553,7 +721,10 @@ export function AddressForm({
         return;
       }
 
-      if (!googleCityName) {
+      const hasSuggestedCities =
+        Array.isArray(details.cities) && details.cities.length > 0;
+
+      if (!googleCityName && !hasSuggestedCities) {
         const msg =
           "Could not determine the city for the selected address. Please select a valid property address.";
         setAutocompleteError(msg);
@@ -610,64 +781,103 @@ export function AddressForm({
       let resolvedCityName = googleCityName;
       let resolvedOtherCity = "";
 
-      const matchedCityFromProps = citiesRef.current?.find(
-        (c) =>
-          Boolean(c?.name) &&
-          c.name.trim().toLowerCase() === googleCityName.trim().toLowerCase() &&
-          (!c.state_id || c.state_id === resolvedStateId),
-      );
+      if (hasSuggestedCities) {
+        setSuggestedCities(details.cities!);
+        setPlaceFlags(details.flags || null);
+        setExistingProperties(details.existing_properties || []);
 
-      if (matchedCityFromProps) {
-        resolvedCityId = matchedCityFromProps.id;
-        resolvedCityName = matchedCityFromProps.name;
-      } else {
-        try {
-          const apiRes = await getCities(
-            1,
-            20,
-            undefined,
-            googleCityName,
-            resolvedStateId,
-          );
-          const rawList: any[] = Array.isArray(apiRes)
-            ? apiRes
-            : (apiRes as any)?.data || [];
-          const matchedCityFromApi = rawList.find(
-            (c: any) =>
-              (c.city_name || c.name || "").trim().toLowerCase() ===
-              googleCityName.trim().toLowerCase(),
-          );
+        setFetchedCities((prev) => {
+          const newCities = details
+            .cities!.filter((c) => !prev.some((p) => p.id === String(c.id)))
+            .map((c) => ({
+              id: String(c.id),
+              name: c.name,
+              state_id: resolvedStateId,
+            }));
+          return [...prev, ...newCities];
+        });
 
-          if (matchedCityFromApi) {
-            resolvedCityId = String(matchedCityFromApi.id);
-            resolvedCityName =
-              matchedCityFromApi.city_name || matchedCityFromApi.name;
-          } else {
-            // Not found in database -> use other_city fallback
-            resolvedCityId = "";
-            resolvedCityName = googleCityName;
-            resolvedOtherCity = googleCityName;
-          }
-        } catch (err) {
-          console.error("Failed to query city from API:", err);
+        // Set city by default matching details.city from Google Place response
+        const matchedSuggestedCity =
+          details.cities!.find(
+            (c) =>
+              c.name.trim().toLowerCase() === googleCityName.toLowerCase(),
+          ) || details.cities![0];
+
+        if (matchedSuggestedCity) {
+          resolvedCityId = String(matchedSuggestedCity.id);
+          resolvedCityName = matchedSuggestedCity.name;
+          resolvedOtherCity = "";
+        } else {
           resolvedCityId = "";
           resolvedCityName = googleCityName;
           resolvedOtherCity = googleCityName;
         }
-      }
+      } else {
+        setSuggestedCities([]);
+        setPlaceFlags(details.flags || null);
+        setExistingProperties(details.existing_properties || []);
 
-      if (resolvedCityId && resolvedCityName) {
-        setFetchedCities((prev) => {
-          if (prev.some((c) => c.id === resolvedCityId)) return prev;
-          return [
-            ...prev,
-            {
-              id: resolvedCityId,
-              name: resolvedCityName,
-              state_id: resolvedStateId,
-            },
-          ];
-        });
+        const matchedCityFromProps = citiesRef.current?.find(
+          (c) =>
+            Boolean(c?.name) &&
+            c.name.trim().toLowerCase() ===
+              googleCityName.trim().toLowerCase() &&
+            (!c.state_id || c.state_id === resolvedStateId),
+        );
+
+        if (matchedCityFromProps) {
+          resolvedCityId = matchedCityFromProps.id;
+          resolvedCityName = matchedCityFromProps.name;
+        } else {
+          try {
+            const apiRes = await getCities(
+              1,
+              20,
+              undefined,
+              googleCityName,
+              resolvedStateId,
+            );
+            const rawList: any[] = Array.isArray(apiRes)
+              ? apiRes
+              : (apiRes as any)?.data || [];
+            const matchedCityFromApi = rawList.find(
+              (c: any) =>
+                (c.city_name || c.name || "").trim().toLowerCase() ===
+                googleCityName.trim().toLowerCase(),
+            );
+
+            if (matchedCityFromApi) {
+              resolvedCityId = String(matchedCityFromApi.id);
+              resolvedCityName =
+                matchedCityFromApi.city_name || matchedCityFromApi.name;
+            } else {
+              // Not found in database -> use other_city fallback
+              resolvedCityId = "";
+              resolvedCityName = googleCityName;
+              resolvedOtherCity = googleCityName;
+            }
+          } catch (err) {
+            console.error("Failed to query city from API:", err);
+            resolvedCityId = "";
+            resolvedCityName = googleCityName;
+            resolvedOtherCity = googleCityName;
+          }
+        }
+
+        if (resolvedCityId && resolvedCityName) {
+          setFetchedCities((prev) => {
+            if (prev.some((c) => c.id === resolvedCityId)) return prev;
+            return [
+              ...prev,
+              {
+                id: resolvedCityId,
+                name: resolvedCityName,
+                state_id: resolvedStateId,
+              },
+            ];
+          });
+        }
       }
 
       const finalAddress2 = (details.address2 || "").trim();
@@ -707,6 +917,23 @@ export function AddressForm({
         latitude: finalLat,
         longitude: finalLng,
       });
+
+      setSelectedPlaceDetails({
+        address: streetAddress,
+        address2: finalAddress2 || null,
+        city: details.city || resolvedCityName || "",
+        state: matchedState.name || stateLong || stateShort,
+        zip: postalCode,
+      });
+
+      if (
+        details.flags?.already_exists ||
+        details.flags?.is_different_city ||
+        (Array.isArray(details.existing_properties) &&
+          details.existing_properties.length > 0)
+      ) {
+        setIsExistingPropertyModalOpen(true);
+      }
     } catch (err: any) {
       console.error("Error processing selected place:", err);
       const msg =
@@ -808,6 +1035,10 @@ export function AddressForm({
           undefined,
           citySearch || undefined,
           data.state || undefined,
+          false,
+          false,
+          false,
+          isEdit ? data.zip : undefined,
         );
         const rawCities = Array.isArray(citiesData)
           ? citiesData
@@ -1045,7 +1276,7 @@ export function AddressForm({
         </div>
 
         {/* Google Places Address Autocomplete Search */}
-        <div className="space-y-1 pb-10 relative">
+        <div className="space-y-1 relative">
           <label
             htmlFor="google-address-search"
             className="text-[13px] md:text-[15px] font-semibold text-[#1F2A44] flex items-center justify-between"
@@ -1128,10 +1359,10 @@ export function AddressForm({
           </div>
 
           {/* Autocomplete Predictions Dropdown */}
-          {isDropdownOpen && predictions.length > 0 && (
+          {isDropdownOpen && predictions.length > 0 && !isAddressLocked && (
             <div
               ref={dropdownContainerRef}
-              className="absolute z-50 left-0 right-0 top-[calc(100%-32px)] bg-white rounded-[8px] md:rounded-[10px] border border-[rgba(28,167,166,0.3)] shadow-xl max-h-[300px] md:max-h-[380px] overflow-y-auto divide-y divide-slate-100"
+              className="absolute z-50 left-0 right-0 top-[calc(100%+6px)] bg-white rounded-[8px] md:rounded-[10px] border border-[rgba(28,167,166,0.3)] shadow-xl max-h-[300px] md:max-h-[380px] overflow-y-auto divide-y divide-slate-100"
             >
               {predictions.map((p, idx) => {
                 const isSelected = idx === highlightedIndex;
@@ -1186,6 +1417,78 @@ export function AddressForm({
           )}
         </div>
 
+        {/* Suggested Cities Bullet Selection */}
+        {suggestedCities.length > 0 && (
+          <div className="space-y-1.5 animate-in fade-in duration-300">
+            <label className="text-[13px] md:text-[15px] font-semibold text-[#1F2A44] flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <MapPin className="size-4 text-[#1CA7A6]" />
+                {data.zip
+                  ? `The inputted ZIP code (${data.zip}) is in these cities:`
+                  : "The selected address ZIP code is in these cities:"}
+                <span className="text-red-500">*</span>
+              </span>
+              {data.city && (
+                <span className="text-[11px] md:text-[12px] font-medium text-[#1CA7A6] bg-[#1CA7A6]/10 px-2 py-0.5 rounded-full">
+                  Selected: {toTitleCase(data.city)}
+                </span>
+              )}
+            </label>
+            <div
+              className={cn(
+                "px-[16px] md:px-[24px] py-2.5 bg-white rounded-[6px] md:rounded-[10px] border transition-colors flex flex-wrap gap-x-6 gap-y-2 items-center min-h-[46px] md:min-h-[60px]",
+                hasFieldError("city")
+                  ? "!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10"
+                  : "border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)]",
+              )}
+            >
+              {suggestedCities.map((c) => {
+                const isSelected =
+                  data.city_id === String(c.id) ||
+                  (Boolean(data.city) &&
+                    data.city.trim().toLowerCase() ===
+                      c.name.trim().toLowerCase());
+                return (
+                  <button
+                    type="button"
+                    key={c.id}
+                    onClick={() => {
+                      handleCitySelection(String(c.id), c.name);
+                    }}
+                    className="flex items-center gap-2.5 cursor-pointer group select-none py-1 bg-transparent border-0 text-left p-0"
+                  >
+                    <div
+                      className={cn(
+                        "size-[18px] md:size-[22px] rounded-full border border-[rgba(112,128,144,0.4333)] md:border-[rgba(112,128,144,0.3)] flex items-center justify-center transition-all bg-white group-hover:border-[#1CA7A6]",
+                        isSelected && "border-[#1CA7A6]",
+                      )}
+                    >
+                      {isSelected && (
+                        <div className="size-[10px] md:size-[12px] rounded-full bg-[#1CA7A6]" />
+                      )}
+                    </div>
+                    <span
+                      className={cn(
+                        "text-[14px] md:text-[18px] font-medium font-asap transition-colors",
+                        isSelected
+                          ? "text-[#1CA7A6] font-semibold"
+                          : "text-[#1F2A44] group-hover:text-[#1CA7A6]",
+                      )}
+                    >
+                      {toTitleCase(c.name)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {hasFieldError("city") && (
+              <p className="text-[12px] md:text-[14px] text-red-500 font-medium font-asap mt-1 ml-1">
+                Please select a valid city
+              </p>
+            )}
+          </div>
+        )}
+
         <label
           htmlFor="google-address-search"
           className="text-[13px] md:text-[15px] font-semibold text-[#1F2A44] flex items-center justify-between"
@@ -1200,20 +1503,20 @@ export function AddressForm({
         <div className="space-y-1">
           <Input
             placeholder={
-              isAddressLocked
+              isAddressLocked && !isHighTear
                 ? "Address 1"
                 : "Address 1 (Search and select address above)"
             }
             required
-            readOnly={isAddressLocked}
-            tabIndex={isAddressLocked ? -1 : undefined}
+            readOnly={isAddressLocked && !isHighTear}
+            tabIndex={isAddressLocked && !isHighTear ? -1 : undefined}
             title={
-              isAddressLocked
+              isAddressLocked && !isHighTear
                 ? "Address is populated from Google Places search. Use search above to change."
                 : undefined
             }
             onClick={() => {
-              if (!data.address) {
+              if (!isHighTear && !data.address) {
                 autocompleteInputRef.current?.focus();
               }
             }}
@@ -1223,12 +1526,13 @@ export function AddressForm({
                 ? "!border-red-500 md:!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900 border"
                 : "border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)]",
               isAddressLocked &&
+                !isHighTear &&
                 "!bg-slate-50/80 !text-slate-700 !border-slate-200 !cursor-not-allowed select-none",
             )}
             value={data.address}
             aria-invalid={hasFieldError("address") ? "true" : undefined}
             onChange={(e) => {
-              if (isAddressLocked) return;
+              if (isAddressLocked && !isHighTear) return;
               clearFieldError("address");
               onChange({ ...data, address: e.target.value });
             }}
@@ -1244,13 +1548,13 @@ export function AddressForm({
         <div className="space-y-1">
           <Input
             placeholder={
-              isAddress2Supported === false
+              isAddress2Supported === false && !isHighTear
                 ? "Address 2 not required for this property"
                 : "Address 2 (e.g., Apt, Suite, Unit - optional)"
             }
-            disabled={isAddress2Supported === false}
+            disabled={isAddress2Supported === false && !isHighTear}
             title={
-              isAddress2Supported === false
+              isAddress2Supported === false && !isHighTear
                 ? "Address 2 is not supported for this property address."
                 : undefined
             }
@@ -1259,16 +1563,20 @@ export function AddressForm({
               hasFieldError("address2") && isAddress2Supported !== false
                 ? "!border-red-500 md:!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900 border"
                 : "border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)]",
-              isAddress2Supported === false && "hidden",
+              isAddress2Supported === false && !isHighTear && "hidden",
             )}
-            value={isAddress2Supported === false ? "" : data.address2 || ""}
+            value={
+              isAddress2Supported === false && !isHighTear
+                ? ""
+                : data.address2 || ""
+            }
             aria-invalid={
               hasFieldError("address2") && isAddress2Supported !== false
                 ? "true"
                 : undefined
             }
             onChange={(e) => {
-              if (isAddress2Supported === false) return;
+              if (isAddress2Supported === false && !isHighTear) return;
               clearFieldError("address2");
               setAddress2Message(null);
               onChange({ ...data, address2: e.target.value });
@@ -1279,7 +1587,7 @@ export function AddressForm({
               {address2Message || "Please provide a valid address line 2"}
             </p>
           )}
-          {isAddress2Supported === false && (
+          {isAddress2Supported === false && !isHighTear && (
             <p className="text-[12px] md:text-[13px] text-slate-400 font-normal font-asap mt-1 ml-1">
               Address 2 is not required for this property address.
             </p>
@@ -1295,17 +1603,19 @@ export function AddressForm({
               displayValueFallback={data.state_name}
               placeholder="State"
               searchPlaceholder="Search state..."
-              disabled={isAddressLocked}
+              disabled={isAddressLocked && !isHighTear}
               triggerClassName={cn(
                 triggerClass,
                 isAddressLocked &&
+                  !isHighTear &&
                   "!bg-slate-50/80 !text-slate-700 !border-slate-200 !cursor-not-allowed opacity-90",
               )}
               isError={hasFieldError("state")}
               onValueChange={(val) => {
-                if (isAddressLocked) return;
+                if (isAddressLocked && !isHighTear) return;
                 clearFieldError("state");
                 setCitySearch("");
+                setSuggestedCities([]);
                 setFetchedCities([]);
                 onChange({
                   ...data,
@@ -1334,37 +1644,25 @@ export function AddressForm({
                   : data.city_id || ""
               }
               displayValueFallback={data.city}
-              disabled={isAddressLocked}
+              disabled={isAddressLocked && !isHighTear && !isEdit}
               triggerClassName={cn(
                 triggerClass,
                 isAddressLocked &&
+                  !isHighTear &&
+                  !isEdit &&
                   "!bg-slate-50/80 !text-slate-700 !border-slate-200 !cursor-not-allowed opacity-90",
               )}
               isError={hasFieldError("city")}
               onValueChange={(val) => {
-                if (isAddressLocked) return;
-                clearFieldError("city");
+                if (isAddressLocked && !isHighTear && !isEdit) return;
                 if (val.startsWith("__custom__:")) {
                   const customName = val.slice("__custom__:".length);
-                  onChange({
-                    ...data,
-                    city_id: "",
-                    other_city: customName,
-                    city: customName,
-                    state_id: data.state || "",
-                  });
+                  handleCitySelection("", customName);
                 } else {
                   const selectedCity =
                     cities.find((c) => c.id === val) ||
                     fetchedCities.find((c) => c.id === val);
-                  onChange({
-                    ...data,
-                    city_id: val,
-                    other_city: "",
-                    city: selectedCity?.name || "",
-                    state: selectedCity?.state_id || data.state || "",
-                    state_id: selectedCity?.state_id || data.state || "",
-                  });
+                  handleCitySelection(val, selectedCity?.name || "");
                 }
               }}
               placeholder="City"
@@ -1395,19 +1693,21 @@ export function AddressForm({
         <div className="space-y-1">
           <Input
             placeholder={
-              isAddressLocked ? "Zip Code" : "Zip Code (Auto-populated)"
+              isAddressLocked && !isHighTear
+                ? "Zip Code"
+                : "Zip Code (Auto-populated)"
             }
             required
             inputMode="numeric"
-            readOnly={isAddressLocked}
-            tabIndex={isAddressLocked ? -1 : undefined}
+            readOnly={isAddressLocked && !isHighTear}
+            tabIndex={isAddressLocked && !isHighTear ? -1 : undefined}
             title={
-              isAddressLocked
+              isAddressLocked && !isHighTear
                 ? "Zip Code is populated from Google Places search. Use search above to change."
                 : undefined
             }
             onClick={() => {
-              if (!data.address) {
+              if (!isHighTear && !data.address) {
                 autocompleteInputRef.current?.focus();
               }
             }}
@@ -1417,12 +1717,13 @@ export function AddressForm({
                 ? "!border-red-500 md:!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900 border"
                 : "border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)]",
               isAddressLocked &&
+                !isHighTear &&
                 "!bg-slate-50/80 !text-slate-700 !border-slate-200 !cursor-not-allowed select-none",
             )}
             value={data.zip}
             aria-invalid={hasFieldError("zip") ? "true" : undefined}
             onChange={(e) => {
-              if (isAddressLocked) return;
+              if (isAddressLocked && !isHighTear) return;
               clearFieldError("zip");
               const val = e.target.value;
               onChange({ ...data, zip: val });
@@ -1578,6 +1879,20 @@ export function AddressForm({
           onChange({ ...data, latitude: lat, longitude: lng })
         }
       />
+
+      <ExistingPropertyDialog
+        open={isExistingPropertyModalOpen}
+        flags={placeFlags}
+        existingProperties={existingProperties}
+        selectedProperty={selectedPlaceDetails}
+        isEdit={isEdit}
+        onCancel={() => {
+          setIsExistingPropertyModalOpen(false);
+        }}
+        onKeep={() => {
+          setIsExistingPropertyModalOpen(false);
+        }}
+      />
     </div>
   );
 }
@@ -1585,13 +1900,13 @@ export function AddressForm({
 {
   /* <Input
             placeholder={
-              isAddress2Supported === false
+              isAddress2Supported === false && !isHighTear
                 ? "Address 2 not required for this property"
                 : "Address 2 (e.g., Apt, Suite, Unit - optional)"
             }
             disabled={isAddress2Supported === false}
             title={
-              isAddress2Supported === false
+              isAddress2Supported === false && !isHighTear
                 ? "Address 2 is not supported for this property address."
                 : undefined
             }
@@ -1603,14 +1918,14 @@ export function AddressForm({
               isAddress2Supported === false &&
                 "!bg-slate-100 !text-slate-400 !border-slate-200 !cursor-not-allowed select-none",
             )}
-            value={isAddress2Supported === false ? "" : data.address2 || ""}
+            value={isAddress2Supported === false && !isHighTear ? "" : data.address2 || ""}
             aria-invalid={
               hasFieldError("address2") && isAddress2Supported !== false
                 ? "true"
                 : undefined
             }
             onChange={(e) => {
-              if (isAddress2Supported === false) return;
+              if (isAddress2Supported === false && !isHighTear) return;
               clearFieldError("address2");
               setAddress2Message(null);
               onChange({ ...data, address2: e.target.value });
@@ -1621,7 +1936,7 @@ export function AddressForm({
               {address2Message || "Please provide a valid address line 2"}
             </p>
           )}
-          {isAddress2Supported === false && (
+          {isAddress2Supported === false && !isHighTear && (
             <p className="text-[12px] md:text-[13px] text-slate-400 font-normal font-asap mt-1 ml-1">
               Address 2 is not required for this property address.
             </p>

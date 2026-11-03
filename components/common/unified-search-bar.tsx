@@ -67,9 +67,15 @@ export function UnifiedSearchBar({
   const role = user?.role?.toLowerCase() || "";
   const isContractor = role === "contractor";
   const isCityInspector = role === "city_inspector";
-  const [searchBy, setSearchBy] = useState<SearchScope>(initialFilters?.searchBy || "all");
-  const [state, setState] = useState(initialFilters?.state_id || initialFilters?.state || "all");
-  const [city, setCity] = useState(initialFilters?.city_id || initialFilters?.city || "all");
+  const [searchBy, setSearchBy] = useState<SearchScope>(
+    initialFilters?.searchBy || "all",
+  );
+  const [state, setState] = useState(
+    initialFilters?.state_id || initialFilters?.state || "all",
+  );
+  const [city, setCity] = useState(
+    initialFilters?.city_id || initialFilters?.city || "all",
+  );
 
   const [openState, setOpenState] = useState(false);
   const [openCity, setOpenCity] = useState(false);
@@ -108,7 +114,8 @@ export function UnifiedSearchBar({
 
   const handlePointerDownState = () => {
     isPointerStateRef.current = true;
-    if (pointerStateTimerRef.current) clearTimeout(pointerStateTimerRef.current);
+    if (pointerStateTimerRef.current)
+      clearTimeout(pointerStateTimerRef.current);
     pointerStateTimerRef.current = setTimeout(() => {
       isPointerStateRef.current = false;
     }, 300);
@@ -170,13 +177,20 @@ export function UnifiedSearchBar({
 
   useEffect(() => {
     if (initialFilters) {
-      if (initialFilters.search !== undefined && initialFilters.search !== search) {
+      if (
+        initialFilters.search !== undefined &&
+        initialFilters.search !== search
+      ) {
         setSearch(initialFilters.search);
       }
-      if (initialFilters.searchBy !== undefined && initialFilters.searchBy !== searchBy) {
+      if (
+        initialFilters.searchBy !== undefined &&
+        initialFilters.searchBy !== searchBy
+      ) {
         setSearchBy(initialFilters.searchBy);
       }
-      const targetState = initialFilters.state_id || initialFilters.state || "all";
+      const targetState =
+        initialFilters.state_id || initialFilters.state || "all";
       if (targetState !== state) {
         setState(targetState);
       }
@@ -222,7 +236,9 @@ export function UnifiedSearchBar({
           undefined,
           stateId,
         );
-        const fetchedCities = Array.isArray(citiesRes) ? citiesRes : citiesRes?.data || [];
+        const fetchedCities = Array.isArray(citiesRes)
+          ? citiesRes
+          : citiesRes?.data || [];
         if (!active) return;
         setCities(fetchedCities);
         setCity((prevCity) => {
@@ -385,7 +401,9 @@ export function UnifiedSearchBar({
                   ) : (
                     <>
                       <CommandEmpty className="py-2 text-center text-xs text-muted-foreground font-asap">
-                        {states.length === 0 ? "0 states available" : "No state found."}
+                        {states.length === 0
+                          ? "0 states available"
+                          : "No state found."}
                       </CommandEmpty>
                       <CommandGroup>
                         <CommandItem
@@ -475,7 +493,9 @@ export function UnifiedSearchBar({
                   ) : (
                     <>
                       <CommandEmpty className="py-2 text-center text-xs text-muted-foreground font-asap">
-                        {cities.length === 0 ? "0 cities available" : "No city found."}
+                        {cities.length === 0
+                          ? "0 cities available"
+                          : "No city found."}
                       </CommandEmpty>
                       <CommandGroup>
                         <CommandItem
@@ -497,7 +517,8 @@ export function UnifiedSearchBar({
                         </CommandItem>
                         {displayedCities.map((c: any) => {
                           const name = c.city_name || c.name || "";
-                          const cityStateId = c.state_id || c.state?.id || c.state_id;
+                          const cityStateId =
+                            c.state_id || c.state?.id || c.state_id;
                           return (
                             <CommandItem
                               key={c.id}
@@ -585,15 +606,16 @@ export function UnifiedSearchBar({
         </div>
       </div>
       <div className="space-y-1">
-      {showSearchButton && (
-        <Button
-          disabled={isSearchDisabled}
-          onClick={handleSearchClick}
-          className="h-[52px] md:h-[77px] w-full bg-[#1CA7A6] hover:bg-[#1d8e82] text-white font-bold text-[20px] md:text-[30px] leading-[23px] md:leading-[34px] rounded-[10px] transition-all shadow-none font-asap disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#1CA7A6]"
-        >
-          Search
-        </Button>
-      )}
+        {showSearchButton && (
+          <Button
+            disabled={isSearchDisabled}
+            onClick={handleSearchClick}
+            className="h-[52px] md:h-[77px] w-full bg-[#1CA7A6] hover:bg-[#1d8e82] text-white font-bold text-[20px] md:text-[30px] leading-[23px] md:leading-[34px] rounded-[10px] transition-all shadow-none font-asap disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#1CA7A6]"
+          >
+            Search
+          </Button>
+        )}
+
         <span className="text-sm font-normal text-red-500">
           NOTE: When SEARCHING do NOT use abbreviations like NW, LN, DR; it
           should be NorthWest, Lane, Drive, etc.

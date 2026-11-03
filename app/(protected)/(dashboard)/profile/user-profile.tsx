@@ -419,6 +419,7 @@ export default function UserProfile() {
     (role === "contractor" ||
       role === "manufacturer" ||
       role === "insurance_company") &&
+    hasActiveMembership &&
     !isSubAccount;
 
   const handleAddContractorProfile = () => {
@@ -535,7 +536,7 @@ export default function UserProfile() {
         ...data,
         company_name: updatedCompany,
         companyEmail:
-          data.form_details?.companyEmail ?? data.companyEmail ?? null,
+          data.form_details?.company_email ?? data.company_email ?? null,
         companyAddress: data.form_details?.companyAddress ?? null,
         websiteUrl: data.form_details?.websiteUrl ?? null,
         licenseNumber: data.form_details?.licenseNumber ?? null,
@@ -595,7 +596,7 @@ export default function UserProfile() {
         company_name:
           data.company_name || data.form_details?.company_name || "",
         companyEmail:
-          data.form_details?.companyEmail || data.companyEmail || "",
+          data.form_details?.company_email || data.company_email || "",
         companyAddress: data.form_details?.companyAddress || "",
         websiteUrl: data.form_details?.websiteUrl || "",
         licenseNumber: data.form_details?.licenseNumber || "",

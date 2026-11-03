@@ -120,7 +120,7 @@ export default function AddedPropertiesPage() {
 
           return {
             id: item.id,
-            propertyName: item.property_name || "Unnamed Property",
+            propertyName: item.address,
             address: item.address || "N/A",
             cityStateZip: location,
             contractorName: fullName,

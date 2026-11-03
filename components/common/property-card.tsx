@@ -12,6 +12,8 @@ import {
   MapPin,
   FileUp,
   ClipboardCheck,
+  MapPinPen,
+  Pencil,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -68,6 +70,7 @@ interface PropertyCardProps {
   onOpenInMap?: (lat: number, lng: number, id: string) => void;
   onDelete?: (id: string) => void;
   onQuotaExhausted?: () => void;
+  showEditIcon?: boolean;
 }
 
 export function PropertyCard({
@@ -91,6 +94,7 @@ export function PropertyCard({
   onOpenInMap,
   onDelete,
   onQuotaExhausted,
+  showEditIcon,
 }: PropertyCardProps) {
   const { user, role } = useUser();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -181,6 +185,11 @@ export function PropertyCard({
       const url = await generatePdfReport(propertyId, undefined, user?.role);
       await downloadPdfFromUrl(url, `property-report-${propertyId}.pdf`);
       toast.success("Report downloaded successfully");
+    } catch (error: any) {
+      console.error("Download report error:", error);
+      toast.error(error.message || "Failed to download report");
+    } finally {
+      setIsGenerating(false);
       setPurchased(true);
 
       if (
@@ -195,11 +204,6 @@ export function PropertyCard({
           onQuotaExhausted?.();
         }
       }
-    } catch (error: any) {
-      console.error("Download report error:", error);
-      toast.error(error.message || "Failed to download report");
-    } finally {
-      setIsGenerating(false);
     }
   };
 
@@ -242,7 +246,11 @@ export function PropertyCard({
         onDelete(id);
       }
       router.refresh();
-
+    } catch (error: any) {
+      console.error("Delete property error:", error);
+      toast.error(error.message || "Failed to delete property");
+    } finally {
+      setIsGenerating(false);
       if (
         user?.role === "insurance_company" ||
         user?.role === "realtor" ||
@@ -252,11 +260,6 @@ export function PropertyCard({
       ) {
         await fetchReportUsage();
       }
-    } catch (error: any) {
-      console.error("Delete property error:", error);
-      toast.error(error.message || "Failed to delete property");
-    } finally {
-      setIsGenerating(false);
     }
   };
 
@@ -316,6 +319,17 @@ export function PropertyCard({
                       </Link>
                     </DropdownMenuItem>
                   </>
+                )}
+                {isAdmin && showEditIcon && (
+                  <DropdownMenuItem
+                    onClick={() =>
+                      router.push(`/properties/edit/${propertyId}?mode=address`)
+                    }
+                    className="gap-2 cursor-pointer py-2"
+                  >
+                    <Pencil className="size-3.5" />
+                    <span className="text-xs font-bold">Edit Property</span>
+                  </DropdownMenuItem>
                 )}
                 {isAdmin && (
                   <DropdownMenuItem
@@ -442,6 +456,19 @@ export function PropertyCard({
               </Link>
             </div>
             <div className="flex items-center gap-4">
+              {isContractor && showEditIcon && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/properties/edit/${propertyId}?mode=address`);
+                  }}
+                  className="flex items-center gap-2 cursor-pointer text-[#1CA7A6] hover:opacity-80 transition-opacity"
+                  title="Edit Property"
+                >
+                  <Pencil className="size-5 text-[#1CA7A6]" />
+                </button>
+              )}
               {(isOwnerOfProperty || isContractor) &&
                 hasReport &&
                 showActionButtons && (

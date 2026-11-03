@@ -17,7 +17,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { generatePdfReport, purchaseReport, getReportUsage } from "@/lib/actions";
+import {
+  generatePdfReport,
+  purchaseReport,
+  getReportUsage,
+} from "@/lib/actions";
 import { toast } from "sonner";
 import { useUser } from "@/components/providers/user-provider";
 import { PdfGenerationLoader } from "./pdf-generation-loader";
@@ -117,8 +121,12 @@ function PropertyRow({
       const url = await generatePdfReport(propertyId, undefined, user?.role);
       await downloadPdfFromUrl(url, `property-report-${propertyId}.pdf`);
       toast.success("Report downloaded successfully");
+    } catch (error: any) {
+      console.error("Download report error:", error);
+      toast.error(error.message || "Failed to download report");
+    } finally {
+      setIsGenerating(false);
       setPurchased(true);
-
       if (
         user?.role === "insurance_company" ||
         user?.role === "realtor" ||
@@ -131,11 +139,6 @@ function PropertyRow({
           onQuotaExhausted?.();
         }
       }
-    } catch (error: any) {
-      console.error("Download report error:", error);
-      toast.error(error.message || "Failed to download report");
-    } finally {
-      setIsGenerating(false);
     }
   };
 
@@ -168,12 +171,12 @@ function PropertyRow({
   const hasLimitAccess = Boolean(reportUsage && reportUsage.remaining > 0);
 
   const showBuyOption =
-    ((role === "contractor" ||
+    (role === "contractor" ||
       role === "manufacturer" ||
       role === "realtor" ||
       role === "insurance_company") &&
-      !purchased &&
-      !hasLimitAccess);
+    !purchased &&
+    !hasLimitAccess;
 
   const showGenerateOption =
     role === "property_owner" ||
@@ -211,12 +214,13 @@ function PropertyRow({
           </h3>
           <p className="flex items-center gap-1 text-xs md:text-sm font-bold text-gray-400 mt-0.5">
             <MapPin className="size-3 shrink-0" />
-            {city}{city && state ? ", " : ""}{state} {zip}
+            {city}
+            {city && state ? ", " : ""}
+            {state} {zip}
           </p>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-
           {showGenerateOption && (
             <Button
               size="sm"
@@ -249,7 +253,10 @@ function PropertyRow({
         </div>
       </div>
 
-      <AlertDialog open={showPurchaseDialog} onOpenChange={setShowPurchaseDialog}>
+      <AlertDialog
+        open={showPurchaseDialog}
+        onOpenChange={setShowPurchaseDialog}
+      >
         <AlertDialogContent className="sm:max-w-[425px] rounded-[20px] border-none shadow-[0px_4px_34px_rgba(31,42,68,0.1)]">
           <AlertDialogHeader className="space-y-3">
             <AlertDialogTitle className="text-xl md:text-2xl font-black text-[#1F2A44] uppercase tracking-tight font-asap">
@@ -275,7 +282,10 @@ function PropertyRow({
         </AlertDialogContent>
       </AlertDialog>
 
-      <PdfGenerationLoader isOpen={isGenerating} message="Generating Report..." />
+      <PdfGenerationLoader
+        isOpen={isGenerating}
+        message="Generating Report..."
+      />
     </>
   );
 }
@@ -308,7 +318,7 @@ export function PropertyList({ searchParams, isPurchased }: PropertyListProps) {
 
       const newData = Array.isArray(response?.data)
         ? response.data
-        : (response?.data?.data || []);
+        : response?.data?.data || [];
       if (append) {
         setProperties((prev) => [...prev, ...newData]);
       } else {

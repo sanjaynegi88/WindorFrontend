@@ -616,6 +616,8 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
         const propertyName =
           propertyData?.property_name || addressData.property_name;
 
+        const propertyStatus = propertyData?.status || "APPROVED";
+
         const msg =
           nextStep === "DRAFT"
             ? "Draft saved successfully!"
@@ -627,7 +629,7 @@ function NewPropertyForm({ initialStep }: PropertyAddProps) {
           if (user.role === "admin") {
             router.push("/dashboard");
           } else {
-            router.push("/added-properties?status=APPROVED");
+            router.push(`/added-properties?status=${propertyStatus}`);
           }
           return;
         }

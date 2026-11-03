@@ -1,3645 +1,4725 @@
-'use server';
+"use server";
 
 // Server actions for property and installation management
 
-import { cookies } from 'next/headers';
-import { loginSchema, registerSchema, forgotPasswordSchema, verifyOtpSchema, resetPasswordSchema } from '@/lib/validations/auth';
+import { cookies } from "next/headers";
+import {
+  loginSchema,
+  registerSchema,
+  forgotPasswordSchema,
+  verifyOtpSchema,
+  resetPasswordSchema,
+} from "@/lib/validations/auth";
 
 /**
  * Converts a component type string to its API endpoint segment by replacing underscores with hyphens.
  */
 function toEndpointType(type: string): string {
-    return (type || '')
-        .trim()
-        .toLowerCase()
-        .replace(/[\s_]+/g, '-');
+  return (type || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-");
 }
 
 // Type definitions
 type FetchApiParams = {
-    url: string;
-    data?: any;
-    method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
-    tags?: string[];
-    isAuth?: boolean;
-    token?: string;
-    responseType?: 'json' | 'blob' | 'text';
-    /** Request timeout in milliseconds. Defaults to 120000ms (2 min) for blobs, 30000ms for others. */
-    timeout?: number;
+  url: string;
+  data?: any;
+  method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+  tags?: string[];
+  isAuth?: boolean;
+  token?: string;
+  responseType?: "json" | "blob" | "text";
+  /** Request timeout in milliseconds. Defaults to 120000ms (2 min) for blobs, 30000ms for others. */
+  timeout?: number;
 };
 
 type FetchApiResponse<T = any> = {
-    status: number;
-    data: T | null;
-    type: 'success' | 'error';
-    messages?: string | string[] | null;
-    error?: any;
-    errorFields?: string[];
+  status: number;
+  data: T | null;
+  type: "success" | "error";
+  messages?: string | string[] | null;
+  error?: any;
+  errorFields?: string[];
 };
 
 const API_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
-function normalizeMsg(messages: string | string[] | null | undefined, fallback: string): string {
-    return Array.isArray(messages) ? messages.join(', ') : typeof messages === 'string' ? messages : fallback;
+function normalizeMsg(
+  messages: string | string[] | null | undefined,
+  fallback: string,
+): string {
+  return Array.isArray(messages)
+    ? messages.join(", ")
+    : typeof messages === "string"
+      ? messages
+      : fallback;
 }
 
 export type ActionResult<T = any> =
-    | { success: true; data: T; message?: string }
-    | { success: false; message: string; errorFields?: string[]; error?: any };
+  | { success: true; data: T; message?: string }
+  | { success: false; message: string; errorFields?: string[]; error?: any };
 
 export async function fetchApi<T = any>({
-    url,
-    data,
-    method = 'GET',
-    tags,
-    isAuth = true,
-    token: customToken,
-    responseType = 'json',
-    timeout,
+  url,
+  data,
+  method = "GET",
+  tags,
+  isAuth = true,
+  token: customToken,
+  responseType = "json",
+  timeout,
 }: FetchApiParams): Promise<FetchApiResponse<T>> {
-    const actionStartTime = Date.now();
-    const _url = API_URL + url;
+  const actionStartTime = Date.now();
+  const _url = API_URL + url;
 
-    const cookieStore = await cookies();
-    let token = customToken ?? cookieStore.get('auth-token')?.value;
-    const refreshTokenValue = cookieStore.get('refresh-token')?.value;
-    const isFormData = data instanceof FormData;
+  const cookieStore = await cookies();
+  let token = customToken ?? cookieStore.get("auth-token")?.value;
+  const refreshTokenValue = cookieStore.get("refresh-token")?.value;
+  const isFormData = data instanceof FormData;
 
-    // Blob responses (e.g. PDF) can take much longer — default 2 min; others 30s
-    const timeoutMs = timeout ?? (responseType === 'blob' ? 120_000 : 30_000);
+  // Blob responses (e.g. PDF) can take much longer — default 2 min; others 30s
+  const timeoutMs = timeout ?? (responseType === "blob" ? 120_000 : 30_000);
 
-    // Helper function to make the actual request
-    async function makeRequest() {
-        const fetchStartTime = Date.now();
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-        try {
-            const res = await fetch(_url, {
-                method,
-                headers: {
-                    ...(!isFormData && { 'Content-Type': 'application/json' }),
-                    ...(isAuth && token && { 'Authorization': `Bearer ${token}` }),
-                },
-                ...(method !== 'GET' && data && {
-                    body: isFormData ? data : JSON.stringify(data),
-                }),
-                ...(tags && { next: { tags } }),
-                cache: 'no-store',
-                signal: controller.signal,
-            });
-            const fetchEndTime = Date.now();
-            return res;
-        } finally {
-            clearTimeout(timer);
-        }
-    }
-
+  // Helper function to make the actual request
+  async function makeRequest() {
+    const fetchStartTime = Date.now();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-        // First attempt
-        let response = await makeRequest();
-
-        // If Unauthorized and we have a refresh token, try to refresh
-        if (response.status === 401 && refreshTokenValue && isAuth) {
-            try {
-                const syncResult = await refreshAndSyncSession(refreshTokenValue);
-
-                // Update token for retry
-                token = syncResult.idToken;
-
-                // Retry the original request
-                response = await makeRequest();
-            } catch (refreshError) {
-                // Refresh failed, just return the 401
-                return {
-                    status: 401,
-                    data: null,
-                    type: 'error',
-                    messages: 'Authentication failed. Please try logging in again.',
-                };
-            }
-        }
-
-        // Handle error response
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            const rawMsg = errorData?.message || errorData?.error || errorData?.errors || `Fetch failed: ${response.status} ${response.statusText}`;
-            const normalizedMsg = Array.isArray(rawMsg) ? rawMsg.join(', ') : typeof rawMsg === 'object' && rawMsg !== null ? JSON.stringify(rawMsg) : String(rawMsg);
-            const errorFields = Array.isArray(errorData?.errorFields)
-                ? errorData.errorFields
-                : Array.isArray(errorData?.error_fields)
-                    ? errorData.error_fields
-                    : undefined;
-            return {
-                status: response.status,
-                data: null,
-                type: 'error',
-                messages: normalizedMsg,
-                error: errorData,
-                errorFields,
-            };
-        }
-
-        // Handle different response types
-        let responseData;
-        if (responseType === 'blob') {
-            responseData = await response.blob();
-        } else if (responseType === 'text') {
-            responseData = await response.text();
-        } else {
-            // Default to JSON
-            const contentType = response.headers.get('content-type') || '';
-            if (contentType.includes('application/json')) {
-                responseData = await response.json();
-            } else {
-                return {
-                    status: response.status,
-                    data: null,
-                    type: 'error',
-                    messages: 'Expected JSON but received non-JSON response',
-                };
-            }
-        }
-
-        return {
-            status: response.status,
-            data: responseData,
-            type: 'success',
-            messages: null,
-        };
-    } catch (e: any) {
-        const isAbort = e?.name === 'AbortError';
-        return {
-            status: isAbort ? 408 : 500,
-            data: null,
-            type: 'error',
-            messages: isAbort
-                ? `Request timed out after ${timeoutMs / 1000}s. The server is taking too long to respond.`
-                : e.message || 'Something went wrong.',
-        };
+      const res = await fetch(_url, {
+        method,
+        headers: {
+          ...(!isFormData && { "Content-Type": "application/json" }),
+          ...(isAuth && token && { Authorization: `Bearer ${token}` }),
+        },
+        ...(method !== "GET" &&
+          data && {
+            body: isFormData ? data : JSON.stringify(data),
+          }),
+        ...(tags && { next: { tags } }),
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      const fetchEndTime = Date.now();
+      return res;
+    } finally {
+      clearTimeout(timer);
     }
+  }
+
+  try {
+    // First attempt
+    let response = await makeRequest();
+
+    // If Unauthorized and we have a refresh token, try to refresh
+    if (response.status === 401 && refreshTokenValue && isAuth) {
+      try {
+        const syncResult = await refreshAndSyncSession(refreshTokenValue);
+
+        // Update token for retry
+        token = syncResult.idToken;
+
+        // Retry the original request
+        response = await makeRequest();
+      } catch (refreshError) {
+        // Refresh failed, just return the 401
+        return {
+          status: 401,
+          data: null,
+          type: "error",
+          messages: "Authentication failed. Please try logging in again.",
+        };
+      }
+    }
+
+    // Handle error response
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const rawMsg =
+        errorData?.message ||
+        errorData?.error ||
+        errorData?.errors ||
+        `Fetch failed: ${response.status} ${response.statusText}`;
+      const normalizedMsg = Array.isArray(rawMsg)
+        ? rawMsg.join(", ")
+        : typeof rawMsg === "object" && rawMsg !== null
+          ? JSON.stringify(rawMsg)
+          : String(rawMsg);
+      const errorFields = Array.isArray(errorData?.errorFields)
+        ? errorData.errorFields
+        : Array.isArray(errorData?.error_fields)
+          ? errorData.error_fields
+          : undefined;
+      return {
+        status: response.status,
+        data: null,
+        type: "error",
+        messages: normalizedMsg,
+        error: errorData,
+        errorFields,
+      };
+    }
+
+    // Handle different response types
+    let responseData;
+    if (responseType === "blob") {
+      responseData = await response.blob();
+    } else if (responseType === "text") {
+      responseData = await response.text();
+    } else {
+      // Default to JSON
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        responseData = await response.json();
+      } else {
+        return {
+          status: response.status,
+          data: null,
+          type: "error",
+          messages: "Expected JSON but received non-JSON response",
+        };
+      }
+    }
+
+    return {
+      status: response.status,
+      data: responseData,
+      type: "success",
+      messages: null,
+    };
+  } catch (e: any) {
+    const isAbort = e?.name === "AbortError";
+    return {
+      status: isAbort ? 408 : 500,
+      data: null,
+      type: "error",
+      messages: isAbort
+        ? `Request timed out after ${timeoutMs / 1000}s. The server is taking too long to respond.`
+        : e.message || "Something went wrong.",
+    };
+  }
 }
 
 // Auth
 export async function loginUser(body: any): Promise<ActionResult<any>> {
-    try {
-        const parseResult = loginSchema.safeParse(body);
-        if (!parseResult.success) {
-            const errorMsg = parseResult.error.issues.map(i => i.message).join(', ');
-            return { success: false, message: errorMsg };
-        }
-        const { rememberMe, ...loginData } = parseResult.data;
-        const response = await fetchApi({
-            url: '/api/auth/login',
-            method: 'POST',
-            data: loginData,
-            isAuth: false,
-        });
-
-        if (response.type === 'error') {
-            const msg = Array.isArray(response.messages)
-                ? response.messages.join(', ')
-                : typeof response.messages === 'string'
-                    ? response.messages
-                    : 'Login failed';
-            return { success: false, message: msg };
-        }
-
-        return {
-            success: true,
-            data: response.data,
-        };
-    } catch (error) {
-        return {
-            success: false,
-            message: error instanceof Error ? error.message : 'Something went wrong during login',
-        };
+  try {
+    const parseResult = loginSchema.safeParse(body);
+    if (!parseResult.success) {
+      const errorMsg = parseResult.error.issues
+        .map((i) => i.message)
+        .join(", ");
+      return { success: false, message: errorMsg };
     }
+    const { rememberMe, ...loginData } = parseResult.data;
+    const response = await fetchApi({
+      url: "/api/auth/login",
+      method: "POST",
+      data: loginData,
+      isAuth: false,
+    });
+
+    if (response.type === "error") {
+      const msg = Array.isArray(response.messages)
+        ? response.messages.join(", ")
+        : typeof response.messages === "string"
+          ? response.messages
+          : "Login failed";
+      return { success: false, message: msg };
+    }
+
+    return {
+      success: true,
+      data: response.data,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Something went wrong during login",
+    };
+  }
 }
 
 export async function googleLogin(idToken: string): Promise<ActionResult> {
-    try {
-        const response = await fetchApi({
-            url: '/api/auth/google',
-            method: 'POST',
-            data: { idToken },
-            isAuth: false,
-        });
+  try {
+    const response = await fetchApi({
+      url: "/api/auth/google",
+      method: "POST",
+      data: { idToken },
+      isAuth: false,
+    });
 
-        if (response.type === 'error') {
-            const msg = Array.isArray(response.messages)
-                ? response.messages.join(', ')
-                : typeof response.messages === 'string'
-                    ? response.messages
-                    : 'Google login failed';
-            return { success: false, message: msg };
-        }
-
-        // requiresRoleSelection is only present when true â€” treat absence as false
-        const requiresRoleSelection = response.data.requiresRoleSelection === true;
-
-        const cookieStore = await cookies();
-        cookieStore.set('auth-token', response.data.tokens.idToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 60 * 60,
-        });
-        cookieStore.set('refresh-token', response.data.tokens.refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 30 * 24 * 60 * 60,
-        });
-        cookieStore.set('user-role', requiresRoleSelection ? 'guest' : response.data.role.toLowerCase(), {
-            httpOnly: false,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 30 * 24 * 60 * 60,
-        });
-        const isSub = Boolean(
-            response.data.sub_account === true ||
-            response.data.sub_account === 'true' ||
-            response.data.user?.sub_account === true ||
-            response.data.user?.sub_account === 'true'
-        );
-        let userHasMembership = false;
-        if (isSub) {
-            const sub = response.data.current_subscription ?? response.data.user?.current_subscription;
-            if (sub !== undefined && sub !== null) {
-                userHasMembership = Boolean(sub.status ? sub.status.toUpperCase() === 'ACTIVE' : true);
-            } else if (response.data.has_membership !== undefined || response.data.user?.has_membership !== undefined) {
-                userHasMembership = Boolean(response.data.has_membership ?? response.data.user?.has_membership);
-            }
-
-            if (!userHasMembership && response.data.tokens?.idToken) {
-                try {
-                    const profileRes = await fetchApi({
-                        url: '/api/users/profile',
-                        method: 'GET',
-                        token: response.data.tokens.idToken,
-                    });
-                    const profileData = profileRes.data?.data || profileRes.data;
-                    if (profileData) {
-                        const profileSub = profileData.current_subscription ?? profileData.user?.current_subscription;
-                        if (profileSub !== undefined && profileSub !== null) {
-                            userHasMembership = Boolean(profileSub.status ? profileSub.status.toUpperCase() === 'ACTIVE' : true);
-                        } else if (profileData?.has_membership !== undefined) {
-                            userHasMembership = Boolean(profileData.has_membership);
-                        }
-                    }
-                } catch (profileErr) {
-                    console.error('Error fetching profile in googleLogin:', profileErr);
-                }
-            }
-        } else {
-            userHasMembership = Boolean(response.data.has_membership ?? false);
-        }
-
-        cookieStore.set('sub-account', String(isSub), {
-            httpOnly: false,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 30 * 24 * 60 * 60,
-        });
-        cookieStore.set('has-membership', String(userHasMembership), {
-            httpOnly: false,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 30 * 24 * 60 * 60,
-        });
-
-        return {
-            success: true,
-            data: {
-                idToken: response.data.tokens.idToken,
-                refreshToken: response.data.tokens.refreshToken,
-                requiresRoleSelection,
-                isNewUser: response.data.isNewUser ?? false,
-                user: {
-                    id: response.data.userId,
-                    uid: response.data.uid,
-                    name: response.data.display_name || `${response.data.first_name} ${response.data.last_name}`.trim(),
-                    firstName: response.data.first_name,
-                    lastName: response.data.last_name,
-                    email: response.data.email,
-                    role: requiresRoleSelection ? 'guest' : response.data.role?.toLowerCase(),
-                    sub_account: isSub,
-                    has_membership: userHasMembership,
-                    company_name: response.data.company_name,
-                    city: response.data.city,
-                },
-            },
-        };
-    } catch (error) {
-        return {
-            success: false,
-            message: error instanceof Error ? error.message : 'Something went wrong during Google login',
-        };
+    if (response.type === "error") {
+      const msg = Array.isArray(response.messages)
+        ? response.messages.join(", ")
+        : typeof response.messages === "string"
+          ? response.messages
+          : "Google login failed";
+      return { success: false, message: msg };
     }
+
+    // requiresRoleSelection is only present when true â€” treat absence as false
+    const requiresRoleSelection = response.data.requiresRoleSelection === true;
+
+    const cookieStore = await cookies();
+    cookieStore.set("auth-token", response.data.tokens.idToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60,
+    });
+    cookieStore.set("refresh-token", response.data.tokens.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 30 * 24 * 60 * 60,
+    });
+    cookieStore.set(
+      "user-role",
+      requiresRoleSelection ? "guest" : response.data.role.toLowerCase(),
+      {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 30 * 24 * 60 * 60,
+      },
+    );
+    const isSub = Boolean(
+      response.data.sub_account === true ||
+      response.data.sub_account === "true" ||
+      response.data.user?.sub_account === true ||
+      response.data.user?.sub_account === "true",
+    );
+    let userHasMembership = false;
+    if (isSub) {
+      const sub =
+        response.data.current_subscription ??
+        response.data.user?.current_subscription;
+      if (sub !== undefined && sub !== null) {
+        userHasMembership = Boolean(
+          sub.status ? sub.status.toUpperCase() === "ACTIVE" : true,
+        );
+      } else if (
+        response.data.has_membership !== undefined ||
+        response.data.user?.has_membership !== undefined
+      ) {
+        userHasMembership = Boolean(
+          response.data.has_membership ?? response.data.user?.has_membership,
+        );
+      }
+
+      if (!userHasMembership && response.data.tokens?.idToken) {
+        try {
+          const profileRes = await fetchApi({
+            url: "/api/users/profile",
+            method: "GET",
+            token: response.data.tokens.idToken,
+          });
+          const profileData = profileRes.data?.data || profileRes.data;
+          if (profileData) {
+            const profileSub =
+              profileData.current_subscription ??
+              profileData.user?.current_subscription;
+            if (profileSub !== undefined && profileSub !== null) {
+              userHasMembership = Boolean(
+                profileSub.status
+                  ? profileSub.status.toUpperCase() === "ACTIVE"
+                  : true,
+              );
+            } else if (profileData?.has_membership !== undefined) {
+              userHasMembership = Boolean(profileData.has_membership);
+            }
+          }
+        } catch (profileErr) {
+          console.error("Error fetching profile in googleLogin:", profileErr);
+        }
+      }
+    } else {
+      userHasMembership = Boolean(response.data.has_membership ?? false);
+    }
+
+    cookieStore.set("sub-account", String(isSub), {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 30 * 24 * 60 * 60,
+    });
+    cookieStore.set("has-membership", String(userHasMembership), {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 30 * 24 * 60 * 60,
+    });
+
+    return {
+      success: true,
+      data: {
+        idToken: response.data.tokens.idToken,
+        refreshToken: response.data.tokens.refreshToken,
+        requiresRoleSelection,
+        isNewUser: response.data.isNewUser ?? false,
+        user: {
+          id: response.data.userId,
+          uid: response.data.uid,
+          name:
+            response.data.display_name ||
+            `${response.data.first_name} ${response.data.last_name}`.trim(),
+          firstName: response.data.first_name,
+          lastName: response.data.last_name,
+          email: response.data.email,
+          role: requiresRoleSelection
+            ? "guest"
+            : response.data.role?.toLowerCase(),
+          sub_account: isSub,
+          has_membership: userHasMembership,
+          company_name: response.data.company_name,
+          city: response.data.city,
+        },
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Something went wrong during Google login",
+    };
+  }
 }
 
 /**
  * Assign a role to a new Google user who completed role selection.
  * Swaps the 'guest' cookie for the real role.
  */
-export async function assignUserRole(roleId: string, roleName: string, extraFields: Record<string, any> = {}) {
-    const response = await fetchApi({
-        url: '/api/auth/assign-role',
-        method: 'PUT',
-        data: { role_id: roleId, ...extraFields },
-    });
+export async function assignUserRole(
+  roleId: string,
+  roleName: string,
+  extraFields: Record<string, any> = {},
+) {
+  const response = await fetchApi({
+    url: "/api/auth/assign-role",
+    method: "PUT",
+    data: { role_id: roleId, ...extraFields },
+  });
 
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to assign role') };
-    }
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to assign role"),
+    };
+  }
 
-    const cookieStore = await cookies();
-    cookieStore.set('user-role', roleName.toLowerCase(), {
-        httpOnly: false,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 30 * 24 * 60 * 60,
-    });
+  const cookieStore = await cookies();
+  cookieStore.set("user-role", roleName.toLowerCase(), {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 30 * 24 * 60 * 60,
+  });
 
-    return { success: true, data: response.data };
-
-
+  return { success: true, data: response.data };
 }
 
 export async function refreshToken(refreshToken: string) {
-    const response = await fetchApi({
-        url: '/api/auth/refresh-token',
-        method: 'POST',
-        data: { refresh_token: refreshToken },
-        isAuth: false,
-    });
+  const response = await fetchApi({
+    url: "/api/auth/refresh-token",
+    method: "POST",
+    data: { refresh_token: refreshToken },
+    isAuth: false,
+  });
 
-    if (response.type === 'error') {
-        throw new Error(normalizeMsg(response.messages, 'Failed to refresh token'));
-    }
+  if (response.type === "error") {
+    throw new Error(normalizeMsg(response.messages, "Failed to refresh token"));
+  }
 
-    return response.data;
+  return response.data;
 }
 
 export async function refreshAndSyncSession(refreshTokenValue: string) {
-    const response = await fetchApi({
-        url: '/api/auth/refresh-token',
-        method: 'POST',
-        data: { refresh_token: refreshTokenValue },
-        isAuth: false,
-    });
+  const response = await fetchApi({
+    url: "/api/auth/refresh-token",
+    method: "POST",
+    data: { refresh_token: refreshTokenValue },
+    isAuth: false,
+  });
 
-    if (response.type === 'error') {
-        throw new Error(normalizeMsg(response.messages, 'Failed to refresh token'));
-    }
+  if (response.type === "error") {
+    throw new Error(normalizeMsg(response.messages, "Failed to refresh token"));
+  }
 
-    const { idToken, refreshToken: newRefreshToken } = response.data.tokens;
+  const { idToken, refreshToken: newRefreshToken } = response.data.tokens;
 
-    // Fetch user profile using the new idToken
-    const profileResponse = await fetch(`${API_URL}/api/users/profile`, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}`,
-        },
-    });
+  // Fetch user profile using the new idToken
+  const profileResponse = await fetch(`${API_URL}/api/users/profile`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${idToken}`,
+    },
+  });
 
-    if (!profileResponse.ok) {
-        throw new Error('Failed to fetch user profile during session sync');
-    }
+  if (!profileResponse.ok) {
+    throw new Error("Failed to fetch user profile during session sync");
+  }
 
-    const profileData = await profileResponse.json();
-    const userProfile = profileData.data || profileData;
+  const profileData = await profileResponse.json();
+  const userProfile = profileData.data || profileData;
 
-    const cookieStore = await cookies();
-    const existingRole = cookieStore.get('user-role')?.value;
-    const existingSubAccount = cookieStore.get('sub-account')?.value === 'true';
-    const existingHasMembership = cookieStore.get('has-membership')?.value === 'true';
+  const cookieStore = await cookies();
+  const existingRole = cookieStore.get("user-role")?.value;
+  const existingSubAccount = cookieStore.get("sub-account")?.value === "true";
+  const existingHasMembership =
+    cookieStore.get("has-membership")?.value === "true";
 
-    const role = (userProfile.role ? userProfile.role.toLowerCase() : null) || existingRole || 'guest';
-    const isSub = Boolean(
-        userProfile.sub_account === true ||
-        userProfile.sub_account === 'true' ||
-        userProfile.user?.sub_account === true ||
-        userProfile.user?.sub_account === 'true' ||
-        existingSubAccount
+  const role =
+    (userProfile.role ? userProfile.role.toLowerCase() : null) ||
+    existingRole ||
+    "guest";
+  const isSub = Boolean(
+    userProfile.sub_account === true ||
+    userProfile.sub_account === "true" ||
+    userProfile.user?.sub_account === true ||
+    userProfile.user?.sub_account === "true" ||
+    existingSubAccount,
+  );
+  const subAccount = String(isSub);
+
+  let hasMembership: string;
+  if (isSub) {
+    const sub =
+      userProfile.current_subscription ??
+      userProfile.user?.current_subscription;
+    const subActive = Boolean(
+      sub && (sub.status ? sub.status.toUpperCase() === "ACTIVE" : true),
     );
-    const subAccount = String(isSub);
+    hasMembership = String(subActive);
+  } else {
+    const rawMembership =
+      userProfile.has_membership ??
+      userProfile.current_subscription?.is_active ??
+      userProfile.current_subscription?.status === "ACTIVE";
+    hasMembership = String(
+      rawMembership !== undefined
+        ? Boolean(rawMembership)
+        : existingHasMembership,
+    );
+  }
 
-    let hasMembership: string;
-    if (isSub) {
-        const sub = userProfile.current_subscription ?? userProfile.user?.current_subscription;
-        const subActive = Boolean(sub && (sub.status ? sub.status.toUpperCase() === 'ACTIVE' : true));
-        hasMembership = String(subActive);
-    } else {
-        const rawMembership = userProfile.has_membership ?? userProfile.current_subscription?.is_active ?? (userProfile.current_subscription?.status === 'ACTIVE');
-        hasMembership = String(rawMembership !== undefined ? Boolean(rawMembership) : existingHasMembership);
-    }
+  cookieStore.set("auth-token", idToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 24 * 60 * 60, // 24 hours
+  });
 
-    cookieStore.set('auth-token', idToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 24 * 60 * 60, // 24 hours
+  if (newRefreshToken) {
+    cookieStore.set("refresh-token", newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 30 * 24 * 60 * 60, // 30 days
     });
+  }
 
-    if (newRefreshToken) {
-        cookieStore.set('refresh-token', newRefreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 30 * 24 * 60 * 60, // 30 days
-        });
-    }
+  cookieStore.set("user-role", role, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  });
 
-    cookieStore.set('user-role', role, {
-        httpOnly: false,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 30 * 24 * 60 * 60, // 30 days
-    });
+  cookieStore.set("sub-account", subAccount, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  });
 
-    cookieStore.set('sub-account', subAccount, {
-        httpOnly: false,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 30 * 24 * 60 * 60, // 30 days
-    });
+  cookieStore.set("has-membership", hasMembership, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  });
 
-    cookieStore.set('has-membership', hasMembership, {
-        httpOnly: false,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 30 * 24 * 60 * 60, // 30 days
-    });
-
-    return {
-        idToken,
-        refreshToken: newRefreshToken || refreshTokenValue,
-        role,
-        subAccount,
-        hasMembership,
-    };
+  return {
+    idToken,
+    refreshToken: newRefreshToken || refreshTokenValue,
+    role,
+    subAccount,
+    hasMembership,
+  };
 }
 
-
 export async function registerUser(body: any): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: '/api/auth/register',
-        method: 'POST',
-        data: body,
-        isAuth: false,
-    });
+  const response = await fetchApi({
+    url: "/api/auth/register",
+    method: "POST",
+    data: body,
+    isAuth: false,
+  });
 
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages)
-            ? response.messages.join(', ')
-            : typeof response.messages === 'string'
-                ? response.messages
-                : 'Registration failed';
-        return { success: false, message: msg };
-    }
+  if (response.type === "error") {
+    const msg = Array.isArray(response.messages)
+      ? response.messages.join(", ")
+      : typeof response.messages === "string"
+        ? response.messages
+        : "Registration failed";
+    return { success: false, message: msg };
+  }
 
-    return { success: true, data: response.data };
+  return { success: true, data: response.data };
 }
 
 export async function forgotPassword(body: any): Promise<ActionResult> {
-    const parseResult = forgotPasswordSchema.safeParse(body);
-    if (!parseResult.success) {
-        return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
-    }
-    const response = await fetchApi({
-        url: '/api/auth/forgot-password',
-        method: 'POST',
-        data: parseResult.data,
-        isAuth: false,
-    });
+  const parseResult = forgotPasswordSchema.safeParse(body);
+  if (!parseResult.success) {
+    return {
+      success: false,
+      message: parseResult.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+  const response = await fetchApi({
+    url: "/api/auth/forgot-password",
+    method: "POST",
+    data: parseResult.data,
+    isAuth: false,
+  });
 
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages)
-            ? response.messages.join(', ')
-            : typeof response.messages === 'string'
-                ? response.messages
-                : 'Failed to send reset link';
-        return { success: false, message: msg };
-    }
+  if (response.type === "error") {
+    const msg = Array.isArray(response.messages)
+      ? response.messages.join(", ")
+      : typeof response.messages === "string"
+        ? response.messages
+        : "Failed to send reset link";
+    return { success: false, message: msg };
+  }
 
-    return { success: true, data: response.data };
+  return { success: true, data: response.data };
 }
 
 export async function verifyOtp(body: any): Promise<ActionResult> {
-    const parseResult = verifyOtpSchema.safeParse(body);
-    if (!parseResult.success) {
-        return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
-    }
-    const response = await fetchApi({
-        url: '/api/auth/verify-otp',
-        method: 'POST',
-        data: parseResult.data,
-        isAuth: false,
-    });
+  const parseResult = verifyOtpSchema.safeParse(body);
+  if (!parseResult.success) {
+    return {
+      success: false,
+      message: parseResult.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+  const response = await fetchApi({
+    url: "/api/auth/verify-otp",
+    method: "POST",
+    data: parseResult.data,
+    isAuth: false,
+  });
 
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages)
-            ? response.messages.join(', ')
-            : typeof response.messages === 'string'
-                ? response.messages
-                : 'Failed to verify OTP';
-        return { success: false, message: msg };
-    }
+  if (response.type === "error") {
+    const msg = Array.isArray(response.messages)
+      ? response.messages.join(", ")
+      : typeof response.messages === "string"
+        ? response.messages
+        : "Failed to verify OTP";
+    return { success: false, message: msg };
+  }
 
-    return { success: true, data: response.data };
+  return { success: true, data: response.data };
 }
 
-export async function verifyRegisterOtp(body: { email: string; otp: string }): Promise<ActionResult> {
-    const parseResult = verifyOtpSchema.safeParse(body);
-    if (!parseResult.success) {
-        return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
-    }
-    const response = await fetchApi({
-        url: '/api/auth/register/verify',
-        method: 'POST',
-        data: parseResult.data,
-        isAuth: false,
-    });
+export async function verifyRegisterOtp(body: {
+  email: string;
+  otp: string;
+}): Promise<ActionResult> {
+  const parseResult = verifyOtpSchema.safeParse(body);
+  if (!parseResult.success) {
+    return {
+      success: false,
+      message: parseResult.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+  const response = await fetchApi({
+    url: "/api/auth/register/verify",
+    method: "POST",
+    data: parseResult.data,
+    isAuth: false,
+  });
 
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages)
-            ? response.messages.join(', ')
-            : typeof response.messages === 'string'
-                ? response.messages
-                : 'Failed to verify OTP';
-        return { success: false, message: msg };
-    }
+  if (response.type === "error") {
+    const msg = Array.isArray(response.messages)
+      ? response.messages.join(", ")
+      : typeof response.messages === "string"
+        ? response.messages
+        : "Failed to verify OTP";
+    return { success: false, message: msg };
+  }
 
-    const data = response.data;
-    const formToken = data?.formToken || data?.form_token || data?.token;
-    if (formToken) {
-        try {
-            const cookieStore = await cookies();
-            cookieStore.set('form-token', formToken, {
-                httpOnly: false,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
-                maxAge: 3600,
-            });
-        } catch (cookieErr) {
-            console.error('Error setting form-token cookie:', cookieErr);
-        }
-    }
-
-    return { success: true, data: response.data };
-}
-
-export async function resendRegisterOtp(body: { email: string }): Promise<ActionResult> {
-    const parseResult = forgotPasswordSchema.safeParse(body);
-    if (!parseResult.success) {
-        return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
-    }
-    const response = await fetchApi({
-        url: '/api/auth/register/resend-otp',
-        method: 'POST',
-        data: parseResult.data,
-        isAuth: false,
-    });
-
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages)
-            ? response.messages.join(', ')
-            : typeof response.messages === 'string'
-                ? response.messages
-                : 'Failed to resend OTP';
-        return { success: false, message: msg };
-    }
-
-    return { success: true, data: response.data };
-}
-
-export async function setSubUserPassword(body: { email?: string; password: string; token?: string }): Promise<ActionResult> {
-    if (!body.password || body.password.length < 6) {
-        return { success: false, message: 'Password must be at least 6 characters.' };
-    }
-    const response = await fetchApi({
-        url: '/api/auth/sub-user/set-password',
-        method: 'POST',
-        data: body,
-        isAuth: false,
-    });
-
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages)
-            ? response.messages.join(', ')
-            : typeof response.messages === 'string'
-                ? response.messages
-                : 'Failed to set password';
-        return { success: false, message: msg };
-    }
-
-    return { success: true, data: response.data };
-}
-
-export async function verifySubUserOtp(body: { email: string; otp: string }): Promise<ActionResult> {
-    const parseResult = verifyOtpSchema.safeParse({ email: body.email, otp: body.otp });
-    if (!parseResult.success) {
-        return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
-    }
-    const response = await fetchApi({
-        url: '/api/auth/sub-user/verify-otp',
-        method: 'POST',
-        data: body,
-        isAuth: false,
-    });
-
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages)
-            ? response.messages.join(', ')
-            : typeof response.messages === 'string'
-                ? response.messages
-                : 'Failed to verify OTP';
-        return { success: false, message: msg };
-    }
-
+  const data = response.data;
+  const formToken = data?.formToken || data?.form_token || data?.token;
+  if (formToken) {
     try {
-        const data = response.data;
-        if (data && data.tokens) {
-            const cookieStore = await cookies();
-            cookieStore.set('auth-token', data.tokens.idToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: data.tokens.expiresIn ? Number(data.tokens.expiresIn) : 24 * 60 * 60,
-            });
-            cookieStore.set('refresh-token', data.tokens.refreshToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: 30 * 24 * 60 * 60,
-            });
-            cookieStore.set('user-role', (data.role || 'guest').toLowerCase(), {
-                httpOnly: false,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: 30 * 24 * 60 * 60,
-            });
-            const isSub = Boolean(data.sub_account ?? true);
-            cookieStore.set('sub-account', String(isSub), {
-                httpOnly: false,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: 30 * 24 * 60 * 60,
-            });
-            let subMembership = false;
-            const sub = data.current_subscription ?? data.user?.current_subscription;
-            if (sub !== undefined && sub !== null) {
-                subMembership = Boolean(sub.status ? sub.status.toUpperCase() === 'ACTIVE' : true);
-            } else if (data.has_membership !== undefined || data.user?.has_membership !== undefined) {
-                subMembership = Boolean(data.has_membership ?? data.user?.has_membership);
-            }
+      const cookieStore = await cookies();
+      cookieStore.set("form-token", formToken, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 3600,
+      });
+    } catch (cookieErr) {
+      console.error("Error setting form-token cookie:", cookieErr);
+    }
+  }
 
-            if (!subMembership && data.tokens?.idToken) {
-                try {
-                    const profileRes = await fetchApi({
-                        url: '/api/users/profile',
-                        method: 'GET',
-                        token: data.tokens.idToken,
-                    });
-                    const profileData = profileRes.data?.data || profileRes.data;
-                    if (profileData) {
-                        const profileSub = profileData.current_subscription ?? profileData.user?.current_subscription;
-                        if (profileSub !== undefined && profileSub !== null) {
-                            subMembership = Boolean(profileSub.status ? profileSub.status.toUpperCase() === 'ACTIVE' : true);
-                        } else if (profileData?.has_membership !== undefined) {
-                            subMembership = Boolean(profileData.has_membership);
-                        }
-                    }
-                } catch (profileErr) {
-                    console.error('Error fetching profile in verifySubUserOtp:', profileErr);
-                }
-            }
+  return { success: true, data: response.data };
+}
 
-            cookieStore.set('has-membership', String(subMembership), {
-                httpOnly: false,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: 30 * 24 * 60 * 60,
-            });
+export async function resendRegisterOtp(body: {
+  email: string;
+}): Promise<ActionResult> {
+  const parseResult = forgotPasswordSchema.safeParse(body);
+  if (!parseResult.success) {
+    return {
+      success: false,
+      message: parseResult.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+  const response = await fetchApi({
+    url: "/api/auth/register/resend-otp",
+    method: "POST",
+    data: parseResult.data,
+    isAuth: false,
+  });
+
+  if (response.type === "error") {
+    const msg = Array.isArray(response.messages)
+      ? response.messages.join(", ")
+      : typeof response.messages === "string"
+        ? response.messages
+        : "Failed to resend OTP";
+    return { success: false, message: msg };
+  }
+
+  return { success: true, data: response.data };
+}
+
+export async function setSubUserPassword(body: {
+  email?: string;
+  password: string;
+  token?: string;
+}): Promise<ActionResult> {
+  if (!body.password || body.password.length < 6) {
+    return {
+      success: false,
+      message: "Password must be at least 6 characters.",
+    };
+  }
+  const response = await fetchApi({
+    url: "/api/auth/sub-user/set-password",
+    method: "POST",
+    data: body,
+    isAuth: false,
+  });
+
+  if (response.type === "error") {
+    const msg = Array.isArray(response.messages)
+      ? response.messages.join(", ")
+      : typeof response.messages === "string"
+        ? response.messages
+        : "Failed to set password";
+    return { success: false, message: msg };
+  }
+
+  return { success: true, data: response.data };
+}
+
+export async function verifySubUserOtp(body: {
+  email: string;
+  otp: string;
+}): Promise<ActionResult> {
+  const parseResult = verifyOtpSchema.safeParse({
+    email: body.email,
+    otp: body.otp,
+  });
+  if (!parseResult.success) {
+    return {
+      success: false,
+      message: parseResult.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+  const response = await fetchApi({
+    url: "/api/auth/sub-user/verify-otp",
+    method: "POST",
+    data: body,
+    isAuth: false,
+  });
+
+  if (response.type === "error") {
+    const msg = Array.isArray(response.messages)
+      ? response.messages.join(", ")
+      : typeof response.messages === "string"
+        ? response.messages
+        : "Failed to verify OTP";
+    return { success: false, message: msg };
+  }
+
+  try {
+    const data = response.data;
+    if (data && data.tokens) {
+      const cookieStore = await cookies();
+      cookieStore.set("auth-token", data.tokens.idToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: data.tokens.expiresIn
+          ? Number(data.tokens.expiresIn)
+          : 24 * 60 * 60,
+      });
+      cookieStore.set("refresh-token", data.tokens.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 30 * 24 * 60 * 60,
+      });
+      cookieStore.set("user-role", (data.role || "guest").toLowerCase(), {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 30 * 24 * 60 * 60,
+      });
+      const isSub = Boolean(data.sub_account ?? true);
+      cookieStore.set("sub-account", String(isSub), {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 30 * 24 * 60 * 60,
+      });
+      let subMembership = false;
+      const sub = data.current_subscription ?? data.user?.current_subscription;
+      if (sub !== undefined && sub !== null) {
+        subMembership = Boolean(
+          sub.status ? sub.status.toUpperCase() === "ACTIVE" : true,
+        );
+      } else if (
+        data.has_membership !== undefined ||
+        data.user?.has_membership !== undefined
+      ) {
+        subMembership = Boolean(
+          data.has_membership ?? data.user?.has_membership,
+        );
+      }
+
+      if (!subMembership && data.tokens?.idToken) {
+        try {
+          const profileRes = await fetchApi({
+            url: "/api/users/profile",
+            method: "GET",
+            token: data.tokens.idToken,
+          });
+          const profileData = profileRes.data?.data || profileRes.data;
+          if (profileData) {
+            const profileSub =
+              profileData.current_subscription ??
+              profileData.user?.current_subscription;
+            if (profileSub !== undefined && profileSub !== null) {
+              subMembership = Boolean(
+                profileSub.status
+                  ? profileSub.status.toUpperCase() === "ACTIVE"
+                  : true,
+              );
+            } else if (profileData?.has_membership !== undefined) {
+              subMembership = Boolean(profileData.has_membership);
+            }
+          }
+        } catch (profileErr) {
+          console.error(
+            "Error fetching profile in verifySubUserOtp:",
+            profileErr,
+          );
         }
-    } catch (cookieError) {
-        console.error('Error setting session cookies in verifySubUserOtp:', cookieError);
-    }
+      }
 
-    return { success: true, data: response.data };
+      cookieStore.set("has-membership", String(subMembership), {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 30 * 24 * 60 * 60,
+      });
+    }
+  } catch (cookieError) {
+    console.error(
+      "Error setting session cookies in verifySubUserOtp:",
+      cookieError,
+    );
+  }
+
+  return { success: true, data: response.data };
 }
 
-export async function resendSubUserOtp(body: { email: string }): Promise<ActionResult> {
-    const parseResult = forgotPasswordSchema.safeParse(body);
-    if (!parseResult.success) {
-        return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
-    }
-    const response = await fetchApi({
-        url: '/api/auth/sub-user/resend-otp',
-        method: 'POST',
-        data: parseResult.data,
-        isAuth: false,
-    });
+export async function resendSubUserOtp(body: {
+  email: string;
+}): Promise<ActionResult> {
+  const parseResult = forgotPasswordSchema.safeParse(body);
+  if (!parseResult.success) {
+    return {
+      success: false,
+      message: parseResult.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+  const response = await fetchApi({
+    url: "/api/auth/sub-user/resend-otp",
+    method: "POST",
+    data: parseResult.data,
+    isAuth: false,
+  });
 
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages)
-            ? response.messages.join(', ')
-            : typeof response.messages === 'string'
-                ? response.messages
-                : 'Failed to resend OTP';
-        return { success: false, message: msg };
-    }
+  if (response.type === "error") {
+    const msg = Array.isArray(response.messages)
+      ? response.messages.join(", ")
+      : typeof response.messages === "string"
+        ? response.messages
+        : "Failed to resend OTP";
+    return { success: false, message: msg };
+  }
 
-    return { success: true, data: response.data };
+  return { success: true, data: response.data };
 }
 
-export async function verifyLoginOtp(body: { email: string; otp: string; rememberMe?: boolean }): Promise<ActionResult<{
+export async function verifyLoginOtp(body: {
+  email: string;
+  otp: string;
+  rememberMe?: boolean;
+}): Promise<
+  ActionResult<{
     idToken?: string;
     refreshToken?: string;
-    user?: { id: string; name: string; email: string; role: string; sub_account: boolean; has_membership: boolean };
+    user?: {
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      sub_account: boolean;
+      has_membership: boolean;
+    };
     [key: string]: any;
-}>> {
-    try {
-        const parseResult = verifyOtpSchema.safeParse({ email: body.email, otp: body.otp });
-        if (!parseResult.success) {
-            return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
-        }
-        const response = await fetchApi({
-            url: '/api/auth/login/verify-otp',
-            method: 'POST',
-            data: { email: body.email, otp: body.otp },
-            isAuth: false,
-        });
-
-        if (response.type === 'error') {
-            const msg = Array.isArray(response.messages)
-                ? response.messages.join(', ')
-                : typeof response.messages === 'string'
-                    ? response.messages
-                    : 'Failed to verify login OTP';
-            return { success: false, message: msg };
-        }
-
-        const data = response.data || {};
-        const rememberMe = Boolean(body.rememberMe);
-        const authTokenMaxAge = rememberMe ? 7 * 24 * 60 * 60 : 24 * 60 * 60;
-        const refreshTokenMaxAge = rememberMe ? 7 * 24 * 60 * 60 : 24 * 60 * 60;
-        const otherCookiesMaxAge = rememberMe ? 7 * 24 * 60 * 60 : 24 * 60 * 60;
-
-        const tokens = data.tokens || {};
-        const idToken = tokens.idToken || data.idToken || data.token;
-        const refreshToken = tokens.refreshToken || data.refreshToken;
-
-        if (idToken) {
-            const cookieStore = await cookies();
-            cookieStore.set('auth-token', idToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: authTokenMaxAge,
-            });
-
-            if (refreshToken) {
-                cookieStore.set('refresh-token', refreshToken, {
-                    httpOnly: true,
-                    secure: process.env.NODE_ENV === 'production',
-                    sameSite: 'lax',
-                    maxAge: refreshTokenMaxAge,
-                });
-            }
-
-            const rawRole = data.role || data.user?.role || 'contractor';
-            const userRole = String(rawRole).toLowerCase();
-            cookieStore.set('user-role', userRole, {
-                httpOnly: false,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: otherCookiesMaxAge,
-            });
-
-            const isSub = Boolean(
-                data.sub_account === true ||
-                data.sub_account === 'true' ||
-                data.user?.sub_account === true ||
-                data.user?.sub_account === 'true'
-            );
-
-            let userHasMembership = false;
-            if (isSub) {
-                const sub = data.current_subscription ?? data.user?.current_subscription;
-                if (sub !== undefined && sub !== null) {
-                    userHasMembership = Boolean(sub.status ? sub.status.toUpperCase() === 'ACTIVE' : true);
-                } else if (data.has_membership !== undefined || data.user?.has_membership !== undefined) {
-                    userHasMembership = Boolean(data.has_membership ?? data.user?.has_membership);
-                }
-
-                if (!userHasMembership && idToken) {
-                    try {
-                        const profileRes = await fetchApi({
-                            url: '/api/users/profile',
-                            method: 'GET',
-                            token: idToken,
-                        });
-                        const profileData = profileRes.data?.data || profileRes.data;
-                        if (profileData) {
-                            const profileSub = profileData.current_subscription ?? profileData.user?.current_subscription;
-                            if (profileSub !== undefined && profileSub !== null) {
-                                userHasMembership = Boolean(profileSub.status ? profileSub.status.toUpperCase() === 'ACTIVE' : true);
-                            } else if (profileData?.has_membership !== undefined) {
-                                userHasMembership = Boolean(profileData.has_membership);
-                            }
-                        }
-                    } catch (profileErr) {
-                        console.error('Error fetching profile in verifyLoginOtp:', profileErr);
-                    }
-                }
-            } else {
-                userHasMembership = Boolean(data.has_membership ?? data.user?.has_membership ?? data.current_subscription?.status === 'ACTIVE');
-            }
-
-            cookieStore.set('sub-account', String(isSub), {
-                httpOnly: false,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: otherCookiesMaxAge,
-            });
-            cookieStore.set('has-membership', String(userHasMembership), {
-                httpOnly: false,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: otherCookiesMaxAge,
-            });
-
-            const userEmail = data.email || data.user?.email || body.email;
-            const userName = data.name || data.user?.name || userEmail.split('@')[0];
-            const userId = data.uid || data.user?.id || data.user?._id || data.id;
-
-            return {
-                success: true,
-                data: {
-                    ...data,
-                    idToken,
-                    refreshToken,
-                    user: {
-                        id: userId,
-                        name: userName,
-                        email: userEmail,
-                        role: userRole,
-                        sub_account: isSub,
-                        has_membership: userHasMembership,
-                    },
-                },
-            };
-        }
-
-        return {
-            success: true,
-            data: response.data,
-        };
-    } catch (error) {
-        return {
-            success: false,
-            message: error instanceof Error ? error.message : 'Something went wrong during login OTP verification',
-        };
-    }
-}
-
-export async function resendLoginOtp(body: { email: string }): Promise<ActionResult> {
-    const parseResult = forgotPasswordSchema.safeParse(body);
+  }>
+> {
+  try {
+    const parseResult = verifyOtpSchema.safeParse({
+      email: body.email,
+      otp: body.otp,
+    });
     if (!parseResult.success) {
-        return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
+      return {
+        success: false,
+        message: parseResult.error.issues.map((i) => i.message).join(", "),
+      };
     }
     const response = await fetchApi({
-        url: '/api/auth/login/resend-otp',
-        method: 'POST',
-        data: parseResult.data,
-        isAuth: false,
+      url: "/api/auth/login/verify-otp",
+      method: "POST",
+      data: { email: body.email, otp: body.otp },
+      isAuth: false,
     });
 
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages)
-            ? response.messages.join(', ')
-            : typeof response.messages === 'string'
-                ? response.messages
-                : 'Failed to resend OTP';
-        return { success: false, message: msg };
+    if (response.type === "error") {
+      const msg = Array.isArray(response.messages)
+        ? response.messages.join(", ")
+        : typeof response.messages === "string"
+          ? response.messages
+          : "Failed to verify login OTP";
+      return { success: false, message: msg };
     }
 
-    return { success: true, data: response.data };
+    const data = response.data || {};
+    const rememberMe = Boolean(body.rememberMe);
+    const authTokenMaxAge = rememberMe ? 7 * 24 * 60 * 60 : 24 * 60 * 60;
+    const refreshTokenMaxAge = rememberMe ? 7 * 24 * 60 * 60 : 24 * 60 * 60;
+    const otherCookiesMaxAge = rememberMe ? 7 * 24 * 60 * 60 : 24 * 60 * 60;
+
+    const tokens = data.tokens || {};
+    const idToken = tokens.idToken || data.idToken || data.token;
+    const refreshToken = tokens.refreshToken || data.refreshToken;
+
+    if (idToken) {
+      const cookieStore = await cookies();
+      cookieStore.set("auth-token", idToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: authTokenMaxAge,
+      });
+
+      if (refreshToken) {
+        cookieStore.set("refresh-token", refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          maxAge: refreshTokenMaxAge,
+        });
+      }
+
+      const rawRole = data.role || data.user?.role || "contractor";
+      const userRole = String(rawRole).toLowerCase();
+      cookieStore.set("user-role", userRole, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: otherCookiesMaxAge,
+      });
+
+      const isSub = Boolean(
+        data.sub_account === true ||
+        data.sub_account === "true" ||
+        data.user?.sub_account === true ||
+        data.user?.sub_account === "true",
+      );
+
+      let userHasMembership = false;
+      if (isSub) {
+        const sub =
+          data.current_subscription ?? data.user?.current_subscription;
+        if (sub !== undefined && sub !== null) {
+          userHasMembership = Boolean(
+            sub.status ? sub.status.toUpperCase() === "ACTIVE" : true,
+          );
+        } else if (
+          data.has_membership !== undefined ||
+          data.user?.has_membership !== undefined
+        ) {
+          userHasMembership = Boolean(
+            data.has_membership ?? data.user?.has_membership,
+          );
+        }
+
+        if (!userHasMembership && idToken) {
+          try {
+            const profileRes = await fetchApi({
+              url: "/api/users/profile",
+              method: "GET",
+              token: idToken,
+            });
+            const profileData = profileRes.data?.data || profileRes.data;
+            if (profileData) {
+              const profileSub =
+                profileData.current_subscription ??
+                profileData.user?.current_subscription;
+              if (profileSub !== undefined && profileSub !== null) {
+                userHasMembership = Boolean(
+                  profileSub.status
+                    ? profileSub.status.toUpperCase() === "ACTIVE"
+                    : true,
+                );
+              } else if (profileData?.has_membership !== undefined) {
+                userHasMembership = Boolean(profileData.has_membership);
+              }
+            }
+          } catch (profileErr) {
+            console.error(
+              "Error fetching profile in verifyLoginOtp:",
+              profileErr,
+            );
+          }
+        }
+      } else {
+        userHasMembership = Boolean(
+          data.has_membership ??
+          data.user?.has_membership ??
+          data.current_subscription?.status === "ACTIVE",
+        );
+      }
+
+      cookieStore.set("sub-account", String(isSub), {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: otherCookiesMaxAge,
+      });
+      cookieStore.set("has-membership", String(userHasMembership), {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: otherCookiesMaxAge,
+      });
+
+      const userEmail = data.email || data.user?.email || body.email;
+      const userName = data.name || data.user?.name || userEmail.split("@")[0];
+      const userId = data.uid || data.user?.id || data.user?._id || data.id;
+
+      return {
+        success: true,
+        data: {
+          ...data,
+          idToken,
+          refreshToken,
+          user: {
+            id: userId,
+            name: userName,
+            email: userEmail,
+            role: userRole,
+            sub_account: isSub,
+            has_membership: userHasMembership,
+          },
+        },
+      };
+    }
+
+    return {
+      success: true,
+      data: response.data,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Something went wrong during login OTP verification",
+    };
+  }
+}
+
+export async function resendLoginOtp(body: {
+  email: string;
+}): Promise<ActionResult> {
+  const parseResult = forgotPasswordSchema.safeParse(body);
+  if (!parseResult.success) {
+    return {
+      success: false,
+      message: parseResult.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+  const response = await fetchApi({
+    url: "/api/auth/login/resend-otp",
+    method: "POST",
+    data: parseResult.data,
+    isAuth: false,
+  });
+
+  if (response.type === "error") {
+    const msg = Array.isArray(response.messages)
+      ? response.messages.join(", ")
+      : typeof response.messages === "string"
+        ? response.messages
+        : "Failed to resend OTP";
+    return { success: false, message: msg };
+  }
+
+  return { success: true, data: response.data };
 }
 
 export interface OtpTimerData {
-    otp_session_token?: string;
-    seconds_remaining?: number;
-    next_resend_available_at?: string;
-    otp_expires_at?: string;
-    expires_at?: string;
-    purpose?: string;
-    max_resend_allowed?: number;
-    is_max_limit_reached?: boolean;
-    message?: string;
+  otp_session_token?: string;
+  seconds_remaining?: number;
+  next_resend_available_at?: string;
+  otp_expires_at?: string;
+  expires_at?: string;
+  purpose?: string;
+  max_resend_allowed?: number;
+  is_max_limit_reached?: boolean;
+  message?: string;
 }
 
-export async function getOtpTimer(token: string): Promise<ActionResult<OtpTimerData>> {
-    try {
-        if (!token) {
-            return { success: false, message: 'Token is required' };
-        }
-        const response = await fetchApi<OtpTimerData>({
-            url: `/api/auth/otp-timer?token=${encodeURIComponent(token)}`,
-            method: 'GET',
-            isAuth: false,
-        });
-
-        if (response.type === 'error' || !response.data) {
-            const msg = Array.isArray(response.messages)
-                ? response.messages.join(', ')
-                : typeof response.messages === 'string'
-                    ? response.messages
-                    : 'Failed to fetch OTP timer';
-            return { success: false, message: msg };
-        }
-
-        const rawData = (response.data as any)?.data || response.data;
-        return { success: true, data: rawData };
-    } catch (error) {
-        return {
-            success: false,
-            message: error instanceof Error ? error.message : 'Something went wrong fetching OTP timer',
-        };
+export async function getOtpTimer(
+  token: string,
+): Promise<ActionResult<OtpTimerData>> {
+  try {
+    if (!token) {
+      return { success: false, message: "Token is required" };
     }
-}
-
-export async function resendOtp(body: { token?: string; otp_session_token?: string }): Promise<ActionResult<OtpTimerData>> {
-    try {
-        const token = body?.otp_session_token || body?.token;
-        if (!token) {
-            return { success: false, message: 'Token is required' };
-        }
-        const response = await fetchApi<OtpTimerData>({
-            url: '/api/auth/resend-otp',
-            method: 'POST',
-            data: {
-                otp_session_token: token,
-            },
-            isAuth: false,
-        });
-
-        if (response.type === 'error' || !response.data) {
-            const msg = Array.isArray(response.messages)
-                ? response.messages.join(', ')
-                : typeof response.messages === 'string'
-                    ? response.messages
-                    : 'Failed to resend OTP';
-            return { success: false, message: msg };
-        }
-
-        const rawData = (response.data as any)?.data || response.data;
-        return { success: true, data: rawData };
-    } catch (error) {
-        return {
-            success: false,
-            message: error instanceof Error ? error.message : 'Something went wrong resending OTP',
-        };
-    }
-}
-
-
-
-export async function resetPassword(body: { reset_token?: string; newPassword?: string; new_password?: string; password?: string }): Promise<ActionResult> {
-    const payload = {
-        reset_token: body.reset_token || '',
-        newPassword: body.newPassword || body.new_password || body.password || '',
-    };
-    const parseResult = resetPasswordSchema.safeParse(payload);
-    if (!parseResult.success) {
-        return { success: false, message: parseResult.error.issues.map(i => i.message).join(', ') };
-    }
-    const response = await fetchApi({
-        url: '/api/auth/reset-password',
-        method: 'POST',
-        data: parseResult.data,
-        isAuth: false,
+    const response = await fetchApi<OtpTimerData>({
+      url: `/api/auth/otp-timer?token=${encodeURIComponent(token)}`,
+      method: "GET",
+      isAuth: false,
     });
 
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages)
-            ? response.messages.join(', ')
-            : typeof response.messages === 'string'
-                ? response.messages
-                : 'Failed to reset password';
-        return { success: false, message: msg };
+    if (response.type === "error" || !response.data) {
+      const msg = Array.isArray(response.messages)
+        ? response.messages.join(", ")
+        : typeof response.messages === "string"
+          ? response.messages
+          : "Failed to fetch OTP timer";
+      return { success: false, message: msg };
     }
 
-    return { success: true, data: response.data };
+    const rawData = (response.data as any)?.data || response.data;
+    return { success: true, data: rawData };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Something went wrong fetching OTP timer",
+    };
+  }
+}
+
+export async function resendOtp(body: {
+  token?: string;
+  otp_session_token?: string;
+}): Promise<ActionResult<OtpTimerData>> {
+  try {
+    const token = body?.otp_session_token || body?.token;
+    if (!token) {
+      return { success: false, message: "Token is required" };
+    }
+    const response = await fetchApi<OtpTimerData>({
+      url: "/api/auth/resend-otp",
+      method: "POST",
+      data: {
+        otp_session_token: token,
+      },
+      isAuth: false,
+    });
+
+    if (response.type === "error" || !response.data) {
+      const msg = Array.isArray(response.messages)
+        ? response.messages.join(", ")
+        : typeof response.messages === "string"
+          ? response.messages
+          : "Failed to resend OTP";
+      return { success: false, message: msg };
+    }
+
+    const rawData = (response.data as any)?.data || response.data;
+    return { success: true, data: rawData };
+  } catch (error) {
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Something went wrong resending OTP",
+    };
+  }
+}
+
+export async function resetPassword(body: {
+  reset_token?: string;
+  newPassword?: string;
+  new_password?: string;
+  password?: string;
+}): Promise<ActionResult> {
+  const payload = {
+    reset_token: body.reset_token || "",
+    newPassword: body.newPassword || body.new_password || body.password || "",
+  };
+  const parseResult = resetPasswordSchema.safeParse(payload);
+  if (!parseResult.success) {
+    return {
+      success: false,
+      message: parseResult.error.issues.map((i) => i.message).join(", "),
+    };
+  }
+  const response = await fetchApi({
+    url: "/api/auth/reset-password",
+    method: "POST",
+    data: parseResult.data,
+    isAuth: false,
+  });
+
+  if (response.type === "error") {
+    const msg = Array.isArray(response.messages)
+      ? response.messages.join(", ")
+      : typeof response.messages === "string"
+        ? response.messages
+        : "Failed to reset password";
+    return { success: false, message: msg };
+  }
+
+  return { success: true, data: response.data };
 }
 
 export async function changePassword(body: any): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: '/api/auth/change-password',
-        method: 'POST',
-        data: body,
-    });
+  const response = await fetchApi({
+    url: "/api/auth/change-password",
+    method: "POST",
+    data: body,
+  });
 
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to change password') };
-    }
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to change password"),
+    };
+  }
 
-    return { success: true, data: response.data };
+  return { success: true, data: response.data };
 }
 
 export async function signout() {
-    try {
-        const response = await fetchApi({
-            url: '/api/auth/logout',
-            method: 'POST',
-            data: { "action": "LOGOUT" },
-        });
-        if (response.type === 'error') {
-            return await logout();
-        }
-        const cookieStore = await cookies();
-        cookieStore.delete('auth-token');
-        cookieStore.delete('refresh-token');
-        cookieStore.delete('user-role');
-        cookieStore.delete('sub-account');
-        cookieStore.delete('has-membership');
-        return { success: true };
-    } catch (error) {
-
-        return await logout();
+  try {
+    const response = await fetchApi({
+      url: "/api/auth/logout",
+      method: "POST",
+      data: { action: "LOGOUT" },
+    });
+    if (response.type === "error") {
+      return await logout();
     }
+    const cookieStore = await cookies();
+    cookieStore.delete("auth-token");
+    cookieStore.delete("refresh-token");
+    cookieStore.delete("user-role");
+    cookieStore.delete("sub-account");
+    cookieStore.delete("has-membership");
+    return { success: true };
+  } catch (error) {
+    return await logout();
+  }
 }
 export async function logout() {
-    const cookieStore = await cookies();
-    cookieStore.delete('auth-token');
-    cookieStore.delete('refresh-token');
-    cookieStore.delete('user-role');
-    cookieStore.delete('sub-account');
-    cookieStore.delete('has-membership');
-    return { success: true };
+  const cookieStore = await cookies();
+  cookieStore.delete("auth-token");
+  cookieStore.delete("refresh-token");
+  cookieStore.delete("user-role");
+  cookieStore.delete("sub-account");
+  cookieStore.delete("has-membership");
+  return { success: true };
 }
 
-export async function postProperty(body: any, saveAsDraft?: boolean): Promise<ActionResult> {
-    const url = saveAsDraft ? '/api/properties/draft' : '/api/properties';
-    const response = await fetchApi({
-        url,
-        method: 'POST',
-        data: body,
-    });
-    if (response.type === 'error') {
-        return {
-            success: false,
-            message: normalizeMsg(response.messages, 'Failed to add property'),
-            errorFields: response.errorFields,
-            error: response.error,
-        };
-    }
-    return { success: true, data: response.data };
+export async function postProperty(
+  body: any,
+  saveAsDraft?: boolean,
+): Promise<ActionResult> {
+  const url = saveAsDraft ? "/api/properties/draft" : "/api/properties";
+  const response = await fetchApi({
+    url,
+    method: "POST",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to add property"),
+      errorFields: response.errorFields,
+      error: response.error,
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export interface ValidateAddressPayload {
-    address: string;
-    address2?: string;
-    city: string;
-    state: string;
-    zip: string;
+  address: string;
+  address2?: string;
+  city: string;
+  state: string;
+  zip: string;
 }
 
-export async function validateAddress(body: ValidateAddressPayload): Promise<ActionResult> {
-    let response = await fetchApi({
-        url: '/api/properties/validate-address',
-        method: 'POST',
-        data: body,
+export async function validateAddress(
+  body: ValidateAddressPayload,
+): Promise<ActionResult> {
+  let response = await fetchApi({
+    url: "/api/properties/validate-address",
+    method: "POST",
+    data: body,
+  });
+
+  if (response.status === 404) {
+    response = await fetchApi({
+      url: "/properties/validate-address",
+      method: "POST",
+      data: body,
     });
+  }
 
-    if (response.status === 404) {
-        response = await fetchApi({
-            url: '/properties/validate-address',
-            method: 'POST',
-            data: body,
-        });
-    }
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Address validation failed"),
+      errorFields: response.errorFields,
+      error: response.error,
+    };
+  }
 
-    if (response.type === 'error') {
-        return {
-            success: false,
-            message: normalizeMsg(response.messages, 'Address validation failed'),
-            errorFields: response.errorFields,
-            error: response.error,
-        };
-    }
-
-    return { success: true, data: response.data };
+  return { success: true, data: response.data };
 }
 
 export interface GooglePlacePrediction {
-    place_id: string;
-    description: string;
-    main_text?: string;
-    secondary_text?: string;
+  place_id: string;
+  description: string;
+  main_text?: string;
+  secondary_text?: string;
+}
+
+export interface GooglePlaceCity {
+  id: string;
+  name: string;
+}
+
+export interface GooglePlaceFlags {
+  already_exists?: boolean;
+  is_different_city?: boolean;
+}
+
+export interface ExistingProperty {
+  id: string;
+  address: string;
+  address2?: string | null;
+  city_id?: string;
+  city_name?: string;
+  state_name?: string;
+  zip?: string;
+  is_exact_match?: boolean;
 }
 
 export interface GooglePlaceDetails {
-    place_id: string;
-    formatted_address: string;
-    address: string;
-    address2?: string | null;
-    city: string;
-    state: string;
-    state_name?: string;
-    zip: string;
-    county?: string | null;
-    country?: string;
-    latitude?: number | null;
-    longitude?: number | null;
+  place_id: string;
+  formatted_address: string;
+  address: string;
+  address2?: string | null;
+  city: string;
+  state: string;
+  state_name?: string;
+  zip: string;
+  county?: string | null;
+  country?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  flags?: GooglePlaceFlags;
+  existing_properties?: ExistingProperty[];
+  cities?: GooglePlaceCity[];
 }
 
-export async function searchGooglePlaces(search: string): Promise<ActionResult<{ predictions: GooglePlacePrediction[] }>> {
-    const params = new URLSearchParams({ search });
-    let response = await fetchApi({
-        url: `/api/properties/google-places?${params.toString()}`,
-        method: 'GET',
+export async function searchGooglePlaces(
+  search: string,
+): Promise<ActionResult<{ predictions: GooglePlacePrediction[] }>> {
+  const params = new URLSearchParams({ search });
+
+  console.log(`/api/properties/google-places?${params.toString()}`);
+  let response = await fetchApi({
+    url: `/api/properties/google-places?${params.toString()}`,
+    method: "GET",
+  });
+
+  if (response.status === 404) {
+    response = await fetchApi({
+      url: `/properties/google-places?${params.toString()}`,
+      method: "GET",
     });
+  }
 
-    if (response.status === 404) {
-        response = await fetchApi({
-            url: `/properties/google-places?${params.toString()}`,
-            method: 'GET',
-        });
-    }
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to search places"),
+    };
+  }
 
-    if (response.type === 'error') {
-        return {
-            success: false,
-            message: normalizeMsg(response.messages, 'Failed to search places'),
-        };
-    }
-
-    const data = response.data?.data ?? response.data;
-    const predictions = data?.predictions ?? (Array.isArray(data) ? data : []);
-    return { success: true, data: { predictions } };
+  const data = response.data?.data ?? response.data;
+  const predictions = data?.predictions ?? (Array.isArray(data) ? data : []);
+  return { success: true, data: { predictions } };
 }
 
-export async function getGooglePlaceDetails(placeId: string): Promise<ActionResult<GooglePlaceDetails>> {
-    const params = new URLSearchParams({ place_id: placeId });
-    let response = await fetchApi({
-        url: `/api/properties/google-places?${params.toString()}`,
-        method: 'GET',
+export async function getGooglePlaceDetails(
+  placeId: string,
+): Promise<ActionResult<GooglePlaceDetails>> {
+  const params = new URLSearchParams({ place_id: placeId });
+  let response = await fetchApi({
+    url: `/api/properties/google-places?${params.toString()}`,
+    method: "GET",
+  });
+
+  if (response.status === 404) {
+    response = await fetchApi({
+      url: `/properties/google-places?${params.toString()}`,
+      method: "GET",
     });
+  }
 
-    if (response.status === 404) {
-        response = await fetchApi({
-            url: `/properties/google-places?${params.toString()}`,
-            method: 'GET',
-        });
-    }
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to fetch place details"),
+    };
+  }
 
-    if (response.type === 'error') {
-        return {
-            success: false,
-            message: normalizeMsg(response.messages, 'Failed to fetch place details'),
-        };
-    }
-
-    const data = response.data?.data ?? response.data;
-    return { success: true, data };
+  const data = response.data?.data ?? response.data;
+  return { success: true, data };
 }
 
+export interface CheckPropertyPayload {
+  address: string;
+  address2?: string | null;
+  city_id?: string | null;
+  state_id?: string | null;
+  zip: string;
+}
 
-export async function postInstallation(propertyId: string, type: string, body: any): Promise<ActionResult> {
-    const endpoint = `/api/properties/${propertyId}/${toEndpointType(type)}`;
+export interface CheckPropertyResult {
+  flags?: GooglePlaceFlags;
+  existing_properties?: ExistingProperty[];
+  cities?: GooglePlaceCity[];
+}
 
-    const response = await fetchApi({
-        url: endpoint,
-        method: 'POST',
-        data: body,
-    });
+export async function checkPropertyExists(
+  payload: CheckPropertyPayload,
+): Promise<ActionResult<CheckPropertyResult>> {
+  const response = await fetchApi({
+    url: "/api/properties/check-address",
+    method: "POST",
+    data: payload,
+  });
 
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, `Failed to submit ${type} installation`) };
+  if (response.type === "error") {
+    const errorData = (response.error as any)?.data ?? response.error;
+    if (
+      errorData &&
+      (errorData.flags ||
+        errorData.already_exists !== undefined ||
+        errorData.existing_properties)
+    ) {
+      return { success: true, data: errorData };
     }
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to check property"),
+    };
+  }
 
-    return { success: true, data: response.data };
+  const data = response.data?.data ?? response.data;
+  return { success: true, data };
+}
+
+export async function postInstallation(
+  propertyId: string,
+  type: string,
+  body: any,
+): Promise<ActionResult> {
+  const endpoint = `/api/properties/${propertyId}/${toEndpointType(type)}`;
+
+  const response = await fetchApi({
+    url: endpoint,
+    method: "POST",
+    data: body,
+  });
+
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        `Failed to submit ${type} installation`,
+      ),
+    };
+  }
+
+  return { success: true, data: response.data };
 }
 
 export async function deleteProperty(id: string) {
+  const response = await fetchApi({
+    url: `/api/properties/${id}`,
+    method: "DELETE",
+  });
+
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, `Failed to delete property`),
+    };
+  }
+
+  return { success: true, data: response.data };
+}
+
+export async function uploadInstallationImages(
+  type: string,
+  id: string,
+  files: File[] | Record<string, File | null>,
+): Promise<ActionResult> {
+  try {
+    const formData = new FormData();
+
+    if (Array.isArray(files)) {
+      const key = normalizeCategoryKey(type);
+      files.forEach((file) => {
+        if (file) {
+          formData.append(key || "files", file);
+        }
+      });
+    } else if (files && typeof files === "object") {
+      Object.entries(files).forEach(([fieldName, file]) => {
+        if (file) {
+          formData.append(fieldName, file);
+        }
+      });
+    } else {
+      return { success: false, message: "No image files provided for upload" };
+    }
+
     const response = await fetchApi({
-        url: `/api/properties/${id}`,
-        method: 'DELETE',
+      url: `/api/${toEndpointType(type)}/${id}/images`,
+      method: "POST",
+      data: formData,
     });
 
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, `Failed to delete property`) };
+    if (response.type === "error") {
+      const message =
+        typeof response.messages === "string"
+          ? response.messages
+          : Array.isArray(response.messages)
+            ? response.messages.join(", ")
+            : "Failed to upload images";
+      return { success: false, message };
     }
 
     return { success: true, data: response.data };
-}
-
-export async function uploadInstallationImages(type: string, id: string, files: File[] | Record<string, File | null>): Promise<ActionResult> {
-    try {
-        const formData = new FormData();
-
-        if (Array.isArray(files)) {
-            const key = normalizeCategoryKey(type);
-            files.forEach((file) => {
-                if (file) {
-                    formData.append(key || 'files', file);
-                }
-            });
-        } else if (files && typeof files === 'object') {
-            Object.entries(files).forEach(([fieldName, file]) => {
-                if (file) {
-                    formData.append(fieldName, file);
-                }
-            });
-        } else {
-            return { success: false, message: 'No image files provided for upload' };
-        }
-
-        const response = await fetchApi({
-            url: `/api/${toEndpointType(type)}/${id}/images`,
-            method: 'POST',
-            data: formData,
-        });
-
-        if (response.type === 'error') {
-            const message =
-                typeof response.messages === 'string'
-                    ? response.messages
-                    : Array.isArray(response.messages)
-                        ? response.messages.join(', ')
-                        : 'Failed to upload images';
-            return { success: false, message };
-        }
-
-        return { success: true, data: response.data };
-    } catch (e: any) {
-        return { success: false, message: e?.message || 'Failed to upload images' };
-    }
+  } catch (e: any) {
+    return { success: false, message: e?.message || "Failed to upload images" };
+  }
 }
 
 export async function postReport(propertyId: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/properties/${propertyId}/generate-report`,
-        method: 'POST',
-    });
+  const response = await fetchApi({
+    url: `/api/properties/${propertyId}/generate-report`,
+    method: "POST",
+  });
 
-    if (response.type === 'error') {
-        const message =
-            typeof response.messages === 'string'
-                ? response.messages
-                : Array.isArray(response.messages)
-                    ? response.messages.join(', ')
-                    : 'Failed to generate report';
-        return { success: false, message };
-    }
+  if (response.type === "error") {
+    const message =
+      typeof response.messages === "string"
+        ? response.messages
+        : Array.isArray(response.messages)
+          ? response.messages.join(", ")
+          : "Failed to generate report";
+    return { success: false, message };
+  }
 
-    return { success: true, data: response.data };
+  return { success: true, data: response.data };
 }
 
 export async function getPropertyById(id: string) {
-    try {
-        const response = await fetchApi({
-            url: `/api/properties/components/summary?id=${id}`,
-            method: 'GET',
-        });
-        if (response.type === 'error') {
-            return { success: false, message: normalizeMsg(response.messages, 'Failed to get property details'), data: null };
-        }
-        const rawData = response.data;
-        const item = Array.isArray(rawData)
-            ? rawData[0]
-            : rawData?.data && Array.isArray(rawData.data)
-            ? rawData.data[0]
-            : (rawData?.data ?? rawData);
-        return { success: true, data: item };
-    } catch (err: any) {
-        return { success: false, message: err?.message || 'Failed to get property details', data: null };
+  try {
+    const response = await fetchApi({
+      url: `/api/properties/components/summary?id=${id}`,
+      method: "GET",
+    });
+    if (response.type === "error") {
+      return {
+        success: false,
+        message: normalizeMsg(
+          response.messages,
+          "Failed to get property details",
+        ),
+        data: null,
+      };
     }
+    const rawData = response.data;
+    const item = Array.isArray(rawData)
+      ? rawData[0]
+      : rawData?.data && Array.isArray(rawData.data)
+        ? rawData.data[0]
+        : (rawData?.data ?? rawData);
+    return { success: true, data: item };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err?.message || "Failed to get property details",
+      data: null,
+    };
+  }
 }
 
 export type PropertyFilters = {
-    id?: string;
-    search?: string;
-    brandName?: string;
-    style?: string;
-    color?: string;
-    state?: string;
-    city?: string;
-    state_id?: string;
-    city_id?: string;
-    zip?: string;
-    has_report?: boolean;
-    property_type?: string;
-    page?: number;
-    limit?: number;
-    is_purchased?: boolean;
-    isPropertyOwner?: boolean;
-    include_pending?: boolean;
-    is_deleted?: boolean;
+  id?: string;
+  search?: string;
+  brandName?: string;
+  style?: string;
+  color?: string;
+  state?: string;
+  city?: string;
+  state_id?: string;
+  city_id?: string;
+  zip?: string;
+  has_report?: boolean;
+  property_type?: string;
+  page?: number;
+  limit?: number;
+  is_purchased?: boolean;
+  isPropertyOwner?: boolean;
+  include_pending?: boolean;
+  is_deleted?: boolean;
 };
 
 function buildPropertyFilterParams(filters: PropertyFilters): URLSearchParams {
-    const params = new URLSearchParams();
-    if (filters.id) params.append('id', filters.id);
-    if (filters.search) params.append('search', filters.search);
-    if (filters.brandName) params.append('brandName', filters.brandName);
-    if (filters.style) params.append('style', filters.style);
-    if (filters.color) params.append('color', filters.color);
-    if (filters.state && filters.state !== 'all') params.append('state', filters.state);
-    if (filters.city && filters.city !== 'all') params.append('city', filters.city);
-    if (filters.state_id && filters.state_id !== 'all') params.append('state_id', filters.state_id);
-    if (filters.city_id && filters.city_id !== 'all') params.append('city_id', filters.city_id);
-    if (filters.zip) params.append('zip', filters.zip);
-    if (filters.has_report !== undefined) params.append('has_report', filters.has_report.toString());
-    if (filters.property_type) params.append('property_type', filters.property_type);
-    if (filters.page) params.append('page', filters.page.toString());
-    if (filters.limit) params.append('limit', filters.limit.toString());
-    if (filters.is_purchased !== undefined) params.append('is_purchased', filters.is_purchased.toString());
-    if (filters.include_pending !== undefined) params.append('include_pending', filters.include_pending.toString());
-    if (filters.is_deleted !== undefined) params.append('is_deleted', filters.is_deleted.toString());
-    return params;
+  const params = new URLSearchParams();
+  if (filters.id) params.append("id", filters.id);
+  if (filters.search) params.append("search", filters.search);
+  if (filters.brandName) params.append("brandName", filters.brandName);
+  if (filters.style) params.append("style", filters.style);
+  if (filters.color) params.append("color", filters.color);
+  if (filters.state && filters.state !== "all")
+    params.append("state", filters.state);
+  if (filters.city && filters.city !== "all")
+    params.append("city", filters.city);
+  if (filters.state_id && filters.state_id !== "all")
+    params.append("state_id", filters.state_id);
+  if (filters.city_id && filters.city_id !== "all")
+    params.append("city_id", filters.city_id);
+  if (filters.zip) params.append("zip", filters.zip);
+  if (filters.has_report !== undefined)
+    params.append("has_report", filters.has_report.toString());
+  if (filters.property_type)
+    params.append("property_type", filters.property_type);
+  if (filters.page) params.append("page", filters.page.toString());
+  if (filters.limit) params.append("limit", filters.limit.toString());
+  if (filters.is_purchased !== undefined)
+    params.append("is_purchased", filters.is_purchased.toString());
+  if (filters.include_pending !== undefined)
+    params.append("include_pending", filters.include_pending.toString());
+  if (filters.is_deleted !== undefined)
+    params.append("is_deleted", filters.is_deleted.toString());
+  return params;
 }
 
 export async function getPropertyListAll(filters?: PropertyFilters) {
-    try {
-        let url = (filters && filters.isPropertyOwner)
-            ? '/api/properties/user/all-details'
-            : '/api/properties/components/summary';
+  try {
+    let url =
+      filters && filters.isPropertyOwner
+        ? "/api/properties/user/all-details"
+        : "/api/properties/components/summary";
 
-        if (filters) {
-            const { isPropertyOwner, ...cleanFilters } = filters;
-            const query = buildPropertyFilterParams(cleanFilters).toString();
-            if (query) url += `?${query}`;
-        }
-
-        const response = await fetchApi({
-            url,
-            method: 'GET',
-        });
-
-        if (response.type === 'error') {
-            return { success: false, message: normalizeMsg(response.messages, 'Failed to get property list'), data: [] };
-        }
-        return {
-            success: true,
-            data: Array.isArray(response.data) ? response.data : (response.data?.data || response.data || []),
-            ...(typeof response.data === 'object' && response.data !== null ? response.data : {})
-        };
-    } catch (err: any) {
-        return { success: false, message: err?.message || 'Failed to get property list', data: [] };
+    if (filters) {
+      const { isPropertyOwner, ...cleanFilters } = filters;
+      const query = buildPropertyFilterParams(cleanFilters).toString();
+      if (query) url += `?${query}`;
     }
+
+    const response = await fetchApi({
+      url,
+      method: "GET",
+    });
+
+    if (response.type === "error") {
+      return {
+        success: false,
+        message: normalizeMsg(response.messages, "Failed to get property list"),
+        data: [],
+      };
+    }
+    return {
+      success: true,
+      data: Array.isArray(response.data)
+        ? response.data
+        : response.data?.data || response.data || [],
+      ...(typeof response.data === "object" && response.data !== null
+        ? response.data
+        : {}),
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err?.message || "Failed to get property list",
+      data: [],
+    };
+  }
 }
 
 export async function getPropertyLocations(
-    minLat?: number,
-    maxLat?: number,
-    minLng?: number,
-    maxLng?: number,
-    zoomLevel?: number,
-    filters?: PropertyFilters
+  minLat?: number,
+  maxLat?: number,
+  minLng?: number,
+  maxLng?: number,
+  zoomLevel?: number,
+  filters?: PropertyFilters,
 ) {
-    let url = '/api/properties/location';
-    const params = new URLSearchParams();
-    if (minLat !== undefined && maxLat !== undefined && minLng !== undefined && maxLng !== undefined) {
-        params.append('minLat', minLat.toString());
-        params.append('maxLat', maxLat.toString());
-        params.append('minLng', minLng.toString());
-        params.append('maxLng', maxLng.toString());
-    }
-    if (zoomLevel !== undefined) {
-        params.append('zoomLevel', zoomLevel.toString());
-    }
-    if (filters) {
-        const filterParams = buildPropertyFilterParams(filters);
-        filterParams.forEach((val, key) => params.append(key, val));
-    }
-    const queryString = params.toString();
-    if (queryString) {
-        url += `?${queryString}`;
-    }
+  let url = "/api/properties/location";
+  const params = new URLSearchParams();
+  if (
+    minLat !== undefined &&
+    maxLat !== undefined &&
+    minLng !== undefined &&
+    maxLng !== undefined
+  ) {
+    params.append("minLat", minLat.toString());
+    params.append("maxLat", maxLat.toString());
+    params.append("minLng", minLng.toString());
+    params.append("maxLng", maxLng.toString());
+  }
+  if (zoomLevel !== undefined) {
+    params.append("zoomLevel", zoomLevel.toString());
+  }
+  if (filters) {
+    const filterParams = buildPropertyFilterParams(filters);
+    filterParams.forEach((val, key) => params.append(key, val));
+  }
+  const queryString = params.toString();
+  if (queryString) {
+    url += `?${queryString}`;
+  }
 
-    const response = await fetchApi({
-        url,
-        method: 'GET',
-    });
-    if (response.type === 'error') {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get property locations'));
-    }
-    return response.data;
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(
+      normalizeMsg(response.messages, "Failed to get property locations"),
+    );
+  }
+  return response.data;
 }
 
 export async function getUserProfile() {
-    const response = await fetchApi({
-        url: "/api/users/profile",
-        method: "GET",
-    });
-    if (response.type === "error") {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get user profile'));
-    }
-    return response.data.data;
+  const response = await fetchApi({
+    url: "/api/users/profile",
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(
+      normalizeMsg(response.messages, "Failed to get user profile"),
+    );
+  }
+  return response.data.data;
 }
 
 export async function updateUserProfile(body: any): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: "/api/users/profile",
-        method: "PUT",
-        data: body,
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update user profile') };
-    }
-    return { success: true, data: response.data?.data ?? response.data };
+  const response = await fetchApi({
+    url: "/api/users/profile",
+    method: "PUT",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to update user profile"),
+    };
+  }
+  return { success: true, data: response.data?.data ?? response.data };
 }
 
 export async function acknowledgeConversionToast(): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: "/api/subscriptions/acknowledge-toast",
-        method: "POST",
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to acknowledge conversion toast') };
-    }
-    return { success: true, data: response.data?.data ?? response.data };
+  const response = await fetchApi({
+    url: "/api/subscriptions/acknowledge-toast",
+    method: "POST",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to acknowledge conversion toast",
+      ),
+    };
+  }
+  return { success: true, data: response.data?.data ?? response.data };
 }
 
-
-export async function getUserList(page: number = 1, limit: number = 10, role?: string, search?: string) {
-    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
-    if (role) params.append('role', role);
-    if (search) params.append('search', search);
-    const response = await fetchApi({
-        url: `/api/users/all?${params.toString()}`,
-        method: "GET",
-    });
-    if (response.type === "error") {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get user list'));
-    }
-    return response.data;
+export async function getUserList(
+  page: number = 1,
+  limit: number = 10,
+  role?: string,
+  search?: string,
+) {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+  if (role) params.append("role", role);
+  if (search) params.append("search", search);
+  const response = await fetchApi({
+    url: `/api/users/all?${params.toString()}`,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(normalizeMsg(response.messages, "Failed to get user list"));
+  }
+  return response.data;
 }
 
 export async function getUserById(id: string) {
-    const response = await fetchApi({
-        url: `/api/users/all?id=${id}`,
-        method: "GET",
-    });
-    if (response.type === "error") {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get user'));
-    }
-    return response.data.data;
+  const response = await fetchApi({
+    url: `/api/users/all?id=${id}`,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(normalizeMsg(response.messages, "Failed to get user"));
+  }
+  return response.data.data;
 }
 
 export async function updateUser(id: string, body: any) {
-    const response = await fetchApi({
-        url: `/api/auth/admin/update-user?id=${id}`,
-        method: "PUT",
-        data: body,
-    });
+  const response = await fetchApi({
+    url: `/api/auth/admin/update-user?id=${id}`,
+    method: "PUT",
+    data: body,
+  });
 
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update user') };
-    }
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to update user"),
+    };
+  }
 
-    return { success: true, data: response.data };
+  return { success: true, data: response.data };
 }
 
 // Brand Management
-export async function getBrands(page: number = 1, limit: number = 10, category?: string, search?: string) {
-    try {
-        const params = new URLSearchParams();
+export async function getBrands(
+  page: number = 1,
+  limit: number = 10,
+  category?: string,
+  search?: string,
+) {
+  try {
+    const params = new URLSearchParams();
 
-        if (page > 0 && limit > 0) {
-            params.append("page", page.toString());
-            params.append("limit", limit.toString());
-        }
-
-        if (category) {
-            params.append("category", category.toUpperCase());
-        }
-
-        if (search) {
-            params.append("search", search);
-        }
-
-        const url = `/api/brands${params.toString() ? `?${params.toString()}` : ''}`;
-        const response = await fetchApi({
-            url: url,
-            method: "GET",
-        });
-        if (response.type === "error") {
-            throw new Error(normalizeMsg(response.messages, 'Failed to get brands'));
-        }
-        return response.data;
-    } catch (error) {
-        throw error;
+    if (page > 0 && limit > 0) {
+      params.append("page", page.toString());
+      params.append("limit", limit.toString());
     }
-}
 
-export async function createBrand(body: { name?: string; brand_name?: string; category?: string; description?: string; sub_brands?: string[]; is_active?: boolean }): Promise<ActionResult> {
+    if (category) {
+      params.append("category", category.toUpperCase());
+    }
+
+    if (search) {
+      params.append("search", search);
+    }
+
+    const url = `/api/brands${params.toString() ? `?${params.toString()}` : ""}`;
     const response = await fetchApi({
-        url: "/api/brands",
-        method: "POST",
-        data: body,
+      url: url,
+      method: "GET",
     });
     if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to create brand') };
+      throw new Error(normalizeMsg(response.messages, "Failed to get brands"));
     }
-    return { success: true, data: response.data };
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 }
 
-export async function updateBrand(id: string, body: { name?: string; brand_name?: string; category?: string; description?: string; sub_brands?: string[]; is_active?: boolean }): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/brands/${id}`,
-        method: "PUT",
-        data: body,
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update brand') };
-    }
-    return { success: true, data: response.data };
+export async function createBrand(body: {
+  name?: string;
+  brand_name?: string;
+  category?: string;
+  description?: string;
+  sub_brands?: string[];
+  is_active?: boolean;
+}): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: "/api/brands",
+    method: "POST",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to create brand"),
+    };
+  }
+  return { success: true, data: response.data };
+}
+
+export async function updateBrand(
+  id: string,
+  body: {
+    name?: string;
+    brand_name?: string;
+    category?: string;
+    description?: string;
+    sub_brands?: string[];
+    is_active?: boolean;
+  },
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: `/api/brands/${id}`,
+    method: "PUT",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to update brand"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function deleteBrand(id: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/brands/${id}`,
-        method: "DELETE",
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to delete brand') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: `/api/brands/${id}`,
+    method: "DELETE",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to delete brand"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function createMembership(body: any) {
-    const response = await fetchApi({
-        url: "/api/membership-plans",
-        method: "POST",
-        data: body,
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to create membership') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: "/api/membership-plans",
+    method: "POST",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to create membership"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function getMembership(id?: string, role?: string) {
-    let url = id ? `/api/membership-plans?id=${id}` : "/api/membership-plans";
+  let url = id ? `/api/membership-plans?id=${id}` : "/api/membership-plans";
 
-    if (role && !id) {
-        const separator = url.includes('?') ? '&' : '?';
-        url += `${separator}role=${role}`;
-    }
+  if (role && !id) {
+    const separator = url.includes("?") ? "&" : "?";
+    url += `${separator}role=${role}`;
+  }
 
-    const response = await fetchApi({
-        url,
-        method: "GET",
-    });
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
 
-    if (response.type === "error") {
-        throw new Error(
-            normalizeMsg(response.messages, 'Failed to get membership')
-        );
-    }
+  if (response.type === "error") {
+    throw new Error(
+      normalizeMsg(response.messages, "Failed to get membership"),
+    );
+  }
 
-    return response.data;
+  return response.data;
 }
 
 export async function updateMembership(body: any, id: string) {
-    const response = await fetchApi({
-        url: `/api/membership-plans/${id}`,
-        method: "PUT",
-        data: body,
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update membership') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: `/api/membership-plans/${id}`,
+    method: "PUT",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to update membership"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function deleteMembership(id: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/membership-plans/${id}`,
-        method: "DELETE",
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to delete membership') };
-    }
-    return { success: true, data: response.data };
-}
-
-export async function getMembershipLevels(role?: string): Promise<ActionResult> {
-    let url = "/api/membership-levels";
-    if (role) {
-        url += `?role=${encodeURIComponent(role)}`;
-    }
-    const response = await fetchApi({
-        url,
-        method: "GET",
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to get membership levels') };
-    }
-    const rawData = response.data;
-    const levels = Array.isArray(rawData) ? rawData : (rawData?.data || []);
-    return { success: true, data: levels };
-}
-
-export async function updateMembershipLevel(id: string, body: { name: string }): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/membership-levels/${id}`,
-        method: "PUT",
-        data: body,
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update membership level') };
-    }
+  const response = await fetchApi({
+    url: `/api/membership-plans/${id}`,
+    method: "DELETE",
+  });
+  if (response.type === "error") {
     return {
-        success: true,
-        data: response.data?.data || response.data,
-        message: response.data?.message || 'Membership level name updated successfully',
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to delete membership"),
     };
+  }
+  return { success: true, data: response.data };
 }
 
+export async function getMembershipLevels(
+  role?: string,
+): Promise<ActionResult> {
+  let url = "/api/membership-levels";
+  if (role) {
+    url += `?role=${encodeURIComponent(role)}`;
+  }
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to get membership levels",
+      ),
+    };
+  }
+  const rawData = response.data;
+  const levels = Array.isArray(rawData) ? rawData : rawData?.data || [];
+  return { success: true, data: levels };
+}
+
+export async function updateMembershipLevel(
+  id: string,
+  body: { name: string },
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: `/api/membership-levels/${id}`,
+    method: "PUT",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to update membership level",
+      ),
+    };
+  }
+  return {
+    success: true,
+    data: response.data?.data || response.data,
+    message:
+      response.data?.message || "Membership level name updated successfully",
+  };
+}
 
 export async function cancelMembership(): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/membership-plans/cancel`,
-        method: "PUT",
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to cancel membership') };
-    }
-    const cookieStore = await cookies();
-    cookieStore.set('has-membership', 'false', {
-        httpOnly: false,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 30 * 24 * 60 * 60
-    });
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: `/api/membership-plans/cancel`,
+    method: "PUT",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to cancel membership"),
+    };
+  }
+  const cookieStore = await cookies();
+  cookieStore.set("has-membership", "false", {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 30 * 24 * 60 * 60,
+  });
+  return { success: true, data: response.data };
 }
 
-export async function updateAutoRenewal(autoRenewalEnabled: boolean): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: '/api/membership-plans/auto-renewal',
-        method: 'PUT',
-        data: { autoRenewalEnabled },
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update auto-renewal settings') };
-    }
-    return { success: true, data: response.data };
+export async function updateAutoRenewal(
+  autoRenewalEnabled: boolean,
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: "/api/membership-plans/auto-renewal",
+    method: "PUT",
+    data: { autoRenewalEnabled },
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to update auto-renewal settings",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export interface FreeTrialStatusData {
-    has_used_free_trial: boolean;
-    is_free_trial_active: boolean;
-    free_trial_ends_at: string | null;
-    days_left: number;
-    is_expired: boolean;
-    can_claim_free_trial: boolean;
-    display_message: string;
-    upgrade_recommended_levels: string[];
-    show_free_trial_dashboard?: boolean;
+  has_used_free_trial: boolean;
+  is_free_trial_active: boolean;
+  free_trial_ends_at: string | null;
+  days_left: number;
+  is_expired: boolean;
+  can_claim_free_trial: boolean;
+  display_message: string;
+  upgrade_recommended_levels: string[];
+  show_free_trial_dashboard?: boolean;
 }
 
 export interface FreeTrialStatusResponse {
-    data: FreeTrialStatusData;
-    message: string;
+  data: FreeTrialStatusData;
+  message: string;
 }
 
-export async function getFreeTrialStatus(): Promise<ActionResult<FreeTrialStatusResponse>> {
-    const response = await fetchApi({
-        url: "/api/membership-plans/free-trial-status",
-        method: "GET",
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to get free trial status') };
-    }
-    return { success: true, data: response.data };
+export async function getFreeTrialStatus(): Promise<
+  ActionResult<FreeTrialStatusResponse>
+> {
+  const response = await fetchApi({
+    url: "/api/membership-plans/free-trial-status",
+    method: "GET",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to get free trial status",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function updateProperties(id: string, body: any): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/properties/admin/${id}`,
-        method: "PUT",
-        data: body,
-    });
-    if (response.type === "error") {
-        return {
-            success: false,
-            message: normalizeMsg(response.messages, 'Failed to update property'),
-            errorFields: response.errorFields,
-            error: response.error,
-        };
-    }
-    return { success: true, data: response.data };
-
+export async function updateProperties(
+  id: string,
+  body: any,
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: `/api/properties/admin/${id}`,
+    method: "PUT",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to update property"),
+      errorFields: response.errorFields,
+      error: response.error,
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function updateInstallation(type: string, id: string, body: any) {
-    const payload = { ...body };
-    const url = `/api/admin/${toEndpointType(type)}/${id}`;
-    const response = await fetchApi({
-        url,
-        method: 'PUT',
-        data: payload,
-    });
+  const payload = { ...body };
+  const url = `/api/admin/${toEndpointType(type)}/${id}`;
+  const response = await fetchApi({
+    url,
+    method: "PUT",
+    data: payload,
+  });
 
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, `Failed to update ${type} installation`) };
-    }
-    return { success: true, data: response.data };
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        `Failed to update ${type} installation`,
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function generatePdfReport(id: string, type?: string, userRole?: string) {
-    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-    let url = `${basePath}/api/reports/${id}/download`;
-    if (type) {
-        url += `?project_type=${encodeURIComponent(type)}`;
-    }
-    return url;
+export async function generatePdfReport(
+  id: string,
+  type?: string,
+  userRole?: string,
+) {
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+  let url = `${basePath}/api/reports/${id}/download`;
+  if (type) {
+    url += `?project_type=${encodeURIComponent(type)}`;
+  }
+  return url;
 }
 
 export async function generateProjectPdfReport(id: string) {
-    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-    return `${basePath}/api/project/${id}/pdf`;
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+  return `${basePath}/api/project/${id}/pdf`;
 }
 
 export async function getReportUsage() {
-    const response = await fetchApi({
-        url: '/api/reports/usage',
-        method: 'GET',
-    });
-    if (response.type === 'error') {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get report usage'));
-    }
-    return response.data;
+  const response = await fetchApi({
+    url: "/api/reports/usage",
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(
+      normalizeMsg(response.messages, "Failed to get report usage"),
+    );
+  }
+  return response.data;
 }
 
 export async function purchaseReport(reportId: string) {
-    const url = `/api/reports/${reportId}/purchase`;
-    const response = await fetchApi({
-        url: url,
-        method: 'POST',
-    });
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages) ? response.messages.join(', ') : typeof response.messages === 'string' ? response.messages : 'Failed to upload permit';
-        return { success: false, message: msg };
-    }
-    return { success: true, data: response.data, url: url };
+  const url = `/api/reports/${reportId}/purchase`;
+  const response = await fetchApi({
+    url: url,
+    method: "POST",
+  });
+  if (response.type === "error") {
+    const msg = Array.isArray(response.messages)
+      ? response.messages.join(", ")
+      : typeof response.messages === "string"
+        ? response.messages
+        : "Failed to upload permit";
+    return { success: false, message: msg };
+  }
+  return { success: true, data: response.data, url: url };
 }
 
-export async function purchaseAllContractorReports(propertyId: string): Promise<ActionResult> {
-    const url = `/api/stripe/purchase/property/${propertyId}`;
-    const response = await fetchApi({
-        url: url,
-        method: 'POST',
-    });
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages)
-            ? response.messages.join(', ')
-            : typeof response.messages === 'string'
-                ? response.messages
-                : 'Failed to purchase all contractor reports';
-        return { success: false, message: msg };
-    }
-    return { success: true, data: response.data };
+export async function purchaseAllContractorReports(
+  propertyId: string,
+): Promise<ActionResult> {
+  const url = `/api/stripe/purchase/property/${propertyId}`;
+  const response = await fetchApi({
+    url: url,
+    method: "POST",
+  });
+  if (response.type === "error") {
+    const msg = Array.isArray(response.messages)
+      ? response.messages.join(", ")
+      : typeof response.messages === "string"
+        ? response.messages
+        : "Failed to purchase all contractor reports";
+    return { success: false, message: msg };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function generateAllContractorPdfReport(propertyId: string) {
-    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-    return `${basePath}/api/properties/${propertyId}/all-contractor-projects/pdf`;
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+  return `${basePath}/api/properties/${propertyId}/all-contractor-projects/pdf`;
 }
 
 export async function generateContractorProjectPdfReport(projectId: string) {
-    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-    return `${basePath}/api/properties/${projectId}/contractor-projects/pdf`;
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+  return `${basePath}/api/properties/${projectId}/contractor-projects/pdf`;
 }
 
 export async function generateOwnerProjectPdfReport(projectId: string) {
-    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-    return `${basePath}/api/properties/${projectId}/owner-projects/pdf`;
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+  return `${basePath}/api/properties/${projectId}/owner-projects/pdf`;
 }
 
-export async function purchaseProject(projectId: string | string[], propertyId: string): Promise<ActionResult> {
-    const ids = Array.isArray(projectId) ? projectId : [projectId];
-    const data = {
-        projectId: ids[0],
-        projectIds: ids,
-        propertyId
+export async function purchaseProject(
+  projectId: string | string[],
+  propertyId: string,
+): Promise<ActionResult> {
+  const ids = Array.isArray(projectId) ? projectId : [projectId];
+  const data = {
+    projectId: ids[0],
+    projectIds: ids,
+    propertyId,
+  };
+  const response = await fetchApi({
+    url: "/api/stripe/purchase/project",
+    method: "POST",
+    data,
+  });
+  if (response.type === "error") {
+    const msg = Array.isArray(response.messages)
+      ? response.messages.join(", ")
+      : typeof response.messages === "string"
+        ? response.messages
+        : "Failed to purchase project";
+    return { success: false, message: msg };
+  }
+  return { success: true, data: response.data };
+}
+
+export async function updateInstallationImagesAdmin(
+  type: string,
+  id: string,
+  files: File[],
+) {
+  const formData = new FormData();
+  const key = normalizeCategoryKey(type);
+  files.forEach((file) => {
+    formData.append(key || "files", file);
+  });
+
+  const response = await fetchApi({
+    url: `/api/admin/${toEndpointType(type)}/${id}/images`,
+    method: "PUT",
+    data: formData,
+  });
+
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to update images"),
     };
-    const response = await fetchApi({
-        url: '/api/stripe/purchase/project',
-        method: 'POST',
-        data,
-    });
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages)
-            ? response.messages.join(', ')
-            : typeof response.messages === 'string'
-                ? response.messages
-                : 'Failed to purchase project';
-        return { success: false, message: msg };
-    }
-    return { success: true, data: response.data };
-}
-
-export async function updateInstallationImagesAdmin(type: string, id: string, files: File[]) {
-    const formData = new FormData();
-    const key = normalizeCategoryKey(type);
-    files.forEach((file) => {
-        formData.append(key || 'files', file);
-    });
-
-    const response = await fetchApi({
-        url: `/api/admin/${toEndpointType(type)}/${id}/images`,
-        method: 'PUT',
-        data: formData,
-    });
-
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update images') };
-    }
-    return { success: true, data: response.data };
+  }
+  return { success: true, data: response.data };
 }
 
 function normalizeCategoryKey(value?: string) {
-    return (value || '')
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '_')
-        .replace(/^_+|_+$/g, '');
+  return (value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
-export async function updateInstallationImagesByCategory(type: string, id: string, categoryFiles: Record<string, File>) {
-    const formData = new FormData();
-    Object.entries(categoryFiles).forEach(([categoryName, file]) => {
-        const normalizedCategoryName = normalizeCategoryKey(categoryName);
-        if (normalizedCategoryName) {
-            formData.append(normalizedCategoryName, file);
-        }
-    });
-
-    const response = await fetchApi({
-        url: `/api/admin/${toEndpointType(type)}/${id}/images`,
-        method: 'PUT',
-        data: formData,
-    });
-
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update images') };
+export async function updateInstallationImagesByCategory(
+  type: string,
+  id: string,
+  categoryFiles: Record<string, File>,
+) {
+  const formData = new FormData();
+  Object.entries(categoryFiles).forEach(([categoryName, file]) => {
+    const normalizedCategoryName = normalizeCategoryKey(categoryName);
+    if (normalizedCategoryName) {
+      formData.append(normalizedCategoryName, file);
     }
-    return { success: true, data: response.data };
+  });
+
+  const response = await fetchApi({
+    url: `/api/admin/${toEndpointType(type)}/${id}/images`,
+    method: "PUT",
+    data: formData,
+  });
+
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to update images"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function createCity(body: any): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: "/api/cities",
-        method: "POST",
-        data: body,
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to create city') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: "/api/cities",
+    method: "POST",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to create city"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function updateCity(id: string, body: any): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/cities/${id}`,
-        method: "PUT",
-        data: body,
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update city') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: `/api/cities/${id}`,
+    method: "PUT",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to update city"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function deleteCity(id: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/cities/${id}`,
-        method: "DELETE",
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to delete city') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: `/api/cities/${id}`,
+    method: "DELETE",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to delete city"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function getCities(
-    page: number = 1,
-    limit?: number,
-    id?: string,
-    name?: string,
-    state_id?: string,
-    isAdmin: boolean = false,
-    property_count?: boolean,
-    state_list?: boolean,
+  page: number = 1,
+  limit?: number,
+  id?: string,
+  name?: string,
+  state_id?: string,
+  isAdmin: boolean = false,
+  property_count?: boolean,
+  state_list?: boolean,
+  zipcode?: string,
 ) {
-    let url = id ? `/api/cities/${id}` : "/api/cities";
+  let url = id ? `/api/cities/${id}` : "/api/cities";
 
-    const params = new URLSearchParams();
-    if (!id) {
-        params.append("page", page.toString());
-        if (name) {
-            params.append("name", name);
-        }
-        if (state_id) params.append("state_id", state_id);
-        if (typeof limit === 'number' && isAdmin) {
-            params.append("limit", limit.toString());
-        }
-        if (property_count) {
-            params.append("property_count", "true");
-        }
-        if (state_list) {
-            params.append("state_list", "true");
-        }
+  const params = new URLSearchParams();
+  if (!id) {
+    params.append("page", page.toString());
+    if (name) {
+      params.append("name", name);
     }
-
-    const query = params.toString();
-    if (query) {
-        url += `?${query}`;
+    if (state_id) params.append("state_id", state_id);
+    if (zipcode) params.append("zip", zipcode);
+    if (typeof limit === "number" && isAdmin) {
+      params.append("limit", limit.toString());
     }
-
-
-
-    const response = await fetchApi({
-        url,
-        method: "GET",
-    });
-
-    if (response.type === "error") {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get city list'));
+    if (property_count) {
+      params.append("property_count", "true");
     }
-    return response.data;
+    if (state_list) {
+      params.append("state_list", "true");
+    }
+  }
+
+  const query = params.toString();
+  if (query) {
+    url += `?${query}`;
+  }
+
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+
+  if (response.type === "error") {
+    throw new Error(normalizeMsg(response.messages, "Failed to get city list"));
+  }
+  return response.data;
 }
 
 export async function addUser(body: any): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: '/api/auth/admin/add-user',
-        method: 'POST',
-        data: body,
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Registration failed') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: "/api/auth/admin/add-user",
+    method: "POST",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Registration failed"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function getAuditLogs(page: number = 1, limit: number = 15, search?: string) {
-    let url = `/api/audit-logs?page=${page}&limit=${limit}`;
-    if (search) {
-        url += `&search=${search}`;
-    }
-    const response = await fetchApi({
-        url,
-        method: 'GET',
-    });
-    if (response.type === 'error') {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get audit logs'));
-    }
-    return response.data;
+export async function getAuditLogs(
+  page: number = 1,
+  limit: number = 15,
+  search?: string,
+) {
+  let url = `/api/audit-logs?page=${page}&limit=${limit}`;
+  if (search) {
+    url += `&search=${search}`;
+  }
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(
+      normalizeMsg(response.messages, "Failed to get audit logs"),
+    );
+  }
+  return response.data;
 }
 
-export async function getAuditReports(page: number = 1, limit: number = 15, search?: string) {
-    let url = `/api/audit-reports?page=${page}&limit=${limit}`;
-    if (search) {
-        url += `&search=${search}`;
-    }
-    const response = await fetchApi({
-        url,
-        method: 'GET',
-    });
-    if (response.type === 'error') {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get report logs'));
-    }
-    return response.data;
+export async function getAuditReports(
+  page: number = 1,
+  limit: number = 15,
+  search?: string,
+) {
+  let url = `/api/audit-reports?page=${page}&limit=${limit}`;
+  if (search) {
+    url += `&search=${search}`;
+  }
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(
+      normalizeMsg(response.messages, "Failed to get report logs"),
+    );
+  }
+  return response.data;
 }
 
-export async function getPropertyApprovalLogs(page: number = 1, limit: number = 15, search?: string) {
-    let url = `/api/property-approval/logs?page=${page}&limit=${limit}`;
-    if (search) {
-        url += `&search=${search}`;
-    }
-    const response = await fetchApi({
-        url,
-        method: 'GET',
-    });
-    if (response.type === 'error') {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get property approval logs'));
-    }
-    return response.data;
+export async function getPropertyApprovalLogs(
+  page: number = 1,
+  limit: number = 15,
+  search?: string,
+) {
+  let url = `/api/property-approval/logs?page=${page}&limit=${limit}`;
+  if (search) {
+    url += `&search=${search}`;
+  }
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(
+      normalizeMsg(response.messages, "Failed to get property approval logs"),
+    );
+  }
+  return response.data;
 }
 
 export async function createContractorProfile(formData: FormData) {
-    const response = await fetchApi({
-        url: '/api/contractor-directory-profile',
-        method: 'POST',
-        data: formData,
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to create contractor profile') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: "/api/contractor-directory-profile",
+    method: "POST",
+    data: formData,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to create contractor profile",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function getContractorDirectory(params?: { city_id?: string; service?: string; keyword?: string }) {
-    const queryParams = new URLSearchParams();
-    if (params?.city_id) queryParams.append('city_id', params.city_id);
-    if (params?.service) queryParams.append('service', params.service);
-    if (params?.keyword) queryParams.append('keyword', params.keyword);
+export async function getContractorDirectory(params?: {
+  city_id?: string;
+  service?: string;
+  keyword?: string;
+}) {
+  const queryParams = new URLSearchParams();
+  if (params?.city_id) queryParams.append("city_id", params.city_id);
+  if (params?.service) queryParams.append("service", params.service);
+  if (params?.keyword) queryParams.append("keyword", params.keyword);
 
-    const url = `/api/contractor-directory${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  const url = `/api/contractor-directory${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
 
-    const response = await fetchApi({
-        url,
-        method: 'GET',
-    });
-    if (response.type === 'error') {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get contractor directory'));
-    }
-    return response.data;
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(
+      normalizeMsg(response.messages, "Failed to get contractor directory"),
+    );
+  }
+  return response.data;
 }
 
 export async function getContractorProfile(id: string) {
-    const response = await fetchApi({
-        url: `/api/contractor-directory?id=${id}`,
-        method: 'GET',
-    });
-    if (response.type === 'error') {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get contractor profile'));
-    }
-    return response.data;
+  const response = await fetchApi({
+    url: `/api/contractor-directory?id=${id}`,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(
+      normalizeMsg(response.messages, "Failed to get contractor profile"),
+    );
+  }
+  return response.data;
 }
 
-export async function updateContractorProfile(id: string, formData: FormData, role?: string) {
-    const isAdmin = role?.toLowerCase() === 'admin';
-    const url = isAdmin ? `/api/admin/contractor-directory-profile/${id}` : `/api/contractor-directory-profile`;
+export async function updateContractorProfile(
+  id: string,
+  formData: FormData,
+  role?: string,
+) {
+  const isAdmin = role?.toLowerCase() === "admin";
+  const url = isAdmin
+    ? `/api/admin/contractor-directory-profile/${id}`
+    : `/api/contractor-directory-profile`;
 
-    const response = await fetchApi({
-        url,
-        method: 'PUT',
-        data: formData,
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update contractor profile') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url,
+    method: "PUT",
+    data: formData,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to update contractor profile",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function deleteContractorProfile(id?: string, role?: any) {
-    const isAdmin = role?.toLowerCase() === 'admin';
-    const url = isAdmin ? `/api/admin/contractor-directory-profile/${id}` : '/api/contractor-directory-profile';
+  const isAdmin = role?.toLowerCase() === "admin";
+  const url = isAdmin
+    ? `/api/admin/contractor-directory-profile/${id}`
+    : "/api/contractor-directory-profile";
 
-    const response = await fetchApi({
-        url,
-        method: 'DELETE',
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to delete contractor profile') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url,
+    method: "DELETE",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to delete contractor profile",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function getComponentTypes() {
-    const response = await fetchApi({
-        url: '/api/reports/types',
-        method: 'GET'
-    });
-    if (response.type === 'error') {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get component types'));
-    }
-    return response.data;
+  const response = await fetchApi({
+    url: "/api/reports/types",
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(
+      normalizeMsg(response.messages, "Failed to get component types"),
+    );
+  }
+  return response.data;
 }
 
 export async function addStaff(body: any): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: '/api/auth/add-staff',
-        method: 'POST',
-        data: body,
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Adding staff failed') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: "/api/auth/add-staff",
+    method: "POST",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Adding staff failed"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function getStates(page: number = 1, limit: number = 10, name?: string, property_count?: boolean) {
-    const params = new URLSearchParams();
-    params.append("page", page.toString());
-    params.append("limit", limit.toString());
-    if (name) params.append("name", name);
-    if (property_count !== undefined) params.append("property_count", String(property_count));
+export async function getStates(
+  page: number = 1,
+  limit: number = 10,
+  name?: string,
+  property_count?: boolean,
+) {
+  const params = new URLSearchParams();
+  params.append("page", page.toString());
+  params.append("limit", limit.toString());
+  if (name) params.append("name", name);
+  if (property_count !== undefined)
+    params.append("property_count", String(property_count));
 
-    const response = await fetchApi({
-        url: `/api/states?${params.toString()}`,
-        method: "GET",
-    });
-    if (response.type === "error") {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get states'));
-    }
-    return response.data;
+  const response = await fetchApi({
+    url: `/api/states?${params.toString()}`,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(normalizeMsg(response.messages, "Failed to get states"));
+  }
+  return response.data;
 }
 
 export async function editStates(id: string, body: any): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/states/${id}`,
-        method: "PUT",
-        data: body,
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update state') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: `/api/states/${id}`,
+    method: "PUT",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to update state"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function deleteStates(id: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/states/${id}`,
-        method: "DELETE",
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to delete state') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: `/api/states/${id}`,
+    method: "DELETE",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to delete state"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function createStates(body: any): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: "/api/states",
-        method: "POST",
-        data: body,
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to create state') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: "/api/states",
+    method: "POST",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to create state"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function subscribeToMembership(body: { plan_id: string; billing_cycle: string }): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: '/api/membership-plans/subscribe',
-        method: 'POST',
-        data: body,
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to create subscription') };
-    }
-    return { success: true, data: response.data };
+export async function subscribeToMembership(body: {
+  plan_id: string;
+  billing_cycle: string;
+}): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: "/api/membership-plans/subscribe",
+    method: "POST",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to create subscription"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function getSubAccounts(page: number = 1, limit: number = 10) {
-    const response = await fetchApi({
-        url: `/api/auth/staff?page=${page}&limit=${limit}`,
-        method: "GET",
-    });
-    if (response.type === "error") {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get users'));
-    }
-    return response.data;
+  const response = await fetchApi({
+    url: `/api/auth/staff?page=${page}&limit=${limit}`,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(normalizeMsg(response.messages, "Failed to get users"));
+  }
+  return response.data;
 }
 
 export async function getSpecificSubAccounts(id: string) {
-    const response = await fetchApi({
-        url: `/api/auth/staff?id=${id}`,
-        method: "GET",
-    });
-    if (response.type === "error") {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get users'));
-    }
-    return response.data;
+  const response = await fetchApi({
+    url: `/api/auth/staff?id=${id}`,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(normalizeMsg(response.messages, "Failed to get users"));
+  }
+  return response.data;
 }
-
 
 export async function getPropertyOwners() {
+  const response = await fetchApi({
+    url: "/api/auth/property-owners",
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(
+      normalizeMsg(response.messages, "Failed to get property owners"),
+    );
+  }
+  return response.data;
+}
+export async function uploadPropertOwnerImages(
+  type: string,
+  id: string,
+  files: File[],
+): Promise<ActionResult> {
+  try {
+    const formData = new FormData();
+    if (Array.isArray(files)) {
+      files.forEach((file) => {
+        if (file) formData.append("files", file);
+      });
+    }
+
+    const url = `/api/owner-project/${id}/upload`;
+
     const response = await fetchApi({
-        url: "/api/auth/property-owners",
-        method: "GET",
+      url: url,
+      method: "POST",
+      data: formData,
     });
+
     if (response.type === "error") {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get property owners'));
-    }
-    return response.data;
-}
-export async function uploadPropertOwnerImages(type: string, id: string, files: File[]): Promise<ActionResult> {
-    try {
-        const formData = new FormData();
-        if (Array.isArray(files)) {
-            files.forEach((file) => {
-                if (file) formData.append('files', file);
-            });
-        }
-
-        const url = `/api/owner-project/${id}/upload`;
-
-        const response = await fetchApi({
-            url: url,
-            method: 'POST',
-            data: formData,
-        });
-
-        if (response.type === 'error') {
-            const message =
-                typeof response.messages === 'string'
-                    ? response.messages
-                    : Array.isArray(response.messages)
-                        ? response.messages.join(', ')
-                        : 'Failed to upload images';
-            return { success: false, message };
-        }
-
-        return { success: true, data: response.data };
-    } catch (e: any) {
-        return { success: false, message: e?.message || 'Failed to upload images' };
-    }
-}
-
-export async function uploadImagesPropertyOwnersForMainProjects(type: string, id: string, files: File[]) {
-    const formData = new FormData();
-    files.forEach((file) => {
-        formData.append('files', file);
-    });
-
-    const response = await fetchApi({
-        url: `/api/${toEndpointType(type)}/${id}/property-owner/images`,
-        method: 'POST',
-        data: formData,
-    });
-
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update images') };
+      const message =
+        typeof response.messages === "string"
+          ? response.messages
+          : Array.isArray(response.messages)
+            ? response.messages.join(", ")
+            : "Failed to upload images";
+      return { success: false, message };
     }
 
     return { success: true, data: response.data };
+  } catch (e: any) {
+    return { success: false, message: e?.message || "Failed to upload images" };
+  }
 }
 
-export async function updateImagesofPropertyOwnersAdmin(type: string, id: string, files: File[]) {
-    const formData = new FormData();
-    files.forEach((file) => {
-        formData.append('files', file);
-    });
+export async function uploadImagesPropertyOwnersForMainProjects(
+  type: string,
+  id: string,
+  files: File[],
+) {
+  const formData = new FormData();
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
 
-    const response = await fetchApi({
-        url: `/api/${toEndpointType(type)}/${id}/property-owner/images`,
-        method: 'PUT',
-        data: formData,
-    });
+  const response = await fetchApi({
+    url: `/api/${toEndpointType(type)}/${id}/property-owner/images`,
+    method: "POST",
+    data: formData,
+  });
 
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update images') };
-    }
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to update images"),
+    };
+  }
 
-    return { success: true, data: response.data };
+  return { success: true, data: response.data };
 }
 
-export async function uploadOwnerProjectImagesAdmin(id: string, files: File[]): Promise<ActionResult> {
-    const formData = new FormData();
-    files.forEach((file) => {
-        formData.append('files', file);
-    });
+export async function updateImagesofPropertyOwnersAdmin(
+  type: string,
+  id: string,
+  files: File[],
+) {
+  const formData = new FormData();
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
 
-    const response = await fetchApi({
-        url: `/api/owner-project/${id}/upload`,
-        method: 'POST',
-        data: formData,
-    });
+  const response = await fetchApi({
+    url: `/api/${toEndpointType(type)}/${id}/property-owner/images`,
+    method: "PUT",
+    data: formData,
+  });
 
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to upload owner project images') };
-    }
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to update images"),
+    };
+  }
 
-    return { success: true, data: response.data };
+  return { success: true, data: response.data };
 }
 
-export async function postComments(body: any, id: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/properties/${id}/comments`,
-        method: "POST",
-        data: body,
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to post comment') };
-    }
-    return { success: true, data: response.data };
+export async function uploadOwnerProjectImagesAdmin(
+  id: string,
+  files: File[],
+): Promise<ActionResult> {
+  const formData = new FormData();
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
+
+  const response = await fetchApi({
+    url: `/api/owner-project/${id}/upload`,
+    method: "POST",
+    data: formData,
+  });
+
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to upload owner project images",
+      ),
+    };
+  }
+
+  return { success: true, data: response.data };
+}
+
+export async function postComments(
+  body: any,
+  id: string,
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: `/api/properties/${id}/comments`,
+    method: "POST",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to post comment"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function getComments(id: string) {
-    const response = await fetchApi({
-        url: `/api/properties/${id}/comments`,
-        method: "GET",
-    });
-    if (response.type === "error") {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get comments'));
-    }
-    return response.data;
+  const response = await fetchApi({
+    url: `/api/properties/${id}/comments`,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(normalizeMsg(response.messages, "Failed to get comments"));
+  }
+  return response.data;
 }
 
-export async function editUserAdmin(id: string, body: any): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/users/${id}`,
-        method: "PUT",
-        data: body,
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to edit user') };
-    }
-    return { success: true, data: response.data };
+export async function editUserAdmin(
+  id: string,
+  body: any,
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: `/api/users/${id}`,
+    method: "PUT",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to edit user"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function deleteUserAdmin(id: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/users/${id}`,
-        method: "DELETE",
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to delete user') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: `/api/users/${id}`,
+    method: "DELETE",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to delete user"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function setUserPasswordAdmin(
-    userId: string,
-    body: { password: string }
+  userId: string,
+  body: { password: string },
 ): Promise<ActionResult> {
-    let response = await fetchApi({
-        url: `/api/users/${userId}/set-password`,
-        method: "POST",
-        data: body,
-    });
+  let response = await fetchApi({
+    url: `/api/users/${userId}/set-password`,
+    method: "POST",
+    data: body,
+  });
 
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update password') };
-    }
-    return { success: true, data: response.data };
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to update password"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function editStaff(id: string, body: any): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/auth/update-staff/${id}`,
-        method: "PUT",
-        data: body,
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to edit user') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: `/api/auth/update-staff/${id}`,
+    method: "PUT",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to edit user"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function deleteStaff(id: string) {
-    const response = await fetchApi({
-        url: `/api/auth/delete-staff/${id}`,
-        method: "DELETE",
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update contractor profile') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: `/api/auth/delete-staff/${id}`,
+    method: "DELETE",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to update contractor profile",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function getComponentType() {
-    const response = await fetchApi({
-        url: "/api/reports/types",
-        method: "GET",
-    });
-    if (response.type === "error") {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get component types'));
-    }
-    return response.data;
+  const response = await fetchApi({
+    url: "/api/reports/types",
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(
+      normalizeMsg(response.messages, "Failed to get component types"),
+    );
+  }
+  return response.data;
 }
 
 export async function confirmPayment(sessionId: string) {
-    const response = await fetchApi({
-        url: '/api/stripe/confirm-payment',
-        method: 'POST',
-        data: { sessionId },
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to confirm payment') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: "/api/stripe/confirm-payment",
+    method: "POST",
+    data: { sessionId },
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to confirm payment"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function updateMembershipCookie(hasMembership: boolean) {
-    const cookieStore = await cookies();
-    cookieStore.set('has-membership', String(hasMembership), {
-        httpOnly: false,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 30 * 24 * 60 * 60,
-    });
+  const cookieStore = await cookies();
+  cookieStore.set("has-membership", String(hasMembership), {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 30 * 24 * 60 * 60,
+  });
 }
 
-export async function uploadPropertyImages(propertyId: string, frontImage?: File, otherImage?: File) {
-    const formData = new FormData();
-    if (frontImage) formData.append('front_image', frontImage);
-    if (otherImage) formData.append('other_image', otherImage);
+export async function uploadPropertyImages(
+  propertyId: string,
+  frontImage?: File,
+  otherImage?: File,
+) {
+  const formData = new FormData();
+  if (frontImage) formData.append("front_image", frontImage);
+  if (otherImage) formData.append("other_image", otherImage);
 
-    const response = await fetchApi({
-        url: `/api/properties/${propertyId}/images`,
-        method: 'POST',
-        data: formData,
-    });
+  const response = await fetchApi({
+    url: `/api/properties/${propertyId}/images`,
+    method: "POST",
+    data: formData,
+  });
 
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to upload property images') };
-    }
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to upload property images",
+      ),
+    };
+  }
 
-    return { success: true, data: response.data };
+  return { success: true, data: response.data };
 }
 
-export async function updatePropertyApprovalImages(propertyId: string, frontImage?: File, otherImage?: File): Promise<ActionResult> {
-    const formData = new FormData();
-    if (frontImage) formData.append('front_image', frontImage);
-    if (otherImage) formData.append('other_image', otherImage);
+export async function updatePropertyApprovalImages(
+  propertyId: string,
+  frontImage?: File,
+  otherImage?: File,
+): Promise<ActionResult> {
+  const formData = new FormData();
+  if (frontImage) formData.append("front_image", frontImage);
+  if (otherImage) formData.append("other_image", otherImage);
 
-    const response = await fetchApi({
-        url: `/api/properties/approvals/${propertyId}/images`,
-        method: 'PUT',
-        data: formData,
-    });
+  const response = await fetchApi({
+    url: `/api/properties/approvals/${propertyId}/images`,
+    method: "PUT",
+    data: formData,
+  });
 
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update property images') };
-    }
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to update property images",
+      ),
+    };
+  }
 
-    return { success: true, data: response.data };
+  return { success: true, data: response.data };
 }
 
 export async function getPropertyDetail(id: string) {
-    try {
-        const response = await fetchApi({
-            url: `/api/properties/components/summary?id=${id}`,
-            method: 'GET',
-        });
-        if (response.type === 'error') {
-            return { success: false, message: normalizeMsg(response.messages, 'Failed to get property detail'), data: null };
-        }
-        const rawData = response.data;
-        const item = Array.isArray(rawData) ? rawData[0] : (rawData?.data ? rawData.data : rawData);
-        return { success: true, data: item };
-    } catch (err: any) {
-        return { success: false, message: err?.message || 'Failed to get property detail', data: null };
+  try {
+    const response = await fetchApi({
+      url: `/api/properties/components/summary?id=${id}`,
+      method: "GET",
+    });
+    if (response.type === "error") {
+      return {
+        success: false,
+        message: normalizeMsg(
+          response.messages,
+          "Failed to get property detail",
+        ),
+        data: null,
+      };
     }
+    const rawData = response.data;
+    const item = Array.isArray(rawData)
+      ? rawData[0]
+      : rawData?.data
+        ? rawData.data
+        : rawData;
+    return { success: true, data: item };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err?.message || "Failed to get property detail",
+      data: null,
+    };
+  }
 }
 
-
 export async function generateMultipleReports(filters?: PropertyFilters) {
-    // Returns the Next.js API route URL so the browser streams the PDF directly.
-    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-    let url = `${basePath}/download/top-10-report`;
-    if (filters) {
-        const query = buildPropertyFilterParams(filters).toString();
-        if (query) url += `?${query}`;
-    }
-    return url;
+  // Returns the Next.js API route URL so the browser streams the PDF directly.
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+  let url = `${basePath}/download/top-10-report`;
+  if (filters) {
+    const query = buildPropertyFilterParams(filters).toString();
+    if (query) url += `?${query}`;
+  }
+  return url;
 }
 
 export async function checkoutReports(filters: PropertyFilters) {
-    const { page: _page, limit: _limit, is_purchased: _is_purchased, ...checkoutFilters } = filters;
-    const response = await fetchApi({
-        url: '/api/reports/checkout',
-        method: 'POST',
-        data: {
-            ...(checkoutFilters.brandName && { brandName: checkoutFilters.brandName }),
-            ...(checkoutFilters.color && { color: checkoutFilters.color }),
-            ...(checkoutFilters.style && { style: checkoutFilters.style }),
-            ...(checkoutFilters.search && { search: checkoutFilters.search }),
-            ...(checkoutFilters.zip && { zip: checkoutFilters.zip }),
-            ...(checkoutFilters.state_id && { state_id: checkoutFilters.state_id }),
-            ...(checkoutFilters.city_id && { city_id: checkoutFilters.city_id }),
-        },
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to initiate checkout') };
-    }
-    return { success: true, data: response.data };
+  const {
+    page: _page,
+    limit: _limit,
+    is_purchased: _is_purchased,
+    ...checkoutFilters
+  } = filters;
+  const response = await fetchApi({
+    url: "/api/reports/checkout",
+    method: "POST",
+    data: {
+      ...(checkoutFilters.brandName && {
+        brandName: checkoutFilters.brandName,
+      }),
+      ...(checkoutFilters.color && { color: checkoutFilters.color }),
+      ...(checkoutFilters.style && { style: checkoutFilters.style }),
+      ...(checkoutFilters.search && { search: checkoutFilters.search }),
+      ...(checkoutFilters.zip && { zip: checkoutFilters.zip }),
+      ...(checkoutFilters.state_id && { state_id: checkoutFilters.state_id }),
+      ...(checkoutFilters.city_id && { city_id: checkoutFilters.city_id }),
+    },
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to initiate checkout"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function getPropertyTypeOption() {
-    const url = '/api/properties/property-types'
-    const response = await fetchApi({
-        url,
-        method: 'GET'
-    });
-    if (response.type === "error") {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get component types'));
-    }
-    return response.data;
+  const url = "/api/properties/property-types";
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(
+      normalizeMsg(response.messages, "Failed to get component types"),
+    );
+  }
+  return response.data;
 }
 
-export async function getPropertyTypeOptions(page?: number, limit?: number, search?: string) {
-    const params = new URLSearchParams();
-    if (page !== undefined) params.append('page', String(page));
-    if (limit !== undefined) params.append('limit', String(limit));
-    if (search) params.append('search', search);
-    const url = `/api/property-types${params.toString() ? `?${params.toString()}` : ''}`;
-    const response = await fetchApi({
-        url,
-        method: 'GET'
-    });
-    if (response.type === "error") {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get component types'));
-    }
-    return response.data;
+export async function getPropertyTypeOptions(
+  page?: number,
+  limit?: number,
+  search?: string,
+) {
+  const params = new URLSearchParams();
+  if (page !== undefined) params.append("page", String(page));
+  if (limit !== undefined) params.append("limit", String(limit));
+  if (search) params.append("search", search);
+  const url = `/api/property-types${params.toString() ? `?${params.toString()}` : ""}`;
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(
+      normalizeMsg(response.messages, "Failed to get component types"),
+    );
+  }
+  return response.data;
 }
 
 export async function createPropertyType(body: any) {
-    const url = '/api/property-types'
-    const response = await fetchApi({
-        url,
-        method: 'POST',
-        data: body
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to create property type') };
-    }
+  const url = "/api/property-types";
+  const response = await fetchApi({
+    url,
+    method: "POST",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to create property type",
+      ),
+    };
+  }
 
-    return { success: true, data: response.data };
+  return { success: true, data: response.data };
 }
 
 export async function editPropertyType(id: string, body: any) {
-    const url = `/api/property-types/${id}`;
-    const response = await fetchApi({
-        url,
-        method: 'PUT',
-        data: body
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to edit property type') };
-    }
-    return { success: true, data: response.data };
+  const url = `/api/property-types/${id}`;
+  const response = await fetchApi({
+    url,
+    method: "PUT",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to edit property type"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function deletePropertyType(id: string) {
-    const url = `/api/property-types/${id}`;
-    const response = await fetchApi({
-        url,
-        method: 'DELETE'
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to delete property type') };
-    }
-    return { success: true, data: response.data };
+  const url = `/api/property-types/${id}`;
+  const response = await fetchApi({
+    url,
+    method: "DELETE",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to delete property type",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function createServiceProvided(body: any) {
-    const url = '/api/services-provided'
-    const response = await fetchApi({
-        url,
-        method: 'POST',
-        data: body
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to create service provided') };
-    }
-    return { success: true, data: response.data };
+  const url = "/api/services-provided";
+  const response = await fetchApi({
+    url,
+    method: "POST",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to create service provided",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-
 export async function editServiceProvided(id: string, body: any) {
-    const url = `/api/services-provided/${id}`;
-    const response = await fetchApi({
-        url,
-        method: 'PUT',
-        data: body
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to edit service provided') };
-    }
-    return { success: true, data: response.data };
+  const url = `/api/services-provided/${id}`;
+  const response = await fetchApi({
+    url,
+    method: "PUT",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to edit service provided",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function deleteServiceProvided(id: string) {
-    const url = `/api/services-provided/${id}`;
-    const response = await fetchApi({
-        url,
-        method: 'DELETE'
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to delete service provided') };
-    }
-    return { success: true, data: response.data };
+  const url = `/api/services-provided/${id}`;
+  const response = await fetchApi({
+    url,
+    method: "DELETE",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to delete service provided",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function getServiceProvided(page?: number, limit?: number, search?: string) {
-    const params = new URLSearchParams();
-    if (page !== undefined) params.append('page', String(page));
-    if (limit !== undefined) params.append('limit', String(limit));
-    if (search) params.append('search', search);
-    const url = `/api/services-provided${params.toString() ? `?${params.toString()}` : ''}`;
-    const response = await fetchApi({
-        url,
-        method: 'GET'
-    });
-    if (response.type === "error") {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get service provided'));
-    }
-    return response.data;
+export async function getServiceProvided(
+  page?: number,
+  limit?: number,
+  search?: string,
+) {
+  const params = new URLSearchParams();
+  if (page !== undefined) params.append("page", String(page));
+  if (limit !== undefined) params.append("limit", String(limit));
+  if (search) params.append("search", search);
+  const url = `/api/services-provided${params.toString() ? `?${params.toString()}` : ""}`;
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(
+      normalizeMsg(response.messages, "Failed to get service provided"),
+    );
+  }
+  return response.data;
 }
 
 export async function createRoles(body: any) {
-    const url = '/api/roles'
-    const response = await fetchApi({
-        url,
-        method: 'POST',
-        data: body
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to create role') };
-    }
-    return { success: true, data: response.data };
+  const url = "/api/roles";
+  const response = await fetchApi({
+    url,
+    method: "POST",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to create role"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-
 export async function editRoles(id: string, body: any) {
-    const url = `/api/roles/${id}`;
-    const response = await fetchApi({
-        url,
-        method: 'PUT',
-        data: body
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to edit role') };
-    }
-    return { success: true, data: response.data };
+  const url = `/api/roles/${id}`;
+  const response = await fetchApi({
+    url,
+    method: "PUT",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to edit role"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function deleteRoles(id: string) {
-    const url = `/api/roles/${id}`;
-    const response = await fetchApi({
-        url,
-        method: 'DELETE'
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to delete role') };
-    }
-    return { success: true, data: response.data };
+  const url = `/api/roles/${id}`;
+  const response = await fetchApi({
+    url,
+    method: "DELETE",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to delete role"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function getRoles(page?: number, limit?: number, search?: string) {
-    const params = new URLSearchParams();
-    if (page !== undefined) params.append('page', String(page));
-    if (limit !== undefined) params.append('limit', String(limit));
-    if (search) params.append('search', search);
+  const params = new URLSearchParams();
+  if (page !== undefined) params.append("page", String(page));
+  if (limit !== undefined) params.append("limit", String(limit));
+  if (search) params.append("search", search);
 
-    let url = `/api/roles`;
-    const queryString = params.toString();
-    if (queryString) {
-        url += `?${queryString}`;
-    }
-    const response = await fetchApi({
-        url,
-        method: 'GET'
-    });
-    if (response.type === "error") {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get roles'));
-    }
-    return response.data;
+  let url = `/api/roles`;
+  const queryString = params.toString();
+  if (queryString) {
+    url += `?${queryString}`;
+  }
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(normalizeMsg(response.messages, "Failed to get roles"));
+  }
+  return response.data;
 }
-
 
 export async function createImageCategory(body: any) {
-    const url = '/api/admin/component-image-categories'
-    const response = await fetchApi({
-        url,
-        method: 'POST',
-        data: body
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to create image category') };
-    }
-    return { success: true, data: response.data };
+  const url = "/api/admin/component-image-categories";
+  const response = await fetchApi({
+    url,
+    method: "POST",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to create image category",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-
 export async function editImageCategory(id: string, body: any) {
-    const url = `/api/admin/component-image-categories/${id}`;
-    const response = await fetchApi({
-        url,
-        method: 'PUT',
-        data: body
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to edit image category') };
-    }
-    return { success: true, data: response.data };
+  const url = `/api/admin/component-image-categories/${id}`;
+  const response = await fetchApi({
+    url,
+    method: "PUT",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to edit image category"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function deleteImageCategory(id: string) {
-    const url = `/api/admin/component-image-categories/${id}`;
-    const response = await fetchApi({
-        url,
-        method: 'DELETE'
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to delete image category') };
-    }
-    return { success: true, data: response.data };
+  const url = `/api/admin/component-image-categories/${id}`;
+  const response = await fetchApi({
+    url,
+    method: "DELETE",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to delete image category",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function getImageCategory(page: number | string = 1, limit: number = 10, search?: string, component_type?: any) {
-    let actualPage = 1;
-    let actualLimit = limit;
-    let actualComponentType = component_type;
+export async function getImageCategory(
+  page: number | string = 1,
+  limit: number = 10,
+  search?: string,
+  component_type?: any,
+) {
+  let actualPage = 1;
+  let actualLimit = limit;
+  let actualComponentType = component_type;
 
-    if (typeof page === 'string' && isNaN(Number(page))) {
-        actualComponentType = page;
-        actualPage = 1;
-        actualLimit = limit === 10 ? 1000 : limit;
-    } else {
-        actualPage = Number(page) || 1;
-    }
+  if (typeof page === "string" && isNaN(Number(page))) {
+    actualComponentType = page;
+    actualPage = 1;
+    actualLimit = limit === 10 ? 1000 : limit;
+  } else {
+    actualPage = Number(page) || 1;
+  }
 
-    const params = new URLSearchParams({ page: String(actualPage), limit: String(actualLimit) });
-    if (search) params.append('search', search);
-    if (actualComponentType) params.append('component_type', actualComponentType);
+  const params = new URLSearchParams({
+    page: String(actualPage),
+    limit: String(actualLimit),
+  });
+  if (search) params.append("search", search);
+  if (actualComponentType) params.append("component_type", actualComponentType);
 
-    const url = `/api/admin/component-image-categories?${params.toString()}`;
-    const response = await fetchApi({
-        url,
-        method: 'GET'
-    });
-    if (response.type === "error") {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get image categories'));
-    }
-    return response.data;
+  const url = `/api/admin/component-image-categories?${params.toString()}`;
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(
+      normalizeMsg(response.messages, "Failed to get image categories"),
+    );
+  }
+  return response.data;
 }
 
-
-export async function addProject(propertyId: any, body: any): Promise<ActionResult> {
-    const url = `/api/property-projects/${propertyId}`;
-    const response = await fetchApi({
-        url,
-        method: "POST",
-        data: body
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to add project') };
-    }
-    return { success: true, data: response.data };
+export async function addProject(
+  propertyId: any,
+  body: any,
+): Promise<ActionResult> {
+  const url = `/api/property-projects/${propertyId}`;
+  const response = await fetchApi({
+    url,
+    method: "POST",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to add project"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function editProject(propertyId: any, projectId: any, body: any): Promise<ActionResult> {
-    const url = `/api/property-projects/${projectId}`;
-    const response = await fetchApi({
-        url,
-        method: 'PUT',
-        data: body,
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update project') };
-    }
-    return { success: true, data: response.data };
+export async function editProject(
+  propertyId: any,
+  projectId: any,
+  body: any,
+): Promise<ActionResult> {
+  const url = `/api/property-projects/${projectId}`;
+  const response = await fetchApi({
+    url,
+    method: "PUT",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to update project"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function getReportPrice() {
-    const url = `/api/app-settings`
-    const response = await fetchApi({
-        url,
-        method: 'GET'
-    });
-    if (response.type === "error") {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get report price'));
-    }
-    return response.data;
+  const url = `/api/app-settings`;
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(
+      normalizeMsg(response.messages, "Failed to get report price"),
+    );
+  }
+  return response.data;
 }
 
 export async function editReportPrice(id: any, body: any) {
-    const url = `/api/app-settings/${id}`;
-    const response = await fetchApi({
-        url,
-        method: 'PUT',
-        data: body
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to edit report price') };
-    }
-    return { success: true, data: response.data };
+  const url = `/api/app-settings/${id}`;
+  const response = await fetchApi({
+    url,
+    method: "PUT",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to edit report price"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function getProjectTypesforPropertyOwner() {
-    const url = `/api/owner-project/types`;
-    const response = await fetchApi({
-        url,
-        method: 'GET'
+  const url = `/api/owner-project/types`;
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    throw new Error(
+      normalizeMsg(response.messages, "Failed to get project types"),
+    );
+  }
+  return response.data;
+}
+
+export async function postPropertyOwnerInstallations(
+  id: any,
+  body: any,
+): Promise<ActionResult> {
+  const url = `/api/owner-project/${id}`;
+  const response = await fetchApi({
+    url,
+    method: "POST",
+    data: body,
+  });
+  if (response.type === "error") {
+    const msg = Array.isArray(response.messages)
+      ? response.messages.join(", ")
+      : typeof response.messages === "string"
+        ? response.messages
+        : "Failed to post installation";
+    return { success: false, message: msg };
+  }
+  return { success: true, data: response.data };
+}
+
+export async function updatePropertyOwnerInstallation(
+  id: string,
+  body: any,
+): Promise<ActionResult> {
+  const payload = { ...body };
+  const response = await fetchApi({
+    url: `/api/admin/owner-project/${id}`,
+    method: "PUT",
+    data: payload,
+  });
+  if (response.type === "error") {
+    const fallbackRes = await fetchApi({
+      url: `/api/owner-project/${id}`,
+      method: "PUT",
+      data: payload,
     });
-    if (response.type === "error") {
-        throw new Error(normalizeMsg(response.messages, 'Failed to get project types'));
+    if (fallbackRes.type === "error") {
+      return {
+        success: false,
+        message: normalizeMsg(
+          response.messages,
+          "Failed to update owner project installation",
+        ),
+      };
     }
-    return response.data;
+    return { success: true, data: fallbackRes.data };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function postPropertyOwnerInstallations(id: any, body: any): Promise<ActionResult> {
-    const url = `/api/owner-project/${id}`;
-    const response = await fetchApi({
-        url,
-        method: 'POST',
-        data: body
-    });
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages) ? response.messages.join(', ') : typeof response.messages === 'string' ? response.messages : 'Failed to post installation';
-        return { success: false, message: msg };
+export async function uploadOwnerProjectImage(
+  installationId: string,
+  file: File,
+): Promise<ActionResult> {
+  try {
+    if (!file) {
+      return { success: false, message: "No file provided for upload" };
     }
-    return { success: true, data: response.data };
-}
-
-export async function updatePropertyOwnerInstallation(id: string, body: any): Promise<ActionResult> {
-    const payload = { ...body };
-    const response = await fetchApi({
-        url: `/api/admin/owner-project/${id}`,
-        method: 'PUT',
-        data: payload,
-    });
-    if (response.type === 'error') {
-        const fallbackRes = await fetchApi({
-            url: `/api/owner-project/${id}`,
-            method: 'PUT',
-            data: payload,
-        });
-        if (fallbackRes.type === 'error') {
-            return { success: false, message: normalizeMsg(response.messages, 'Failed to update owner project installation') };
-        }
-        return { success: true, data: fallbackRes.data };
-    }
-    return { success: true, data: response.data };
-}
-
-
-export async function uploadOwnerProjectImage(installationId: string, file: File): Promise<ActionResult> {
-    try {
-        if (!file) {
-            return { success: false, message: 'No file provided for upload' };
-        }
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const response = await fetchApi({
-            url: `/api/owner-project/${installationId}/upload`,
-            method: 'POST',
-            data: formData,
-        });
-
-        if (response.type === 'error') {
-            const message =
-                typeof response.messages === 'string'
-                    ? response.messages
-                    : Array.isArray(response.messages)
-                        ? response.messages.join(', ')
-                        : 'Failed to upload image';
-            return { success: false, message };
-        }
-
-        return { success: true, data: response.data };
-    } catch (e: any) {
-        return { success: false, message: e?.message || 'Failed to upload image' };
-    }
-}
-
-
-export async function verifyInstallation(permitId: string, payload: any, projectId?: string) {
-    const url = projectId ? `/api/owner-project/${projectId}/verify` : `/api/permit/${permitId}/verify`;
-    const response = await fetchApi({
-        url,
-        method: 'POST',
-        data: payload,
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to verify installation') };
-    }
-    return { success: true, data: response.data };
-}
-
-
-export async function uploadPermit(projectId: string, file: File, description?: string, notes?: string): Promise<ActionResult> {
     const formData = new FormData();
-    formData.append('file', file);
-    if (description) formData.append('description', description);
-    if (notes) formData.append('notes', notes);
+    formData.append("file", file);
 
     const response = await fetchApi({
-        url: `/api/project/${projectId}/permit`,
-        method: 'POST',
-        data: formData,
+      url: `/api/owner-project/${installationId}/upload`,
+      method: "POST",
+      data: formData,
     });
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages) ? response.messages.join(', ') : typeof response.messages === 'string' ? response.messages : 'Failed to upload permit';
-        return { success: false, message: msg };
+
+    if (response.type === "error") {
+      const message =
+        typeof response.messages === "string"
+          ? response.messages
+          : Array.isArray(response.messages)
+            ? response.messages.join(", ")
+            : "Failed to upload image";
+      return { success: false, message };
     }
+
     return { success: true, data: response.data };
+  } catch (e: any) {
+    return { success: false, message: e?.message || "Failed to upload image" };
+  }
 }
 
-export async function purchaseExtraUsers(numberOfUsers: number): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: '/api/users/purchase',
-        method: 'POST',
-        data: { numberOfUsers },
-    });
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages)
-            ? response.messages.join(', ')
-            : typeof response.messages === 'string'
-                ? response.messages
-                : 'Failed to purchase users';
-        return { success: false, message: msg };
-    }
-    return { success: true, data: response.data };
+export async function verifyInstallation(
+  permitId: string,
+  payload: any,
+  projectId?: string,
+) {
+  const url = projectId
+    ? `/api/owner-project/${projectId}/verify`
+    : `/api/permit/${permitId}/verify`;
+  const response = await fetchApi({
+    url,
+    method: "POST",
+    data: payload,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to verify installation"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function postAddtionalUserForm(userId: string, body: any, formTokenOverride?: string) {
-    const cookieStore = await cookies();
-    const formToken = formTokenOverride || cookieStore.get('form-token')?.value;
+export async function uploadPermit(
+  projectId: string,
+  file: File,
+  description?: string,
+  notes?: string,
+): Promise<ActionResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (description) formData.append("description", description);
+  if (notes) formData.append("notes", notes);
 
-    const url = `/api/auth/form/${userId}`;
-    const response = await fetchApi({
-        url,
-        method: 'POST',
-        data: body,
-        ...(formToken ? { token: formToken } : {}),
-    });
-    if (response.type === 'error') {
-        const msg = Array.isArray(response.messages)
-            ? response.messages.join(', ')
-            : typeof response.messages === 'string'
-                ? response.messages
-                : 'Failed to save profile';
-        return { success: false, message: msg };
+  const response = await fetchApi({
+    url: `/api/project/${projectId}/permit`,
+    method: "POST",
+    data: formData,
+  });
+  if (response.type === "error") {
+    const msg = Array.isArray(response.messages)
+      ? response.messages.join(", ")
+      : typeof response.messages === "string"
+        ? response.messages
+        : "Failed to upload permit";
+    return { success: false, message: msg };
+  }
+  return { success: true, data: response.data };
+}
+
+export async function purchaseExtraUsers(
+  numberOfUsers: number,
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: "/api/users/purchase",
+    method: "POST",
+    data: { numberOfUsers },
+  });
+  if (response.type === "error") {
+    const msg = Array.isArray(response.messages)
+      ? response.messages.join(", ")
+      : typeof response.messages === "string"
+        ? response.messages
+        : "Failed to purchase users";
+    return { success: false, message: msg };
+  }
+  return { success: true, data: response.data };
+}
+
+export async function postAddtionalUserForm(
+  userId: string,
+  body: any,
+  formTokenOverride?: string,
+) {
+  const cookieStore = await cookies();
+  const formToken = formTokenOverride || cookieStore.get("form-token")?.value;
+
+  const url = `/api/auth/form/${userId}`;
+  const response = await fetchApi({
+    url,
+    method: "POST",
+    data: body,
+    ...(formToken ? { token: formToken } : {}),
+  });
+  if (response.type === "error") {
+    const msg = Array.isArray(response.messages)
+      ? response.messages.join(", ")
+      : typeof response.messages === "string"
+        ? response.messages
+        : "Failed to save profile";
+    return { success: false, message: msg };
+  }
+
+  try {
+    const data = response.data;
+    if (data && data.tokens) {
+      cookieStore.set("auth-token", data.tokens.idToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: data.tokens.expiresIn ? Number(data.tokens.expiresIn) : 3600,
+      });
+      cookieStore.set("refresh-token", data.tokens.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+      });
+      cookieStore.set("user-role", data.role.toLowerCase(), {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 30 * 24 * 60 * 60,
+      });
+      cookieStore.set("sub-account", String(data.sub_account ?? false), {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 30 * 24 * 60 * 60,
+      });
+      cookieStore.set("has-membership", String(data.has_membership ?? false), {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 30 * 24 * 60 * 60,
+      });
     }
+    cookieStore.delete("form-token");
+  } catch (cookieError) {
+    console.error(
+      "Error setting cookies in postAddtionalUserForm:",
+      cookieError,
+    );
+  }
 
-    try {
-        const data = response.data;
-        if (data && data.tokens) {
-            cookieStore.set('auth-token', data.tokens.idToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
-                maxAge: data.tokens.expiresIn ? Number(data.tokens.expiresIn) : 3600
-            });
-            cookieStore.set('refresh-token', data.tokens.refreshToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
-                maxAge: 30 * 24 * 60 * 60 // 30 days
-            });
-            cookieStore.set('user-role', data.role.toLowerCase(), {
-                httpOnly: false,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
-                maxAge: 30 * 24 * 60 * 60
-            });
-            cookieStore.set('sub-account', String(data.sub_account ?? false), {
-                httpOnly: false,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
-                maxAge: 30 * 24 * 60 * 60
-            });
-            cookieStore.set('has-membership', String(data.has_membership ?? false), {
-                httpOnly: false,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
-                maxAge: 30 * 24 * 60 * 60
-            });
-        }
-        cookieStore.delete('form-token');
-    } catch (cookieError) {
-        console.error('Error setting cookies in postAddtionalUserForm:', cookieError);
-    }
-
-    return { success: true, data: response.data };
+  return { success: true, data: response.data };
 }
 
 export async function getprojectTypesInProperty(propertyId: any) {
-    const url = `/api/property-projects/property/${propertyId}/types`;
-    const response = await fetchApi({
-        url,
-        method: 'GET',
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to get project types'), data: [], totalcount: 0 };
-    }
-    return response.data;
+  const url = `/api/property-projects/property/${propertyId}/types`;
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to get project types"),
+      data: [],
+      totalcount: 0,
+    };
+  }
+  return response.data;
 }
-export async function getprojectListingOfProperty(propertyId: any, projectType?: any, addedBy?: string, projectId?: string, page?: number, limit?: number) {
-    const params = new URLSearchParams();
-    if (projectType) {
-        params.append('project_type', projectType);
-    }
-    if (addedBy) {
-        params.append('added_by', addedBy);
-    }
-    if (projectId) {
-        params.append('project_id', projectId);
-    }
-    if (page !== undefined) {
-        params.append('page', String(page));
-    }
-    if (limit !== undefined) {
-        params.append('limit', String(limit));
-    }
-    const queryString = params.toString();
-    const url = `/api/property-projects/property/${propertyId}/full${queryString ? `?${queryString}` : ''}`;
-    const response = await fetchApi({
-        url,
-        method: 'GET',
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to get projects'), data: [] };
-    }
-    return response.data;
+export async function getprojectListingOfProperty(
+  propertyId: any,
+  projectType?: any,
+  addedBy?: string,
+  projectId?: string,
+  page?: number,
+  limit?: number,
+) {
+  const params = new URLSearchParams();
+  if (projectType) {
+    params.append("project_type", projectType);
+  }
+  if (addedBy) {
+    params.append("added_by", addedBy);
+  }
+  if (projectId) {
+    params.append("project_id", projectId);
+  }
+  if (page !== undefined) {
+    params.append("page", String(page));
+  }
+  if (limit !== undefined) {
+    params.append("limit", String(limit));
+  }
+  const queryString = params.toString();
+  const url = `/api/property-projects/property/${propertyId}/full${queryString ? `?${queryString}` : ""}`;
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to get projects"),
+      data: [],
+    };
+  }
+  return response.data;
 }
-export async function getMyProjects(page: number = 1, limit: number = 9, search?: string, isAdmin?: boolean, isConfirmed?: boolean) {
-    const params = new URLSearchParams();
-    params.append('page', String(page));
-    params.append('limit', String(limit));
-    if (search) {
-        params.append('search', search);
-    }
-    if (isAdmin) {
-        params.append('created_by', 'ADMIN');
-    }
-    if (isConfirmed !== undefined) {
-        params.append('is_confirmed', String(isConfirmed));
-    }
-    const url = `/api/property-projects/user/properties/full?${params.toString()}`;
-    const response = await fetchApi({
-        url,
-        method: 'GET',
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to get projects'), data: [] };
-    }
-    return response.data;
+export async function getMyProjects(
+  page: number = 1,
+  limit: number = 9,
+  search?: string,
+  isAdmin?: boolean,
+  isConfirmed?: boolean,
+) {
+  const params = new URLSearchParams();
+  params.append("page", String(page));
+  params.append("limit", String(limit));
+  if (search) {
+    params.append("search", search);
+  }
+  if (isAdmin) {
+    params.append("created_by", "ADMIN");
+  }
+  if (isConfirmed !== undefined) {
+    params.append("is_confirmed", String(isConfirmed));
+  }
+  const url = `/api/property-projects/user/properties/full?${params.toString()}`;
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to get projects"),
+      data: [],
+    };
+  }
+  return response.data;
 }
 
-export async function getAllProjects(page: number = 1, limit: number = 9, search?: string, isConfirmed?: boolean) {
-    const params = new URLSearchParams();
-    params.append('page', String(page));
-    params.append('limit', String(limit));
-    if (search) {
-        params.append('search', search);
-    }
-    if (isConfirmed !== undefined) {
-        params.append('is_confirmed', String(isConfirmed));
-    }
-    const url = `/api/property-projects/user/properties/full?${params.toString()}`;
-    const response = await fetchApi({
-        url,
-        method: 'GET',
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to get projects'), data: [] };
-    }
-    return response.data;
+export async function getAllProjects(
+  page: number = 1,
+  limit: number = 9,
+  search?: string,
+  isConfirmed?: boolean,
+) {
+  const params = new URLSearchParams();
+  params.append("page", String(page));
+  params.append("limit", String(limit));
+  if (search) {
+    params.append("search", search);
+  }
+  if (isConfirmed !== undefined) {
+    params.append("is_confirmed", String(isConfirmed));
+  }
+  const url = `/api/property-projects/user/properties/full?${params.toString()}`;
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to get projects"),
+      data: [],
+    };
+  }
+  return response.data;
 }
-
 
 export async function getProjectByIdNew(projectId: string) {
-    const url = `/api/property-projects/user/properties/full?project_id=${projectId}`;
-    const response = await fetchApi({
-        url,
-        method: 'GET',
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to get project'), data: null };
-    }
-    return response.data;
+  const url = `/api/property-projects/user/properties/full?project_id=${projectId}`;
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to get project"),
+      data: null,
+    };
+  }
+  return response.data;
 }
 
-export async function confirmProject(projectId: string, hasReport: boolean = false, propertyId?: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/project/${projectId}/confirm`,
-        method: 'PUT',
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to confirm project') };
-    }
+export async function confirmProject(
+  projectId: string,
+  hasReport: boolean = false,
+  propertyId?: string,
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: `/api/project/${projectId}/confirm`,
+    method: "PUT",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to confirm project"),
+    };
+  }
 
-    if (!hasReport) {
-        const targetPropertyId = propertyId || response.data?.property_id || response.data?.property?.id || response.data?.data?.property_id;
-        if (targetPropertyId) {
-            try {
-                await postReport(targetPropertyId);
-            } catch (err) {
-                console.error('Failed to auto-generate report on project confirm:', err);
-            }
-        }
+  if (!hasReport) {
+    const targetPropertyId =
+      propertyId ||
+      response.data?.property_id ||
+      response.data?.property?.id ||
+      response.data?.data?.property_id;
+    if (targetPropertyId) {
+      try {
+        await postReport(targetPropertyId);
+      } catch (err) {
+        console.error(
+          "Failed to auto-generate report on project confirm:",
+          err,
+        );
+      }
     }
+  }
 
-    return { success: true, data: response.data };
+  return { success: true, data: response.data };
 }
 
 export async function deleteProject(projectId: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/project/${projectId}`,
-        method: 'DELETE',
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to delete project') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: `/api/project/${projectId}`,
+    method: "DELETE",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to delete project"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function getPurchasedReports(page: number = 1, limit: number = 9, search?: string) {
-    const params = new URLSearchParams();
-    params.append('page', String(page));
-    params.append('limit', String(limit));
-    if (search) {
-        params.append('search', search);
-    }
-    const url = `/api/properties/user/purchases?${params.toString()}`;
-    const response = await fetchApi({
-        url,
-        method: 'GET',
-    });
-    if (response.type === "error") {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to get purchased reports'), data: [] };
-    }
-    return response.data;
+export async function getPurchasedReports(
+  page: number = 1,
+  limit: number = 9,
+  search?: string,
+) {
+  const params = new URLSearchParams();
+  params.append("page", String(page));
+  params.append("limit", String(limit));
+  if (search) {
+    params.append("search", search);
+  }
+  const url = `/api/properties/user/purchases?${params.toString()}`;
+  const response = await fetchApi({
+    url,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to get purchased reports",
+      ),
+      data: [],
+    };
+  }
+  return response.data;
 }
 
-export async function getMyNotifications(page: number = 1, limit: number = 10): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/notifications/my?page=${page}&limit=${limit}`,
-        method: 'GET',
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to fetch notifications') };
-    }
-    return { success: true, data: response.data };
+export async function getMyNotifications(
+  page: number = 1,
+  limit: number = 10,
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: `/api/notifications/my?page=${page}&limit=${limit}`,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to fetch notifications"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function getUnreadNotificationsCount(): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: '/api/notifications/unread-count',
-        method: 'GET',
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to fetch unread count') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: "/api/notifications/unread-count",
+    method: "GET",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to fetch unread count"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function markNotificationAsRead(id: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/notifications/${id}/read`,
-        method: 'PUT',
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to mark notification as read') };
-    }
-    return { success: true, data: response.data };
+export async function markNotificationAsRead(
+  id: string,
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: `/api/notifications/${id}/read`,
+    method: "PUT",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to mark notification as read",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function deleteNotification(id: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/notifications/${id}`,
-        method: 'DELETE',
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to delete notification') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: `/api/notifications/${id}`,
+    method: "DELETE",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to delete notification"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function bulkDeleteNotifications(ids: string[]): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: '/api/notifications/bulk',
-        method: 'DELETE',
-        data: { ids },
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to bulk delete notifications') };
-    }
-    return { success: true, data: response.data };
+export async function bulkDeleteNotifications(
+  ids: string[],
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: "/api/notifications/bulk",
+    method: "DELETE",
+    data: { ids },
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to bulk delete notifications",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function multiDelete(endpoint: string, body?: any): Promise<ActionResult> {
-    const url = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    const response = await fetchApi({
-        url,
-        method: 'DELETE',
-        data: body,
-    });
-    if (response.type === 'error') {
-        return {
-            success: false,
-            message: normalizeMsg(response.messages, 'Failed to delete selected items'),
-            error: response.error,
-        };
-    }
-    return { success: true, data: response.data, message: normalizeMsg(response.messages, 'Deleted successfully') };
+export async function multiDelete(
+  endpoint: string,
+  body?: any,
+): Promise<ActionResult> {
+  const url = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const response = await fetchApi({
+    url,
+    method: "DELETE",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to delete selected items",
+      ),
+      error: response.error,
+    };
+  }
+  return {
+    success: true,
+    data: response.data,
+    message: normalizeMsg(response.messages, "Deleted successfully"),
+  };
 }
 
-export async function getImportFields(): Promise<ActionResult<{
+export async function getImportFields(): Promise<
+  ActionResult<{
     required_fields: string[];
     optional_fields: string[];
-}>> {
-    const response = await fetchApi({
-        url: '/api/properties/import-fields',
-        method: 'GET',
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to fetch import fields') };
-    }
-    return { success: true, data: response.data?.data || response.data };
+  }>
+> {
+  const response = await fetchApi({
+    url: "/api/properties/import-fields",
+    method: "GET",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to fetch import fields"),
+    };
+  }
+  return { success: true, data: response.data?.data || response.data };
 }
 
-export async function importPropertiesFile(formData: FormData): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: '/api/properties/import',
-        method: 'POST',
-        data: formData,
-        timeout: 600_000,
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to import properties file') };
-    }
-    return { success: true, data: response.data };
+export async function importPropertiesFile(
+  formData: FormData,
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: "/api/properties/import",
+    method: "POST",
+    data: formData,
+    timeout: 600_000,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to import properties file",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function getImportJobs(): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: '/api/properties/import-jobs',
-        method: 'GET',
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to fetch import jobs') };
-    }
-    return { success: true, data: response.data?.data || response.data };
+  const response = await fetchApi({
+    url: "/api/properties/import-jobs",
+    method: "GET",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to fetch import jobs"),
+    };
+  }
+  return { success: true, data: response.data?.data || response.data };
 }
 
 export async function getImportJobStatus(jobId: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/properties/import-jobs/${jobId}`,
-        method: 'GET',
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to fetch job status') };
-    }
-    return { success: true, data: response.data?.data || response.data };
+  const response = await fetchApi({
+    url: `/api/properties/import-jobs/${jobId}`,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to fetch job status"),
+    };
+  }
+  return { success: true, data: response.data?.data || response.data };
 }
 
-export async function getPermitsForProperty(propertyId: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/permit?id=${propertyId}`,
-        method: 'GET',
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to get permits') };
-    }
-    return { success: true, data: response.data };
+export async function getPermitsForProperty(
+  propertyId: string,
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: `/api/permit?id=${propertyId}`,
+    method: "GET",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to get permits"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function getAddedPropertiesListing(params?: { page?: number; limit?: number; search?: string; status?: string }): Promise<ActionResult> {
-    const page = params?.page || 1;
-    const limit = params?.limit || 100;
-    const search = params?.search || '';
-    const status = params?.status || '';
-    const query = new URLSearchParams({
-        page: String(page),
-        limit: String(limit),
-        ...(search && { search }),
-        ...(status && { status }),
-    }).toString();
-    const response = await fetchApi({
-        url: `/api/properties/approvals/listing?${query}`,
-        method: 'GET',
-    });
-    
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to fetch added properties') };
-    }
-    return { success: true, data: response.data?.data || response.data };
+export async function getAddedPropertiesListing(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+}): Promise<ActionResult> {
+  const page = params?.page || 1;
+  const limit = params?.limit || 100;
+  const search = params?.search || "";
+  const status = params?.status || "";
+  const query = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+    ...(search && { search }),
+    ...(status && { status }),
+  }).toString();
+  const response = await fetchApi({
+    url: `/api/properties/approvals/listing?${query}`,
+    method: "GET",
+  });
+
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to fetch added properties",
+      ),
+    };
+  }
+  return { success: true, data: response.data?.data || response.data };
 }
 
-export async function updatePropertyApproval(propertyId: string, status: 'APPROVE' | 'REJECT', notes?: string): Promise<ActionResult> {
-    const data: { status: 'APPROVE' | 'REJECT'; notes?: string } = { status };
-    if (notes !== undefined && notes !== '') {
-        data.notes = notes;
-    }
-    const response = await fetchApi({
-        url: `/api/properties/approvals/${propertyId}`,
-        method: 'PUT',
-        data,
-    });
+export async function updatePropertyApproval(
+  propertyId: string,
+  status: "APPROVE" | "REJECT",
+  notes?: string,
+): Promise<ActionResult> {
+  const data: { status: "APPROVE" | "REJECT"; notes?: string } = { status };
+  if (notes !== undefined && notes !== "") {
+    data.notes = notes;
+  }
+  const response = await fetchApi({
+    url: `/api/properties/approvals/${propertyId}`,
+    method: "PUT",
+    data,
+  });
 
-    const targetPropertyId = propertyId;
-        if (targetPropertyId) {
-            try {
-                await postReport(targetPropertyId);
-            } catch (err) {
-                console.error('Failed to auto-generate report on project confirm:', err);
-            }
-        }
-
-    
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, `Failed to ${status.toLowerCase()} property`) };
+  const targetPropertyId = propertyId;
+  if (targetPropertyId) {
+    try {
+      await postReport(targetPropertyId);
+    } catch (err) {
+      console.error("Failed to auto-generate report on project confirm:", err);
     }
-    return { success: true, data: response.data };
+  }
+
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        `Failed to ${status.toLowerCase()} property`,
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function updatePropertyStatusToUnderReview(propertyId: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/properties/approvals/${propertyId}`,
-        method: 'PUT',
-        data: { status: 'UNDERREVIEW' },
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to put property under review') };
-    }
-    return { success: true, data: response.data };
+export async function updatePropertyStatusToUnderReview(
+  propertyId: string,
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: `/api/properties/approvals/${propertyId}`,
+    method: "PUT",
+    data: { status: "UNDERREVIEW" },
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to put property under review",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function updatePropertyStatusToPending(propertyId: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/properties/approvals/${propertyId}`,
-        method: 'PUT',
-        data: { status: 'PENDING' },
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to put property under review') };
-    }
-    return { success: true, data: response.data };
+export async function updatePropertyStatusToPending(
+  propertyId: string,
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: `/api/properties/approvals/${propertyId}`,
+    method: "PUT",
+    data: { status: "PENDING" },
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to put property under review",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function withdrawProperty(propertyId: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/properties/approvals/${propertyId}/withdraw`,
-        method: 'PUT',
-        data: { status: 'WITHDRAWN' },
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to withdraw property') };
-    }
-    return { success: true, data: response.data };
+export async function withdrawProperty(
+  propertyId: string,
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: `/api/properties/approvals/${propertyId}/withdraw`,
+    method: "PUT",
+    data: { status: "WITHDRAWN" },
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to withdraw property"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function requestPropertyCorrection(propertyId: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/properties/approvals/${propertyId}/request-correction`,
-        method: 'POST',
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to request correction') };
-    }
-    return { success: true, data: response.data };
+export async function requestPropertyCorrection(
+  propertyId: string,
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: `/api/properties/approvals/${propertyId}/request-correction`,
+    method: "POST",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to request correction"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function updateCorrectionStatus(propertyId: string, status: boolean): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/properties/approvals/${propertyId}/correction-status`,
-        method: 'PUT',
-        data: { status: status ? 'TRUE' : 'FALSE' },
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update correction status') };
-    }
-    return { success: true, data: response.data };
+export async function updateCorrectionStatus(
+  propertyId: string,
+  status: boolean,
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: `/api/properties/approvals/${propertyId}/correction-status`,
+    method: "PUT",
+    data: { status: status ? "TRUE" : "FALSE" },
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to update correction status",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function editPropertyCorrection(propertyId: string, data: any): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/properties/approvals/${propertyId}/edit-correction`,
-        method: 'PUT',
-        data,
-    });
-    if (response.type === 'error') {
-        return {
-            success: false,
-            message: normalizeMsg(response.messages, 'Failed to edit property correction'),
-            errorFields: response.errorFields,
-            error: response.error,
-        };
-    }
-    return { success: true, data: response.data };
+export async function editPropertyCorrection(
+  propertyId: string,
+  data: any,
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: `/api/properties/approvals/${propertyId}/edit-correction`,
+    method: "PUT",
+    data,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to edit property correction",
+      ),
+      errorFields: response.errorFields,
+      error: response.error,
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function getDashboardCounts() : Promise<ActionResult> {
-    const response = await fetchApi({
-        url: '/api/property-approval/dashboard-counts',
-        method: 'GET',
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to get dashboard counts') };
-    }
-    return { success: true, data: response.data };
+export async function getDashboardCounts(): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: "/api/property-approval/dashboard-counts",
+    method: "GET",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(
+        response.messages,
+        "Failed to get dashboard counts",
+      ),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function getPropertyTypes(): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: '/api/property-types/categories',
-        method: 'GET',
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to get property types') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: "/api/property-types/categories",
+    method: "GET",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to get property types"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function createSetupIntent(): Promise<ActionResult<{ clientSecret: string; customerId?: string }>> {
-    const response = await fetchApi({
-        url: '/api/stripe/create-setup-intent',
-        method: 'POST',
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to create setup intent') };
-    }
-    const data = response.data?.data || response.data;
-    return { success: true, data };
+export async function createSetupIntent(): Promise<
+  ActionResult<{ clientSecret: string; customerId?: string }>
+> {
+  const response = await fetchApi({
+    url: "/api/stripe/create-setup-intent",
+    method: "POST",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to create setup intent"),
+    };
+  }
+  const data = response.data?.data || response.data;
+  return { success: true, data };
 }
 
-export async function savePaymentMethod(paymentMethodId: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: '/api/stripe/save-payment-method',
-        method: 'POST',
-        data: { paymentMethodId },
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to save payment method') };
-    }
-    return { success: true, data: response.data };
+export async function savePaymentMethod(
+  paymentMethodId: string,
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: "/api/stripe/save-payment-method",
+    method: "POST",
+    data: { paymentMethodId },
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to save payment method"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-
-export async function getCmsPageContent(pageSlug: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/cms/content?page=${encodeURIComponent(pageSlug)}`,
-        method: 'GET',
-        isAuth: false,
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to fetch CMS content') };
-    }
-    return { success: true, data: response.data };
+export async function getCmsPageContent(
+  pageSlug: string,
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: `/api/cms/content?page=${encodeURIComponent(pageSlug)}`,
+    method: "GET",
+    isAuth: false,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to fetch CMS content"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function saveCmsSection(payload: {
-    page_slug: string;
-    section_key: string;
-    type?: string;
-    title?: string | null;
-    description?: string | null;
-    items?: any[];
+  page_slug: string;
+  section_key: string;
+  type?: string;
+  title?: string | null;
+  description?: string | null;
+  items?: any[];
 }): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: '/api/cms/admin/section',
-        method: 'PUT',
-        data: payload,
-        isAuth: true,
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to save CMS section') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: "/api/cms/admin/section",
+    method: "PUT",
+    data: payload,
+    isAuth: true,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to save CMS section"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
 export async function saveCmsPage(payload: {
-    page_slug: string;
-    sections: Record<string, any>;
+  page_slug: string;
+  sections: Record<string, any>;
 }): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: '/api/cms/admin/page',
-        method: 'PUT',
-        data: payload,
-        isAuth: true,
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to save CMS page') };
-    }
-    return { success: true, data: response.data };
+  const response = await fetchApi({
+    url: "/api/cms/admin/page",
+    method: "PUT",
+    data: payload,
+    isAuth: true,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to save CMS page"),
+    };
+  }
+  return { success: true, data: response.data };
 }
 
-export async function getColors(page?: number, limit?: number, search?: string, id?: string) {
-    try {
-        const params = new URLSearchParams();
-        if (page !== undefined && limit !== undefined && page > 0 && limit > 0) {
-            params.append('page', page.toString());
-            params.append('limit', limit.toString());
-        }
-        if (search) {
-            params.append('search', search);
-        }
-        if (id) {
-            params.append('id', id);
-        }
-
-        const url = `/api/colors${params.toString() ? `?${params.toString()}` : ''}`;
-        const response = await fetchApi({
-            url,
-            method: 'GET',
-        });
-        if (response.type === 'error') {
-            throw new Error(normalizeMsg(response.messages, 'Failed to get colors'));
-        }
-        return response.data;
-    } catch (error) {
-        throw error;
+export async function getColors(
+  page?: number,
+  limit?: number,
+  search?: string,
+  id?: string,
+) {
+  try {
+    const params = new URLSearchParams();
+    if (page !== undefined && limit !== undefined && page > 0 && limit > 0) {
+      params.append("page", page.toString());
+      params.append("limit", limit.toString());
     }
+    if (search) {
+      params.append("search", search);
+    }
+    if (id) {
+      params.append("id", id);
+    }
+
+    const url = `/api/colors${params.toString() ? `?${params.toString()}` : ""}`;
+    const response = await fetchApi({
+      url,
+      method: "GET",
+    });
+    if (response.type === "error") {
+      throw new Error(normalizeMsg(response.messages, "Failed to get colors"));
+    }
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 }
 
-export async function createColor(body: { color: string }): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: '/api/colors',
-        method: 'POST',
-        data: body,
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to create color') };
-    }
-    return { success: true, data: response.data, message: normalizeMsg(response.messages, 'Color created successfully') };
+export async function createColor(body: {
+  color: string;
+}): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: "/api/colors",
+    method: "POST",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to create color"),
+    };
+  }
+  return {
+    success: true,
+    data: response.data,
+    message: normalizeMsg(response.messages, "Color created successfully"),
+  };
 }
 
-export async function editColor(id: string, body: { color: string }): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/colors/${id}`,
-        method: 'PUT',
-        data: body,
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update color') };
-    }
-    return { success: true, data: response.data, message: normalizeMsg(response.messages, 'Color updated successfully') };
+export async function editColor(
+  id: string,
+  body: { color: string },
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: `/api/colors/${id}`,
+    method: "PUT",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to update color"),
+    };
+  }
+  return {
+    success: true,
+    data: response.data,
+    message: normalizeMsg(response.messages, "Color updated successfully"),
+  };
 }
 
 export async function deleteColor(id: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/colors/${id}`,
-        method: 'DELETE',
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to delete color') };
-    }
-    return { success: true, data: response.data, message: normalizeMsg(response.messages, 'Color deleted successfully') };
+  const response = await fetchApi({
+    url: `/api/colors/${id}`,
+    method: "DELETE",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to delete color"),
+    };
+  }
+  return {
+    success: true,
+    data: response.data,
+    message: normalizeMsg(response.messages, "Color deleted successfully"),
+  };
 }
 
-export async function getStyles(page?: number, limit?: number, category?: string, search?: string, id?: string) {
-    try {
-        const params = new URLSearchParams();
-        if (page !== undefined && limit !== undefined && page > 0 && limit > 0) {
-            params.append('page', page.toString());
-            params.append('limit', limit.toString());
-        }
-        if (category && category !== 'all') {
-            params.append('category', category);
-        }
-        if (search) {
-            params.append('search', search);
-        }
-        if (id) {
-            params.append('id', id);
-        }
-
-        const url = `/api/styles${params.toString() ? `?${params.toString()}` : ''}`;
-        const response = await fetchApi({
-            url,
-            method: 'GET',
-        });
-        if (response.type === 'error') {
-            throw new Error(normalizeMsg(response.messages, 'Failed to get styles'));
-        }
-        return response.data;
-    } catch (error) {
-        throw error;
+export async function getStyles(
+  page?: number,
+  limit?: number,
+  category?: string,
+  search?: string,
+  id?: string,
+) {
+  try {
+    const params = new URLSearchParams();
+    if (page !== undefined && limit !== undefined && page > 0 && limit > 0) {
+      params.append("page", page.toString());
+      params.append("limit", limit.toString());
     }
+    if (category && category !== "all") {
+      params.append("category", category);
+    }
+    if (search) {
+      params.append("search", search);
+    }
+    if (id) {
+      params.append("id", id);
+    }
+
+    const url = `/api/styles${params.toString() ? `?${params.toString()}` : ""}`;
+    const response = await fetchApi({
+      url,
+      method: "GET",
+    });
+    if (response.type === "error") {
+      throw new Error(normalizeMsg(response.messages, "Failed to get styles"));
+    }
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 }
 
-export async function createStyle(body: { style: string; category?: string }): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: '/api/styles',
-        method: 'POST',
-        data: body,
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to create style') };
-    }
-    return { success: true, data: response.data, message: normalizeMsg(response.messages, 'Style created successfully') };
+export async function createStyle(body: {
+  style: string;
+  category?: string;
+}): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: "/api/styles",
+    method: "POST",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to create style"),
+    };
+  }
+  return {
+    success: true,
+    data: response.data,
+    message: normalizeMsg(response.messages, "Style created successfully"),
+  };
 }
 
-export async function editStyle(id: string, body: { style: string; category?: string }): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/styles/${id}`,
-        method: 'PUT',
-        data: body,
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to update style') };
-    }
-    return { success: true, data: response.data, message: normalizeMsg(response.messages, 'Style updated successfully') };
+export async function editStyle(
+  id: string,
+  body: { style: string; category?: string },
+): Promise<ActionResult> {
+  const response = await fetchApi({
+    url: `/api/styles/${id}`,
+    method: "PUT",
+    data: body,
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to update style"),
+    };
+  }
+  return {
+    success: true,
+    data: response.data,
+    message: normalizeMsg(response.messages, "Style updated successfully"),
+  };
 }
 
 export async function deleteStyle(id: string): Promise<ActionResult> {
-    const response = await fetchApi({
-        url: `/api/styles/${id}`,
-        method: 'DELETE',
-    });
-    if (response.type === 'error') {
-        return { success: false, message: normalizeMsg(response.messages, 'Failed to delete style') };
-    }
-    return { success: true, data: response.data, message: normalizeMsg(response.messages, 'Style deleted successfully') };
+  const response = await fetchApi({
+    url: `/api/styles/${id}`,
+    method: "DELETE",
+  });
+  if (response.type === "error") {
+    return {
+      success: false,
+      message: normalizeMsg(response.messages, "Failed to delete style"),
+    };
+  }
+  return {
+    success: true,
+    data: response.data,
+    message: normalizeMsg(response.messages, "Style deleted successfully"),
+  };
 }
-

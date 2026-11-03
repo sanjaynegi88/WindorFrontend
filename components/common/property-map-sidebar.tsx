@@ -63,6 +63,8 @@ import {
   DialogOverlay,
 } from "@/components/ui/dialog";
 import { PdfGenerationLoader } from "./pdf-generation-loader";
+import { MembershipReportConfirmDialog } from "@/components/common/membership-report-confirm-dialog";
+import { PurchaseReportConfirmDialog } from "@/components/common/purchase-report-confirm-dialog";
 import Link from "next/link";
 
 interface PropertyMapSidebarProps {
@@ -107,6 +109,34 @@ export function PropertyMapSidebar({
 
   // Sub-dialog states
   const [showAllContractorDialog, setShowAllContractorDialog] = useState(false);
+  const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
+  const [pendingPurchaseAction, setPendingPurchaseAction] = useState<
+    (() => void) | null
+  >(null);
+  const [pendingPurchaseReportName, setPendingPurchaseReportName] =
+    useState<string>("the Full Property Report");
+  const [pendingPurchasePrice, setPendingPurchasePrice] = useState<
+    number | string | undefined
+  >(undefined);
+
+  const confirmPurchase = (
+    action: () => void,
+    name: string,
+    price?: number | string,
+  ) => {
+    setPendingPurchaseReportName(name);
+    setPendingPurchasePrice(price);
+    setPendingPurchaseAction(() => action);
+    setShowPurchaseDialog(true);
+  };
+  const [showMembershipConfirmDialog, setShowMembershipConfirmDialog] =
+    useState(false);
+  const [pendingDownloadAction, setPendingDownloadAction] = useState<
+    (() => void) | null
+  >(null);
+  const [pendingReportName, setPendingReportName] = useState<string>(
+    "the Full Property Report",
+  );
   const [showContractorListDialog, setShowContractorListDialog] =
     useState(false);
   const [showHomeownerListDialog, setShowHomeownerListDialog] = useState(false);
@@ -135,6 +165,15 @@ export function PropertyMapSidebar({
         const res = await getReportUsage();
         const usageData = res?.data || res;
         setReportUsage(usageData);
+
+        const remaining = Number(
+          usageData?.remaining ?? usageData?.data?.remaining,
+        );
+        if (!isNaN(remaining) && remaining <= 0) {
+          loadContractorProjects();
+          loadHomeownerProjects();
+        }
+
         return usageData;
       } catch (err) {
         console.error("Failed to fetch report usage:", err);
@@ -533,32 +572,100 @@ export function PropertyMapSidebar({
 
   const hasLimitAccess = Boolean(reportUsage && reportUsage.remaining > 0);
 
+  // Check if all contractor projects are purchased individually
+  const areAllContractorsPurchasedIndividually = useMemo(() => {
+    if (contractorProjects.length === 0) return false;
+    return contractorProjects.every(
+      (proj: any) =>
+        proj.project_purchased === true || proj.is_purchased === true,
+    );
+  }, [contractorProjects]);
+
+  // Combined flag for all contractor projects purchased (bulk purchase or individually)
+  const isAllContractorsEffectivelyPurchased =
+    allContractorPurchased || areAllContractorsPurchasedIndividually;
+
+  // Check if all homeowner projects are purchased individually
+  const areAllHomeownersPurchasedIndividually = useMemo(() => {
+    if (homeownerProjects.length === 0) return false;
+    return homeownerProjects.every(
+      (proj: any) =>
+        proj.project_purchased === true || proj.is_purchased === true,
+    );
+  }, [homeownerProjects]);
+
+  // Check if every project on this property is purchased
+  const areAllPropertyProjectsPurchased = useMemo(() => {
+    const hasContractorProjects = contractorProjects.length > 0;
+    const hasHomeownerProjects = homeownerProjects.length > 0;
+
+    if (!hasContractorProjects && !hasHomeownerProjects) return false;
+
+    const contractorConditionMet =
+      !hasContractorProjects || isAllContractorsEffectivelyPurchased;
+    const homeownerConditionMet =
+      !hasHomeownerProjects || areAllHomeownersPurchasedIndividually;
+
+    return contractorConditionMet && homeownerConditionMet;
+  }, [
+    contractorProjects.length,
+    homeownerProjects.length,
+    isAllContractorsEffectivelyPurchased,
+    areAllHomeownersPurchasedIndividually,
+  ]);
+
+  const isFullReportAccessible =
+    purchased || areAllPropertyProjectsPurchased;
+
   const showGenerateOption =
     hasReport &&
     ((role === "property_owner" &&
-      (isOwnerOfProperty || purchased || hasLimitAccess)) ||
+      (isOwnerOfProperty || isFullReportAccessible || hasLimitAccess)) ||
       role === "admin" ||
       role === "city_inspector" ||
-      (role === "contractor" && (purchased || hasLimitAccess)) ||
-      (role === "manufacturer" && (purchased || hasLimitAccess)) ||
-      (role === "realtor" && (purchased || hasLimitAccess)) ||
-      (role === "insurance_company" && (purchased || hasLimitAccess)));
+      (role === "contractor" && (isFullReportAccessible || hasLimitAccess)) ||
+      (role === "manufacturer" && (isFullReportAccessible || hasLimitAccess)) ||
+      (role === "realtor" && (isFullReportAccessible || hasLimitAccess)) ||
+      (role === "insurance_company" && (isFullReportAccessible || hasLimitAccess)));
 
   const showBuyOption =
     hasReport &&
     totalProjectsCount > 0 &&
+    !isFullReportAccessible &&
     ((role === "property_owner" &&
       !isOwnerOfProperty &&
-      !purchased &&
       !hasLimitAccess) ||
-      (role === "contractor" && !purchased && !hasLimitAccess) ||
-      (role === "manufacturer" && !purchased && !hasLimitAccess) ||
-      (role === "realtor" && !purchased && !hasLimitAccess) ||
-      (role === "insurance_company" && !purchased && !hasLimitAccess));
+      (role === "contractor" && !hasLimitAccess) ||
+      (role === "manufacturer" && !hasLimitAccess) ||
+      (role === "realtor" && !hasLimitAccess) ||
+      (role === "insurance_company" && !hasLimitAccess));
+
+  const usesMembershipLimit =
+    hasReport &&
+    !isOwnerOfProperty &&
+    !isFullReportAccessible &&
+    !isAdmin &&
+    !isCityInspector &&
+    hasLimitAccess;
+
+  const usesMembershipLimitForContractor =
+    !isAllContractorsEffectivelyPurchased &&
+    !isFullReportAccessible &&
+    !isAdmin &&
+    !isCityInspector &&
+    !isOwnerOfProperty &&
+    hasLimitAccess;
+
+  const confirmMembershipUsage = (action: () => void, name: string) => {
+    setPendingReportName(name);
+    setPendingDownloadAction(() => action);
+    setShowMembershipConfirmDialog(true);
+  };
 
   const hasAllContractorAccess =
-    allContractorPurchased ||
+    isAllContractorsEffectivelyPurchased ||
     purchased ||
+    areAllPropertyProjectsPurchased ||
     isAdmin ||
     isCityInspector ||
     isOwnerOfProperty ||
@@ -570,18 +677,19 @@ export function PropertyMapSidebar({
     setIsGenerating(true);
     try {
       const url = await generatePdfReport(propertyId, undefined, user?.role);
+      setPurchased(true);
       await downloadPdfFromUrl(url, `property-report-${propertyId}.pdf`);
       toast.success("Report downloaded successfully");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to download report");
+    } finally {
       setPurchased(true);
+      setIsGenerating(false);
       const usageRes = await fetchReportUsage();
       if (usageRes && usageRes.remaining === 0) {
         loadContractorProjects();
         loadHomeownerProjects();
       }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to download report");
-    } finally {
-      setIsGenerating(false);
     }
   };
 
@@ -616,21 +724,22 @@ export function PropertyMapSidebar({
     setIsGeneratingAllContractor(true);
     try {
       const url = await generateAllContractorPdfReport(propertyId);
+      setAllContractorPurchased(true);
       await downloadPdfFromUrl(
         url,
         `all-contractor-projects-report-${propertyId}.pdf`,
       );
       toast.success("Report downloaded successfully");
       setAllContractorPurchased(true);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to download report");
+    } finally {
+      setIsGeneratingAllContractor(false);
       const usageRes = await fetchReportUsage();
       if (usageRes && usageRes.remaining === 0) {
         loadContractorProjects();
         loadHomeownerProjects();
       }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to download report");
-    } finally {
-      setIsGeneratingAllContractor(false);
     }
   };
 
@@ -674,6 +783,24 @@ export function PropertyMapSidebar({
       const url = isContractor
         ? await generateContractorProjectPdfReport(projectId)
         : await generateOwnerProjectPdfReport(projectId);
+      setContractorProjects((prev) =>
+        prev.map((proj) => {
+          const pid = proj.id ?? proj.project_id ?? proj._id;
+          if (String(pid) === String(projectId)) {
+            return { ...proj, is_purchased: true, project_purchased: true };
+          }
+          return proj;
+        }),
+      );
+      setHomeownerProjects((prev) =>
+        prev.map((proj) => {
+          const pid = proj.id ?? proj.project_id ?? proj._id;
+          if (String(pid) === String(projectId)) {
+            return { ...proj, is_purchased: true, project_purchased: true };
+          }
+          return proj;
+        }),
+      );
       const filename = isContractor
         ? `contractor-projects-report-${projectName}.pdf`
         : `owner-projects-report-${projectName}.pdf`;
@@ -698,17 +825,16 @@ export function PropertyMapSidebar({
           return proj;
         }),
       );
-
-      const usageRes = await fetchReportUsage();
-      if (usageRes && usageRes.remaining === 0) {
-        loadContractorProjects();
-        loadHomeownerProjects();
-      }
     } catch (error: any) {
       console.error("Download project report error:", error);
       toast.error(getErrorMessage(error, "Failed to download report"));
     } finally {
       setGeneratingProjects((prev) => ({ ...prev, [projectId]: false }));
+      const usageRes = await fetchReportUsage();
+      if (usageRes && usageRes.remaining === 0) {
+        loadContractorProjects();
+        loadHomeownerProjects();
+      }
     }
   };
 
@@ -1196,7 +1322,16 @@ export function PropertyMapSidebar({
                             </div>
                             {showGenerateOption ? (
                               <Button
-                                onClick={handleDownloadFullReport}
+                                onClick={() => {
+                                  if (usesMembershipLimit) {
+                                    confirmMembershipUsage(
+                                      () => handleDownloadFullReport(),
+                                      "the Full Property Report",
+                                    );
+                                  } else {
+                                    handleDownloadFullReport();
+                                  }
+                                }}
                                 disabled={isGenerating}
                                 className="w-full h-10 rounded-lg bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-widest shadow-none gap-1.5"
                               >
@@ -1211,7 +1346,12 @@ export function PropertyMapSidebar({
                               </Button>
                             ) : (
                               <Button
-                                onClick={handlePurchaseFullReport}
+                                onClick={() =>
+                                  confirmPurchase(
+                                    () => handlePurchaseFullReport(),
+                                    "the Full Property Report",
+                                  )
+                                }
                                 disabled={isGenerating}
                                 className="w-full h-10 rounded-lg bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-xs uppercase tracking-widest shadow-none gap-1.5"
                               >
@@ -1243,7 +1383,14 @@ export function PropertyMapSidebar({
                             <Button
                               onClick={() => {
                                 if (hasAllContractorAccess) {
-                                  handleDownloadAllContractorReport();
+                                  if (usesMembershipLimitForContractor) {
+                                    confirmMembershipUsage(
+                                      () => handleDownloadAllContractorReport(),
+                                      "All Contractor Reports",
+                                    );
+                                  } else {
+                                    handleDownloadAllContractorReport();
+                                  }
                                 } else {
                                   setShowAllContractorDialog(true);
                                 }
@@ -1412,7 +1559,7 @@ export function PropertyMapSidebar({
                 const isSelected = selectedContractors.includes(
                   String(projectId),
                 );
-                const projectPrice = project.project_price ?? 29;
+                const projectPrice = project.project_price ?? project.price;
 
                 const hasProjectAccess =
                   isProjectPurchased ||
@@ -1421,6 +1568,15 @@ export function PropertyMapSidebar({
                   isAdmin ||
                   isCityInspector ||
                   isOwnerOfProperty ||
+                  hasLimitAccess;
+
+                const usesMembershipLimitForProject =
+                  !isProjectPurchased &&
+                  !allContractorPurchased &&
+                  !purchased &&
+                  !isAdmin &&
+                  !isCityInspector &&
+                  !isOwnerOfProperty &&
                   hasLimitAccess;
 
                 return (
@@ -1463,12 +1619,25 @@ export function PropertyMapSidebar({
                       <div className="flex items-center gap-2">
                         {hasProjectAccess ? (
                           <Button
-                            onClick={() =>
-                              handleGenerateProjectReport(
-                                projectId,
-                                project.project_name,
-                              )
-                            }
+                            onClick={() => {
+                              if (usesMembershipLimitForProject) {
+                                confirmMembershipUsage(
+                                  () =>
+                                    handleGenerateProjectReport(
+                                      projectId,
+                                      project.project_name,
+                                    ),
+                                  project.project_name
+                                    ? `the report for "${project.project_name}"`
+                                    : "this project report",
+                                );
+                              } else {
+                                handleGenerateProjectReport(
+                                  projectId,
+                                  project.project_name,
+                                );
+                              }
+                            }}
                             disabled={isProjectGenerating}
                             className="h-8 px-2.5 rounded-lg bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-[9px] uppercase tracking-widest gap-1 shadow-none"
                           >
@@ -1482,12 +1651,18 @@ export function PropertyMapSidebar({
                         ) : (
                           <Button
                             onClick={() =>
-                              handlePurchaseProjectReport(projectId)
+                              confirmPurchase(
+                                () => handlePurchaseProjectReport(projectId),
+                                project.project_name
+                                  ? `the report for "${project.project_name}"`
+                                  : "this project report",
+                                projectPrice,
+                              )
                             }
                             className="h-8 px-2.5 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[9px] uppercase tracking-widest gap-1 shadow-none"
                           >
                             <ShoppingCart className="w-3 h-3" />
-                            Buy (${projectPrice})
+                            Buy{projectPrice != null ? ` ($${projectPrice})` : ""}
                           </Button>
                         )}
                       </div>
@@ -1503,12 +1678,23 @@ export function PropertyMapSidebar({
                 {selectedContractors.length} selected
               </span>
               <Button
-                onClick={() =>
-                  handlePurchaseMultipleProjects(
-                    selectedContractors,
-                    "contractor",
-                  )
-                }
+                onClick={() => {
+                  const totalPrice = selectedContractors.reduce((total, id) => {
+                    const proj = contractorProjects.find(
+                      (p) => String(p.id ?? p.project_id ?? p._id) === id,
+                    );
+                    return total + Number(proj?.project_price ?? proj?.price ?? 0);
+                  }, 0);
+                  confirmPurchase(
+                    () =>
+                      handlePurchaseMultipleProjects(
+                        selectedContractors,
+                        "contractor",
+                      ),
+                    `${selectedContractors.length} contractor project reports`,
+                    totalPrice,
+                  );
+                }}
                 disabled={isBulkPurchasing}
                 className="h-8 px-3 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[9px] uppercase tracking-widest gap-1 shadow-none"
               >
@@ -1522,7 +1708,7 @@ export function PropertyMapSidebar({
                   const proj = contractorProjects.find(
                     (p) => String(p.id ?? p.project_id ?? p._id) === id,
                   );
-                  return total + (proj?.project_price ?? 29);
+                  return total + Number(proj?.project_price ?? proj?.price ?? 0);
                 }, 0)}
                 )
               </Button>
@@ -1582,7 +1768,7 @@ export function PropertyMapSidebar({
                 const isSelected = selectedHomeowners.includes(
                   String(projectId),
                 );
-                const projectPrice = project.project_price ?? 29;
+                const projectPrice = project.project_price ?? project.price;
 
                 const isCreator =
                   project.created_by === user?.id ||
@@ -1605,6 +1791,15 @@ export function PropertyMapSidebar({
                   : project.start_date
                     ? new Date(project.start_date).toLocaleDateString()
                     : "N/A";
+
+                const usesMembershipLimitForProject =
+                  !isProjectPurchased &&
+                  !purchased &&
+                  !isAdmin &&
+                  !isCityInspector &&
+                  !isOwnerOfProperty &&
+                  !(role === "property_owner" && isCreator) &&
+                  hasLimitAccess;
 
                 return (
                   <div
@@ -1645,12 +1840,25 @@ export function PropertyMapSidebar({
                       <div className="flex items-center gap-2">
                         {hasProjectAccess ? (
                           <Button
-                            onClick={() =>
-                              handleGenerateProjectReport(
-                                projectId,
-                                project.project_name,
-                              )
-                            }
+                            onClick={() => {
+                              if (usesMembershipLimitForProject) {
+                                confirmMembershipUsage(
+                                  () =>
+                                    handleGenerateProjectReport(
+                                      projectId,
+                                      project.project_name,
+                                    ),
+                                  project.project_name
+                                    ? `the report for "${project.project_name}"`
+                                    : "this project report",
+                                );
+                              } else {
+                                handleGenerateProjectReport(
+                                  projectId,
+                                  project.project_name,
+                                );
+                              }
+                            }}
                             disabled={isProjectGenerating}
                             className="h-8 px-2.5 rounded-lg bg-[#1CA7A6] hover:bg-[#1CA7A6]/90 text-white font-bold text-[9px] uppercase tracking-widest gap-1 shadow-none"
                           >
@@ -1664,12 +1872,18 @@ export function PropertyMapSidebar({
                         ) : (
                           <Button
                             onClick={() =>
-                              handlePurchaseProjectReport(projectId)
+                              confirmPurchase(
+                                () => handlePurchaseProjectReport(projectId),
+                                project.project_name
+                                  ? `the report for "${project.project_name}"`
+                                  : "this project report",
+                                projectPrice,
+                              )
                             }
                             className="h-8 px-2.5 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[9px] uppercase tracking-widest gap-1 shadow-none"
                           >
                             <ShoppingCart className="w-3 h-3" />
-                            Buy (${projectPrice})
+                            Buy{projectPrice != null ? ` ($${projectPrice})` : ""}
                           </Button>
                         )}
                       </div>
@@ -1685,12 +1899,23 @@ export function PropertyMapSidebar({
                 {selectedHomeowners.length} selected
               </span>
               <Button
-                onClick={() =>
-                  handlePurchaseMultipleProjects(
-                    selectedHomeowners,
-                    "homeowner",
-                  )
-                }
+                onClick={() => {
+                  const totalPrice = selectedHomeowners.reduce((total, id) => {
+                    const proj = homeownerProjects.find(
+                      (p) => String(p.id ?? p.project_id ?? p._id) === id,
+                    );
+                    return total + Number(proj?.project_price ?? proj?.price ?? 0);
+                  }, 0);
+                  confirmPurchase(
+                    () =>
+                      handlePurchaseMultipleProjects(
+                        selectedHomeowners,
+                        "homeowner",
+                      ),
+                    `${selectedHomeowners.length} homeowner project reports`,
+                    totalPrice,
+                  );
+                }}
                 disabled={isBulkPurchasing}
                 className="h-8 px-3 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[9px] uppercase tracking-widest gap-1 shadow-none"
               >
@@ -1704,7 +1929,7 @@ export function PropertyMapSidebar({
                   const proj = homeownerProjects.find(
                     (p) => String(p.id ?? p.project_id ?? p._id) === id,
                   );
-                  return total + (proj?.project_price ?? 29);
+                  return total + Number(proj?.project_price ?? proj?.price ?? 0);
                 }, 0)}
                 )
               </Button>
@@ -1807,6 +2032,36 @@ export function PropertyMapSidebar({
         message={
           isBulkPurchasing ? "Processing Purchase..." : "Generating Report..."
         }
+      />
+
+      <PurchaseReportConfirmDialog
+        open={showPurchaseDialog}
+        onOpenChange={setShowPurchaseDialog}
+        onConfirm={() => {
+          setShowPurchaseDialog(false);
+          pendingPurchaseAction?.();
+        }}
+        remaining={reportUsage?.remaining ?? 0}
+        baseLimit={reportUsage?.baseLimit ?? 0}
+        hasQuotaLimit={Boolean(
+          reportUsage && (reportUsage?.remaining ?? 0) === 0,
+        )}
+        isProcessing={isGenerating || isBulkPurchasing}
+        reportName={pendingPurchaseReportName}
+        price={pendingPurchasePrice}
+      />
+
+      <MembershipReportConfirmDialog
+        open={showMembershipConfirmDialog}
+        onOpenChange={setShowMembershipConfirmDialog}
+        onConfirm={() => {
+          setShowMembershipConfirmDialog(false);
+          pendingDownloadAction?.();
+        }}
+        remaining={reportUsage?.remaining ?? 0}
+        baseLimit={reportUsage?.baseLimit ?? 0}
+        isGenerating={isGenerating || isGeneratingAllContractor}
+        reportName={pendingReportName}
       />
     </>
   );

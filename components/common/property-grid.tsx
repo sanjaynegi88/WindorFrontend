@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { PropertyDetailDialog } from "./property-detail-dialog";
 import { toast } from "sonner";
+import { boolean } from "zod";
 
 interface PropertyGridProps {
   searchParams?: any;
@@ -42,9 +43,11 @@ export function PropertyGrid({
   resultsShow,
 }: PropertyGridProps) {
   const [properties, setProperties] = useState<any[]>([]);
+  const [recommendedProperties, setRecommendedProperties] = useState<any[]>([]);
 
   const handlePropertyDeleted = (deletedId: string) => {
     setProperties((prev) => prev.filter((p) => p.id !== deletedId));
+    setRecommendedProperties((prev) => prev.filter((p) => p.id !== deletedId));
     onDeleteProperty?.(deletedId);
   };
   const [loading, setLoading] = useState(true);
@@ -87,10 +90,22 @@ export function PropertyGrid({
         toast.error(response.message || "Failed to fetch properties");
         if (!append) {
           setProperties([]);
+          setRecommendedProperties([]);
           onFallbackToCity?.();
         }
         setHasMore(false);
         return;
+      }
+
+      const rawSuggested =
+        (response as any)?.suggested_data ||
+        (response?.data as any)?.suggested_data ||
+        [];
+      const suggestedList = Array.isArray(rawSuggested)
+        ? rawSuggested.slice(0, 3)
+        : [];
+      if (!append) {
+        setRecommendedProperties(suggestedList);
       }
 
       const newData = Array.isArray(response?.data)
@@ -170,14 +185,91 @@ export function PropertyGrid({
     );
   }
 
+  const renderPropertyCard = (prop: any, isRecommended: boolean) => {
+    const cityName = getSafeString(prop.city_name) || getSafeString(prop.city);
+    const showEditIcon = isRecommended;
+    const stateName =
+      prop.state_name !== "False"
+        ? getSafeString(prop.state_name) || getSafeString(prop.state)
+        : "";
+    const stateId =
+      prop.state_id ||
+      prop.stateId ||
+      prop.state?.id ||
+      prop.property?.state_id ||
+      prop.property?.state?.id ||
+      prop.property?.state?.state_id ||
+      prop.raw?.state_id ||
+      (typeof prop.state === "object" ? prop.state?.state_id : undefined) ||
+      (typeof prop.state === "string" && prop.state.includes("-")
+        ? prop.state
+        : undefined) ||
+      searchParams?.state_id ||
+      "";
+    const cityId =
+      prop.city_id ||
+      prop.cityId ||
+      prop.city?.id ||
+      prop.property?.city_id ||
+      prop.property?.city?.id ||
+      prop.property?.city?.city_id ||
+      prop.raw?.city_id ||
+      (typeof prop.city === "object" ? prop.city?.city_id : undefined) ||
+      (typeof prop.city === "string" && prop.city.includes("-")
+        ? prop.city
+        : undefined) ||
+      searchParams?.city_id ||
+      "";
+
+    return (
+      <PropertyCard
+        key={prop.id}
+        id={`RE${prop.id.slice(-4).toUpperCase()}`}
+        propertyName={prop.property_name || ""}
+        address={prop.address || ""}
+        address2={prop.address2 || ""}
+        hasReport={prop.has_report || false}
+        city={cityName}
+        state={stateName}
+        zip={prop.zip || ""}
+        propertyId={prop.id}
+        stateId={stateId}
+        cityId={cityId}
+        isPurchased={prop.is_purchased || false}
+        propertyOwnerEmail={prop?.property_owner_email || ""}
+        redirectUrl={redirectUrl || "/property-details/"}
+        showActionButtons={showActionButtons}
+        showDetail={showDetail}
+        latitude={prop.latitude ? Number(prop.latitude) : undefined}
+        longitude={prop.longitude ? Number(prop.longitude) : undefined}
+        onOpenInMap={onOpenInMap}
+        onDelete={handlePropertyDeleted}
+        onQuotaExhausted={() => fetchProperties(1, false)}
+        showEditIcon={showEditIcon}
+      />
+    );
+  };
+
   if (properties.length === 0) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 md:space-y-12">
         <div className="text-center py-20 bg-gray-50 md:rounded-4xl">
           <p className="text-gray-400 font-black uppercase tracking-widest text-lg">
             No properties found.
           </p>
         </div>
+        {recommendedProperties.length > 0 && (
+          <div className="space-y-4 md:space-y-6">
+            <h3 className="text-xl md:text-3xl font-black text-[#1e293b] tracking-tighter uppercase font-asap">
+              Suggested Properties
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
+              {recommendedProperties.map((prop) =>
+                renderPropertyCard(prop, true),
+              )}
+            </div>
+          </div>
+        )}
         {mapSlot}
       </div>
     );
@@ -187,75 +279,8 @@ export function PropertyGrid({
     <>
       <div className="space-y-6 md:space-y-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
-          {properties.map((prop) => {
-            const cityName =
-              getSafeString(prop.city_name) || getSafeString(prop.city);
-            const stateName =
-              prop.state_name !== "False"
-                ? getSafeString(prop.state_name) || getSafeString(prop.state)
-                : "";
-            const stateId =
-              prop.state_id ||
-              prop.stateId ||
-              prop.state?.id ||
-              prop.property?.state_id ||
-              prop.property?.state?.id ||
-              prop.property?.state?.state_id ||
-              prop.raw?.state_id ||
-              (typeof prop.state === "object"
-                ? prop.state?.state_id
-                : undefined) ||
-              (typeof prop.state === "string" && prop.state.includes("-")
-                ? prop.state
-                : undefined) ||
-              searchParams?.state_id ||
-              "";
-            const cityId =
-              prop.city_id ||
-              prop.cityId ||
-              prop.city?.id ||
-              prop.property?.city_id ||
-              prop.property?.city?.id ||
-              prop.property?.city?.city_id ||
-              prop.raw?.city_id ||
-              (typeof prop.city === "object"
-                ? prop.city?.city_id
-                : undefined) ||
-              (typeof prop.city === "string" && prop.city.includes("-")
-                ? prop.city
-                : undefined) ||
-              searchParams?.city_id ||
-              "";
-
-            return (
-              <PropertyCard
-                key={prop.id}
-                id={`RE${prop.id.slice(-4).toUpperCase()}`}
-                propertyName={prop.property_name || ""}
-                address={prop.address || ""}
-                address2={prop.address2 || ""}
-                hasReport={prop.has_report || false}
-                city={cityName}
-                state={stateName}
-                zip={prop.zip || ""}
-                propertyId={prop.id}
-                stateId={stateId}
-                cityId={cityId}
-                isPurchased={prop.is_purchased || false}
-                propertyOwnerEmail={prop?.property_owner_email || ""}
-                redirectUrl={redirectUrl || "/property-details/"}
-                showActionButtons={showActionButtons}
-                showDetail={showDetail}
-                latitude={prop.latitude ? Number(prop.latitude) : undefined}
-                longitude={prop.longitude ? Number(prop.longitude) : undefined}
-                onOpenInMap={onOpenInMap}
-                onDelete={handlePropertyDeleted}
-                onQuotaExhausted={() => fetchProperties(1, false)}
-              />
-            );
-          })}
+          {properties.map((prop) => renderPropertyCard(prop, false))}
         </div>
-
         {mapSlot}
 
         {hasMore && (
