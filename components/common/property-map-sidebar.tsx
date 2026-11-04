@@ -451,8 +451,6 @@ export function PropertyMapSidebar({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isImageModalOpen]);
 
-  if (!isOpen) return null;
-
   const propertyOwnerEmail =
     property?.property_owner?.email || property?.owner_email || "";
   const projectsList = property?.projects ?? [];
@@ -614,8 +612,9 @@ export function PropertyMapSidebar({
     areAllHomeownersPurchasedIndividually,
   ]);
 
-  const isFullReportAccessible =
-    purchased || areAllPropertyProjectsPurchased;
+  if (!isOpen) return null;
+
+  const isFullReportAccessible = purchased || areAllPropertyProjectsPurchased;
 
   const showGenerateOption =
     hasReport &&
@@ -626,15 +625,14 @@ export function PropertyMapSidebar({
       (role === "contractor" && (isFullReportAccessible || hasLimitAccess)) ||
       (role === "manufacturer" && (isFullReportAccessible || hasLimitAccess)) ||
       (role === "realtor" && (isFullReportAccessible || hasLimitAccess)) ||
-      (role === "insurance_company" && (isFullReportAccessible || hasLimitAccess)));
+      (role === "insurance_company" &&
+        (isFullReportAccessible || hasLimitAccess)));
 
   const showBuyOption =
     hasReport &&
     totalProjectsCount > 0 &&
     !isFullReportAccessible &&
-    ((role === "property_owner" &&
-      !isOwnerOfProperty &&
-      !hasLimitAccess) ||
+    ((role === "property_owner" && !isOwnerOfProperty && !hasLimitAccess) ||
       (role === "contractor" && !hasLimitAccess) ||
       (role === "manufacturer" && !hasLimitAccess) ||
       (role === "realtor" && !hasLimitAccess) ||
@@ -1662,7 +1660,8 @@ export function PropertyMapSidebar({
                             className="h-8 px-2.5 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[9px] uppercase tracking-widest gap-1 shadow-none"
                           >
                             <ShoppingCart className="w-3 h-3" />
-                            Buy{projectPrice != null ? ` ($${projectPrice})` : ""}
+                            Buy
+                            {projectPrice != null ? ` ($${projectPrice})` : ""}
                           </Button>
                         )}
                       </div>
@@ -1683,7 +1682,9 @@ export function PropertyMapSidebar({
                     const proj = contractorProjects.find(
                       (p) => String(p.id ?? p.project_id ?? p._id) === id,
                     );
-                    return total + Number(proj?.project_price ?? proj?.price ?? 0);
+                    return (
+                      total + Number(proj?.project_price ?? proj?.price ?? 0)
+                    );
                   }, 0);
                   confirmPurchase(
                     () =>
@@ -1708,7 +1709,9 @@ export function PropertyMapSidebar({
                   const proj = contractorProjects.find(
                     (p) => String(p.id ?? p.project_id ?? p._id) === id,
                   );
-                  return total + Number(proj?.project_price ?? proj?.price ?? 0);
+                  return (
+                    total + Number(proj?.project_price ?? proj?.price ?? 0)
+                  );
                 }, 0)}
                 )
               </Button>
@@ -1883,7 +1886,8 @@ export function PropertyMapSidebar({
                             className="h-8 px-2.5 rounded-lg bg-[#1F2A44] hover:bg-[#1F2A44]/90 text-white font-bold text-[9px] uppercase tracking-widest gap-1 shadow-none"
                           >
                             <ShoppingCart className="w-3 h-3" />
-                            Buy{projectPrice != null ? ` ($${projectPrice})` : ""}
+                            Buy
+                            {projectPrice != null ? ` ($${projectPrice})` : ""}
                           </Button>
                         )}
                       </div>
@@ -1904,7 +1908,9 @@ export function PropertyMapSidebar({
                     const proj = homeownerProjects.find(
                       (p) => String(p.id ?? p.project_id ?? p._id) === id,
                     );
-                    return total + Number(proj?.project_price ?? proj?.price ?? 0);
+                    return (
+                      total + Number(proj?.project_price ?? proj?.price ?? 0)
+                    );
                   }, 0);
                   confirmPurchase(
                     () =>
@@ -1929,7 +1935,9 @@ export function PropertyMapSidebar({
                   const proj = homeownerProjects.find(
                     (p) => String(p.id ?? p.project_id ?? p._id) === id,
                   );
-                  return total + Number(proj?.project_price ?? proj?.price ?? 0);
+                  return (
+                    total + Number(proj?.project_price ?? proj?.price ?? 0)
+                  );
                 }, 0)}
                 )
               </Button>

@@ -800,8 +800,7 @@ export function AddressForm({
         // Set city by default matching details.city from Google Place response
         const matchedSuggestedCity =
           details.cities!.find(
-            (c) =>
-              c.name.trim().toLowerCase() === googleCityName.toLowerCase(),
+            (c) => c.name.trim().toLowerCase() === googleCityName.toLowerCase(),
           ) || details.cities![0];
 
         if (matchedSuggestedCity) {
@@ -1420,23 +1419,25 @@ export function AddressForm({
         {/* Suggested Cities Bullet Selection */}
         {suggestedCities.length > 0 && (
           <div className="space-y-1.5 animate-in fade-in duration-300">
-            <label className="text-[13px] md:text-[15px] font-semibold text-[#1F2A44] flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <MapPin className="size-4 text-[#1CA7A6]" />
-                {data.zip
-                  ? `The inputted ZIP code (${data.zip}) is in these cities:`
-                  : "The selected address ZIP code is in these cities:"}
-                <span className="text-red-500">*</span>
+            <div className="text-[12px] sm:text-[13px] md:text-[15px] font-semibold text-[#1F2A44] flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
+              <span className="flex items-center gap-1.5 leading-tight">
+                <MapPin className="size-3.5 sm:size-4 text-[#1CA7A6] shrink-0" />
+                <span>
+                  {data.zip
+                    ? `The inputted ZIP code (${data.zip}) is in these cities:`
+                    : "The selected address ZIP code is in these cities:"}
+                  <span className="text-red-500 ml-0.5">*</span>
+                </span>
               </span>
               {data.city && (
-                <span className="text-[11px] md:text-[12px] font-medium text-[#1CA7A6] bg-[#1CA7A6]/10 px-2 py-0.5 rounded-full">
+                <span className="self-start sm:self-auto text-[10px] sm:text-[11px] md:text-[12px] font-medium text-[#1CA7A6] bg-[#1CA7A6]/10 px-2 py-0.5 rounded-full whitespace-nowrap">
                   Selected: {toTitleCase(data.city)}
                 </span>
               )}
-            </label>
+            </div>
             <div
               className={cn(
-                "px-[16px] md:px-[24px] py-2.5 bg-white rounded-[6px] md:rounded-[10px] border transition-colors flex flex-wrap gap-x-6 gap-y-2 items-center min-h-[46px] md:min-h-[60px]",
+                "p-3 sm:px-[16px] md:px-[24px] sm:py-2.5 bg-white rounded-[8px] md:rounded-[10px] border transition-colors flex flex-wrap gap-x-4 sm:gap-x-6 gap-y-2 sm:gap-y-2.5 items-center min-h-[44px] md:min-h-[60px]",
                 hasFieldError("city")
                   ? "!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10"
                   : "border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)]",
@@ -1455,11 +1456,11 @@ export function AddressForm({
                     onClick={() => {
                       handleCitySelection(String(c.id), c.name);
                     }}
-                    className="flex items-center gap-2.5 cursor-pointer group select-none py-1 bg-transparent border-0 text-left p-0"
+                    className="flex items-center gap-2 sm:gap-2.5 cursor-pointer group select-none py-1.5 sm:py-1 bg-transparent border-0 text-left p-0 touch-manipulation active:opacity-80"
                   >
                     <div
                       className={cn(
-                        "size-[18px] md:size-[22px] rounded-full border border-[rgba(112,128,144,0.4333)] md:border-[rgba(112,128,144,0.3)] flex items-center justify-center transition-all bg-white group-hover:border-[#1CA7A6]",
+                        "size-[18px] md:size-[22px] rounded-full border border-[rgba(112,128,144,0.4333)] md:border-[rgba(112,128,144,0.3)] flex items-center justify-center transition-all bg-white group-hover:border-[#1CA7A6] shrink-0",
                         isSelected && "border-[#1CA7A6]",
                       )}
                     >
@@ -1469,7 +1470,7 @@ export function AddressForm({
                     </div>
                     <span
                       className={cn(
-                        "text-[14px] md:text-[18px] font-medium font-asap transition-colors",
+                        "text-[13px] sm:text-[15px] md:text-[18px] font-medium font-asap transition-colors whitespace-nowrap",
                         isSelected
                           ? "text-[#1CA7A6] font-semibold"
                           : "text-[#1F2A44] group-hover:text-[#1CA7A6]",
@@ -1482,7 +1483,8 @@ export function AddressForm({
               })}
             </div>
             {hasFieldError("city") && (
-              <p className="text-[12px] md:text-[14px] text-red-500 font-medium font-asap mt-1 ml-1">
+              <p className="text-[12px] md:text-[14px] text-red-500 font-medium font-asap mt-1 ml-1 flex items-center gap-1.5">
+                <AlertCircle className="size-3.5 shrink-0" />
                 Please select a valid city
               </p>
             )}
@@ -1895,50 +1897,4 @@ export function AddressForm({
       />
     </div>
   );
-}
-
-{
-  /* <Input
-            placeholder={
-              isAddress2Supported === false && !isHighTear
-                ? "Address 2 not required for this property"
-                : "Address 2 (e.g., Apt, Suite, Unit - optional)"
-            }
-            disabled={isAddress2Supported === false}
-            title={
-              isAddress2Supported === false && !isHighTear
-                ? "Address 2 is not supported for this property address."
-                : undefined
-            }
-            className={cn(
-              "h-[46px] md:h-[65px] px-[20px] md:px-[29px] bg-white rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap transition-colors",
-              hasFieldError("address2") && isAddress2Supported !== false
-                ? "!border-red-500 md:!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900 border"
-                : "border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)]",
-              isAddress2Supported === false &&
-                "!bg-slate-100 !text-slate-400 !border-slate-200 !cursor-not-allowed select-none",
-            )}
-            value={isAddress2Supported === false && !isHighTear ? "" : data.address2 || ""}
-            aria-invalid={
-              hasFieldError("address2") && isAddress2Supported !== false
-                ? "true"
-                : undefined
-            }
-            onChange={(e) => {
-              if (isAddress2Supported === false && !isHighTear) return;
-              clearFieldError("address2");
-              setAddress2Message(null);
-              onChange({ ...data, address2: e.target.value });
-            }}
-          />
-          {hasFieldError("address2") && isAddress2Supported !== false && (
-            <p className="text-[12px] md:text-[14px] text-red-500 font-medium font-asap mt-1 ml-1">
-              {address2Message || "Please provide a valid address line 2"}
-            </p>
-          )}
-          {isAddress2Supported === false && !isHighTear && (
-            <p className="text-[12px] md:text-[13px] text-slate-400 font-normal font-asap mt-1 ml-1">
-              Address 2 is not required for this property address.
-            </p>
-          )} */
 }
