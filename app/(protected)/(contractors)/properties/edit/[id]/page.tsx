@@ -133,8 +133,9 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
   const { id: propertyId } = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useUser();
-  const role = user?.role?.toLowerCase() || "";
+  const { user, role: userRole } = useUser();
+  const role = userRole || user?.role?.toLowerCase() || "";
+  const isAdmin = role === "admin";
 
   // Normalize mode and parameters with backward compatibility
   const rawMode = searchParams.get("mode")?.toLowerCase();
@@ -297,6 +298,50 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
 
           const prop = propRes?.data ?? propRes;
           setProperty(prop);
+
+          // Access control: If contractor visits edit page for address, ensure an alternative city exists for the property's ZIP
+          if (!isAdmin) {
+            const propZip = prop?.zip;
+            const propState = prop?.state_id || prop?.state;
+            if (propZip) {
+              try {
+                const zipCitiesRes = await getCities(
+                  1,
+                  100,
+                  undefined,
+                  undefined,
+                  propState || undefined,
+                  false,
+                  false,
+                  false,
+                  propZip,
+                );
+                const rawZipList: any[] = Array.isArray(zipCitiesRes)
+                  ? zipCitiesRes
+                  : (zipCitiesRes as any)?.data || [];
+                const uniqueZipCities = new Set(
+                  rawZipList
+                    .map((c: any) =>
+                      (c.city_name || c.name || "").trim().toLowerCase(),
+                    )
+                    .filter(Boolean),
+                );
+                if (uniqueZipCities.size <= 1) {
+                  toast.error(
+                    "You do not have permission to edit this property as no alternative city is available.",
+                  );
+                  router.replace("/dashboard");
+                  setLoading(false);
+                  return;
+                }
+              } catch (err) {
+                console.error(
+                  "Failed to verify contractor city permissions:",
+                  err,
+                );
+              }
+            }
+          }
 
           const rawStates: any[] = Array.isArray(statesRes)
             ? statesRes

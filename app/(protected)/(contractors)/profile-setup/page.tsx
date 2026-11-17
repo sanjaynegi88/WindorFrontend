@@ -96,10 +96,8 @@ export default function ContractorProfileSetupPage() {
           role={role ?? undefined}
           onSubmitSuccess={() => {
             if (isEditMode) {
-              toast.success("Profile updated successfully!");
               router.push("/profile");
             } else {
-              toast.success("Profile setup complete!");
               router.push("/dashboard");
             }
           }}

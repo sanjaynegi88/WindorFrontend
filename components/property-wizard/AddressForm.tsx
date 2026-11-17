@@ -187,8 +187,14 @@ export function AddressForm({
   onErrorFieldsChange,
   apiErrorMessage,
 }: AddressFormProps) {
-  const user = useUser();
-  const { isHighTear } = useUser();
+  const { user, role: userRole, isHighTear } = useUser();
+  console.log("aaa", isHighTear);
+  const currentUser = user;
+  const isAdmin =
+    userRole === "admin" ||
+    currentUser?.role?.toLowerCase() === "admin" ||
+    currentUser?.roleEntity?.role_name?.toLowerCase() === "admin";
+  const isNonAdminEdit = Boolean(isEdit && !isAdmin);
   const [internalErrorFields, setInternalErrorFields] = useState<string[]>(
     errorFields || [],
   );
@@ -314,6 +320,7 @@ export function AddressForm({
   // Google Places Search State and Refs
   const autocompleteInputRef = useRef<HTMLInputElement | null>(null);
   const dropdownContainerRef = useRef<HTMLDivElement | null>(null);
+  const skipNextPlacesSearchRef = useRef<string | null>(null);
   const [searchValue, setSearchValue] = useState<string>(() => {
     return isEdit || alreadySaved
       ? formatFullAddress(data, states, cities)
@@ -333,6 +340,8 @@ export function AddressForm({
   >([]);
   const [isExistingPropertyModalOpen, setIsExistingPropertyModalOpen] =
     useState(false);
+  const canManuallyEditAddress = isHighTear && !isEdit;
+  console.log(canManuallyEditAddress);
   const [selectedPlaceDetails, setSelectedPlaceDetails] = useState<{
     address: string;
     address2?: string | null;
@@ -340,7 +349,8 @@ export function AddressForm({
     state?: string;
     zip?: string;
   } | null>(null);
-  const isAddressLocked = Boolean(data.address);
+  const isAddressLocked = Boolean(data.address) && !canManuallyEditAddress;
+  const isCitySelectDisabled = !isAdmin && !isHighTear && !isEdit;
 
   // Predictions and Loading states
   const [predictions, setPredictions] = useState<GooglePlacePrediction[]>([]);
@@ -417,18 +427,14 @@ export function AddressForm({
           name: c.city_name || c.name,
         }));
 
-        if (active && cityItems.length > 0) {
+        if (active) {
           setSuggestedCities(cityItems);
-          setFetchedCities((prev) => {
-            const newOnes = cityItems
-              .filter((ci) => !prev.some((p) => p.id === ci.id))
-              .map((ci) => ({
-                id: ci.id,
-                name: ci.name,
-                state_id: stateVal || undefined,
-              }));
-            return [...prev, ...newOnes];
-          });
+          const newFetched = cityItems.map((ci) => ({
+            id: ci.id,
+            name: ci.name,
+            state_id: stateVal || undefined,
+          }));
+          setFetchedCities(newFetched);
         }
       } catch (err) {
         console.error("Failed to load cities for edit form zipcode:", err);
@@ -444,13 +450,26 @@ export function AddressForm({
 
   // Debounced search for places predictions
   useEffect(() => {
-    if (isAddressLocked) {
+    const trimmed = searchValue.trim();
+
+    // If the search value was set by selecting a Google Place, do not trigger search
+    if (
+      skipNextPlacesSearchRef.current &&
+      (skipNextPlacesSearchRef.current === "SKIP" ||
+        trimmed.toLowerCase() ===
+          skipNextPlacesSearchRef.current.toLowerCase() ||
+        trimmed
+          .toLowerCase()
+          .includes(skipNextPlacesSearchRef.current.toLowerCase()) ||
+        skipNextPlacesSearchRef.current
+          .toLowerCase()
+          .includes(trimmed.toLowerCase()))
+    ) {
       setPredictions([]);
       setIsDropdownOpen(false);
       return;
     }
 
-    const trimmed = searchValue.trim();
     if (!trimmed || trimmed.length < 3) {
       setPredictions([]);
       setIsDropdownOpen(false);
@@ -467,6 +486,8 @@ export function AddressForm({
       currentFull &&
       trimmed.toLowerCase() === currentFull.toLowerCase()
     ) {
+      setPredictions([]);
+      setIsDropdownOpen(false);
       return;
     }
 
@@ -530,6 +551,7 @@ export function AddressForm({
   }, []);
 
   const handleClearSearch = () => {
+    skipNextPlacesSearchRef.current = null;
     setSearchValue("");
     setPredictions([]);
     setIsDropdownOpen(false);
@@ -575,12 +597,14 @@ export function AddressForm({
       states.find((s) => String(s.id) === String(resolvedStateId))?.name ||
       null;
 
+    const isCustom = !cityId && Boolean(cityName);
+
     onChange({
       ...currentData,
-      city_id: cityId,
+      city_id: cityId || "",
       city: cityName,
       city_name: cityName,
-      other_city: "",
+      other_city: isCustom ? cityName : "",
     });
 
     setSelectedPlaceDetails((prev) =>
@@ -656,9 +680,39 @@ export function AddressForm({
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    skipNextPlacesSearchRef.current = null;
     const val = e.target.value;
+    const currentData = dataRef.current;
+
     setSearchValue(val);
     setAutocompleteError(null);
+
+    // if (currentData.address) {
+    //   onChange({
+    //     ...currentData,
+    //     address: "",
+    //     address2: "",
+    //     state: "",
+    //     state_id: "",
+    //     state_name: "",
+    //     city_id: "",
+    //     city: "",
+    //     city_name: "",
+    //     other_city: "",
+    //     zip: "",
+    //     latitude: null,
+    //     longitude: null,
+    //   });
+
+    //   setSelectedPlaceDetails(null);
+    //   setSuggestedCities([]);
+    //   setPlaceFlags(null);
+    //   setExistingProperties([]);
+    //   setAutocompleteError(null);
+    //   setAddress2Message(null);
+    //   setIsAddress2Supported(null);
+    // }
+
     if (!val.trim()) {
       handleClearSearch();
     }
@@ -666,6 +720,8 @@ export function AddressForm({
 
   const handleSelectPrediction = async (prediction: GooglePlacePrediction) => {
     try {
+      skipNextPlacesSearchRef.current =
+        prediction.description || prediction.main_text || "SKIP";
       setPredictions([]);
       setIsDropdownOpen(false);
       setIsLoadingPlaceDetails(true);
@@ -893,6 +949,7 @@ export function AddressForm({
         [streetAddress, finalAddress2, resolvedCityName, stateAbbr, postalCode]
           .filter(Boolean)
           .join(", ");
+      skipNextPlacesSearchRef.current = fullFormatted;
       setSearchValue(fullFormatted);
 
       clearFieldError("address");
@@ -955,7 +1012,7 @@ export function AddressForm({
   });
 
   useEffect(() => {
-    const currentRole = user.role?.toLowerCase();
+    const currentRole = user?.role?.toLowerCase() || userRole?.toLowerCase();
     const isContractorOrManufacturer =
       currentRole === "contractor" || currentRole === "manufacturer";
 
@@ -1017,7 +1074,7 @@ export function AddressForm({
     return () => {
       active = false;
     };
-  }, [user.role, alreadySaved]);
+  }, [user?.role, userRole, alreadySaved]);
 
   useEffect(() => {
     let active = true;
@@ -1068,11 +1125,34 @@ export function AddressForm({
   }, [citySearch, data.state]);
 
   const cityOptions = useMemo(() => {
+    if (isEdit) {
+      return fetchedCities;
+    }
     if (!citySearch && fetchedCities.length === 0) {
       return cities.filter((c) => !data.state || c.state_id === data.state);
     }
     return fetchedCities;
-  }, [cities, fetchedCities, citySearch, data.state]);
+  }, [isEdit, cities, fetchedCities, citySearch, data.state]);
+
+  // Determine whether an alternative valid city is available
+  const hasAlternativeCity = useMemo(() => {
+    const candidates =
+      suggestedCities.length > 0
+        ? suggestedCities
+        : fetchedCities.length > 0
+          ? fetchedCities
+          : cityOptions;
+
+    if (!candidates || candidates.length === 0) return false;
+
+    const uniqueCityNames = new Set(
+      candidates
+        .map((c: any) => (c.name || c.city_name || "").trim().toLowerCase())
+        .filter(Boolean),
+    );
+
+    return uniqueCityNames.size > 1;
+  }, [suggestedCities, fetchedCities, cityOptions]);
 
   const selectedCity = useMemo(() => {
     if (!data.city_id) return null;
@@ -1284,24 +1364,36 @@ export function AddressForm({
               <MapPin className="size-4 text-[#1CA7A6]" />
               Search Full Property Address From Google
             </span>
-            {isAddressLocked && (
+            {isNonAdminEdit ? (
+              <span className="text-[11px] md:text-[12px] font-medium text-[#708090] bg-slate-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                Address Locked (Edit Mode)
+              </span>
+            ) : isAddressLocked ? (
               <span className="text-[11px] md:text-[12px] font-medium text-[#1CA7A6] bg-[#1CA7A6]/10 px-2 py-0.5 rounded-full flex items-center gap-1">
                 ✓ Google Address Selected (Read-Only)
               </span>
-            )}
+            ) : null}
           </label>
           <div className="relative flex items-center">
             <Input
               id="google-address-search"
               ref={autocompleteInputRef}
-              value={searchValue}
-              onChange={handleSearchChange}
+              value={isNonAdminEdit ? data.address || searchValue : searchValue}
+              onChange={(e) => {
+                if (isNonAdminEdit) return;
+                handleSearchChange(e);
+              }}
+              disabled={isNonAdminEdit}
+              readOnly={isNonAdminEdit}
+              tabIndex={isNonAdminEdit ? -1 : undefined}
               onFocus={() => {
+                if (isNonAdminEdit) return;
                 if (predictions.length > 0) {
                   setIsDropdownOpen(true);
                 }
               }}
               onKeyDown={(e) => {
+                if (isNonAdminEdit) return;
                 if (e.key === "ArrowDown") {
                   e.preventDefault();
                   if (!isDropdownOpen && predictions.length > 0) {
@@ -1331,17 +1423,32 @@ export function AddressForm({
                   setIsDropdownOpen(false);
                 }
               }}
-              placeholder="Search property address with Google Places..."
+              placeholder={
+                isNonAdminEdit
+                  ? "Address locked (Only city can be edited)"
+                  : "Search property address with Google Places..."
+              }
+              title={
+                isNonAdminEdit
+                  ? "Address locked (Only city can be edited)"
+                  : undefined
+              }
               autoComplete="off"
               className={cn(
                 "h-[46px] md:h-[65px] px-[20px] md:px-[29px] pr-[44px] md:pr-[56px] bg-white rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap transition-colors border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)] focus-visible:border-[#1CA7A6] focus-visible:ring-[#1CA7A6]/20",
                 autocompleteError &&
                   "!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900",
+                isNonAdminEdit &&
+                  "!bg-slate-50/80 !text-slate-700 !border-slate-200 !cursor-not-allowed select-none opacity-90",
               )}
             />
             {isLoadingPlaceDetails || isSearchingPlaces ? (
               <div className="absolute right-[14px] md:right-[20px] p-1.5 flex items-center justify-center pointer-events-none">
                 <Loader2 className="size-4 md:size-5 text-[#1CA7A6] animate-spin" />
+              </div>
+            ) : isNonAdminEdit ? (
+              <div className="absolute right-[18px] md:right-[24px] pointer-events-none">
+                <Search className="size-5 md:size-6 text-slate-400 opacity-60" />
               </div>
             ) : searchValue ? (
               <button
@@ -1358,7 +1465,7 @@ export function AddressForm({
           </div>
 
           {/* Autocomplete Predictions Dropdown */}
-          {isDropdownOpen && predictions.length > 0 && !isAddressLocked && (
+          {!isNonAdminEdit && isDropdownOpen && predictions.length > 0 && (
             <div
               ref={dropdownContainerRef}
               className="absolute z-50 left-0 right-0 top-[calc(100%+6px)] bg-white rounded-[8px] md:rounded-[10px] border border-[rgba(28,167,166,0.3)] shadow-xl max-h-[300px] md:max-h-[380px] overflow-y-auto divide-y divide-slate-100"
@@ -1505,20 +1612,24 @@ export function AddressForm({
         <div className="space-y-1">
           <Input
             placeholder={
-              isAddressLocked && !isHighTear
+              isAddressLocked || isNonAdminEdit
                 ? "Address 1"
                 : "Address 1 (Search and select address above)"
             }
             required
-            readOnly={isAddressLocked && !isHighTear}
-            tabIndex={isAddressLocked && !isHighTear ? -1 : undefined}
+            readOnly={isAddressLocked || isNonAdminEdit}
+            tabIndex={isAddressLocked || isNonAdminEdit ? -1 : undefined}
             title={
-              isAddressLocked && !isHighTear
-                ? "Address is populated from Google Places search. Use search above to change."
-                : undefined
+              isNonAdminEdit
+                ? "Address locked (Only city can be edited)"
+                : isAddressLocked
+                  ? "Address is populated from Google Places search. Use search above to change."
+                  : undefined
             }
             onClick={() => {
-              if (!isHighTear && !data.address) {
+              if (isNonAdminEdit || canManuallyEditAddress) return;
+
+              if (!data.address) {
                 autocompleteInputRef.current?.focus();
               }
             }}
@@ -1527,14 +1638,13 @@ export function AddressForm({
               hasFieldError("address")
                 ? "!border-red-500 md:!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900 border"
                 : "border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)]",
-              isAddressLocked &&
-                !isHighTear &&
+              (isAddressLocked || isNonAdminEdit) &&
                 "!bg-slate-50/80 !text-slate-700 !border-slate-200 !cursor-not-allowed select-none",
             )}
             value={data.address}
             aria-invalid={hasFieldError("address") ? "true" : undefined}
             onChange={(e) => {
-              if (isAddressLocked && !isHighTear) return;
+              if (isAddressLocked || isNonAdminEdit) return;
               clearFieldError("address");
               onChange({ ...data, address: e.target.value });
             }}
@@ -1550,35 +1660,37 @@ export function AddressForm({
         <div className="space-y-1">
           <Input
             placeholder={
-              isAddress2Supported === false && !isHighTear
-                ? "Address 2 not required for this property"
-                : "Address 2 (e.g., Apt, Suite, Unit - optional)"
+              isNonAdminEdit
+                ? "Address 2 locked"
+                : isAddress2Supported === false
+                  ? "Address 2 not required for this property"
+                  : "Address 2 (e.g., Apt, Suite, Unit - optional)"
             }
-            disabled={isAddress2Supported === false && !isHighTear}
+            disabled={isNonAdminEdit || isAddress2Supported === false}
             title={
-              isAddress2Supported === false && !isHighTear
-                ? "Address 2 is not supported for this property address."
-                : undefined
+              isNonAdminEdit
+                ? "Address locked (Only city can be edited)"
+                : isAddress2Supported === false
+                  ? "Address 2 is not supported for this property address."
+                  : undefined
             }
             className={cn(
               "h-[46px] md:h-[65px] px-[20px] md:px-[29px] bg-white rounded-[6px] md:rounded-[10px] text-[14px] md:text-[20px] font-medium text-[#1F2A44] placeholder:text-[#708090]/50 font-asap transition-colors",
               hasFieldError("address2") && isAddress2Supported !== false
                 ? "!border-red-500 md:!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900 border"
                 : "border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)]",
-              isAddress2Supported === false && !isHighTear && "hidden",
+              isAddress2Supported === false && "hidden",
+              isNonAdminEdit &&
+                "!bg-slate-50/80 !text-slate-700 !border-slate-200 !cursor-not-allowed select-none",
             )}
-            value={
-              isAddress2Supported === false && !isHighTear
-                ? ""
-                : data.address2 || ""
-            }
+            value={isAddress2Supported === false ? "" : data.address2 || ""}
             aria-invalid={
               hasFieldError("address2") && isAddress2Supported !== false
                 ? "true"
                 : undefined
             }
             onChange={(e) => {
-              if (isAddress2Supported === false && !isHighTear) return;
+              if (isNonAdminEdit || isAddress2Supported === false) return;
               clearFieldError("address2");
               setAddress2Message(null);
               onChange({ ...data, address2: e.target.value });
@@ -1589,7 +1701,7 @@ export function AddressForm({
               {address2Message || "Please provide a valid address line 2"}
             </p>
           )}
-          {isAddress2Supported === false && !isHighTear && (
+          {isAddress2Supported === false && (
             <p className="text-[12px] md:text-[13px] text-slate-400 font-normal font-asap mt-1 ml-1">
               Address 2 is not required for this property address.
             </p>
@@ -1605,16 +1717,15 @@ export function AddressForm({
               displayValueFallback={data.state_name}
               placeholder="State"
               searchPlaceholder="Search state..."
-              disabled={isAddressLocked && !isHighTear}
+              disabled={isAddressLocked || isNonAdminEdit}
               triggerClassName={cn(
                 triggerClass,
-                isAddressLocked &&
-                  !isHighTear &&
+                (isAddressLocked || isNonAdminEdit) &&
                   "!bg-slate-50/80 !text-slate-700 !border-slate-200 !cursor-not-allowed opacity-90",
               )}
               isError={hasFieldError("state")}
               onValueChange={(val) => {
-                if (isAddressLocked && !isHighTear) return;
+                if (isAddressLocked || isNonAdminEdit) return;
                 clearFieldError("state");
                 setCitySearch("");
                 setSuggestedCities([]);
@@ -1646,17 +1757,16 @@ export function AddressForm({
                   : data.city_id || ""
               }
               displayValueFallback={data.city}
-              disabled={isAddressLocked && !isHighTear && !isEdit}
+              disabled={isCitySelectDisabled}
               triggerClassName={cn(
                 triggerClass,
-                isAddressLocked &&
-                  !isHighTear &&
-                  !isEdit &&
+                isCitySelectDisabled &&
                   "!bg-slate-50/80 !text-slate-700 !border-slate-200 !cursor-not-allowed opacity-90",
               )}
               isError={hasFieldError("city")}
               onValueChange={(val) => {
-                if (isAddressLocked && !isHighTear && !isEdit) return;
+                if (isCitySelectDisabled) return;
+
                 if (val.startsWith("__custom__:")) {
                   const customName = val.slice("__custom__:".length);
                   handleCitySelection("", customName);
@@ -1664,6 +1774,7 @@ export function AddressForm({
                   const selectedCity =
                     cities.find((c) => c.id === val) ||
                     fetchedCities.find((c) => c.id === val);
+
                   handleCitySelection(val, selectedCity?.name || "");
                 }
               }}
@@ -1676,7 +1787,9 @@ export function AddressForm({
               emptyMessage={
                 !data.state && !data.state_id
                   ? "Please select a state first"
-                  : "No cities found"
+                  : isEdit || Boolean(data.zip)
+                    ? "Either the ZIP code is invalid or the ZIP code has only 1 city."
+                    : "No cities found"
               }
               loading={loadingCities}
               allowCustom
@@ -1694,22 +1807,21 @@ export function AddressForm({
         {/* Zip Code */}
         <div className="space-y-1">
           <Input
-            placeholder={
-              isAddressLocked && !isHighTear
-                ? "Zip Code"
-                : "Zip Code (Auto-populated)"
-            }
+            placeholder="Zip Code"
             required
             inputMode="numeric"
-            readOnly={isAddressLocked && !isHighTear}
-            tabIndex={isAddressLocked && !isHighTear ? -1 : undefined}
+            readOnly={isAddressLocked || isNonAdminEdit}
+            tabIndex={isAddressLocked || isNonAdminEdit ? -1 : undefined}
             title={
-              isAddressLocked && !isHighTear
-                ? "Zip Code is populated from Google Places search. Use search above to change."
-                : undefined
+              isNonAdminEdit
+                ? "Address locked (Only city can be edited)"
+                : isAddressLocked
+                  ? "Zip Code is populated from Google Places search. Use search above to change."
+                  : undefined
             }
             onClick={() => {
-              if (!isHighTear && !data.address) {
+              if (isNonAdminEdit || canManuallyEditAddress) return;
+              if (!data.address) {
                 autocompleteInputRef.current?.focus();
               }
             }}
@@ -1718,14 +1830,13 @@ export function AddressForm({
               hasFieldError("zip")
                 ? "!border-red-500 md:!border-red-500 focus-visible:!border-red-500 focus-visible:!ring-red-500/20 bg-red-50/10 text-red-900 border"
                 : "border border-[rgba(112,128,144,0.2333)] md:border-[rgba(28,167,166,0.25)]",
-              isAddressLocked &&
-                !isHighTear &&
+              (isAddressLocked || isNonAdminEdit) &&
                 "!bg-slate-50/80 !text-slate-700 !border-slate-200 !cursor-not-allowed select-none",
             )}
             value={data.zip}
             aria-invalid={hasFieldError("zip") ? "true" : undefined}
             onChange={(e) => {
-              if (isAddressLocked && !isHighTear) return;
+              if (isAddressLocked || isNonAdminEdit) return;
               clearFieldError("zip");
               const val = e.target.value;
               onChange({ ...data, zip: val });
@@ -1888,6 +1999,8 @@ export function AddressForm({
         existingProperties={existingProperties}
         selectedProperty={selectedPlaceDetails}
         isEdit={isEdit}
+        isAdmin={isAdmin}
+        hasAlternativeCity={hasAlternativeCity}
         onCancel={() => {
           setIsExistingPropertyModalOpen(false);
         }}

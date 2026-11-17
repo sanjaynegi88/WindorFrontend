@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -14,11 +14,13 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, Building2, MapPin, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ExistingProperty, GooglePlaceFlags } from "@/lib/actions";
+import { toast } from "sonner";
 
 interface ExistingPropertyDialogProps {
   open: boolean;
   flags?: GooglePlaceFlags | null;
   existingProperties: ExistingProperty[];
+  currentPropertyId?: string;
   selectedProperty?: {
     address: string;
     address2?: string | null;
@@ -27,6 +29,8 @@ interface ExistingPropertyDialogProps {
     zip?: string;
   } | null;
   isEdit?: boolean;
+  isAdmin?: boolean;
+  hasAlternativeCity?: boolean;
   onCancel: () => void;
   onKeep?: () => void;
 }
@@ -37,11 +41,17 @@ export function ExistingPropertyDialog({
   existingProperties,
   selectedProperty,
   isEdit,
+  isAdmin = false,
+  hasAlternativeCity = false,
+  currentPropertyId: propCurrentPropertyId,
   onCancel,
   onKeep,
 }: ExistingPropertyDialogProps) {
   const router = useRouter();
+  const params = useParams();
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>("");
+  const currentPropertyId =
+    propCurrentPropertyId || (params?.id as string | undefined);
 
   useEffect(() => {
     if (existingProperties && existingProperties.length > 0) {
@@ -54,8 +64,14 @@ export function ExistingPropertyDialog({
     }
   }, [existingProperties, open]);
 
+  const canEdit = isAdmin || hasAlternativeCity;
+
   const handleEdit = () => {
-    if (!selectedPropertyId) return;
+    if (!selectedPropertyId || !canEdit) return;
+    if (isEdit && currentPropertyId === selectedPropertyId) {
+      toast.error("You are already editing this property in the form.");
+      return;
+    }
     router.push(`/properties/edit/${selectedPropertyId}?mode=address`);
   };
 
@@ -229,7 +245,7 @@ export function ExistingPropertyDialog({
           <Button
             type="button"
             onClick={handleEdit}
-            disabled={!selectedPropertyId}
+            disabled={!selectedPropertyId || !canEdit}
             className="w-full sm:flex-1 h-11 sm:h-[46px] rounded-[10px] bg-[#1CA7A6] hover:bg-[#188F8E] text-white font-bold text-[13px] sm:text-[14px] md:text-[15px] font-asap shadow-md hover:shadow-lg transition-all cursor-pointer"
           >
             Edit Property

@@ -237,12 +237,8 @@ export default function MyProjectList() {
         toast.error(response?.message || "Failed to delete project");
       } else {
         toast.success("Project deleted successfully");
-        setProjects((prevProjects) =>
-          prevProjects.filter((p) => {
-            const pid = p.id ?? p.project_id ?? p._id;
-            return String(pid) !== String(projectToDelete.id);
-          }),
-        );
+        setPage(1);
+        await fetchProjects(1, false);
       }
     } catch (error) {
       console.error("Error deleting project:", error);
@@ -565,9 +561,8 @@ export default function MyProjectList() {
                               <span>Download</span>
                             </button>
                           )}
-                        {!isOwnerContractor &&
-                          actualProjectId &&
-                          projectStatus === "DRAFT" && (
+                        {actualProjectId &&
+                          (projectStatus === "DRAFT" || !isOwner) && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();

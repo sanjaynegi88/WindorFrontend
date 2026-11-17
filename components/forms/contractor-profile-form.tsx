@@ -93,6 +93,7 @@ export function ContractorProfileForm({
   const [services, setServices] = useState<
     { id: string; service_name: string }[]
   >([]);
+  console.log(role);
 
   const resolvedLevelInfo: LevelInfo | undefined =
     levelInfo ||
@@ -179,7 +180,11 @@ export function ContractorProfileForm({
         toast.success("Contractor profile created successfully!");
       }
 
-      onSuccess?.();
+      if (role === "admin") {
+        router.push("/contractors");
+      } else {
+        onSubmitSuccess?.();
+      }
     } catch (error: any) {
       toast.error(
         error.message ||
