@@ -637,25 +637,32 @@ function EditPropertyForm({ params }: { params: Promise<{ id: string }> }) {
           addressData.property_type_id || addressData.property_type || null;
       }
 
-      const result = await updateProperties(propertyId, {
-        address: addressData.address,
-        address2: addressData.address2,
-        property_type_id: finalPropertyTypeId,
-        property_type_category: isOtherType
-          ? "OTHER"
-          : addressData.property_type_category || null,
-        other_property_type: isOtherType
-          ? addressData.other_property_type || null
-          : null,
-        property_name: addressData.property_name,
-        city_id: addressData.city_id || null,
-        other_city: addressData.other_city || null,
-        state_id: addressData.state || addressData.state_id || null,
-        zip: addressData.zip,
-        property_owner_id: addressData.property_owner_id,
-        latitude: addressData.latitude,
-        longitude: addressData.longitude,
-      });
+      const payload = isAdmin
+        ? {
+            address: addressData.address,
+            address2: addressData.address2,
+            property_type_id: finalPropertyTypeId,
+            property_type_category: isOtherType
+              ? "OTHER"
+              : addressData.property_type_category || null,
+            other_property_type: isOtherType
+              ? addressData.other_property_type || null
+              : null,
+            property_name: addressData.property_name,
+            city_id: addressData.city_id || null,
+            other_city: addressData.other_city || null,
+            state_id: addressData.state || addressData.state_id || null,
+            zip: addressData.zip,
+            property_owner_id: addressData.property_owner_id,
+            latitude: addressData.latitude,
+            longitude: addressData.longitude,
+          }
+        : {
+            city_id: addressData.city_id || null,
+            other_city: addressData.other_city || null,
+          };
+
+      const result = await updateProperties(propertyId, payload);
       if (!result.success) {
         if (result.errorFields && Array.isArray(result.errorFields)) {
           setAddressErrorFields(result.errorFields);
